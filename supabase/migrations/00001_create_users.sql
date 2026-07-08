@@ -13,3 +13,4 @@ CREATE TABLE "USERS" (
 CREATE UNIQUE INDEX idx_users_email ON "USERS" (email);
 CREATE UNIQUE INDEX idx_users_clerk_id ON "USERS" (clerk_id);
 CREATE INDEX idx_users_role ON "USERS" (role);
+  
