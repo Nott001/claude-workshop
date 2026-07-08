@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### feat: add auth foundation — Clerk, Supabase, shadcn/ui, role guards
+
+- **middleware.ts** — clerkMiddleware enforcing authentication on all protected routes; role checks deferred to API route guards
+- **lib/db/index.ts** — Supabase typed client with anonymous and service-role clients
+- **lib/auth/role-guard.ts** — `requireRole(...)` helper for API routes and server components
+- **types/index.ts** — shared `User` and `UserRole` TypeScript interfaces
+- **app/api/auth/route.ts** — Clerk webhook endpoint syncing user.created/updated/deleted to `USERS` table
+- **app/layout.tsx** — wrap root with `<ClerkProvider>`
+- **app/sign-in/** and **app/sign-up/** — Clerk-hosted auth pages
+- **app/dashboard/** — facilitator-only page with role guard returning 403 for non-facilitators
+- **supabase/migrations/00001_create_users.sql** — USERS table migration with role enum, indexes, and audit fields
+- **components/ui/** — shadcn/ui primitives: button, input, card, label, select, dialog, form
+- **test/foundation.test.ts** — unit tests for role guard and User type shape
+- **package.json** — add @clerk/nextjs, @supabase/supabase-js, svix, react-hook-form, @hookform/resolvers, zod
+
 ### chore: resolve spec gaps before implementation handoff
 
 - **AGENTS.md** — add vitest testing instructions
