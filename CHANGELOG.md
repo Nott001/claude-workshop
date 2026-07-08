@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### chore: resolve spec gaps before implementation handoff
+
+- **AGENTS.md** — add vitest testing instructions
+- **context/architecture.md** — document Supabase Realtime per-table setup requirement
+- **context/spec/01-foundation-spec.md** — middleware now auth-only (role checks deferred to API route guards); add Realtime config to foundation scope
+- **context/spec/05-live-session-spec.md** — add Realtime prerequisite on `LIVE_SESSION_STATE`
+- **context/spec/06-chat-spec.md** — add Realtime prerequisite on `CHAT_MESSAGES`
+- **context/spec/07-kiosk-spec.md** — add Realtime prerequisite on `TICKETS`
+- **package.json** — add vitest dependency and `test` script
+- **vitest.config.ts** — new file, vitest config with React plugin and `@/` alias
+
 ### docs: add planning documents (Phases 1-4)
 
 - `a133d23` **scope.md** — MVP scope, user roles, feature boundaries, and out-of-scope items
@@ -20,3 +31,17 @@
 ### docs: add descriptions to reference files in Phase 5 build planning
 
 - `e85ca32` **phase-5.md**: add one-line descriptions to each referenced planning document so agents can quickly identify which file to consult for scope, workflows, architecture, schema, or screens
+
+### feat: create 9 build spec sheets for Phase 5 implementation planning
+
+- **01-foundation-spec.md** — Auth + user/role model with Clerk, Supabase client, shadcn/ui, and role-based middleware
+- **02-course-content-spec.md** — Course/Module/Lesson CRUD + progress tracking for attendees
+- **03-event-management-spec.md** — Event CRUD + speaker profiles + speaker assignment
+- **04-commerce-spec.md** — HitPay checkout → payment webhook → ticket/QR issuance
+- **05-live-session-spec.md** — Live session state model + real-time broadcast via Supabase Realtime
+- **06-chat-spec.md** — Q&A + support chat channels with real-time sync
+- **07-kiosk-spec.md** — Kiosk check-in flow with QR scan/verify
+- **08-surveys-spec.md** — Survey CRUD + response submission
+- **09-notifications-spec.md** — Email logs + Brevo transactional send
+
+Each spec follows the mandatory Context/Objective/Scope/Constraints/Deliverable/Acceptance Criteria format. Build order respects Phase 2 dependency order with no violations; every milestone is independently demoable.
