@@ -2,7 +2,14 @@
 
 ## Objective
 Break the finalized design (Phases 0-4) into ordered, spec sheets for implementation into a file `N-<feature>-spec.md`, where N is the current spec increment and task is defined by you.
-Write these files into `context/spec/`
+Write these files into `context/spec/`.
+
+Use these files below as references:
+- `scope.md` — MVP scope, user roles, feature boundaries, and what is explicitly out of scope.
+- `functional-planning.md` — user stories for every role-to-system interaction, organized by workflow.
+- `architecture.md` — module ownership, module-to-entity mapping, technology choices, and key dependencies.
+- `data-model.md` — finalized schema definitions for every entity, field types, constraints, and relationships.
+- `ux-screens.md` — screen inventory by module, route design, role-based access, and UI mockups.
 
 ## Required Outputs
 - **Implementation phases** (build spec sheets, distinct from planning Phases 0-8): group by Phase 2 dependency order, e.g.:
