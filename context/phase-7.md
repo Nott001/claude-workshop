@@ -1,7 +1,10 @@
 # Phase 7 — QA & Validation
 
+## Output File
+`context/qa-validation.md`
+
 ## Objective
-Define test coverage, edge cases, and acceptance criteria per implemented feature.
+Define test coverage, unit and integration tests, edge cases, and acceptance criteria per implemented feature. Write to `context/qa-validation.md`.
 
 ## Required Outputs per Feature
 - **Functional tests**: happy-path per role-relevant action (from Phase 1 permission matrix).
