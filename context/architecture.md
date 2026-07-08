@@ -22,7 +22,7 @@
 | Styling | Tailwind CSS v4 + shadcn/ui | Already on Tailwind v4; shadcn adds Radix-based component primitives |
 | Auth | Clerk | Specified in OVERVIEW.md; webhook sync for USERS table |
 | Database | Supabase (PostgreSQL) | Managed Postgres with typed client SDK |
-| Real-time | Supabase Realtime (Postgres LISTEN/NOTIFY via Realtime) | Zero additional infra — when LIVE_SESSION_STATE updates, the change event broadcasts to subscribed clients. **vs Socket.io:** Supabase Realtime avoids a separate WebSocket server or custom Node server, reducing deployment complexity and keeping data authority in Postgres. |
+| Real-time | Supabase Realtime (Postgres LISTEN/NOTIFY via Realtime) | Zero additional infra — when LIVE_SESSION_STATE updates, the change event broadcasts to subscribed clients. **vs Socket.io:** Supabase Realtime avoids a separate WebSocket server or custom Node server, reducing deployment complexity and keeping data authority in Postgres. **Setup:** Realtime must be enabled per-table via Supabase Dashboard → Database → Replication. Required tables: `LIVE_SESSION_STATE`, `CHAT_MESSAGES`, `TICKETS`. |
 | Payments | HitPay | Specified in scope; webhook-based async flow |
 | Email | Brevo | Transactional email API; generous free tier |
 | Monitoring | Sentry (errors) + Statuscake (uptime) | As specified |
