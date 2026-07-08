@@ -9,7 +9,6 @@ A role-based live events platform for hosting interactive sessions with assigned
 First, run the development server:
 
 ```bashv
-# or
 pnpm dev
 ```
 
