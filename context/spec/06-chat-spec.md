@@ -18,6 +18,7 @@ Build the chat subsystem: CHAT_MESSAGES table migration; message CRUD API; real-
 - `lib/realtime/` extension:
   - Subscribe to `CHAT_MESSAGES` INSERT events filtered by `event_id` and `channel`
   - New messages appear without polling
+  - **Prerequisite:** Supabase Realtime must be enabled on the `CHAT_MESSAGES` table for INSERT subscriptions to fire
 - Screens:
   - Live Q&A Panel: embedded in `/events/[id]/live` (replaces placeholder from Phase 5)
     - Chat message list with scroll-to-bottom on new messages

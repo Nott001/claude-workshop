@@ -18,6 +18,7 @@ Build the live session room: LIVE_SESSION_STATE table migration; state managemen
 - `lib/realtime/` — Supabase Realtime channel setup utility:
   - Subscribe to `LIVE_SESSION_STATE` changes filtered by `event_id`
   - Pass typed payloads to React state
+  - **Prerequisite:** Supabase Realtime must be enabled on the `LIVE_SESSION_STATE` table before subscriptions receive change events
 - Screens:
   - `/events/[id]/live` — live room page
     - Attendee view: current lesson content viewer (reuses lesson viewer from Phase 2), Q&A panel placeholder (wired in Phase 6), support chat placeholder (wired in Phase 6)

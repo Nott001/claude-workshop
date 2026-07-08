@@ -12,7 +12,9 @@
 
 ## Testing
 
+- Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
 - Add or update tests for the code you change, even if nobody asked.
+- Update `vitest.config.ts` if other depencies necessitate it.
 
 ## Commits and PRs
 

@@ -28,7 +28,7 @@ Build the kiosk check-in flow: kiosk screen with QR input; check-in API that val
     - Auto-clear result after 3 seconds for rapid scanning
   - `/kiosk/[eventId]/attendees` — checked-in attendee list
     - Table: name, email, checked_in_at
-    - Real-time updates via Supabase Realtime subscription on TICKETS updates for this event
+    - Real-time updates via Supabase Realtime subscription on TICKETS updates for this event; requires Realtime enabled on the `TICKETS` table
 - `modules/kiosk/` domain logic:
   - QR token lookup with single-row fetch (unique index on `qr_token`)
   - Status transition guard: only `issued → checked_in` allowed

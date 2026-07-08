@@ -11,7 +11,7 @@ Stand up the authentication foundation: Clerk integration, Supabase client, role
 ## Scope
 
 - Clerk SDK installed and configured (`@clerk/nextjs`)
-- `middleware.ts` protecting routes by role using the Clerk session token + `USERS.role`
+- `middleware.ts` enforcing authentication only (redirect unauthenticated users to sign-in); role checks are handled by `lib/auth/` API route guards
 - Supabase typed client (`lib/db/`) initialized
 - `USERS` table migration (with all fields from data model)
 - Clerk webhook endpoint (`/api/auth`) that syncs `clerkId`, `email`, `full_name` to `USERS` on create/update/delete
@@ -22,6 +22,7 @@ Stand up the authentication foundation: Clerk integration, Supabase client, role
 - `/sign-in` and `/sign-up` routes (Clerk-hosted)
 - `/dashboard` placeholder page with facilitator-only guard
 - `types/` directory with shared TS interfaces mirroring the USERS schema
+- Supabase Realtime enabled on `LIVE_SESSION_STATE`, `CHAT_MESSAGES`, and `TICKETS` tables (Supabase Dashboard → Database → Replication)
 
 ## Constraints
 
