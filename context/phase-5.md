@@ -1,14 +1,14 @@
 # Phase 5 — Build Planning
 
 ## Objective
-Break the finalized design (Phases 0-4) into ordered, implementation specs into a file `N-<feature>-spec.md`, where N is the current spec increment and task is defined by you.
+Break the finalized design (Phases 0-4) into ordered, spec sheets for implementation into a file `N-<feature>-spec.md`, where N is the current spec increment and task is defined by you.
 Write these files into `context/spec/`
 
 ## Required Outputs
-- **Implementation phases** (build milestones, distinct from planning Phases 0-8): group by Phase 2 dependency order, e.g.:
+- **Implementation phases** (build spec sheets, distinct from planning Phases 0-8): group by Phase 2 dependency order, e.g.:
   1. Auth + user/role model
   2. Course content CRUD + progress tracking
-  3. Event CRUD + speaker assignment
+  3. Event CRUD + speaker assignment + Course
   4. Commerce: HitPay checkout → payment webhook → ticket/QR issuance
   5. Live session room: state model + real-time broadcast
   6. Chat: support + live_qa channels
