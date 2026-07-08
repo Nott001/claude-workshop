@@ -1,7 +1,10 @@
 # Phase 8 — Deployment & Handover
 
+## Output File
+`context/deployment.md`
+
 ## Objective
-Prepare the application for deployment and operational handover.
+Prepare the application for deployment and operational handover. Write to `context/deployment.md`.
 
 ## Required Outputs
 - **Deployment checklist**:

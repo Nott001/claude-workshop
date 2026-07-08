@@ -1,7 +1,10 @@
 # Phase 3 — Data Model Planning
 
+## Output File
+`context/data-model.md`
+
 ## Objective
-Finalize the schema from OVERVIEW.md §2 into an implementation-ready DB design. Edit the corresponding markdown file.
+Finalize the schema from OVERVIEW.md into an implementation-ready DB design. Write to `context/data-model.md`. Do not edit OVERVIEW.md — it is the system summary; the detailed design lives in the output file.
 
 ## Required Outputs
 - **Entity/field finalization**: confirm types, nullability, defaults for every table listed in OVERVIEW.md §2.

@@ -1,13 +1,16 @@
 # Phase 4 — UX & Screen Planning
 
+## Output File
+`context/ux-screens.md`
+
 ## Objective
-Define screens, per-role actions, navigation, and form requirements. Write it to a corresponding markdown file.
+Define screens, per-role actions, navigation, and form requirements. Write to `context/ux-screens.md`.
 
 ## Required Outputs
 - **Screen list by module** (reference Phase 2 module list):
   - Auth: sign-in/sign-up (Clerk-hosted or embedded)
   - Course Content: course/module/lesson browser, lesson viewer with progress tracker
-  - Events: event listing, event detail (venue, speakers, schedule)
+  - Events: event listing, event detail (venue, speakers, schedule), and course
   - Live Session Room: attendee view (current lesson + live_qa channel), organizer/speaker control view (advance lesson, moderate Q&A)
   - Commerce: checkout (HitPay handoff), ticket/QR display (wallet-style)
   - Kiosk: attendee lookup/scan, check-in confirmation (organizer/admin-operated device)

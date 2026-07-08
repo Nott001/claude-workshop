@@ -1,7 +1,10 @@
 # Phase 1 — Functional Planning
 
+## Output File
+`context/functional-planning.md`
+
 ## Objective
-Translate Phase 0 scope into user stories, permission matrix, statuses, and business rules. Write it in a corresponding markdown file.
+Translate Phase 0 scope into user stories, permission matrix, statuses, and business rules. Write to `context/functional-planning.md`.
 
 ## Required Outputs
 - **User stories**: format `As a <role>, I want <action>, so that <outcome>`. Group by workflow (from Phase 0 list).
