@@ -167,7 +167,7 @@
 | Must-have | Post-event survey creation (facilitator) | Feedback collection |
 | Must-have | Survey submission (attendee) | Feedback submission |
 | Must-have | Email logging | Audit trail |
-| Nice-to-have | Support chat channel (separate from Q&A) | Defer |
+| Must-have | Support chat channel (separate from Q&A) | Attendee-to-facilitator messaging for event issues |
 | Nice-to-have | Check-in attendee list view | Facilitator convenience |
 | Nice-to-have | Survey response browsing (facilitator) | Data visibility |
 | Nice-to-have | Chat message moderation (delete) | Content policy |

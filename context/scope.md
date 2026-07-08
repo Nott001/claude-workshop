@@ -17,7 +17,7 @@ A unified platform for running live, course-aligned events end-to-end — replac
 - Event creation & speaker assignment
 - Ticket purchase → payment (HitPay) → QR issuance
 - Kiosk check-in (on-site, facilitated)
-- Live session room (lesson broadcast + live Q&A)
+- Live session room (lesson broadcast + Q&A + support chat)
 - Course content consumption + progress tracking
 - Post-event survey
 
@@ -28,7 +28,7 @@ A single event can be run end-to-end without manual database edits:
 1. **Event Management** — Facilitator creates an event, links it to a course (modules → lessons), and assigns speakers.
 2. **Registration & Ticketing** — Attendee registers, purchases a ticket via HitPay, and receives a unique QR token.
 3. **Check-in Kiosk** — Facilitator scans or verifies QR at the venue to mark the ticket as checked in.
-4. **Live Session Room** — Speaker broadcasts the current lesson to all attendees in real time; attendees see the lesson content and can submit questions via Q&A chat.
+4. **Live Session Room** — Speaker broadcasts the current lesson to all attendees in real time; attendees see the lesson content and can submit questions via Q&A chat and support chat.
 5. **Content Progression** — Attendees mark lesson units as completed; progress is tracked per user per lesson.
 6. **Post-Event Survey** — Facilitator creates a survey with text, multiple-choice, and rating questions; attendees submit one response per survey.
 7. **Email Notifications** — Key lifecycle events (registration confirmation, ticket issued, check-in) are logged; email sending infrastructure is wired.
@@ -42,7 +42,7 @@ A single event can be run end-to-end without manual database edits:
 | Refund automation | Requires HitPay refund API integration + admin UI; low volume post-event |
 | Analytics dashboards | Read-only slice possible but not critical for event execution |
 | Multi-language / i18n | Adds translation pipeline for UI + content; scope creep |
-| Attendee-side chat (DM or peer chat) | Only support + live Q&A channels needed for event operation |
+| Attendee-to-attendee DM / peer chat | Multi-user chat adds complexity without event-critical benefit |
 | Per-user read receipts in chat | Requires join table; deferred to post-MVP |
 | Offline / PWA mode | Network assumed for live session; offline fallback is nice-to-have |
 | Speaker self-registration / portal | Speakers are assigned by facilitator; self-service adds auth flows |
