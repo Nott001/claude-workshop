@@ -11,7 +11,7 @@ Role-based platform for live events with:
 - Post-event surveys
 - Email notification logging
 
-**Roles:** `student | speaker | organizer | admin` (single enum on USERS, no multi-role join table — role changes require row update).
+**Roles:** `attendee | speaker | facilitator` (single enum on `USERS.role`, no multi-role join table — role changes require row update). Facilitator is the admin role.
 
 **Identity:** Clerk-integrated. `USERS.clerk_id` is the auth source of truth; `user_id` is internal PK used for all FKs.
 
@@ -21,8 +21,8 @@ Role-based platform for live events with:
 |---|---|---|
 | USERS | user_id PK, full_name, email UK, clerk_id UK, role ENUM, created_at | Auth via Clerk |
 | COURSE | course_id PK, course_name, course_description | 1 course → 0-1 event (UK on EVENTS.course_id) |
-| MODULES | module_id PK, course_id FK, module_name, sequence_order | |
-| LESSONS | lesson_id PK, module_id FK, description, content_type, content_url, total_units, sequence_order | |
+| MODULES | module_id PK, course_id FK, module_name, sequence_order | Each module is linked to a single course, and each module can hold several lessons related to that module (think of it as a topic) |
+| LESSONS | lesson_id PK, module_id FK, description, content_type ENUM(pdf, video, image, link), content_url, total_units, sequence_order | `content_type` values: `pdf` (handout/slides), `video` (embedded video), `image` (diagram/poster), `link` (external article or video URL) |
 | EVENTS | event_id PK, course_id FK/UK, title, event_date, start_time, end_time, venue_address, venue_name, lat, lng | |
 | LIVE_SESSION_STATE | event_id PK/FK, current_lesson_id FK, updated_by FK, updated_at | Singleton per event; drives real-time room sync |
 | LESSON_PROGRESS | lesson_id PK/FK, user_id PK/FK, units_completed, is_completed | Composite PK |
@@ -53,7 +53,7 @@ Role-based platform for live events with:
 **Constraints on every task:**
 - One feature per implementation task; no "build everything" / "fix all" style prompts.
 - Full code generation only on explicit request; default output is planning artifacts.
-- Do not modify parts of the system outside the requested feature.
+- Do not modify parts of the system outside the requested feature, unless necessitated as the module is impacted by feature change.
 - Minimize repeated context — reference prior decisions by name, don't restate them.
 
 **Task-request output format (mandatory for all build steps):**
@@ -65,8 +65,6 @@ Constraints: <must not change / out of scope / must preserve>
 Deliverable: <exact expected output>
 Acceptance Criteria: <pass/fail conditions>
 ```
-
-**Code-gen prompt rules (for Bolt/other AI coding tools):** narrow, single-feature, role-aware, constrained, token-efficient. Never emit vague directives ("improve the whole app", "make it enterprise grade").
 
 ## 4. Phase Index
 Each phase has its own spec sheet (`phase-0.md` … `phase-8.md`):

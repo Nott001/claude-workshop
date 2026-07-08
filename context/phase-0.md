@@ -1,11 +1,14 @@
 # Phase 0 — Business & Scope Definition
 
+## Output File
+`context/scope.md`
+
 ## Objective
-Lock system purpose, user roles, MVP boundary, and success criteria before any design work.
+Lock system purpose, user roles, MVP boundary, and success criteria before any design work. Write to `context/scope.md`.
 
 ## Required Outputs
 - **Purpose statement**: 1-2 sentences, what problem this platform solves vs. running events on generic tools (Zoom + spreadsheets + manual ticketing).
-- **User roles**: student, speaker, organizer, admin — one-line responsibility per role.
+- **User roles**: attendee, speaker, facilitator (also the admin) — one-line responsibility per role.
 - **Core workflows** (name only, detail deferred to Phase 1):
   - Event creation & speaker assignment
   - Ticket purchase → payment → QR issuance
