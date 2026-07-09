@@ -9,6 +9,8 @@
 | Facilitator | As a **facilitator**, I want to **create an event with a title, date, time, and venue**, so that **attendees know where and when the event takes place**. |
 | Facilitator | As a **facilitator**, I want to **link an existing course (modules → lessons) to an event**, so that **the event has structured content for the live session**. |
 | Facilitator | As a **facilitator**, I want to **set a price and currency for an event**, so that **attendees are charged correctly at checkout**. |
+| Facilitator | As a **facilitator**, I want to **publish a draft event when it is ready**, so that **attendees can see and register for it**. |
+| Facilitator | As a **facilitator**, I want to **mark an event as complete after it concludes**, so that **everyone knows it is over**. |
 | Facilitator | As a **facilitator**, I want to **assign speakers to an event from existing speaker profiles**, so that **the right people are responsible for delivering lessons**. |
 | Facilitator | As a **facilitator**, I want to **create or update a speaker profile with bio and photo**, so that **attendees can see who the speakers are**. |
 | Facilitator | As a **facilitator**, I want to **create a course with modules and lessons before linking it to an event**, so that **content is ready when the event is published**. |
@@ -73,8 +75,11 @@
 | Set event price and currency | Denied | Denied | Allowed |
 | Create / update speaker profile | Denied | Allowed (own only) | Allowed (any) |
 | Assign speakers to event | Denied | Denied | Allowed |
-| View event list | Allowed | Allowed | Allowed |
-| View event detail | Allowed | Allowed | Allowed |
+| View event list (all, including draft) | Allowed | Allowed | Allowed |
+| View draft events | Denied | Denied | Allowed |
+| Publish event (draft → active) | Denied | Denied | Allowed |
+| Mark event complete | Denied | Denied | Allowed |
+| View event detail (all, including draft) | Allowed | Allowed | Allowed |
 | Register for event | Allowed | Denied | Denied |
 | Purchase ticket (create payment) | Allowed | Denied | Denied |
 | View own ticket / QR | Allowed | Denied | Allowed (all) |
@@ -101,6 +106,7 @@
 
 | Entity | Field | Values | Notes |
 |---|---|---|---|
+| EVENTS | status | `draft`, `active`, `complete` | **Added** — see Business Rule 9 |
 | PAYMENTS | status | `pending`, `paid`, `failed`, `refunded` | No change needed |
 | TICKETS | status | `issued`, `checked_in`, `cancelled` | No change needed |
 | CHAT_MESSAGES | channel | `support`, `live_qa` | No change needed |
@@ -147,10 +153,19 @@
 16. Rating questions (`submitted_type = rating`) must have `answer_value` in range 1–5.
 17. Multiple-choice questions (`submitted_type = multiple_choice`) use `answer_text`; rating questions use `answer_value`; text questions use `answer_text`.
 
+### Event Status
+
+9. Events start in `draft` status when created.
+10. `draft` events are hidden from non-facilitator users (list and detail views).
+11. Only `active` or `complete` events are visible to attendees and speakers.
+12. A `draft` event can be published (`draft → active`) via a dedicated publish endpoint; the edit form also allows any status transition.
+13. Only facilitators can publish events or change event status.
+14. Events can be set to `complete` when the event has concluded.
+
 ### General
 
-18. A user's `role` is set on creation and may be updated by a facilitator. Role change does not cascade to existing FK references.
-19. `COURSE` to `EVENTS` is strictly 1-to-0-or-1: an event may optionally consume a course, and a course may be consumed by at most one event.
+15. A user's `role` is set on creation and may be updated by a facilitator. Role change does not cascade to existing FK references.
+16. `COURSE` to `EVENTS` is strictly 1-to-0-or-1: an event may optionally consume a course, and a course may be consumed by at most one event.
 
 ---
 

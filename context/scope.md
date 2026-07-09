@@ -25,7 +25,7 @@ A unified platform for running live, course-aligned events end-to-end — replac
 
 A single event can be run end-to-end without manual database edits:
 
-1. **Event Management** — Facilitator creates an event (with title, date, venue, and price), links it to a course (modules → lessons), and assigns speakers.
+1. **Event Management** — Facilitator creates an event (with title, date, venue, and price), links it to a course (modules → lessons), assigns speakers, and publishes it when ready (draft → active → complete lifecycle).
 2. **Registration & Ticketing** — Attendee registers, purchases a ticket via HitPay, and receives a unique QR token.
 3. **Check-in Kiosk** — Facilitator scans or verifies QR at the venue to mark the ticket as checked in.
 4. **Live Session Room** — Speaker broadcasts the current lesson to all attendees in real time; attendees see the lesson content and can submit questions via Q&A chat and support chat.
@@ -50,7 +50,7 @@ A single event can be run end-to-end without manual database edits:
 
 ## Success Criteria
 
-- A facilitator can create an event (with pricing), link a course, and assign speakers entirely through the UI.
+- A facilitator can create an event (with pricing), link a course, assign speakers, and publish it entirely through the UI.
 - An attendee can register, pay via HitPay, receive a QR ticket, and check in at the kiosk.
 - A speaker can open the live session room, advance lessons, and see Q&A from attendees.
 - An attendee can see the current lesson, complete units, and submit a post-event survey.

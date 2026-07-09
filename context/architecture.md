@@ -6,7 +6,7 @@
 |---|---|
 | **Identity/Auth** | USERS (via Clerk) |
 | **Course Content** | COURSE, MODULES, LESSONS, LESSON_PROGRESS |
-| **Event Management** | EVENTS (including price/currency), EVENT_SPEAKERS, SPEAKER_PROFILES |
+| **Event Management** | EVENTS (including price/currency, status), EVENT_SPEAKERS, SPEAKER_PROFILES |
 | **Live Session Room** | LIVE_SESSION_STATE |
 | **Chat/Q&A** | CHAT_MESSAGES |
 | **Commerce** | PAYMENTS (including amount/currency snapshotted from event), TICKETS |

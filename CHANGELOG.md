@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### feat: add event status lifecycle (draft → active → complete)
+
+- **supabase/migrations/00004_create_commerce.sql** — merge price/currency ALTER TABLE from `docs/update_table_include_price.sql` into PAYMENTS table; add amount/currency columns and CHECK constraints
+- **supabase/migrations/00005_create_event_status.sql** — new migration: `event_status` enum, `status` column on EVENTS (default `draft`), index
+- **types/index.ts** — add `EventStatus` type, `status` field to Event interface
+- **modules/event-management/index.ts** — add `status` (enum optional) to eventBaseSchema
+- **app/api/events/route.ts** — POST inserts with `status: "draft"`; GET filters out `draft` events for non-facilitators
+- **app/api/events/[id]/route.ts** — GET returns 404 on `draft` for non-facilitators
+- **app/api/events/[id]/publish/route.ts** — new endpoint: facilitator-only `draft → active` transition
+- **app/events/[id]/page.tsx** — show status badge; show "Publish" button when draft with optimistic UI update
+- **app/events/[id]/edit/page.tsx** — add status select dropdown (draft/active/complete)
+- **context/OVERVIEW.md** — add `status ENUM(draft,active,complete)` to EVENTS row
+- **context/data-model.md** — add status field, event_status enum, validation rules, index
+- **context/functional-planning.md** — add facilitator stories for publish/complete; add draft visibility to permission matrix; add business rules 9–14 for event status
+- **context/architecture.md** — note status in Event Management module
+- **context/scope.md** — mention draft→active→complete lifecycle
+- **context/ux-screens.md** — add status field to form requirements; add publish action to Event Detail permissions
+- **context/spec/03-event-management-spec.md** — add status column, publish endpoint, draft filtering, lifecycle rules
+- **test/event-management.test.ts** — add `status` to Event interface test; add schema tests for valid/invalid status values
+
 ### fix: Zod 4 forbids .partial() on schemas with .refine() — split eventSchema into base + partial
 
 - **modules/event-management/index.ts** — extract `eventBaseSchema` (no refine) and derive `eventPartialSchema` (partial of base) from it, so PATCH handler avoids calling `.partial()` on a refined schema
