@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: event, error } = await supabase
     .from("EVENTS")
-    .select("event_id, title, event_date, start_time, end_time, venue_name")
+    .select("event_id, title, event_date, start_time, end_time, venue_name, price, currency")
     .eq("event_id", id)
     .single();
 

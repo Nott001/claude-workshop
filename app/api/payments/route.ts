@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   const { event_id } = parsed.data;
 
-  const { data: event } = await supabase.from("EVENTS").select("title").eq("event_id", event_id).single();
+  const { data: event } = await supabase.from("EVENTS").select("title, price, currency").eq("event_id", event_id).single();
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 
   const { data: payment, error } = await supabase
     .from("PAYMENTS")
-    .insert({ user_id: dbUser.user_id, event_id })
+    .insert({ user_id: dbUser.user_id, event_id, amount: event.price, currency: event.currency })
     .select()
     .single();
 
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
 
   try {
     const hitpayRes = await createPayment({
-      amount: 0,
+      amount: event.price,
+      currency: event.currency,
       reference_id,
       name: dbUser.full_name,
       email: dbUser.email,

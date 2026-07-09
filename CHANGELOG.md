@@ -11,6 +11,15 @@
 - **architecture.md** — note price/currency on EVENTS module and amount/currency on PAYMENTS module
 - **ux-screens.md** — add Price and Currency fields to Event Create/Edit form; update Payment Status per-role actions to include amount
 
+### fix: snapshot event price/currency into payments instead of hardcoding 0/SGD
+
+- **types/index.ts** — add `price`/`currency` to Event, `amount`/`currency` to Payment
+- **modules/event-management/index.ts** — add `price` (min 0) and `currency` (3-char, default PHP) to eventSchema
+- **app/api/payments/route.ts** — fetch `EVENTS.price`/`currency` at payment creation; snapshot into `PAYMENTS.amount`/`currency` on insert; pass actual amount/currency to HitPay
+- **app/api/events/[id]/register/route.ts** — include `price`/`currency` in registration data response
+- **context/spec/04-commerce-spec.md** — add pricing note documenting the snapshot behavior
+- **test/event-management.test.ts** — update Event interface test to include `price`/`currency`
+
 ### feat: add commerce pipeline — HitPay payments, tickets, QR codes
 
 - **supabase/migrations/00004_create_commerce.sql** — PAYMENTS and TICKETS tables with status enums, FK constraints, and indexes
