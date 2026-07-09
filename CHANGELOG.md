@@ -11,6 +11,8 @@
 - **app/api/events/route.ts** — POST inserts with `status: "draft"`; GET filters out `draft` events for non-facilitators
 - **app/api/events/[id]/route.ts** — GET returns 404 on `draft` for non-facilitators
 - **app/api/events/[id]/publish/route.ts** — new endpoint: facilitator-only `draft → active` transition
+- **app/api/events/[id]/register/route.ts** — GET and POST reject draft events for non-facilitators (defense in depth)
+- **app/api/payments/route.ts** — POST rejects draft events (defense in depth)
 - **app/events/[id]/page.tsx** — show status badge; show "Publish" button when draft with optimistic UI update
 - **app/events/[id]/edit/page.tsx** — add status select dropdown (draft/active/complete)
 - **context/OVERVIEW.md** — add `status ENUM(draft,active,complete)` to EVENTS row
