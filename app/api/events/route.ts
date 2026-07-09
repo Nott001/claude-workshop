@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth/role-guard";
+import { getServiceClient } from "@/lib/db";
+import { eventSchema } from "@/modules/event-management";
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const filter = searchParams.get("filter");
+  const supabase = getServiceClient();
+
+  let query = supabase.from("EVENTS").select("*, COURSE(course_name)").order("event_date", { ascending: true });
+
+  if (filter === "upcoming") {
+    query = query.gte("event_date", new Date().toISOString().split("T")[0]);
+  } else if (filter === "past") {
+    query = query.lt("event_date", new Date().toISOString().split("T")[0]);
+  }
+
+  const { data: events, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(events);
+}
+
+export async function POST(req: Request) {
+  const guard = await requireRole("facilitator");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const parsed = eventSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const supabase = getServiceClient();
+  const { data: event, error } = await supabase
+    .from("EVENTS")
+    .insert({
+      title: parsed.data.title,
+      event_date: parsed.data.event_date,
+      start_time: parsed.data.start_time,
+      end_time: parsed.data.end_time,
+      venue_name: parsed.data.venue_name,
+      venue_address: parsed.data.venue_address ?? null,
+      course_id: parsed.data.course_id ?? null,
+      lat: parsed.data.lat ?? null,
+      lng: parsed.data.lng ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(event, { status: 201 });
+}
