@@ -32,6 +32,7 @@ interface Event {
   lat: number | null;
   lng: number | null;
   course_id: number | null;
+  status: "draft" | "active" | "complete";
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
 }
@@ -61,7 +62,23 @@ export default function EventDetailPage() {
     load();
   }, [eventId]);
 
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handlePublish() {
+    setPublishing(true);
+    setPublishError(null);
+    const res = await fetch(`/api/events/${eventId}/publish`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json();
+      setPublishError(body.error ?? "Failed to publish event");
+      setPublishing(false);
+      return;
+    }
+    setEvent({ ...event!, status: "active" });
+    setPublishing(false);
+  }
 
   async function handleDelete() {
     if (!confirm("Delete this event? This cannot be undone.")) return;
@@ -86,7 +103,19 @@ export default function EventDetailPage() {
     <div>
       <button onClick={() => router.push("/events")}>&larr; Back to Events</button>
 
-      <h1>{event.title}</h1>
+      <h1>
+        {event.title}
+        <span> ({event.status})</span>
+      </h1>
+
+      {event.status === "draft" && (
+        <div>
+          <button onClick={handlePublish} disabled={publishing}>
+            {publishing ? "Publishing..." : "Publish Event"}
+          </button>
+          {publishError && <p>{publishError}</p>}
+        </div>
+      )}
 
       <div>
         <h2>Date & Time</h2>

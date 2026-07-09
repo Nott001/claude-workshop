@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { eventPartialSchema } from "@/modules/event-management";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { userId } = await auth();
   const supabase = getServiceClient();
 
   const { data: event, error } = await supabase
@@ -14,6 +16,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .single();
 
   if (error || !event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  let userRole: string | null = null;
+  if (userId) {
+    const { data: user } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+    userRole = user?.role ?? null;
+  }
+
+  if (event.status === "draft" && userRole !== "facilitator") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 

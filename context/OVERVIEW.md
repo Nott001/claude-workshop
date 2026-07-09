@@ -23,7 +23,7 @@ Role-based platform for live events with:
 | COURSE | course_id PK, course_name, course_description | 1 course → 0-1 event (UK on EVENTS.course_id) |
 | MODULES | module_id PK, course_id FK, module_name, sequence_order | Each module is linked to a single course, and each module can hold several lessons related to that module (think of it as a topic) |
 | LESSONS | lesson_id PK, module_id FK, description, content_type ENUM(pdf, video, image, link), content_url, total_units, sequence_order | `content_type` values: `pdf` (handout/slides), `video` (embedded video), `image` (diagram/poster), `link` (external article or video URL) |
-| EVENTS | event_id PK, course_id FK/UK, title, event_date, start_time, end_time, venue_address, venue_name, lat, lng, price NUMERIC(10,2), currency CHAR(3) | price defaults to 0, currency defaults to 'PHP'; CHECK price >= 0 |
+| EVENTS | event_id PK, course_id FK/UK, title, event_date, start_time, end_time, venue_address, venue_name, lat, lng, price NUMERIC(10,2), currency CHAR(3), status ENUM(draft,active,complete) | price defaults to 0, currency defaults to 'PHP'; CHECK price >= 0; status defaults to 'draft' |
 | LIVE_SESSION_STATE | event_id PK/FK, current_lesson_id FK, updated_by FK, updated_at | Singleton per event; drives real-time room sync |
 | LESSON_PROGRESS | lesson_id PK/FK, user_id PK/FK, units_completed, is_completed | Composite PK |
 | CHAT_MESSAGES | message_id PK, event_id FK, channel ENUM(support, live_qa), user_id FK, sent_at, read_by FK | |

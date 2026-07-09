@@ -49,6 +49,8 @@ export interface LessonProgress {
   updated_at: string;
 }
 
+export type EventStatus = "draft" | "active" | "complete";
+
 export interface Event {
   event_id: number;
   course_id: number | null;
@@ -62,6 +64,7 @@ export interface Event {
   lng: number | null;
   price: number;
   currency: string;
+  status: EventStatus;
   created_at: string;
   updated_at: string;
 }

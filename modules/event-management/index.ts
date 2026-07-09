@@ -12,6 +12,7 @@ const eventBaseSchema = z.object({
   lng: z.coerce.number().nullable().optional(),
   price: z.coerce.number().min(0).optional(),
   currency: z.string().length(3).optional(),
+  status: z.enum(["draft", "active", "complete"]).optional(),
 });
 
 export const eventSchema = eventBaseSchema.refine((data) => data.start_time < data.end_time, {

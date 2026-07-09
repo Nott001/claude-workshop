@@ -12,11 +12,12 @@ Build event management and speaker assignment: database migrations for EVENTS, S
 
 - Database migrations: EVENTS, SPEAKER_PROFILES, EVENT_SPEAKERS tables (all fields, constraints, unique indexes per data-model.md)
 - API routes:
-  - `GET /api/events` — list events (all roles, filterable by upcoming/past)
-  - `POST /api/events` — create event (facilitator)
-  - `GET /api/events/[id]` — event detail
-  - `PATCH /api/events/[id]` — update event (facilitator)
+  - `GET /api/events` — list events (all roles, filterable by upcoming/past); draft events hidden from non-facilitators
+  - `POST /api/events` — create event (facilitator); defaults to `draft` status
+  - `GET /api/events/[id]` — event detail; 404 on draft for non-facilitators
+  - `PATCH /api/events/[id]` — update event (facilitator); includes status field
   - `DELETE /api/events/[id]` — delete event (facilitator)
+  - `POST /api/events/[id]/publish` — publish draft event (facilitator); transitions `draft` → `active`
   - `GET /api/speakers` — list speaker profiles (facilitator)
   - `POST /api/speakers` — create speaker profile (facilitator)
   - `PATCH /api/speakers/[id]` — update profile (facilitator or own speaker)
@@ -34,6 +35,8 @@ Build event management and speaker assignment: database migrations for EVENTS, S
   - `/events/[id]/speakers` — speaker assignment UI (facilitator)
 - `modules/event-management/` domain logic (event validation, speaker assignment rules)
 - Validation: `start_time < end_time` enforced; event date required; course link optional but must reference an existing course
+- Event lifecycle: `draft` (default on create) → `active` (published, visible to all) → `complete` (event concluded)
+- Event status can be set via the edit form or via the dedicated publish endpoint for `draft` → `active`
 
 ## Constraints
 
@@ -51,7 +54,10 @@ Build event management and speaker assignment: database migrations for EVENTS, S
 
 ## Acceptance Criteria
 
-- [ ] Facilitator creates an event with all required fields; it appears in `/events`
+- [ ] Facilitator creates an event with all required fields; it appears in `/events` (as draft, visible only to facilitator)
+- [ ] Draft events are hidden from attendees and speakers in both list and detail views
+- [ ] Facilitator publishes a draft event; it becomes visible to all users
+- [ ] Facilitator can set event status to `complete` via the edit form
 - [ ] Facilitator links an existing course to an event; the course is no longer available for other events
 - [ ] Facilitator assigns a speaker to an event; the speaker appears on the event detail page
 - [ ] Speaker can log in, navigate to their profile, and edit their bio/photo

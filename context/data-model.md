@@ -65,6 +65,7 @@
 | lng | numeric(10,7) | YES | NULL |
 | price | numeric(10,2) | NOT | 0 | **Added** — ticket price; non-negative |
 | currency | char(3) | NOT | 'PHP' | **Added** — ISO 4217 currency code |
+| status | enum(draft,active,complete) | NOT | 'draft' | **Added** — lifecycle state; draft hides from non-facilitators |
 | created_at | timestamptz | NOT | now() | **Added** |
 | updated_at | timestamptz | NOT | now() | **Added** |
 
@@ -220,6 +221,7 @@ UK(survey_id, user_id) — one response per user per survey.
 |---|---|
 | EVENTS.start_time < EVENTS.end_time | CHECK constraint |
 | EVENTS.price >= 0 | CHECK constraint |
+| EVENTS.status transitions: draft→active, active→complete | Application-level guard (publish endpoint rejects non-draft) |
 | EVENTS.currency is ISO 4217 3-letter code | Application-level or CHECK constraint |
 | PAYMENTS.amount >= 0 | CHECK constraint |
 | PAYMENTS.amount and currency snapshotted from EVENTS at payment creation | Application-level: copy from EVENTS when inserting PAYMENT |
@@ -262,6 +264,7 @@ The join table's FK pair satisfies Phase 1's "assign speakers to an event" story
 | INDEX | LESSONS | (module_id, sequence_order) | Order lessons within a module |
 | UNIQUE | EVENTS | course_id | 0–1 relationship |
 | INDEX | EVENTS | event_date | List upcoming events |
+| INDEX | EVENTS | status | Filter by lifecycle state |
 | UNIQUE | TICKETS | qr_token | Fast QR scan lookup |
 | INDEX | TICKETS | (user_id, event_id) | Look up a user's ticket for an event |
 | UNIQUE | PAYMENTS | hitpay_reference_id | Prevent duplicate webhooks |
