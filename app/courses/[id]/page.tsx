@@ -127,7 +127,13 @@ export default function CourseDetailPage() {
             {course.course_description && <p className="text-muted-foreground mt-1">{course.course_description}</p>}
           </div>
           <Dialog open={moduleDialogOpen} onOpenChange={setModuleDialogOpen}>
-            <DialogTrigger render={<Button><PlusIcon className="mr-1 size-4" /> Add Module</Button>} />
+            <DialogTrigger
+              render={
+                <Button>
+                  <PlusIcon className="mr-1 size-4" /> Add Module
+                </Button>
+              }
+            />
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Module</DialogTitle>
