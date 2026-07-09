@@ -2,6 +2,80 @@
 
 ## [Unreleased]
 
+### feat: add event status lifecycle (draft → active → complete)
+
+- **supabase/migrations/00004_create_commerce.sql** — merge price/currency ALTER TABLE from `docs/update_table_include_price.sql` into PAYMENTS table; add amount/currency columns and CHECK constraints
+- **supabase/migrations/00005_create_event_status.sql** — new migration: `event_status` enum, `status` column on EVENTS (default `draft`), index
+- **types/index.ts** — add `EventStatus` type, `status` field to Event interface
+- **modules/event-management/index.ts** — add `status` (enum optional) to eventBaseSchema
+- **app/api/events/route.ts** — POST inserts with `status: "draft"`; GET filters out `draft` events for non-facilitators
+- **app/api/events/[id]/route.ts** — GET returns 404 on `draft` for non-facilitators
+- **app/api/events/[id]/publish/route.ts** — new endpoint: facilitator-only `draft → active` transition
+- **app/api/events/[id]/register/route.ts** — GET and POST reject draft events for non-facilitators (defense in depth)
+- **app/api/payments/route.ts** — POST rejects draft events (defense in depth)
+- **app/events/[id]/page.tsx** — show status badge; show "Publish" button when draft with optimistic UI update
+- **app/events/[id]/edit/page.tsx** — add status select dropdown (draft/active/complete)
+- **context/OVERVIEW.md** — add `status ENUM(draft,active,complete)` to EVENTS row
+- **context/data-model.md** — add status field, event_status enum, validation rules, index
+- **context/functional-planning.md** — add facilitator stories for publish/complete; add draft visibility to permission matrix; add business rules 9–14 for event status
+- **context/architecture.md** — note status in Event Management module
+- **context/scope.md** — mention draft→active→complete lifecycle
+- **context/ux-screens.md** — add status field to form requirements; add publish action to Event Detail permissions
+- **context/spec/03-event-management-spec.md** — add status column, publish endpoint, draft filtering, lifecycle rules
+- **test/event-management.test.ts** — add `status` to Event interface test; add schema tests for valid/invalid status values
+
+### fix: Zod 4 forbids .partial() on schemas with .refine() — split eventSchema into base + partial
+
+- **modules/event-management/index.ts** — extract `eventBaseSchema` (no refine) and derive `eventPartialSchema` (partial of base) from it, so PATCH handler avoids calling `.partial()` on a refined schema
+- **app/api/events/[id]/route.ts** — import and use `eventPartialSchema` instead of `eventSchema.partial()`
+
+### feat: add price/currency fields to event create/edit forms
+
+- **modules/event-management/index.ts** — remove `.default()` from `price`/`currency` in eventSchema so PATCH doesn't silently overwrite omitted fields; fallback defaults applied at POST handler and DB level
+- **app/api/events/route.ts** — include `price`/`currency` in the POST insert mapping (defaulting to 0 and "PHP")
+- **app/events/new/page.tsx** — add Price (number, min 0) and Currency (uppercased 3-char) inputs
+- **app/events/[id]/edit/page.tsx** — load and save price/currency; add Price and Currency inputs
+
+### docs: reflect event pricing fields across all planning documents
+
+- **OVERVIEW.md** — add `price`/`currency` to EVENTS row, `amount`/`currency` to PAYMENTS row, pricing model note (amount snapshotted from event at creation)
+- **data-model.md** — EVENTS and PAYMENTS entity specs with `price`/`amount`/`currency` fields and CHECK constraints; add 4 pricing validation rules
+- **scope.md** — facilitator role includes pricing; event management workflow mentions price; success criteria updated
+- **functional-planning.md** — add facilitator story for setting price/currency; add "Set event price/currency" to permission matrix; add business rules 7-8 for price non-negativity and amount snapshot
+- **architecture.md** — note price/currency on EVENTS module and amount/currency on PAYMENTS module
+- **ux-screens.md** — add Price and Currency fields to Event Create/Edit form; update Payment Status per-role actions to include amount
+
+### fix: snapshot event price/currency into payments instead of hardcoding 0/SGD
+
+- **types/index.ts** — add `price`/`currency` to Event, `amount`/`currency` to Payment
+- **modules/event-management/index.ts** — add `price` (min 0) and `currency` (3-char, default PHP) to eventSchema
+- **app/api/payments/route.ts** — fetch `EVENTS.price`/`currency` at payment creation; snapshot into `PAYMENTS.amount`/`currency` on insert; pass actual amount/currency to HitPay
+- **app/api/events/[id]/register/route.ts** — include `price`/`currency` in registration data response
+- **context/spec/04-commerce-spec.md** — add pricing note documenting the snapshot behavior
+- **test/event-management.test.ts** — update Event interface test to include `price`/`currency`
+
+### feat: add commerce pipeline — HitPay payments, tickets, QR codes
+
+- **supabase/migrations/00004_create_commerce.sql** — PAYMENTS and TICKETS tables with status enums, FK constraints, and indexes
+- **types/index.ts** — add Payment, Ticket, PaymentStatus, TicketStatus interfaces
+- **modules/commerce/index.ts** — paymentInitSchema, status transition guards, QR token generation, terminal state check
+- **lib/hitpay/index.ts** — HitPay API client (createPayment, verifyWebhookSignature with HMAC)
+- **lib/qr/index.ts** — QR code generation as data URL via `qrcode` package
+- **app/api/payments/route.ts** — POST initiate payment (creates PAYMENTS record, returns HitPay checkout URL); GET list payments (attendee: own; facilitator: all)
+- **app/api/payments/[id]/route.ts** — GET payment status with role-based access
+- **app/api/payments/webhook/route.ts** — POST HitPay webhook receiver (HMAC validation, idempotent, issues ticket on paid)
+- **app/api/tickets/route.ts** — GET list tickets with event details
+- **app/api/tickets/[paymentId]/route.ts** — GET ticket with QR data URL
+- **app/api/events/[id]/register/route.ts** — GET registration page data; POST validate eligibility + duplicate check
+- **app/events/[id]/register/page.tsx** — registration page with terms agreement and payment redirect
+- **app/checkout/[paymentId]/page.tsx** — checkout status page polling payment until resolution
+- **app/tickets/page.tsx** — attendee ticket wallet with QR code display
+- **app/payments/page.tsx** — payment status list (attendee: own; facilitator: all)
+- **middleware.ts** — exclude `/api/payments/webhook` from auth protection (public endpoint)
+- **package.json** — add `qrcode` and `@types/qrcode` dependencies
+- **.env.local** — add HitPay sandbox configuration variables
+- **test/commerce.test.ts** — 24 unit tests for types, schemas, status transitions, token generation
+
 ### fix: repair speaker assignment page and public event API access
 
 - **middleware.ts** — exclude `/api/events` and `/api/speakers` from auth protection; public GET routes handled at route level

@@ -133,9 +133,10 @@
 
 | Action | Attendee | Speaker | Facilitator |
 |---|---|---|---|
-| View event info (venue, date, speakers) | Visible | Visible | Visible |
+| View event info (venue, date, speakers, status) | Visible | Visible | Visible |
 | Register for event | Visible | — | — |
 | Edit event | — | — | Visible |
+| Publish event (draft → active) | — | — | Visible |
 | Manage speakers | — | — | Visible |
 | Enter live room | Visible | Visible | Visible |
 | View surveys section | Visible | — | Visible |
@@ -144,7 +145,8 @@
 
 | Action | Attendee | Speaker | Facilitator |
 |---|---|---|---|
-| Set title, date, time, venue | — | — | Visible |
+| Set title, date, time, venue, price, currency | — | — | Visible |
+| Set event status (draft/active/complete) | — | — | Visible |
 | Link course | — | — | Visible |
 | All fields editable | — | — | Visible |
 
@@ -189,8 +191,8 @@
 
 | Action | Attendee | Speaker | Facilitator |
 |---|---|---|---|
-| View own payment status | Visible | — | — |
-| View all payments | — | — | Visible |
+| View own payment status (including amount) | Visible | — | — |
+| View all payments (including amounts) | — | — | Visible |
 
 ### Live Room
 
@@ -326,6 +328,9 @@
 | Venue Address | text | No | |
 | Latitude | number | No | -90 to 90 |
 | Longitude | number | No | -180 to 180 |
+| Price | number (decimal) | Yes | Must be ≥ 0; max 10 digits, 2 decimal places |
+| Currency | select (ISO 4217) | Yes | Default PHP; allow SGD, USD, etc. |
+| Status | select (draft, active, complete) | No | Defaults to draft on create; only active/complete visible to non-facilitators |
 | Course | select (from existing) | No | Must reference existing course |
 
 ### Course Create / Edit

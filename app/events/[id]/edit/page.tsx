@@ -12,6 +12,9 @@ interface Event {
   venue_name: string;
   venue_address: string | null;
   course_id: number | null;
+  price: number;
+  currency: string;
+  status: "draft" | "active" | "complete";
 }
 
 export default function EditEventPage() {
@@ -26,6 +29,9 @@ export default function EditEventPage() {
   const [venueName, setVenueName] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [status, setStatus] = useState<"draft" | "active" | "complete">("draft");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +50,9 @@ export default function EditEventPage() {
       setVenueName(data.venue_name);
       setVenueAddress(data.venue_address ?? "");
       setCourseId(data.course_id ? String(data.course_id) : "");
+      setPrice(String(data.price ?? 0));
+      setCurrency(data.currency ?? "PHP");
+      setStatus(data.status);
       setLoading(false);
     }
     load();
@@ -61,6 +70,9 @@ export default function EditEventPage() {
       venue_name: venueName,
       venue_address: venueAddress || null,
       course_id: courseId ? Number(courseId) : null,
+      price: price ? Number(price) : 0,
+      currency,
+      status,
     };
 
     const res = await fetch(`/api/events/${eventId}`, {
@@ -116,6 +128,22 @@ export default function EditEventPage() {
         <div>
           <label>Course ID (optional)</label>
           <input type="number" value={courseId} onChange={(e) => setCourseId(e.target.value)} />
+        </div>
+        <div>
+          <label>Price</label>
+          <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+        </div>
+        <div>
+          <label>Currency</label>
+          <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+        </div>
+        <div>
+          <label>Status</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "active" | "complete")}>
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="complete">Complete</option>
+          </select>
         </div>
         <button type="submit">Update Event</button>
       </form>

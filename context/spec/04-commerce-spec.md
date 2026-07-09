@@ -34,6 +34,12 @@ Build the commerce pipeline: PAYMENTS and TICKETS tables; payment initiation API
 - `lib/hitpay/` — HitPay API client wrapper and signature helpers
 - `lib/qr/` — QR generation utility (e.g., `qrcode` npm package)
 
+> **Pricing note:** `POST /api/payments` snapshots `EVENTS.price` and `EVENTS.currency`
+> into `PAYMENTS.amount` and `PAYMENTS.currency` at payment creation time.
+> This ensures the charged amount is immutable even if the event price changes later.
+> The event's price is set by the facilitator via the event create/edit form
+> (handled in Phase 3 — Event Management, not in this spec).
+
 ## Constraints
 
 - `hitpay_reference_id` must be unique; reject duplicate webhooks with idempotency
