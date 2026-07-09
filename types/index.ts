@@ -60,6 +60,8 @@ export interface Event {
   venue_name: string;
   lat: number | null;
   lng: number | null;
+  price: number;
+  currency: string;
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +86,8 @@ export interface Payment {
   hitpay_reference_id: string | null;
   status: PaymentStatus;
   paid_at: string | null;
+  amount: number;
+  currency: string;
   created_at: string;
   updated_at: string;
 }
