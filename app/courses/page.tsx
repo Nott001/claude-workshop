@@ -138,7 +138,13 @@ export default function CoursesPage() {
                   View Modules
                 </Button>
                 <Dialog>
-                  <DialogTrigger render={<Button variant="outline" onClick={() => openEdit(course)}>Edit</Button>} />
+                  <DialogTrigger
+                    render={
+                      <Button variant="outline" onClick={() => openEdit(course)}>
+                        Edit
+                      </Button>
+                    }
+                  />
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Edit Course</DialogTitle>

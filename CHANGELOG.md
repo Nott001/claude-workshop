@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### feat: add missing course content screens (module editor, lesson viewer, progress)
+
+- **app/courses/[...]/modules/[...]/page.tsx** — module/lesson editor with create, edit, delete for lessons
+- **app/courses/[...]/lessons/[...]/page.tsx** — lesson viewer rendering pdf/video/image/link content with progress tracking
+- **app/courses/[...]/progress/page.tsx** — progress overview table (facilitator: all attendees; attendee: own)
+
 ### feat: add auth foundation — Clerk, Supabase, shadcn/ui, role guards
 
 - **middleware.ts** — clerkMiddleware enforcing authentication on all protected routes; role checks deferred to API route guards
