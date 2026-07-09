@@ -34,7 +34,21 @@ describe("User types", () => {
 describe("requireRole", () => {
   it("returns Unauthenticated when no userId", async () => {
     const { auth } = await import("@clerk/nextjs/server");
-    vi.mocked(auth).mockResolvedValue({ userId: null, sessionId: null, actor: null, sessionClaims: null, orgId: null, orgRole: null, orgSlug: null, permissions: null, debug: null, getToken: vi.fn(), has: vi.fn(), redirectToSignIn: vi.fn(), protect: vi.fn() });
+    vi.mocked(auth).mockResolvedValue({
+      userId: null,
+      sessionId: null,
+      actor: null,
+      sessionClaims: null,
+      orgId: null,
+      orgRole: null,
+      orgSlug: null,
+      permissions: null,
+      debug: null,
+      getToken: vi.fn(),
+      has: vi.fn(),
+      redirectToSignIn: vi.fn(),
+      protect: vi.fn(),
+    });
 
     const { requireRole } = await import("@/lib/auth/role-guard");
     const result = await requireRole("facilitator");
@@ -45,7 +59,21 @@ describe("requireRole", () => {
 
   it("returns Forbidden when user role is not allowed", async () => {
     const { auth } = await import("@clerk/nextjs/server");
-    vi.mocked(auth).mockResolvedValue({ userId: "clerk_123", sessionId: null, actor: null, sessionClaims: null, orgId: null, orgRole: null, orgSlug: null, permissions: null, debug: null, getToken: vi.fn(), has: vi.fn(), redirectToSignIn: vi.fn(), protect: vi.fn() });
+    vi.mocked(auth).mockResolvedValue({
+      userId: "clerk_123",
+      sessionId: null,
+      actor: null,
+      sessionClaims: null,
+      orgId: null,
+      orgRole: null,
+      orgSlug: null,
+      permissions: null,
+      debug: null,
+      getToken: vi.fn(),
+      has: vi.fn(),
+      redirectToSignIn: vi.fn(),
+      protect: vi.fn(),
+    });
 
     const { getServiceClient } = await import("@/lib/db");
     const mockSelect = vi.fn().mockReturnThis();
@@ -54,7 +82,7 @@ describe("requireRole", () => {
 
     vi.mocked(getServiceClient).mockReturnValue({
       from: vi.fn().mockReturnValue({ select: mockSelect, eq: mockEq, single: mockSingle }),
-    } as any);
+    } as unknown as ReturnType<typeof getServiceClient>);
 
     const { requireRole } = await import("@/lib/auth/role-guard");
     const result = await requireRole("facilitator");
