@@ -61,6 +61,24 @@ export default function EventDetailPage() {
     load();
   }, [eventId]);
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (!confirm("Delete this event? This cannot be undone.")) return;
+    setDeleteError(null);
+    const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+    if (res.status === 409) {
+      const body = await res.json();
+      setDeleteError(body.error ?? "Cannot delete: event has payments");
+      return;
+    }
+    if (!res.ok) {
+      setDeleteError("Failed to delete event");
+      return;
+    }
+    router.push("/events");
+  }
+
   if (loading) return <div>Loading event...</div>;
   if (error || !event) return <div>{error ?? "Event not found"}</div>;
 
@@ -112,8 +130,11 @@ export default function EventDetailPage() {
         <div>
           <button onClick={() => router.push(`/events/${eventId}/edit`)}>Edit Event</button>
           <button onClick={() => router.push(`/events/${eventId}/speakers`)}>Manage Speakers</button>
+          <button onClick={handleDelete}>Delete Event</button>
         </div>
       )}
+
+      {deleteError && <p>{deleteError}</p>}
     </div>
   );
 }
