@@ -45,7 +45,9 @@ export default function EventsPage() {
     }
 
     fetchEvents(filter);
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [filter]);
 
   if (loading) return <div>Loading events...</div>;

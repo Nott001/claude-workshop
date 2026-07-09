@@ -4,6 +4,11 @@ import { getServiceClient } from "@/lib/db";
 import { speakerAssignmentSchema } from "@/modules/event-management";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireRole("facilitator");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
   const { id } = await params;
   const supabase = getServiceClient();
 

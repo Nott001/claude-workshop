@@ -4,6 +4,11 @@ import { getServiceClient } from "@/lib/db";
 import { speakerProfileSchema } from "@/modules/event-management";
 
 export async function GET() {
+  const guard = await requireRole("facilitator");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
   const supabase = getServiceClient();
 
   const { data: profiles, error } = await supabase

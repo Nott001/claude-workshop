@@ -42,7 +42,9 @@ export default function SpeakersPage() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleCreate(e: React.FormEvent) {
