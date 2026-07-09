@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### feat: add commerce pipeline — HitPay payments, tickets, QR codes
+
+- **supabase/migrations/00004_create_commerce.sql** — PAYMENTS and TICKETS tables with status enums, FK constraints, and indexes
+- **types/index.ts** — add Payment, Ticket, PaymentStatus, TicketStatus interfaces
+- **modules/commerce/index.ts** — paymentInitSchema, status transition guards, QR token generation, terminal state check
+- **lib/hitpay/index.ts** — HitPay API client (createPayment, verifyWebhookSignature with HMAC)
+- **lib/qr/index.ts** — QR code generation as data URL via `qrcode` package
+- **app/api/payments/route.ts** — POST initiate payment (creates PAYMENTS record, returns HitPay checkout URL); GET list payments (attendee: own; facilitator: all)
+- **app/api/payments/[id]/route.ts** — GET payment status with role-based access
+- **app/api/payments/webhook/route.ts** — POST HitPay webhook receiver (HMAC validation, idempotent, issues ticket on paid)
+- **app/api/tickets/route.ts** — GET list tickets with event details
+- **app/api/tickets/[paymentId]/route.ts** — GET ticket with QR data URL
+- **app/api/events/[id]/register/route.ts** — GET registration page data; POST validate eligibility + duplicate check
+- **app/events/[id]/register/page.tsx** — registration page with terms agreement and payment redirect
+- **app/checkout/[paymentId]/page.tsx** — checkout status page polling payment until resolution
+- **app/tickets/page.tsx** — attendee ticket wallet with QR code display
+- **app/payments/page.tsx** — payment status list (attendee: own; facilitator: all)
+- **middleware.ts** — exclude `/api/payments/webhook` from auth protection (public endpoint)
+- **package.json** — add `qrcode` and `@types/qrcode` dependencies
+- **.env.local** — add HitPay sandbox configuration variables
+- **test/commerce.test.ts** — 24 unit tests for types, schemas, status transitions, token generation
+
 ### fix: repair speaker assignment page and public event API access
 
 - **middleware.ts** — exclude `/api/events` and `/api/speakers` from auth protection; public GET routes handled at route level

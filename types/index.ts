@@ -73,3 +73,28 @@ export interface SpeakerProfile {
   created_at: string;
   updated_at: string;
 }
+
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type TicketStatus = "issued" | "checked_in" | "cancelled";
+
+export interface Payment {
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  hitpay_reference_id: string | null;
+  status: PaymentStatus;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ticket {
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  qr_token: string;
+  status: TicketStatus;
+  issued_at: string;
+  checked_in_by: number | null;
+  updated_at: string;
+}
