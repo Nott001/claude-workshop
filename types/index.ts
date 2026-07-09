@@ -49,6 +49,8 @@ export interface LessonProgress {
   updated_at: string;
 }
 
+export type EventStatus = "draft" | "active" | "complete";
+
 export interface Event {
   event_id: number;
   course_id: number | null;
@@ -60,6 +62,9 @@ export interface Event {
   venue_name: string;
   lat: number | null;
   lng: number | null;
+  price: number;
+  currency: string;
+  status: EventStatus;
   created_at: string;
   updated_at: string;
 }
@@ -71,5 +76,32 @@ export interface SpeakerProfile {
   photo_url: string | null;
   designation: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type TicketStatus = "issued" | "checked_in" | "cancelled";
+
+export interface Payment {
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  hitpay_reference_id: string | null;
+  status: PaymentStatus;
+  paid_at: string | null;
+  amount: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ticket {
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  qr_token: string;
+  status: TicketStatus;
+  issued_at: string;
+  checked_in_by: number | null;
   updated_at: string;
 }

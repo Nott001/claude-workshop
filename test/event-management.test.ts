@@ -20,6 +20,9 @@ describe("Event types", () => {
       venue_address: "123 Main St",
       lat: null,
       lng: null,
+      price: 0,
+      currency: "PHP",
+      status: "draft",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -76,6 +79,30 @@ describe("eventSchema", () => {
       start_time: "17:00",
       end_time: "09:00",
       venue_name: "Convention Center",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts event with explicit status", () => {
+    const result = eventSchema.safeParse({
+      title: "Test Event",
+      event_date: "2026-06-15",
+      start_time: "09:00",
+      end_time: "17:00",
+      venue_name: "Convention Center",
+      status: "active",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid status value", () => {
+    const result = eventSchema.safeParse({
+      title: "Test Event",
+      event_date: "2026-06-15",
+      start_time: "09:00",
+      end_time: "17:00",
+      venue_name: "Convention Center",
+      status: "invalid",
     });
     expect(result.success).toBe(false);
   });

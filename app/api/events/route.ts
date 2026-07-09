@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { eventSchema } from "@/modules/event-management";
@@ -6,9 +7,20 @@ import { eventSchema } from "@/modules/event-management";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter");
+  const { userId } = await auth();
   const supabase = getServiceClient();
 
+  let userRole: string | null = null;
+  if (userId) {
+    const { data: user } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+    userRole = user?.role ?? null;
+  }
+
   let query = supabase.from("EVENTS").select("*, COURSE(course_name)").order("event_date", { ascending: true });
+
+  if (userRole !== "facilitator") {
+    query = query.in("status", ["active", "complete"]);
+  }
 
   if (filter === "upcoming") {
     query = query.gte("event_date", new Date().toISOString().split("T")[0]);
@@ -50,6 +62,9 @@ export async function POST(req: Request) {
       course_id: parsed.data.course_id ?? null,
       lat: parsed.data.lat ?? null,
       lng: parsed.data.lng ?? null,
+      price: parsed.data.price ?? 0,
+      currency: parsed.data.currency ?? "PHP",
+      status: "draft",
     })
     .select()
     .single();
