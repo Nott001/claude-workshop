@@ -5,7 +5,7 @@ import { getServiceClient } from "@/lib/db";
 import { progressSchema } from "@/modules/course-content";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("attendee");
+  const guard = await requireRole("attendee", "speaker", "facilitator");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
