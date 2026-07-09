@@ -24,11 +24,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: event, error } = await supabase
     .from("EVENTS")
-    .select("event_id, title, event_date, start_time, end_time, venue_name, price, currency")
+    .select("event_id, title, event_date, start_time, end_time, venue_name, price, currency, status")
     .eq("event_id", id)
     .single();
 
   if (error || !event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  if (event.status === "draft" && dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
@@ -56,7 +60,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, full_name, email").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase
+    .from("USERS")
+    .select("user_id, full_name, email, role")
+    .eq("clerk_id", userId)
+    .single();
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -67,8 +75,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { data: event } = await supabase.from("EVENTS").select("title").eq("event_id", id).single();
+  const { data: event } = await supabase.from("EVENTS").select("title, status").eq("event_id", id).single();
   if (!event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  if (event.status === "draft" && dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 

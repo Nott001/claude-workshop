@@ -26,8 +26,16 @@ export async function POST(req: Request) {
 
   const { event_id } = parsed.data;
 
-  const { data: event } = await supabase.from("EVENTS").select("title, price, currency").eq("event_id", event_id).single();
+  const { data: event } = await supabase
+    .from("EVENTS")
+    .select("title, price, currency, status")
+    .eq("event_id", event_id)
+    .single();
   if (!event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  if (event.status === "draft") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
