@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### feat: add live session room with real-time lesson broadcast
+
+- **supabase/migrations/00006_create_live_session_state.sql** — new migration: LIVE_SESSION_STATE table (event_id PK/FK, current_lesson_id FK nullable, updated_by FK, updated_at); enable Realtime publication
+- **types/index.ts** — add `LiveSessionState` interface
+- **modules/live-session/index.ts** — domain logic: `liveSessionUpdateSchema` for PATCH validation; `validateLessonBelongsToEvent` guard checking lesson is in event's course module tree
+- **lib/realtime/index.ts** — `subscribeToLiveSession()` utility wrapping Supabase Realtime channel with per-event filtered subscription
+- **components/lesson-viewer.tsx** — reusable lesson content renderer extracted from course viewer (pdf/video/image/link)
+- **app/api/live/[eventId]/route.ts** — GET (all roles) returns current session state; PATCH (speaker/facilitator) updates current_lesson_id with server-side validation
+- **app/api/live/[eventId]/state/route.ts** — POST (facilitator-only) initialize or reset session state
+- **app/api/auth/me/route.ts** — new endpoint returning current user's `user_id` and `role` for client-side role detection
+- **app/events/[id]/live/page.tsx** — live room page with speaker controls (prev/next/dropdown), attendee lesson viewer, Q&A placeholder, support chat placeholder; real-time sync via Supabase Realtime with 10s polling fallback
+
 ### feat: add event status lifecycle (draft → active → complete)
 
 - **supabase/migrations/00004_create_commerce.sql** — merge price/currency ALTER TABLE from `docs/update_table_include_price.sql` into PAYMENTS table; add amount/currency columns and CHECK constraints

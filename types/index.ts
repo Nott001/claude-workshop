@@ -95,6 +95,13 @@ export interface Payment {
   updated_at: string;
 }
 
+export interface LiveSessionState {
+  event_id: number;
+  current_lesson_id: number | null;
+  updated_by: number;
+  updated_at: string;
+}
+
 export interface Ticket {
   payment_id: number;
   user_id: number;
