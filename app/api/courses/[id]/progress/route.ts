@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("attendee", "speaker", "facilitator");
+  const guard = await requireRole("attendee", "facilitator");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }

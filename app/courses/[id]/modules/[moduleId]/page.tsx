@@ -68,7 +68,9 @@ export default function ModuleEditorPage() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [courseId, moduleId]);
 
   function resetForm() {

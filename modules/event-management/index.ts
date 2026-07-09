@@ -1,0 +1,32 @@
+import { z } from "zod";
+
+export const eventSchema = z
+  .object({
+    title: z.string().min(1).max(255),
+    event_date: z.string().min(1),
+    start_time: z.string().min(1),
+    end_time: z.string().min(1),
+    venue_name: z.string().min(1).max(255),
+    venue_address: z.string().nullable().optional(),
+    course_id: z.coerce.number().int().positive().nullable().optional(),
+    lat: z.coerce.number().nullable().optional(),
+    lng: z.coerce.number().nullable().optional(),
+  })
+  .refine((data) => data.start_time < data.end_time, { message: "start_time must be before end_time" });
+
+export const speakerProfileSchema = z.object({
+  user_id: z.coerce.number().int().positive(),
+  bio: z.string().nullable().optional(),
+  photo_url: z.string().url().nullable().optional(),
+  designation: z.string().nullable().optional(),
+});
+
+export const speakerProfileUpdateSchema = z.object({
+  bio: z.string().nullable().optional(),
+  photo_url: z.string().url().nullable().optional(),
+  designation: z.string().nullable().optional(),
+});
+
+export const speakerAssignmentSchema = z.object({
+  speaker_profile_id: z.coerce.number().int().positive(),
+});
