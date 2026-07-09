@@ -49,9 +49,7 @@ export default function EventSpeakersPage() {
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [eventId, refreshKey]);
 
   async function handleAssign(e: React.FormEvent) {

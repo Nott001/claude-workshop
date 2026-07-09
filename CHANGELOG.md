@@ -2,12 +2,6 @@
 
 ## [Unreleased]
 
-### fix: correct role guards and dead function references
-
-- **app/speakers/page.tsx** — fix `loadProfiles()` reference error in `handleCreate`/`handleDelete` (function inlined during lint fix); use refresh-key pattern
-- **app/api/lessons/[id]/progress/route.ts** — restrict `requireRole` to `"attendee"` only (speaker/facilitator should not mark progress)
-- **app/api/courses/[id]/progress/route.ts** — restrict `requireRole` to `"attendee", "facilitator"` (speakers should not view progress)
-
 ### fix: repair speaker assignment page and public event API access
 
 - **middleware.ts** — exclude `/api/events` and `/api/speakers` from auth protection; public GET routes handled at route level
