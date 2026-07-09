@@ -4,7 +4,7 @@ import { verifyWebhookSignature } from "@/lib/hitpay";
 import { canTransitionPayment, generateQrToken } from "@/modules/commerce";
 
 export async function POST(req: Request) {
-  const signature = req.headers.get("x-hitpay-signature") ?? "";
+  const signature = req.headers.get("hitpay-signature") ?? "";
 
   const rawBody = await req.text();
 

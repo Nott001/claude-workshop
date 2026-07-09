@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### docs: reflect event pricing fields across all planning documents
+
+- **OVERVIEW.md** — add `price`/`currency` to EVENTS row, `amount`/`currency` to PAYMENTS row, pricing model note (amount snapshotted from event at creation)
+- **data-model.md** — EVENTS and PAYMENTS entity specs with `price`/`amount`/`currency` fields and CHECK constraints; add 4 pricing validation rules
+- **scope.md** — facilitator role includes pricing; event management workflow mentions price; success criteria updated
+- **functional-planning.md** — add facilitator story for setting price/currency; add "Set event price/currency" to permission matrix; add business rules 7-8 for price non-negativity and amount snapshot
+- **architecture.md** — note price/currency on EVENTS module and amount/currency on PAYMENTS module
+- **ux-screens.md** — add Price and Currency fields to Event Create/Edit form; update Payment Status per-role actions to include amount
+
 ### feat: add commerce pipeline — HitPay payments, tickets, QR codes
 
 - **supabase/migrations/00004_create_commerce.sql** — PAYMENTS and TICKETS tables with status enums, FK constraints, and indexes

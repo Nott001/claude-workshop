@@ -8,6 +8,7 @@
 |---|---|
 | Facilitator | As a **facilitator**, I want to **create an event with a title, date, time, and venue**, so that **attendees know where and when the event takes place**. |
 | Facilitator | As a **facilitator**, I want to **link an existing course (modules → lessons) to an event**, so that **the event has structured content for the live session**. |
+| Facilitator | As a **facilitator**, I want to **set a price and currency for an event**, so that **attendees are charged correctly at checkout**. |
 | Facilitator | As a **facilitator**, I want to **assign speakers to an event from existing speaker profiles**, so that **the right people are responsible for delivering lessons**. |
 | Facilitator | As a **facilitator**, I want to **create or update a speaker profile with bio and photo**, so that **attendees can see who the speakers are**. |
 | Facilitator | As a **facilitator**, I want to **create a course with modules and lessons before linking it to an event**, so that **content is ready when the event is published**. |
@@ -19,7 +20,7 @@
 | Attendee | As an **attendee**, I want to **browse available events and register**, so that **I can express intent to attend**. |
 | Attendee | As an **attendee**, I want to **purchase a ticket via HitPay**, so that **I can pay for the event online**. |
 | Attendee | As an **attendee**, I want to **receive a unique QR ticket after payment**, so that **I can check in at the venue**. |
-| Facilitator | As a **facilitator**, I want to **view payment status for each registrant**, so that **I can confirm who has paid**. |
+| Facilitator | As a **facilitator**, I want to **view payment status and amount for each registrant**, so that **I can confirm who has paid and how much**. |
 
 ### Workflow: Kiosk Check-in
 
@@ -69,6 +70,7 @@
 | Create / update modules & lessons | Denied | Denied | Allowed |
 | Create event | Denied | Denied | Allowed |
 | Update event details | Denied | Denied | Allowed |
+| Set event price and currency | Denied | Denied | Allowed |
 | Create / update speaker profile | Denied | Allowed (own only) | Allowed (any) |
 | Assign speakers to event | Denied | Denied | Allowed |
 | View event list | Allowed | Allowed | Allowed |
@@ -119,6 +121,8 @@
 4. A user can only have one active (non-cancelled) ticket per event.
 5. `TICKETS.cancelled` status transitions: can only cancel an `issued` or `checked_in` ticket (not already cancelled).
 6. `PAYMENTS.status` transition: `pending → paid | failed`, `paid → refunded` only.
+7. `EVENTS.price` must be non-negative.
+8. `PAYMENTS.amount` and `PAYMENTS.currency` are snapshotted from the event's `price` and `currency` at payment creation time, so the charged amount is immutable even if the event price changes later.
 
 ### Live Session
 

@@ -1,9 +1,8 @@
 import crypto from "crypto";
 
 const HITPAY_API_KEY = process.env.HITPAY_API_KEY!;
-const HITPAY_API_SECRET = process.env.HITPAY_API_SECRET!;
 const HITPAY_SALT = process.env.HITPAY_SALT!;
-const HITPAY_BASE_URL = process.env.HITPAY_BASE_URL ?? "https://api.sandbox.hitpayapp.com";
+const HITPAY_BASE_URL = process.env.HITPAY_BASE_URL ?? "https://api.sandbox.hit-pay.com";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 interface HitPayCreatePaymentResponse {
@@ -40,8 +39,8 @@ export async function createPayment({
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "X-Api-Key": HITPAY_API_KEY,
-      "X-Api-Secret": HITPAY_API_SECRET,
+      "X-BUSINESS-API-KEY": HITPAY_API_KEY,
+      "X-Requested-With": "XMLHttpRequest",
     },
     body,
   });
