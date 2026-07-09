@@ -24,6 +24,7 @@ export default function SpeakersPage() {
   const [bio, setBio] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [designation, setDesignation] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +46,7 @@ export default function SpeakersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -65,14 +66,14 @@ export default function SpeakersPage() {
     setBio("");
     setPhotoUrl("");
     setDesignation("");
-    await loadProfiles();
+    setRefreshKey((k) => k + 1);
   }
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this speaker profile?")) return;
     const res = await fetch(`/api/speakers/${id}`, { method: "DELETE" });
     if (!res.ok) return;
-    await loadProfiles();
+    setRefreshKey((k) => k + 1);
   }
 
   if (loading) return <div>Loading speaker profiles...</div>;
