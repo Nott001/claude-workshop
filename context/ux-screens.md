@@ -144,7 +144,7 @@
 
 | Action | Attendee | Speaker | Facilitator |
 |---|---|---|---|
-| Set title, date, time, venue | — | — | Visible |
+| Set title, date, time, venue, price, currency | — | — | Visible |
 | Link course | — | — | Visible |
 | All fields editable | — | — | Visible |
 
@@ -189,8 +189,8 @@
 
 | Action | Attendee | Speaker | Facilitator |
 |---|---|---|---|
-| View own payment status | Visible | — | — |
-| View all payments | — | — | Visible |
+| View own payment status (including amount) | Visible | — | — |
+| View all payments (including amounts) | — | — | Visible |
 
 ### Live Room
 
@@ -326,6 +326,8 @@
 | Venue Address | text | No | |
 | Latitude | number | No | -90 to 90 |
 | Longitude | number | No | -180 to 180 |
+| Price | number (decimal) | Yes | Must be ≥ 0; max 10 digits, 2 decimal places |
+| Currency | select (ISO 4217) | Yes | Default PHP; allow SGD, USD, etc. |
 | Course | select (from existing) | No | Must reference existing course |
 
 ### Course Create / Edit

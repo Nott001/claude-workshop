@@ -63,6 +63,8 @@
 | venue_name | varchar | NOT | — |
 | lat | numeric(10,7) | YES | NULL |
 | lng | numeric(10,7) | YES | NULL |
+| price | numeric(10,2) | NOT | 0 | **Added** — ticket price; non-negative |
+| currency | char(3) | NOT | 'PHP' | **Added** — ISO 4217 currency code |
 | created_at | timestamptz | NOT | now() | **Added** |
 | updated_at | timestamptz | NOT | now() | **Added** |
 
@@ -112,6 +114,8 @@ No `created_at` — composite PK implies first insert.
 | hitpay_reference_id | varchar UK | YES | NULL | Set after HitPay response |
 | status | enum(pending,paid,failed,refunded) | NOT | 'pending' |
 | paid_at | timestamptz | YES | NULL |
+| amount | numeric(10,2) | NOT | 0 | **Added** — amount charged (snapshotted from event price at payment time); non-negative |
+| currency | char(3) | NOT | 'PHP' | **Added** — ISO 4217 currency code (snapshotted from event) |
 | created_at | timestamptz | NOT | now() | **Added** |
 | updated_at | timestamptz | NOT | now() | **Added** |
 
@@ -215,6 +219,10 @@ UK(survey_id, user_id) — one response per user per survey.
 | Rule | Enforcement |
 |---|---|
 | EVENTS.start_time < EVENTS.end_time | CHECK constraint |
+| EVENTS.price >= 0 | CHECK constraint |
+| EVENTS.currency is ISO 4217 3-letter code | Application-level or CHECK constraint |
+| PAYMENTS.amount >= 0 | CHECK constraint |
+| PAYMENTS.amount and currency snapshotted from EVENTS at payment creation | Application-level: copy from EVENTS when inserting PAYMENT |
 | TICKETS.qr_token generated only after PAYMENTS.status = paid | Application-level: insert TICKET only in HitPay webhook handler |
 | LESSON_PROGRESS.units_completed ≤ LESSONS.total_units | CHECK constraint or app-level guard |
 | LESSON_PROGRESS.is_completed = TRUE iff units_completed = total_units | Trigger or app-level on write |
