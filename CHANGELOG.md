@@ -4,16 +4,8 @@
 
 ### fix: Zod 4 forbids .partial() on schemas with .refine() — split eventSchema into base + partial
 
-Zod 4 throws `Error: .partial() cannot be used on object schemas containing
-refinements`. The PATCH handler called `eventSchema.partial()`, and
-`eventSchema` had a `.refine()` for start_time < end_time. Extracted
-`eventBaseSchema` (no refine) and derived `eventSchema` (with refine)
-and `eventPartialSchema` (partial of base) from it.
-
-- **modules/event-management/index.ts** — split `eventSchema` into
-  `eventBaseSchema` + derived `eventSchema` and `eventPartialSchema`
-- **app/api/events/[id]/route.ts** — use `eventPartialSchema` instead
-  of `eventSchema.partial()`
+- **modules/event-management/index.ts** — extract `eventBaseSchema` (no refine) and derive `eventPartialSchema` (partial of base) from it, so PATCH handler avoids calling `.partial()` on a refined schema
+- **app/api/events/[id]/route.ts** — import and use `eventPartialSchema` instead of `eventSchema.partial()`
 
 ### feat: add price/currency fields to event create/edit forms
 
