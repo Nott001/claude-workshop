@@ -12,6 +12,8 @@ export default function NewEventPage() {
   const [venueName, setVenueName] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState("PHP");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -26,6 +28,8 @@ export default function NewEventPage() {
       venue_name: venueName,
       venue_address: venueAddress || null,
       course_id: courseId ? Number(courseId) : null,
+      price: price ? Number(price) : 0,
+      currency,
     };
 
     const res = await fetch("/api/events", {
@@ -78,6 +82,14 @@ export default function NewEventPage() {
         <div>
           <label>Course ID (optional)</label>
           <input type="number" value={courseId} onChange={(e) => setCourseId(e.target.value)} />
+        </div>
+        <div>
+          <label>Price</label>
+          <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+        </div>
+        <div>
+          <label>Currency</label>
+          <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
         </div>
         <button type="submit">Create Event</button>
       </form>

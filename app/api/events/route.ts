@@ -50,6 +50,8 @@ export async function POST(req: Request) {
       course_id: parsed.data.course_id ?? null,
       lat: parsed.data.lat ?? null,
       lng: parsed.data.lng ?? null,
+      price: parsed.data.price ?? 0,
+      currency: parsed.data.currency ?? "PHP",
     })
     .select()
     .single();
