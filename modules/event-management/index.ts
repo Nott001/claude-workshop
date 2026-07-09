@@ -1,20 +1,24 @@
 import { z } from "zod";
 
-export const eventSchema = z
-  .object({
-    title: z.string().min(1).max(255),
-    event_date: z.string().min(1),
-    start_time: z.string().min(1),
-    end_time: z.string().min(1),
-    venue_name: z.string().min(1).max(255),
-    venue_address: z.string().nullable().optional(),
-    course_id: z.coerce.number().int().positive().nullable().optional(),
-    lat: z.coerce.number().nullable().optional(),
-    lng: z.coerce.number().nullable().optional(),
-    price: z.coerce.number().min(0).optional(),
-    currency: z.string().length(3).optional(),
-  })
-  .refine((data) => data.start_time < data.end_time, { message: "start_time must be before end_time" });
+const eventBaseSchema = z.object({
+  title: z.string().min(1).max(255),
+  event_date: z.string().min(1),
+  start_time: z.string().min(1),
+  end_time: z.string().min(1),
+  venue_name: z.string().min(1).max(255),
+  venue_address: z.string().nullable().optional(),
+  course_id: z.coerce.number().int().positive().nullable().optional(),
+  lat: z.coerce.number().nullable().optional(),
+  lng: z.coerce.number().nullable().optional(),
+  price: z.coerce.number().min(0).optional(),
+  currency: z.string().length(3).optional(),
+});
+
+export const eventSchema = eventBaseSchema.refine((data) => data.start_time < data.end_time, {
+  message: "start_time must be before end_time",
+});
+
+export const eventPartialSchema = eventBaseSchema.partial();
 
 export const speakerProfileSchema = z.object({
   user_id: z.coerce.number().int().positive(),
