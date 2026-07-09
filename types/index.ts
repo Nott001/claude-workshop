@@ -48,3 +48,28 @@ export interface LessonProgress {
   is_completed: boolean;
   updated_at: string;
 }
+
+export interface Event {
+  event_id: number;
+  course_id: number | null;
+  title: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  venue_address: string | null;
+  venue_name: string;
+  lat: number | null;
+  lng: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SpeakerProfile {
+  speaker_profile_id: number;
+  user_id: number;
+  bio: string | null;
+  photo_url: string | null;
+  designation: string | null;
+  created_at: string;
+  updated_at: string;
+}

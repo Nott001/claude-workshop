@@ -60,7 +60,9 @@ export default function LessonViewerPage() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [courseId, lessonId]);
 
   async function handleUpdateProgress() {
