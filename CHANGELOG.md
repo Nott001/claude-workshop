@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### feat: add event management and speaker assignment
+
+- **supabase/migrations/00003_create_event_management.sql** — EVENTS, SPEAKER_PROFILES, EVENT_SPEAKERS tables with CHECK constraint, indexes, and cascade rules
+- **types/index.ts** — add Event and SpeakerProfile interfaces
+- **modules/event-management/index.ts** — Zod schemas for events, speaker profiles, and speaker assignments
+- **app/api/events/** — CRUD routes with facilitator guards, event delete checks for existing payments
+- **app/api/speakers/** — list/create speaker profiles (facilitator); PATCH allows self-service edit
+- **app/api/events/[id]/speakers/** — assign/remove speakers from events
+- **app/events/** — public event list (filterable by upcoming/past), event detail page, create/edit forms
+- **app/speakers/** — speaker profile list, edit page
+- **app/events/[id]/speakers/** — speaker assignment UI (assign/remove)
+- **test/event-management.test.ts** — 14 unit tests for schemas and type shapes
+
 ### feat: add missing course content screens (module editor, lesson viewer, progress)
 
 - **app/courses/[...]/modules/[...]/page.tsx** — module/lesson editor with create, edit, delete for lessons
