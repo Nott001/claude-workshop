@@ -11,8 +11,8 @@ export const eventSchema = z
     course_id: z.coerce.number().int().positive().nullable().optional(),
     lat: z.coerce.number().nullable().optional(),
     lng: z.coerce.number().nullable().optional(),
-    price: z.coerce.number().min(0).default(0),
-    currency: z.string().length(3).default("PHP"),
+    price: z.coerce.number().min(0).optional(),
+    currency: z.string().length(3).optional(),
   })
   .refine((data) => data.start_time < data.end_time, { message: "start_time must be before end_time" });
 

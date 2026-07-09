@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### feat: add price/currency fields to event create/edit forms
+
+- **modules/event-management/index.ts** — remove `.default()` from `price`/`currency` in eventSchema so PATCH doesn't silently overwrite omitted fields; fallback defaults applied at POST handler and DB level
+- **app/api/events/route.ts** — include `price`/`currency` in the POST insert mapping (defaulting to 0 and "PHP")
+- **app/events/new/page.tsx** — add Price (number, min 0) and Currency (uppercased 3-char) inputs
+- **app/events/[id]/edit/page.tsx** — load and save price/currency; add Price and Currency inputs
+
 ### docs: reflect event pricing fields across all planning documents
 
 - **OVERVIEW.md** — add `price`/`currency` to EVENTS row, `amount`/`currency` to PAYMENTS row, pricing model note (amount snapshotted from event at creation)
