@@ -28,6 +28,7 @@ export default function EventSpeakersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,10 +49,8 @@ export default function EventSpeakersPage() {
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId]);
+    return () => { cancelled = true; };
+  }, [eventId, refreshKey]);
 
   async function handleAssign(e: React.FormEvent) {
     e.preventDefault();
@@ -65,14 +64,14 @@ export default function EventSpeakersPage() {
 
     if (!res.ok) return;
     setSelectedProfileId("");
-    await loadAll();
+    setRefreshKey((k) => k + 1);
   }
 
   async function handleRemove(profileId: number) {
     if (!confirm("Remove this speaker from the event?")) return;
     const res = await fetch(`/api/events/${eventId}/speakers/${profileId}`, { method: "DELETE" });
     if (!res.ok) return;
-    await loadAll();
+    setRefreshKey((k) => k + 1);
   }
 
   if (loading) return <div>Loading...</div>;

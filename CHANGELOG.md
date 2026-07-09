@@ -2,11 +2,12 @@
 
 ## [Unreleased]
 
-### fix: allow public access to event list/detail API routes
+### fix: repair speaker assignment page and public event API access
 
 - **middleware.ts** — exclude `/api/events` and `/api/speakers` from auth protection; public GET routes handled at route level
 - **app/api/speakers/route.ts** — add explicit `requireRole("facilitator")` to GET handler (previously relied on middleware)
 - **app/api/events/[id]/speakers/route.ts** — add `requireRole("facilitator")` to GET handler
+- **app/events/[id]/speakers/page.tsx** — fix `loadAll()` reference error (function inlined during lint fix lost the name); use refresh-key pattern to avoid lint warnings
 
 ### feat: add event management and speaker assignment
 
