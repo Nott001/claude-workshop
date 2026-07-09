@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### fix: allow public access to event list/detail API routes
+
+- **middleware.ts** — exclude `/api/events` and `/api/speakers` from auth protection; public GET routes handled at route level
+- **app/api/speakers/route.ts** — add explicit `requireRole("facilitator")` to GET handler (previously relied on middleware)
+- **app/api/events/[id]/speakers/route.ts** — add `requireRole("facilitator")` to GET handler
+
 ### feat: add event management and speaker assignment
 
 - **supabase/migrations/00003_create_event_management.sql** — EVENTS, SPEAKER_PROFILES, EVENT_SPEAKERS tables with CHECK constraint, indexes, and cascade rules
