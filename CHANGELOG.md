@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### feat: add survey subsystem — facilitator builder, attendee submission, response browsing
+
+- **supabase/migrations/00009_create_surveys.sql** — new migration: SURVEYS, SURVEY_QUESTIONS (with submitted_type enum), SURVEY_RESPONSES (UK on survey_id+user_id), SURVEY_ANSWERS tables with FKs, indexes, and cascading deletes
+- **modules/surveys/index.ts** — domain logic: `surveyCreateSchema`, `surveyUpdateSchema`, `questionSchema`, `questionUpdateSchema`, `responseSubmitSchema`, `validateAnswers()` enforcing rating 1-5, text presence, and one-answer-per-question
+- **app/api/events/[eventId]/surveys/route.ts** — GET (attendee: available with already_submitted flag; facilitator: all) and POST (facilitator-only) survey CRUD
+- **app/api/surveys/[id]/route.ts** — GET (survey with questions), PATCH (title update), DELETE (cascading) — all facilitator-only except GET
+- **app/api/surveys/[id]/questions/route.ts** — POST add question (facilitator)
+- **app/api/surveys/[id]/questions/[questionId]/route.ts** — PATCH and DELETE question (facilitator)
+- **app/api/surveys/[id]/responses/route.ts** — POST submit response (attendee, 409 on duplicate, validates answers); GET list responses (facilitator)
+- **app/api/surveys/[id]/responses/[responseId]/route.ts** — GET single response with answers (facilitator)
+- **app/events/[id]/surveys/page.tsx** — survey list screen (facilitator: manage/delete; attendee: take or already-submitted)
+- **app/events/[id]/surveys/new/page.tsx** — survey builder with add/edit/remove questions and type selection
+- **app/events/[id]/surveys/[surveyId]/edit/page.tsx** — edit survey title, add/edit/delete questions
+- **app/events/[id]/surveys/[surveyId]/page.tsx** — attendee survey form rendering text/multiple-choice/rating inputs with validation
+- **app/events/[id]/surveys/[surveyId]/confirmed/page.tsx** — post-submit confirmation screen
+- **app/events/[id]/surveys/[surveyId]/responses/page.tsx** — facilitator response browser with expandable individual responses
+- **test/surveys.test.ts** — 15 unit tests for schemas and answer validation
+
 ### feat: add kiosk check-in flow with QR scanning and real-time attendee list
 
 - **supabase/migrations/00008_enable_tickets_realtime.sql** — enable Realtime publication on TICKETS table for check-in list updates
