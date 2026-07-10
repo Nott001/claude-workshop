@@ -125,3 +125,16 @@ export interface ChatMessage {
   deleted_at: string | null;
   updated_at: string;
 }
+
+export type EmailType = "registration_confirmation" | "ticket_issued" | "check_in_confirmed";
+export type EmailStatus = "sent" | "failed";
+
+export interface EmailLog {
+  log_id: number;
+  user_id: number;
+  email_type: EmailType;
+  status: EmailStatus;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

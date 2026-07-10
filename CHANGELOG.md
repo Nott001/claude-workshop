@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### feat: add email notification subsystem — Brevo client, EMAIL_LOGS, fire-and-forget triggers, facilitator log browser
+
+- **supabase/migrations/00010_create_email_logs.sql** — new migration: `email_type` ENUM (`registration_confirmation`, `ticket_issued`, `check_in_confirmed`), `email_status` ENUM (`sent`, `failed`), `EMAIL_LOGS` table with user_id FK, indexes on user_id, email_type, status, sent_at
+- **types/index.ts** — add `EmailType`, `EmailStatus`, `EmailLog` interface
+- **modules/notifications/index.ts** — domain logic: `emailTypeEnum`, `emailStatusEnum`, `emailLogInsertSchema`, `emailLogFilterSchema`
+- **modules/notifications/email.ts** — `fireAndForgetEmailNotification()` utility: sends Brevo email via `Promise.allSettled`, inserts `EMAIL_LOGS` row with `sent` or `failed` status, non-blocking from API handler
+- **lib/email/index.ts** — Brevo client wrapper: `sendEmail()` calling `/v3/smtp/email`, inline HTML templates for registration confirmation, ticket issued, and check-in confirmed emails
+- **app/api/payments/route.ts** — wire `registration_confirmation` email trigger after payment creation (fire-and-forget)
+- **app/api/payments/webhook/route.ts** — wire `ticket_issued` email trigger after ticket creation (fire-and-forget)
+- **app/api/checkin/route.ts** — replace placeholder EMAIL_LOGS insert with `check_in_confirmed` email trigger via fire-and-forget
+- **app/api/logs/route.ts** — GET (facilitator-only) list email logs with filtering by `email_type`, `status`, `user_id`, date range; sorted by `sent_at` descending
+- **app/api/logs/[id]/route.ts** — GET (facilitator-only) single email log detail with user join
+- **app/dashboard/logs/page.tsx** — facilitator email log browser: table (user, email, type, status, sent_at), filters by type dropdown, status dropdown, date range
+- **test/notifications.test.ts** — 22 unit tests for EmailLog type shape, emailTypeEnum, emailStatusEnum, emailLogInsertSchema, emailLogFilterSchema
+
 ### fix: align dynamic route slug names to resolve Next.js conflict ('id' !== 'eventId')
 
 - **app/api/events/[eventId]/surveys/route.ts** — merged into `[id]/surveys/`, renamed param from `eventId` to `id` to match sibling route segments under `app/api/events/`
