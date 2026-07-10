@@ -61,5 +61,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
+  const { error: emailLogError } = await supabase.from("EMAIL_LOGS").insert({
+    user_id: ticket.user_id,
+    email_type: "check_in_confirmed",
+    status: "sent",
+    metadata: { event_id: ticket.event_id, checked_in_by: dbUser.user_id },
+  });
+  if (emailLogError) {
+    console.warn("EMAIL_LOGS insert failed (table may not exist yet):", emailLogError.message);
+  }
+
   return NextResponse.json(formatCheckinResult({ ...ticket, status: "issued" as const }));
 }

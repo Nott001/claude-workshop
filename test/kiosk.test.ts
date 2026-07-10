@@ -22,6 +22,9 @@ describe("checkinSchema", () => {
 describe("formatCheckinResult", () => {
   const baseTicket = {
     USER: { full_name: "Jane Doe", email: "jane@example.com" },
+    payment_id: 1,
+    user_id: 5,
+    event_id: 10,
   };
 
   it("returns success for issued ticket", () => {
@@ -38,6 +41,7 @@ describe("formatCheckinResult", () => {
     expect(result.status).toBe("duplicate");
     if (result.status === "duplicate") {
       expect(result.ticket.status).toBe("checked_in");
+      expect(result.ticket.payment_id).toBe(1);
     }
   });
 
@@ -50,7 +54,11 @@ describe("formatCheckinResult", () => {
   });
 
   it("handles missing user gracefully", () => {
-    const result = formatCheckinResult({ status: "issued" as TicketStatus, USER: null });
+    const result = formatCheckinResult({
+      ...baseTicket,
+      status: "issued" as TicketStatus,
+      USER: null,
+    });
     expect(result.status).toBe("success");
     if (result.status === "success") {
       expect(result.attendee.full_name).toBe("Unknown");

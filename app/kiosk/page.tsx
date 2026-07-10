@@ -195,13 +195,19 @@ export default function KioskPage() {
       {result && resultData && (
         <div>
           {result === "success" && (
-            <div>
+            <div style={{ backgroundColor: "#d4edda", color: "#155724", padding: "1rem" }}>
               <p>Checked in: {resultData.attendee?.full_name}</p>
               <p>{resultData.attendee?.email}</p>
             </div>
           )}
-          {result === "duplicate" && <p>Already checked in</p>}
-          {result === "rejected" && <p>{resultData.reason === "cancelled" ? "Ticket cancelled" : "Invalid ticket"}</p>}
+          {result === "duplicate" && (
+            <p style={{ backgroundColor: "#fff3cd", color: "#856404", padding: "1rem" }}>Already checked in</p>
+          )}
+          {result === "rejected" && (
+            <p style={{ backgroundColor: "#f8d7da", color: "#721c24", padding: "1rem" }}>
+              {resultData.reason === "cancelled" ? "Ticket cancelled" : "Invalid ticket"}
+            </p>
+          )}
         </div>
       )}
 
