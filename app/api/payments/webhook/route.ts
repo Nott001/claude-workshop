@@ -82,6 +82,22 @@ export async function POST(req: Request) {
       if (ticketError) {
         return NextResponse.json({ error: ticketError.message }, { status: 500 });
       }
+
+      const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+      const [{ data: user }, { data: event }] = await Promise.all([
+        supabase.from("USERS").select("email, full_name").eq("user_id", existingPayment.user_id).single(),
+        supabase.from("EVENTS").select("title, event_date").eq("event_id", existingPayment.event_id).single(),
+      ]);
+      if (user && event) {
+        fireAndForgetEmailNotification({
+          user_id: existingPayment.user_id,
+          email: user.email,
+          name: user.full_name,
+          email_type: "ticket_issued",
+          eventTitle: event.title,
+          eventDate: event.event_date,
+        });
+      }
     }
   }
 
