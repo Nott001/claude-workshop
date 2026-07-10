@@ -4,13 +4,13 @@ import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { surveyCreateSchema } from "@/modules/surveys";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const { eventId } = await params;
+  const { id: eventId } = await params;
   const supabase = getServiceClient();
 
   const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
@@ -39,13 +39,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   return NextResponse.json(surveys ?? []);
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
 
-  const { eventId } = await params;
+  const { id: eventId } = await params;
   const body = await req.json();
   const parsed = surveyCreateSchema.safeParse(body);
   if (!parsed.success) {
