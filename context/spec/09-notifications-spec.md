@@ -56,3 +56,8 @@ Build the email notification subsystem: EMAIL_LOGS table migration; Brevo client
 - [ ] Facilitator filters logs by `email_type` and sees only matching entries
 - [ ] If Brevo API key is invalid, the API route still returns success and the log entry has `status = failed`
 - [ ] `/dashboard/logs` is accessible only to facilitators
+
+## References
+
+- [https://developers.brevo.com/guides/node-js] For the Node.js SDK
+- [https://developers.brevo.com/docs/how-it-works] For a quick overview on Brevo and REST API

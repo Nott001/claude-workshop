@@ -92,6 +92,16 @@ export async function POST(req: Request) {
       .update({ hitpay_reference_id: hitpayRes.reference_id })
       .eq("payment_id", payment.payment_id);
 
+    const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+    fireAndForgetEmailNotification({
+      user_id: dbUser.user_id,
+      email: dbUser.email,
+      name: dbUser.full_name,
+      email_type: "registration_confirmation",
+      eventTitle: event.title,
+      eventDate: event.event_date,
+    });
+
     return NextResponse.json({
       payment_id: payment.payment_id,
       checkout_url: hitpayRes.url,
