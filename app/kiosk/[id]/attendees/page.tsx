@@ -14,7 +14,7 @@ interface Attendee {
 export default function AttendeesPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.eventId as string;
+  const eventId = params.id as string;
   const { isLoaded, isSignedIn } = useUser();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);

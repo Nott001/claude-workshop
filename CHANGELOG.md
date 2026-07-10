@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### fix: align dynamic route slug names to resolve Next.js conflict ('id' !== 'eventId')
+
+- **app/api/events/[eventId]/surveys/route.ts** — merged into `[id]/surveys/`, renamed param from `eventId` to `id` to match sibling route segments under `app/api/events/`
+- **app/kiosk/[eventId]/attendees/page.tsx** — renamed to `[id]/attendees/`, updated `params.eventId` → `params.id`
+
 ### feat: add survey subsystem — facilitator builder, attendee submission, response browsing
 
 - **supabase/migrations/00009_create_surveys.sql** — new migration: SURVEYS, SURVEY_QUESTIONS (with submitted_type enum), SURVEY_RESPONSES (UK on survey_id+user_id), SURVEY_ANSWERS tables with FKs, indexes, and cascading deletes
