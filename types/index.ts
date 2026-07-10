@@ -1,4 +1,5 @@
 export type UserRole = "attendee" | "speaker" | "facilitator";
+export type ChatChannel = "support" | "live_qa";
 
 export interface User {
   user_id: number;
@@ -110,5 +111,17 @@ export interface Ticket {
   status: TicketStatus;
   issued_at: string;
   checked_in_by: number | null;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  message_id: number;
+  event_id: number;
+  channel: ChatChannel;
+  user_id: number;
+  message: string;
+  sent_at: string;
+  read_by: number[];
+  deleted_at: string | null;
   updated_at: string;
 }
