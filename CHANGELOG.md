@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### feat: add chat subsystem — Q&A and support channels with real-time sync
+
+- **supabase/migrations/00007_create_chat_messages.sql** — new migration: CHAT_MESSAGES table with message_id PK, event_id FK, channel enum, user_id FK, message, sent_at, read_by, deleted_at, updated_at; index on (event_id, channel, sent_at DESC); enable Realtime publication
+- **types/index.ts** — add `ChatChannel` type and `ChatMessage` interface with soft-delete support
+- **modules/chat/index.ts** — domain logic: `chatChannelEnum`, `sendMessageSchema` with 1-1000 char validation, `isRateLimited()` checker, `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX` constants
+- **lib/realtime/index.ts** — `subscribeToChatMessages()` utility wrapping Supabase Realtime channel with per-event, per-channel filtered INSERT subscription; client-side channel filter ensures only matching channel messages appear
+- **app/api/chat/[eventId]/route.ts** — GET (all authenticated) returns paginated messages (cursor-based, 50 per page, filtered by channel, excluding soft-deleted); POST (all authenticated) sends message with rate limiting (5/10s per user per channel) and draft-event access control
+- **app/api/chat/[eventId]/[messageId]/route.ts** — DELETE (facilitator-only) soft-deletes message by setting deleted_at
+- **components/chat-panel.tsx** — reusable chat UI component: message list with auto-scroll-to-bottom (respects manual scroll-up), load-more pagination, message input with send, delete button for facilitators, real-time subscription for new messages
+- **app/events/[id]/support/page.tsx** — standalone support channel page scoped to channel=support
+- **app/events/[id]/live/page.tsx** — replace Q&A and support chat placeholders with live ChatPanel instances; track currentUserId for client-side use
+- **test/chat.test.ts** — 15 unit tests for ChatChannel type, ChatMessage type, chatChannelEnum, sendMessageSchema, and isRateLimited
+
 ### feat: add live session room with real-time lesson broadcast
 
 - **supabase/migrations/00006_create_live_session_state.sql** — new migration: LIVE_SESSION_STATE table (event_id PK/FK, current_lesson_id FK nullable, updated_by FK, updated_at); enable Realtime publication

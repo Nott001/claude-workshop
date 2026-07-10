@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { subscribeToLiveSession } from "@/lib/realtime";
 import LessonViewer from "@/components/lesson-viewer";
+import ChatPanel from "@/components/chat-panel";
 import type { LiveSessionState, UserRole } from "@/types";
 
 interface Lesson {
@@ -35,6 +36,7 @@ export default function LiveRoomPage() {
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [course, setCourse] = useState<CourseWithLessons | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -108,7 +110,10 @@ export default function LiveRoomPage() {
         const userRes = await fetch("/api/auth/me");
         if (userRes.ok) {
           const userData = await userRes.json();
-          if (!cancelled) setUserRole(userData.role);
+          if (!cancelled) {
+            setUserRole(userData.role);
+            setCurrentUserId(userData.user_id);
+          }
         }
       }
 
@@ -235,12 +240,12 @@ export default function LiveRoomPage() {
 
       <div>
         <h2>Q&amp;A</h2>
-        <p>Coming soon.</p>
+        <ChatPanel eventId={eventId} channel="live_qa" userRole={userRole} currentUserId={currentUserId} />
       </div>
 
       <div>
         <h2>Support Chat</h2>
-        <p>Coming soon.</p>
+        <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
       </div>
     </div>
   );
