@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### feat: add kiosk check-in flow with QR scanning and real-time attendee list
+
+- **supabase/migrations/00008_enable_tickets_realtime.sql** — enable Realtime publication on TICKETS table for check-in list updates
+- **modules/kiosk/index.ts** — domain logic: `checkinSchema` (qr_token validation), `formatCheckinResult()` returning success/duplicate/rejected discriminated result
+- **lib/realtime/index.ts** — `subscribeToCheckins()` utility subscribing to TICKETS UPDATE events filtered by event_id; fires only when status=checked_in
+- **app/api/checkin/route.ts** — POST (facilitator-only) looks up ticket by qr_token, validates status transitions (issued→checked_in), returns success with attendee info, duplicate for already-checked-in, or rejected for cancelled tickets
+- **app/api/checkin/[eventId]/attendees/route.ts** — GET (facilitator-only) returns list of checked-in attendees with name, email, and check-in time
+- **app/kiosk/page.tsx** — full-screen kiosk page: event picker, camera scanner via getUserMedia + BarcodeDetector (native API), manual QR token text input fallback, result overlay with auto-clear after 3s
+- **app/kiosk/[eventId]/attendees/page.tsx** — checked-in attendee table with real-time updates via subscribeToCheckins()
+- **middleware.ts** — protect `/kiosk(.*)` routes behind authentication
+- **test/kiosk.test.ts** — 8 unit tests for checkinSchema and formatCheckinResult
+
 ### feat: add chat subsystem — Q&A and support channels with real-time sync
 
 - **supabase/migrations/00007_create_chat_messages.sql** — new migration: CHAT_MESSAGES table with message_id PK, event_id FK, channel enum, user_id FK, message, sent_at, read_by, deleted_at, updated_at; index on (event_id, channel, sent_at DESC); enable Realtime publication
