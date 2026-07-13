@@ -234,4 +234,22 @@
 - **08-surveys-spec.md** — Survey CRUD + response submission
 - **09-notifications-spec.md** — Email logs + Brevo transactional send
 
+### chore: initialize Supabase Storage buckets for application resources
+
+- **Supabase Storage** — created the initial storage bucket structure for uploaded application resources
+- **event_images** — public bucket for event cover images (`image/jpeg`, `image/png`)
+  - Store object paths in `EVENTS.cover_image_path`
+  - Upload convention: `events/{event_id}/cover.<ext>`
+- **profile_images** — public bucket for attendee, speaker, facilitator, and administrator profile photos (`image/jpeg`, `image/png`)
+  - Store object paths in `USERS.profile_image_path`
+  - Upload convention: `users/{user_id}/profile.<ext>`
+- **course_assets** — private bucket for PDFs, slides, spreadsheets, text files, ZIP archives, and images
+  - Store object paths in `LESSONS.content_path` when `content_type` is a document or image
+  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
+- **course_videos** — private bucket for lesson videos (`video/mp4`, `video/webm`, `video/quicktime`, `video/x-msvideo`, `video/x-matroska`)
+  - Store object paths in `LESSONS.content_path` when `content_type` is `video`
+  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
+- **Storage configuration** — each bucket currently has a 50 MB file size limit
+- **Storage policies** — no bucket access policies have been configured yet; access control will be implemented in a future update
+
 Each spec follows the mandatory Context/Objective/Scope/Constraints/Deliverable/Acceptance Criteria format. Build order respects Phase 2 dependency order with no violations; every milestone is independently demoable.
