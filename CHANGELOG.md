@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### feat: add auth form pages with design system layout
+
+- **components/auth-layout.tsx** — shared split layout component with brand panel (gradient) and mini-nav for auth pages
+- **app/sign-in/[[...sign-in]]/page.tsx** — Clerk SignIn component styled with design system tokens, wrapped in AuthLayout
+- **app/sign-up/[[...sign-up]]/page.tsx** — Clerk SignUp component styled with design system tokens, wrapped in AuthLayout
+
+### feat: add debug menu for bypassing authentication during testing
+
+- **components/debug-menu.tsx** — floating amber "D" button that enables debug mode, role selection (attendee/speaker/facilitator), quick nav to all routes
+- **middleware.ts** — skip auth protection when `debug_mode` cookie is set
+- **lib/auth/role-guard.ts** — bypass role checks when debug mode active, respect `debug_role` cookie for role selection
+- **app/layout.tsx** — include DebugMenu component
+- **DEBUG-REMOVAL.md** — documentation for removing debug menu before production
+
 ### feat: add Supabase Storage upload support across all buckets
 
 - **lib/storage/index.ts** — new storage module: bucket configs, file type/size validation, upload helper, path builders for event_images, profile_images, course_assets, course_videos
