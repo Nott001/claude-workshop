@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### feat: add Supabase Storage upload support across all buckets
+
+- **lib/storage/index.ts** — new storage module: bucket configs, file type/size validation, upload helper, path builders for event_images, profile_images, course_assets, course_videos
+- **app/api/upload/event-image/route.ts** — POST (facilitator-only) upload event cover image to `event_images` bucket, update EVENTS.cover_image_url
+- **app/api/upload/profile-image/route.ts** — POST (authenticated) upload profile photo to `profile_images` bucket, update SPEAKER_PROFILES.photo_url
+- **app/api/upload/course-asset/route.ts** — POST (facilitator-only) upload PDF/image to `course_assets` bucket, update LESSONS.content_url
+- **app/api/upload/course-video/route.ts** — POST (facilitator-only) upload video to `course_videos` bucket, update LESSONS.content_url
+- **types/index.ts** — add `profile_image_url: string | null` to User interface
+- **modules/course-content/index.ts** — make `content_url` optional in lessonSchema (required when not uploading file)
+- **app/events/new/page.tsx** — add file upload input for cover image alongside URL input
+- **app/events/[id]/edit/page.tsx** — add file upload input for cover image with preview of current image
+- **app/speakers/[id]/edit/page.tsx** — add file upload input for profile photo with preview of current photo
+- **app/courses/[id]/modules/[moduleId]/page.tsx** — add file upload input for lesson content (PDF/image/video) with type-based file filter
+- **test/storage.test.ts** — unit tests for file type validation, file size validation, extension mapping, path builders, and type shapes
+
 ### feat: add cover image URL support to events
 
 - **types/index.ts** — add `cover_image_url: string | null` to Event interface
