@@ -24,6 +24,24 @@
 - Update the `CHANGELOG.md` for every commit. If one does not exist, create one.
 - If the changes are huge enough, separate them out depending on the scope.
 
+## Debug Menu
+
+The debug menu (`components/debug-menu.tsx`) is a temporary testing tool that bypasses authentication and allows role switching. It must be updated when adding new pages and completely removed before production.
+
+### When adding new pages
+
+- Add the page route to `NAV_ITEMS` (public routes) or the appropriate role array in `ROLE_NAV_ITEMS` in `components/debug-menu.tsx`.
+- If the page is protected, also add the route pattern to the `isProtectedRoute` array in `middleware.ts` and update `lib/auth/role-guard.ts` if role-based access is needed.
+
+### Before production
+
+Follow the instructions in `DEBUG-REMOVAL.md` to remove the debug menu entirely. This includes:
+1. Deleting `components/debug-menu.tsx`
+2. Removing imports and usage from `app/layout.tsx`
+3. Removing debug bypass logic from `middleware.ts`
+4. Removing debug bypass logic from `lib/auth/role-guard.ts`
+5. Deleting `DEBUG-REMOVAL.md`
+
 ## Boundaries
 
 - **Ask first**
