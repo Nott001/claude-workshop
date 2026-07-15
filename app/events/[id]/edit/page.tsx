@@ -14,6 +14,7 @@ interface Event {
   course_id: number | null;
   price: number;
   currency: string;
+  cover_image_url: string | null;
   status: "draft" | "active" | "complete";
 }
 
@@ -31,6 +32,7 @@ export default function EditEventPage() {
   const [courseId, setCourseId] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [status, setStatus] = useState<"draft" | "active" | "complete">("draft");
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +54,7 @@ export default function EditEventPage() {
       setCourseId(data.course_id ? String(data.course_id) : "");
       setPrice(String(data.price ?? 0));
       setCurrency(data.currency ?? "PHP");
+      setCoverImageUrl(data.cover_image_url ?? "");
       setStatus(data.status);
       setLoading(false);
     }
@@ -72,6 +75,7 @@ export default function EditEventPage() {
       course_id: courseId ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
+      cover_image_url: coverImageUrl || null,
       status,
     };
 
@@ -136,6 +140,15 @@ export default function EditEventPage() {
         <div>
           <label>Currency</label>
           <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+        </div>
+        <div>
+          <label>Cover Image URL</label>
+          <input
+            type="url"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            placeholder="https://..."
+          />
         </div>
         <div>
           <label>Status</label>

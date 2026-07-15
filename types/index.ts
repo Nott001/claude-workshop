@@ -65,6 +65,7 @@ export interface Event {
   lng: number | null;
   price: number;
   currency: string;
+  cover_image_url: string | null;
   status: EventStatus;
   created_at: string;
   updated_at: string;
