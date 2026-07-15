@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### feat: add StartupLab landing page
+
+- **app/page.tsx** — implement the Figma-inspired business center landing page with sign-in and sign-up entry points
+- **lib/landing.ts** — define featured upcoming-event content
+
 ### feat: add Supabase Storage upload support across all buckets
 
 - **lib/storage/index.ts** — new storage module: bucket configs, file type/size validation, upload helper, path builders for event_images, profile_images, course_assets, course_videos
