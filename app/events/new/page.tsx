@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function NewEventPage() {
@@ -14,7 +14,11 @@ export default function NewEventPage() {
   const [courseId, setCourseId] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("PHP");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +34,7 @@ export default function NewEventPage() {
       course_id: courseId ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
+      cover_image_url: coverImageFile ? null : coverImageUrl || null,
     };
 
     const res = await fetch("/api/events", {
@@ -44,7 +49,37 @@ export default function NewEventPage() {
       return;
     }
 
+    const event = await res.json();
+
+    if (coverImageFile) {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("file", coverImageFile);
+      formData.append("event_id", String(event.event_id));
+
+      const uploadRes = await fetch("/api/upload/event-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        setError("Event created but cover image upload failed. You can add it later via edit.");
+        setUploading(false);
+        router.push(`/events/${event.event_id}`);
+        return;
+      }
+      setUploading(false);
+    }
+
     router.push("/events");
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      setCoverImageUrl("");
+    }
   }
 
   return (
@@ -91,7 +126,23 @@ export default function NewEventPage() {
           <label>Currency</label>
           <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
         </div>
-        <button type="submit">Create Event</button>
+        <div>
+          <label>Cover Image</label>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} />
+          {coverImageFile && <p>Selected: {coverImageFile.name}</p>}
+          <input
+            type="url"
+            value={coverImageUrl}
+            onChange={(e) => {
+              setCoverImageUrl(e.target.value);
+              setCoverImageFile(null);
+            }}
+            placeholder="Or paste image URL"
+          />
+        </div>
+        <button type="submit" disabled={uploading}>
+          {uploading ? "Uploading..." : "Create Event"}
+        </button>
       </form>
     </div>
   );

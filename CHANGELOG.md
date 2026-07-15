@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### feat: add Supabase Storage upload support across all buckets
+
+- **lib/storage/index.ts** — new storage module: bucket configs, file type/size validation, upload helper, path builders for event_images, profile_images, course_assets, course_videos
+- **app/api/upload/event-image/route.ts** — POST (facilitator-only) upload event cover image to `event_images` bucket, update EVENTS.cover_image_url
+- **app/api/upload/profile-image/route.ts** — POST (authenticated) upload profile photo to `profile_images` bucket, update SPEAKER_PROFILES.photo_url
+- **app/api/upload/course-asset/route.ts** — POST (facilitator-only) upload PDF/image to `course_assets` bucket, update LESSONS.content_url
+- **app/api/upload/course-video/route.ts** — POST (facilitator-only) upload video to `course_videos` bucket, update LESSONS.content_url
+- **types/index.ts** — add `profile_image_url: string | null` to User interface
+- **modules/course-content/index.ts** — make `content_url` optional in lessonSchema (required when not uploading file)
+- **app/events/new/page.tsx** — add file upload input for cover image alongside URL input
+- **app/events/[id]/edit/page.tsx** — add file upload input for cover image with preview of current image
+- **app/speakers/[id]/edit/page.tsx** — add file upload input for profile photo with preview of current photo
+- **app/courses/[id]/modules/[moduleId]/page.tsx** — add file upload input for lesson content (PDF/image/video) with type-based file filter
+- **test/storage.test.ts** — unit tests for file type validation, file size validation, extension mapping, path builders, and type shapes
+
+### feat: add cover image URL support to events
+
+- **types/index.ts** — add `cover_image_url: string | null` to Event interface
+- **modules/event-management/index.ts** — add `cover_image_url` (URL, nullable) to eventBaseSchema
+- **app/api/events/route.ts** — include `cover_image_url` in POST insert (defaults to null)
+- **app/events/new/page.tsx** — add Cover Image URL input field to event creation form
+- **app/events/[id]/page.tsx** — display cover image when `cover_image_url` is set
+- **app/events/[id]/edit/page.tsx** — add Cover Image URL input field to event edit form
+- **test/event-management.test.ts** — add tests for cover_image_url shape, valid URL, null, and invalid URL
+
+### chore: initialize Supabase Storage buckets for application resources
+
+- **Supabase Storage** — created the initial storage bucket structure for uploaded application resources
+- **event_images** — public bucket for event cover images (`image/jpeg`, `image/png`)
+  - Store object paths in `EVENTS.cover_image_path`
+  - Upload convention: `events/{event_id}/cover.<ext>`
+- **profile_images** — public bucket for attendee, speaker, facilitator, and administrator profile photos (`image/jpeg`, `image/png`)
+  - Store object paths in `USERS.profile_image_path`
+  - Upload convention: `users/{user_id}/profile.<ext>`
+- **course_assets** — private bucket for PDFs, slides, spreadsheets, text files, ZIP archives, and images
+  - Store object paths in `LESSONS.content_path` when `content_type` is a document or image
+  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
+- **course_videos** — private bucket for lesson videos (`video/mp4`, `video/webm`, `video/quicktime`, `video/x-msvideo`, `video/x-matroska`)
+  - Store object paths in `LESSONS.content_path` when `content_type` is `video`
+  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
+- **Storage configuration** — each bucket currently has a 50 MB file size limit
+- **Storage policies** — no bucket access policies have been configured yet; access control will be implemented in a future update
+
 ### feat: add email notification subsystem — Brevo client, EMAIL_LOGS, fire-and-forget triggers, facilitator log browser
 
 - **supabase/migrations/00010_create_email_logs.sql** — new migration: `email_type` ENUM (`registration_confirmation`, `ticket_issued`, `check_in_confirmed`), `email_status` ENUM (`sent`, `failed`), `EMAIL_LOGS` table with user_id FK, indexes on user_id, email_type, status, sent_at
@@ -233,23 +276,3 @@
 - **07-kiosk-spec.md** — Kiosk check-in flow with QR scan/verify
 - **08-surveys-spec.md** — Survey CRUD + response submission
 - **09-notifications-spec.md** — Email logs + Brevo transactional send
-
-### chore: initialize Supabase Storage buckets for application resources
-
-- **Supabase Storage** — created the initial storage bucket structure for uploaded application resources
-- **event_images** — public bucket for event cover images (`image/jpeg`, `image/png`)
-  - Store object paths in `EVENTS.cover_image_path`
-  - Upload convention: `events/{event_id}/cover.<ext>`
-- **profile_images** — public bucket for attendee, speaker, facilitator, and administrator profile photos (`image/jpeg`, `image/png`)
-  - Store object paths in `USERS.profile_image_path`
-  - Upload convention: `users/{user_id}/profile.<ext>`
-- **course_assets** — private bucket for PDFs, slides, spreadsheets, text files, ZIP archives, and images
-  - Store object paths in `LESSONS.content_path` when `content_type` is a document or image
-  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
-- **course_videos** — private bucket for lesson videos (`video/mp4`, `video/webm`, `video/quicktime`, `video/x-msvideo`, `video/x-matroska`)
-  - Store object paths in `LESSONS.content_path` when `content_type` is `video`
-  - Upload convention: `courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/{filename}`
-- **Storage configuration** — each bucket currently has a 50 MB file size limit
-- **Storage policies** — no bucket access policies have been configured yet; access control will be implemented in a future update
-
-Each spec follows the mandatory Context/Objective/Scope/Constraints/Deliverable/Acceptance Criteria format. Build order respects Phase 2 dependency order with no violations; every milestone is independently demoable.

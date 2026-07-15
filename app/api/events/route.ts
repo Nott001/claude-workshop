@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       lng: parsed.data.lng ?? null,
       price: parsed.data.price ?? 0,
       currency: parsed.data.currency ?? "PHP",
+      cover_image_url: parsed.data.cover_image_url ?? null,
       status: "draft",
     })
     .select()
