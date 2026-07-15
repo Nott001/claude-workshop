@@ -7,6 +7,7 @@ export interface User {
   email: string;
   clerk_id: string;
   role: UserRole;
+  profile_image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -65,6 +66,7 @@ export interface Event {
   lng: number | null;
   price: number;
   currency: string;
+  cover_image_url: string | null;
   status: EventStatus;
   created_at: string;
   updated_at: string;

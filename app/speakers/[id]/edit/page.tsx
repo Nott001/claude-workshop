@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 
 export default function EditSpeakerProfilePage() {
@@ -10,8 +10,11 @@ export default function EditSpeakerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [bio, setBio] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [designation, setDesignation] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -45,7 +48,7 @@ export default function EditSpeakerProfilePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         bio: bio || null,
-        photo_url: photoUrl || null,
+        photo_url: photoFile ? undefined : photoUrl || null,
         designation: designation || null,
       }),
     });
@@ -56,7 +59,34 @@ export default function EditSpeakerProfilePage() {
       return;
     }
 
+    if (photoFile) {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("file", photoFile);
+
+      const uploadRes = await fetch("/api/upload/profile-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        setError("Profile updated but photo upload failed.");
+        setUploading(false);
+        router.push("/speakers");
+        return;
+      }
+      setUploading(false);
+    }
+
     router.push("/speakers");
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      setPhotoUrl("");
+    }
   }
 
   if (loading) return <div>Loading...</div>;
@@ -79,10 +109,26 @@ export default function EditSpeakerProfilePage() {
           <textarea value={bio} onChange={(e) => setBio(e.target.value)} />
         </div>
         <div>
-          <label>Photo URL</label>
-          <input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
+          <label>Photo</label>
+          {photoUrl && !photoFile && (
+            <div>
+              <img src={photoUrl} alt="Current photo" style={{ maxWidth: "150px" }} />
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} />
+          {photoFile && <p>Selected: {photoFile.name}</p>}
+          <input
+            value={photoUrl}
+            onChange={(e) => {
+              setPhotoUrl(e.target.value);
+              setPhotoFile(null);
+            }}
+            placeholder="Or paste image URL"
+          />
         </div>
-        <button type="submit">Update</button>
+        <button type="submit" disabled={uploading}>
+          {uploading ? "Uploading..." : "Update"}
+        </button>
       </form>
     </div>
   );
