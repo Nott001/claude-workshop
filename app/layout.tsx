@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Live Events Platform",
-  description: "Role-based platform for live, course-aligned events",
+  title: "StartupLab Business Center",
+  description: "AI-driven innovation and education for business leaders.",
 };
 
 export default function RootLayout({
