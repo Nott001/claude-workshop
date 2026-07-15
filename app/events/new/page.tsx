@@ -14,6 +14,7 @@ export default function NewEventPage() {
   const [courseId, setCourseId] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("PHP");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,6 +31,7 @@ export default function NewEventPage() {
       course_id: courseId ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
+      cover_image_url: coverImageUrl || null,
     };
 
     const res = await fetch("/api/events", {
@@ -90,6 +92,15 @@ export default function NewEventPage() {
         <div>
           <label>Currency</label>
           <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+        </div>
+        <div>
+          <label>Cover Image URL</label>
+          <input
+            type="url"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            placeholder="https://..."
+          />
         </div>
         <button type="submit">Create Event</button>
       </form>

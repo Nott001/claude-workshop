@@ -22,6 +22,7 @@ describe("Event types", () => {
       lng: null,
       price: 0,
       currency: "PHP",
+      cover_image_url: null,
       status: "draft",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
@@ -70,6 +71,42 @@ describe("eventSchema", () => {
       lng: 5.678,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts event with cover_image_url", () => {
+    const result = eventSchema.safeParse({
+      title: "Test Event",
+      event_date: "2026-06-15",
+      start_time: "09:00",
+      end_time: "17:00",
+      venue_name: "Convention Center",
+      cover_image_url: "https://storage.example.com/event_images/events/1/cover.jpg",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts event with null cover_image_url", () => {
+    const result = eventSchema.safeParse({
+      title: "Test Event",
+      event_date: "2026-06-15",
+      start_time: "09:00",
+      end_time: "17:00",
+      venue_name: "Convention Center",
+      cover_image_url: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid cover_image_url", () => {
+    const result = eventSchema.safeParse({
+      title: "Test Event",
+      event_date: "2026-06-15",
+      start_time: "09:00",
+      end_time: "17:00",
+      venue_name: "Convention Center",
+      cover_image_url: "not-a-url",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects end_time before start_time", () => {

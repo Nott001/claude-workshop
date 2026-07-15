@@ -12,6 +12,7 @@ const eventBaseSchema = z.object({
   lng: z.coerce.number().nullable().optional(),
   price: z.coerce.number().min(0).optional(),
   currency: z.string().length(3).optional(),
+  cover_image_url: z.string().url().nullable().optional(),
   status: z.enum(["draft", "active", "complete"]).optional(),
 });
 

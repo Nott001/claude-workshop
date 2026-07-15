@@ -32,6 +32,7 @@ interface Event {
   lat: number | null;
   lng: number | null;
   course_id: number | null;
+  cover_image_url: string | null;
   status: "draft" | "active" | "complete";
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
@@ -107,6 +108,12 @@ export default function EventDetailPage() {
         {event.title}
         <span> ({event.status})</span>
       </h1>
+
+      {event.cover_image_url && (
+        <div>
+          <img src={event.cover_image_url} alt={`${event.title} cover`} style={{ maxWidth: "100%", height: "auto" }} />
+        </div>
+      )}
 
       {event.status === "draft" && (
         <div>
