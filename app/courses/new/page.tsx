@@ -49,9 +49,7 @@ export default function NewCoursePage() {
           <span className="material-symbols-rounded text-[16px]">arrow_back</span>
           Back to Courses
         </button>
-        <h1 className="text-base font-bold text-foreground">
-          Create new course
-        </h1>
+        <h1 className="text-base font-bold text-foreground">Create new course</h1>
       </div>
 
       {error && (
@@ -63,12 +61,7 @@ export default function NewCoursePage() {
       <Form onSubmit={handleSubmit} className="max-w-lg space-y-4">
         <FormField>
           <FormLabel>Course title</FormLabel>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Digital Strategy 101"
-            required
-          />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Digital Strategy 101" required />
         </FormField>
 
         <FormField>
@@ -83,16 +76,10 @@ export default function NewCoursePage() {
 
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={submitting}>
-            <span className="material-symbols-rounded text-[16px]">
-              {submitting ? "hourglass_top" : "add_circle"}
-            </span>
+            <span className="material-symbols-rounded text-[16px]">{submitting ? "hourglass_top" : "add_circle"}</span>
             {submitting ? "Creating..." : "Create course"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/courses")}
-          >
+          <Button type="button" variant="outline" onClick={() => router.push("/courses")}>
             Cancel
           </Button>
         </div>

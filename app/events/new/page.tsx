@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -73,9 +67,7 @@ export default function NewEventPage() {
       });
 
       if (!uploadRes.ok) {
-        setError(
-          "Event created but cover image upload failed. You can add it later via edit.",
-        );
+        setError("Event created but cover image upload failed. You can add it later via edit.");
         setUploading(false);
         router.push(`/events/${event.event_id}`);
         return;
@@ -116,53 +108,28 @@ export default function NewEventPage() {
       <Form onSubmit={handleSubmit} className="max-w-lg space-y-4">
         <FormField>
           <FormLabel>Event title</FormLabel>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Q4 Venture Fund Pitch"
-            required
-          />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Q4 Venture Fund Pitch" required />
         </FormField>
 
         <div className="grid grid-cols-2 gap-3">
           <FormField>
             <FormLabel>Event date</FormLabel>
-            <Input
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              required
-            />
+            <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
           </FormField>
           <FormField>
             <FormLabel>Linked course</FormLabel>
-            <Input
-              type="number"
-              value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              placeholder="Optional"
-            />
+            <Input type="number" value={courseId} onChange={(e) => setCourseId(e.target.value)} placeholder="Optional" />
           </FormField>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <FormField>
             <FormLabel>Start time</FormLabel>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              required
-            />
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
           </FormField>
           <FormField>
             <FormLabel>End time</FormLabel>
-            <Input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              required
-            />
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
           </FormField>
         </div>
 
@@ -178,11 +145,7 @@ export default function NewEventPage() {
 
         <FormField>
           <FormLabel>Venue address</FormLabel>
-          <Input
-            value={venueAddress}
-            onChange={(e) => setVenueAddress(e.target.value)}
-            placeholder="Optional"
-          />
+          <Input value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} placeholder="Optional" />
         </FormField>
 
         <div className="grid grid-cols-2 gap-3">
@@ -222,11 +185,7 @@ export default function NewEventPage() {
               onChange={handleFileChange}
               className="text-sm text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
             />
-            {coverImageFile && (
-              <span className="text-xs text-muted-foreground">
-                {coverImageFile.name}
-              </span>
-            )}
+            {coverImageFile && <span className="text-xs text-muted-foreground">{coverImageFile.name}</span>}
           </div>
           <Input
             type="url"
@@ -242,16 +201,10 @@ export default function NewEventPage() {
 
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={uploading}>
-            <span className="material-symbols-rounded text-[16px]">
-              {uploading ? "cloud_upload" : "add_circle"}
-            </span>
+            <span className="material-symbols-rounded text-[16px]">{uploading ? "cloud_upload" : "add_circle"}</span>
             {uploading ? "Uploading..." : "Create event"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/events")}
-          >
+          <Button type="button" variant="outline" onClick={() => router.push("/events")}>
             Cancel
           </Button>
         </div>

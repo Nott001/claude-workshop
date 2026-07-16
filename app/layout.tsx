@@ -1,7 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
-import { DebugMenu } from "@/components/debug-menu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +18,6 @@ export default function RootLayout({
       <html lang="en" className="h-full antialiased">
         <body className="flex min-h-full flex-col">
           <AppShell>{children}</AppShell>
-          <DebugMenu />
         </body>
       </html>
     </ClerkProvider>
