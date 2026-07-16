@@ -43,6 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({
       event_id: Number(id),
       current_lesson_id: null,
+      session_status: "scheduled",
       updated_by: null,
       updated_at: null,
     });

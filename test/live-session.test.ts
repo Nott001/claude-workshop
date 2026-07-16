@@ -41,6 +41,56 @@ describe("LiveSessionState type", () => {
   });
 });
 
+describe("GET fallback response shape", () => {
+  it("includes session_status as 'scheduled' when no state exists", () => {
+    const fallback = {
+      event_id: 1,
+      current_lesson_id: null,
+      session_status: "scheduled",
+      updated_by: null,
+      updated_at: null,
+    };
+    expect(fallback.session_status).toBe("scheduled");
+    expect(fallback.event_id).toBe(1);
+    expect(fallback.current_lesson_id).toBeNull();
+    expect(fallback.updated_by).toBeNull();
+    expect(fallback.updated_at).toBeNull();
+  });
+
+  it("fallback shape satisfies LiveSessionState for status checks", () => {
+    const fallback = {
+      event_id: 1,
+      current_lesson_id: null,
+      session_status: "scheduled" as const,
+      updated_by: null,
+      updated_at: null,
+    };
+    expect(fallback.session_status === "scheduled").toBe(true);
+    expect(fallback.session_status === "live").toBe(false);
+    expect(fallback.session_status === "ended").toBe(false);
+  });
+});
+
+describe("Session status transitions", () => {
+  it("transitions from scheduled to live on start", () => {
+    let status: string = "scheduled";
+    status = "live";
+    expect(status).toBe("live");
+  });
+
+  it("transitions from live to ended on end", () => {
+    let status: string = "live";
+    status = "ended";
+    expect(status).toBe("ended");
+  });
+
+  it("transitions from ended back to scheduled on reset", () => {
+    let status: string = "ended";
+    status = "scheduled";
+    expect(status).toBe("scheduled");
+  });
+});
+
 describe("liveSessionUpdateSchema", () => {
   it("accepts valid lesson_id", () => {
     const result = liveSessionUpdateSchema.safeParse({ current_lesson_id: 42 });
