@@ -11,23 +11,23 @@ const NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Sign In", href: "/sign-in" },
   { label: "Sign Up", href: "/sign-up" },
+  { label: "Staff Login", href: "/staff-login" },
 ];
 
 const ROLE_NAV_ITEMS: Record<UserRole, { label: string; href: string }[]> = {
   attendee: [
-    { label: "Dashboard", href: "/dashboard" },
+    { label: "Home", href: "/" },
     { label: "Events", href: "/events" },
-    { label: "Courses", href: "/courses" },
   ],
   speaker: [
-    { label: "Dashboard", href: "/dashboard" },
     { label: "Events", href: "/events" },
-    { label: "Speakers", href: "/speakers" },
+    { label: "Settings", href: "/settings" },
   ],
   facilitator: [
-    { label: "Dashboard", href: "/dashboard" },
     { label: "Events", href: "/events" },
+    { label: "Create event", href: "/events/new" },
     { label: "Courses", href: "/courses" },
+    { label: "Organization", href: "/organization" },
     { label: "Kiosk", href: "/kiosk" },
   ],
 };
