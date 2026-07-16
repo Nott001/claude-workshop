@@ -70,7 +70,7 @@ export default async function HomePage() {
             </div>
             <div className={`mt-12 gap-6 ${events.length === 1 ? "grid" : "grid lg:grid-cols-2"}`}>
               {events.length === 1 ? (
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 mx-auto w-full max-w-[66%]">
                   <EventCard
                     eventId={events[0].event_id}
                     title={events[0].title}
