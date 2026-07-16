@@ -68,9 +68,9 @@ export default async function HomePage() {
                 Live workshops and networking events designed to keep you at the forefront of business innovation.
               </p>
             </div>
-            <div className={`mt-12 gap-6 ${events.length === 1 ? "flex justify-center" : "grid lg:grid-cols-2"}`}>
+            <div className={`mt-12 gap-6 ${events.length === 1 ? "grid" : "grid lg:grid-cols-2"}`}>
               {events.length === 1 ? (
-                <div className="max-w-[540px]">
+                <div className="lg:col-span-2">
                   <EventCard
                     eventId={events[0].event_id}
                     title={events[0].title}
