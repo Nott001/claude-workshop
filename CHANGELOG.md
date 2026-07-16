@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### chore: remove debug menu entirely and block non-staff from staff login
+
+- **components/debug-menu.tsx** — delete debug menu component
+- **DEBUG-REMOVAL.md** — delete removal instructions
+- **app/layout.tsx** — remove DebugMenu import and rendering
+- **middleware.ts** — remove debug_mode cookie bypass and unused NextResponse import
+- **lib/auth/role-guard.ts** — remove debug_mode/debug_role cookie bypass logic
+- **app/staff-login/[[...rest]]/page.tsx** — add server-side role check: redirect non-staff users (attendee) to /events
+
 ### feat: update debug menu with all pages and remove dashboard references
 
 - **components/debug-menu.tsx** — remove dashboard from all role nav items, add tickets for attendee, add payments for facilitator, keep courses/new and events/new links
