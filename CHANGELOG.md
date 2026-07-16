@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### feat: add Tickets navbar item, redesign tickets page, simplify register button
+
+- **components/navbar.tsx** — add "Tickets" nav item with confirmation_number icon for attendee role
+- **app/tickets/page.tsx** — redesign with gradient card layout, event info (date/venue), status badge, QR code display, and empty state with "Browse events" CTA
+- **app/events/[id]/page.tsx** — change register button text to just "Register" for all auth states
+
 ### feat: add direct register/pay button on event detail page
 
 - **app/events/[id]/page.tsx** — replace "Register for this event" link with a direct handler: unauthenticated users redirected to `/sign-in?redirect_url=/events/{id}`, authenticated users call eligibility check → create payment → redirect to HitPay checkout URL; shows "View my ticket" when already registered, loading spinner during registration, error state with retry
