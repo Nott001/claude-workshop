@@ -54,18 +54,26 @@ export async function POST(req: Request) {
     const last = existing[0];
     if (last.status === "pending") {
       if (DEBUG_BYPASS) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("PAYMENTS")
           .update({ status: "paid", paid_at: new Date().toISOString() })
           .eq("payment_id", last.payment_id);
 
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+
         const qrToken = generateQrToken();
-        await supabase.from("TICKETS").insert({
+        const { error: ticketError } = await supabase.from("TICKETS").insert({
           payment_id: last.payment_id,
           user_id: dbUser.user_id,
           event_id,
           qr_token: qrToken,
         });
+
+        if (ticketError) {
+          return NextResponse.json({ error: ticketError.message }, { status: 500 });
+        }
 
         return NextResponse.json({
           payment_id: last.payment_id,
@@ -101,18 +109,26 @@ export async function POST(req: Request) {
   }
 
   if (DEBUG_BYPASS) {
-    await supabase
+    const { error: updateError } = await supabase
       .from("PAYMENTS")
       .update({ status: "paid", paid_at: new Date().toISOString() })
       .eq("payment_id", payment.payment_id);
 
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
     const qrToken = generateQrToken();
-    await supabase.from("TICKETS").insert({
+    const { error: ticketError } = await supabase.from("TICKETS").insert({
       payment_id: payment.payment_id,
       user_id: dbUser.user_id,
       event_id,
       qr_token: qrToken,
     });
+
+    if (ticketError) {
+      return NextResponse.json({ error: ticketError.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       payment_id: payment.payment_id,
