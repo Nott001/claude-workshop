@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### feat: add universal navbar and shared design system components
+
+- **components/navbar.tsx** — vertical sidebar navbar with role-based navigation items, brand logo, and user actions (avatar, sign out)
+- **components/app-shell.tsx** — wrapper component that conditionally renders the navbar based on route (hidden on auth and landing pages)
+- **components/marketing-footer.tsx** — marketing footer for user-facing pages with company info and links
+- **components/utility-footer.tsx** — minimal utility footer for staff pages with copyright notice
+- **components/event-card.tsx** — reusable event card with status badge, date/time, description, and action links
+- **components/course-card.tsx** — reusable course card with thumbnail, title, and module count
+- **components/resource-card.tsx** — resource card for files and links with type-specific icons and action buttons
+- **components/status-badge.tsx** — status badge component with variants for live, active, upcoming, completed, draft, and pending states
+- **components/toast.tsx** — toast notification component with success, error, and info variants
+- **app/layout.tsx** — integrate AppShell wrapper to provide consistent navigation across all pages
+- **app/events/page.tsx** — update to use EventCard component and filter tabs matching design system
+- **app/courses/page.tsx** — update to use CourseCard component with grid layout
+
+### feat: remove dashboard and redirect to events as facilitator landing
+
+- **app/dashboard/** — remove dashboard pages (dashboard is replaced by events as the landing page for all roles)
+- **middleware.ts** — remove dashboard from protected routes, add organization route protection
+- **components/debug-menu.tsx** — update navigation items to reflect new route structure (events as landing, remove dashboard links)
+
 ### feat: add staff login page for facilitators and speakers
 
 - **app/staff-login/[[...rest]]/page.tsx** — minimal centered login page with Clerk SignIn component, brand bolt icon, and design system styling
