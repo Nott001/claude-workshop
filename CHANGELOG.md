@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### feat: add Inter font and Material Symbols Rounded icons from design system
+
+- **app/layout.tsx** — load Inter via `next/font/google` with `--font-inter` CSS variable; add Material Symbols Rounded link tag with `display=optional`
+- **app/globals.css** — map `--font-sans` and `--font-heading` to `--font-inter`; add `.msr` and `.material-symbols-rounded` CSS classes for icon rendering
+
 ### fix: redirect post-login to /events and fix navbar role detection
 
 - **app/sign-in/[[...sign-in]]/page.tsx** — add `afterSignInUrl="/events"` so users land on events after login
