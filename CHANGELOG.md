@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### feat: add staff login page for facilitators and speakers
+
+- **app/staff-login/[[...rest]]/page.tsx** — minimal centered login page with Clerk SignIn component, brand bolt icon, and design system styling
+- **components/debug-menu.tsx** — add Staff Login to navigation items
+
 ### feat: add StartupLab landing page
 
 - **app/page.tsx** — implement the Figma-inspired business center landing page with sign-in and sign-up entry points
