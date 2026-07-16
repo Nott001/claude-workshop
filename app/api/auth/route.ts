@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { type WebhookEvent } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/db";
+import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -60,6 +61,12 @@ export async function POST(req: Request) {
 
   if (eventType === "user.deleted") {
     const { id } = evt.data;
+
+    const { data: user } = await supabase.from("USERS").select("user_id").eq("clerk_id", id).single();
+    if (user) {
+      const paths = await listStorageFolder("profile_images", `users/${user.user_id}`);
+      await deleteFromStorage("profile_images", paths);
+    }
 
     const { error } = await supabase.from("USERS").delete().eq("clerk_id", id);
 

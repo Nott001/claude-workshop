@@ -42,6 +42,7 @@ interface Event {
   currency: string;
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
+  payment_count?: number;
 }
 
 export default function EventDetailPage() {
@@ -98,6 +99,21 @@ export default function EventDetailPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [sessionLive, setSessionLive] = useState(false);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    if (!event) return;
+    fetch(`/api/live/${eventId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((state) => {
+        if (state && state.session_status === "live") setSessionLive(true);
+      })
+      .catch(() => {});
+  }, [event, eventId]);
 
   async function handleRegister() {
     if (!isSignedIn) {
@@ -123,19 +139,35 @@ export default function EventDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this event? This cannot be undone.")) return;
+    setDeleteConfirmText("");
+    setDeleteError(null);
+    if (event && event.payment_count && event.payment_count > 0) {
+      setShowDeleteModal(true);
+    } else {
+      if (confirm("Delete this event? This cannot be undone.")) {
+        await confirmDelete();
+      }
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
     setDeleteError(null);
     const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
-    if (res.status === 409) {
-      const body = await res.json();
-      setDeleteError(body.error ?? "Cannot delete: event has payments");
-      return;
-    }
     if (!res.ok) {
-      setDeleteError("Failed to delete event");
+      const body = await res.json();
+      setDeleteError(body.error ?? "Failed to delete event");
+      setDeleting(false);
       return;
     }
     router.push("/events");
+  }
+
+  async function handleStartSession() {
+    setStarting(true);
+    await fetch(`/api/live/${eventId}/state`, { method: "POST" });
+    setSessionLive(true);
+    setStarting(false);
   }
 
   if (loading) {
@@ -309,7 +341,7 @@ export default function EventDetailPage() {
             </div>
           )}
 
-          {event.status === "active" && (
+          {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
             <button
               onClick={handleRegister}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -319,15 +351,28 @@ export default function EventDetailPage() {
             </button>
           )}
 
-          {event.status === "active" && (hasTicket || DEBUG_BYPASS) && (
+          {event.status === "active" && isFacilitator && !sessionLive && (
             <button
-              onClick={() => router.push(`/events/${eventId}/live`)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-100"
+              onClick={handleStartSession}
+              disabled={starting}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:opacity-50"
             >
-              <span className="material-symbols-rounded text-sm">play_circle</span>
-              Enter event session
+              <span className="material-symbols-rounded text-sm">play_arrow</span>
+              {starting ? "Starting..." : "Start event session"}
             </button>
           )}
+
+          {event.status === "active" &&
+            sessionLive &&
+            (hasTicket || DEBUG_BYPASS || isFacilitator || userRole === "speaker") && (
+              <button
+                onClick={() => router.push(`/events/${eventId}/live`)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-100"
+              >
+                <span className="material-symbols-rounded text-sm">play_circle</span>
+                Enter event session
+              </button>
+            )}
 
           {isSignedIn && canManage && (
             <div className="space-y-2">
@@ -353,6 +398,46 @@ export default function EventDetailPage() {
                 Delete event
               </button>
               {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
+            </div>
+          )}
+
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-lg">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="material-symbols-rounded text-2xl text-red-500">warning</span>
+                  <h3 className="text-sm font-semibold text-foreground">Delete event</h3>
+                </div>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  This event has existing payments. Deleting it will also remove all associated data, including payments,
+                  tickets, and chat messages. This action <strong>cannot be undone</strong>.
+                </p>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Type <strong>understood</strong> to confirm.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder='type "understood"'
+                  className="mb-4 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none focus:border-red-400"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="rounded-lg border border-border bg-white px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={deleteConfirmText !== "understood" || deleting}
+                    className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting..." : "Delete event"}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
