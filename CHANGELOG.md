@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: add StartupLab landing page
+
+- **app/page.tsx** — implement the Figma-inspired business center landing page with sign-in and sign-up entry points
+- **lib/landing.ts** — define featured upcoming-event content
 ### feat: add auth form pages with design system layout
 
 - **components/auth-layout.tsx** — shared split layout component with brand panel (gradient) and mini-nav for auth pages
