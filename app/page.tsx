@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, ChevronRight, Clock3, MapPin, Play, Sparkles, Users } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 
-import { upcomingEvents } from "@/lib/landing";
 import { MarketingFooter } from "@/components/marketing-footer";
+import { EventCard } from "@/components/event-card";
+import { getUpcomingEvents, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const events = await getUpcomingEvents();
+  const featured = events[0] ?? null;
+
   return (
     <main className="min-h-screen bg-[#fbf9f8] text-[#1b1c1c]">
       <div className="lg:pl-[202px]">
@@ -34,15 +38,19 @@ export default function HomePage() {
                 <div className="absolute inset-x-0 top-0 h-2/3 bg-[radial-gradient(circle_at_40%_0%,rgba(255,255,255,.5),transparent_42%)]" />
                 <div className="relative w-full rounded-2xl border border-white/25 bg-slate-950/30 p-4 text-white backdrop-blur-md">
                   <div className="flex items-center justify-between text-xs font-medium text-white/80">
-                    <span>Claude Workshop</span>
-                    <span>Live session</span>
+                    <span>{featured?.title ?? "Workshop"}</span>
+                    <span>{featured ? eventStatusLabel(featured.status) : "Live session"}</span>
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-full bg-white text-[#269fcf]">
-                      <Play className="ml-0.5 size-4 fill-current" />
-                    </span>
-                    <span className="text-sm font-semibold">Build with AI, together</span>
-                  </div>
+                  {featured && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <span className="grid size-10 place-items-center rounded-full bg-white text-[#269fcf]">
+                        <Play className="ml-0.5 size-4 fill-current" />
+                      </span>
+                      <span className="text-sm font-semibold">
+                        {formatEventDate(featured.event_date)} at {formatTime(featured.start_time)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#3db9ee] shadow-lg">
                   <Play className="ml-0.5 size-5 fill-current" />
@@ -61,54 +69,34 @@ export default function HomePage() {
               </p>
             </div>
             <div className="mt-12 grid gap-6 lg:grid-cols-2">
-              {upcomingEvents.map((event, index) => (
-                <article
-                  key={event.title}
-                  className="overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]"
-                >
-                  <div className={`relative h-48 bg-gradient-to-br ${event.accent} p-6 text-white`}>
-                    <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
-                    <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-                      <Sparkles className="size-3.5" /> {event.type}
-                    </span>
-                    <div className="relative mt-9 flex items-center gap-3 text-white/95">
-                      <span className="grid size-10 place-items-center rounded-xl bg-white/20">
-                        <Users className="size-5" />
-                      </span>
-                      <span className="text-sm font-medium">StartupLab {index === 0 ? "Workshop Series" : "Community"}</span>
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-2xl font-semibold tracking-[-0.02em]">{event.title}</h3>
-                    <div className="mt-4 space-y-2 text-sm text-[#526069]">
-                      <p className="flex items-center gap-2">
-                        <CalendarDays className="size-4 text-[#3db9ee]" /> {event.date}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Clock3 className="size-4 text-[#3db9ee]" /> {event.time}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <MapPin className="size-4 text-[#3db9ee]" /> StartupLab Business Center
-                      </p>
-                    </div>
-                    <Link
-                      href="/sign-up"
-                      className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#168cb9] hover:underline"
-                    >
-                      Reserve your place <ChevronRight className="size-4" />
-                    </Link>
-                  </div>
-                </article>
+              {events.map((event, index) => (
+                <EventCard
+                  key={event.event_id}
+                  eventId={event.event_id}
+                  title={event.title}
+                  status={event.status}
+                  date={event.event_date}
+                  startTime={event.start_time}
+                  endTime={event.end_time}
+                  venueName={event.venue_name}
+                  courseName={event.course_name ?? undefined}
+                  accentIndex={index}
+                />
               ))}
             </div>
-            <div className="mt-12 text-center">
-              <Link
-                href="/events"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#3db9ee] px-8 py-3 text-sm font-semibold text-[#168cb9] transition hover:bg-[#effaff]"
-              >
-                See All Upcoming Events <ArrowRight className="size-4" />
-              </Link>
-            </div>
+            {events.length > 0 && (
+              <div className="mt-12 text-center">
+                <Link
+                  href="/events"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#3db9ee] px-8 py-3 text-sm font-semibold text-[#168cb9] transition hover:bg-[#effaff]"
+                >
+                  See All Upcoming Events <ArrowRight className="size-4" />
+                </Link>
+              </div>
+            )}
+            {events.length === 0 && (
+              <div className="mt-12 text-center text-sm text-[#526069]">No upcoming events at the moment. Check back soon!</div>
+            )}
           </div>
         </section>
 

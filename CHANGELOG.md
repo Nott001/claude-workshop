@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### feat: add ticket-gated Enter session button and redesign live room
+
+- **app/events/[id]/page.tsx** — fetch ticket ownership on load; show "Enter event session" button when user has a ticket (or `?debug_bypass_session=true` is set); button routes to `/events/{id}/live`
+- **app/events/[id]/live/page.tsx** — redesign with in-session navbar (event title, elapsed timer, Exit button), two-column layout (syllabus + Q&A), lesson list with Live/completed/upcoming indicators, speaker controls bar (Previous/Next/Reset/lesson select), and Q&A chat panel
+- **DEBUG-PAYMENT-BYPASS.md** — add session bypass documentation
+- **AGENTS.md** — add session bypass reference
+
+### feat: add debug payment bypass for testing without HitPay
+
+- **app/api/payments/route.ts** — when `NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT=true`, skip HitPay call and directly mark payment as paid + issue ticket; also handles existing pending payments
+- **DEBUG-PAYMENT-BYPASS.md** — new file documenting the debug bypass for agent context
+
+### fix: re-route to checkout for pending payments instead of blocking
+
+- **app/api/events/[id]/register/route.ts** — return `pending_payment_id` with 200 instead of 409 when a pending payment exists, so the user can be re-routed to the checkout page to poll for status
+- **app/api/payments/route.ts** — return existing `payment_id` instead of 409 when a pending payment exists, so the register page can redirect to checkout
+- **app/events/[id]/register/page.tsx** — handle `pending_payment_id` from both the register API and payments API by redirecting to `/checkout/{id}?success=true`; redesign with gradient header card, event info, user info display, terms checkbox, and styled buttons matching the design system
+
+### feat: add Tickets navbar item, redesign tickets page, simplify register flow
+
+- **components/navbar.tsx** — add "Tickets" nav item with confirmation_number icon for attendee role
+- **app/tickets/page.tsx** — redesign with gradient card layout, event info (date/venue), status badge, QR code display, and empty state with "Browse events" CTA
+- **app/events/[id]/page.tsx** — simplify register button to always route to `/events/{id}/register` for authenticated users, or to `/sign-in` for unauthenticated; remove inline API call logic
+
+### feat: redesign event detail page with design system layout
+
+- **app/events/[id]/page.tsx** — complete rewrite: gradient hero with cover image support, two-column layout (1.5fr main + 1fr sidebar), status badge, date/time/venue icons, speakers list with avatars, linked curriculum card, scheduling sidebar card, venue sidebar card, role-aware actions (register for attendees, publish/edit/delete for facilitators), role fetched from `/api/auth/me`
+
+### refactor: unify EventCard design and filter landing to active events only
+
+- **components/event-card.tsx** — rewrite with gradient header, frosted glass badge, icon rows, and "View details" link matching landing page design; props now accept raw status string, start/end times, venue name, course name, and accent index
+- **lib/landing.ts** — `getUpcomingEvents()` now filters to `status=active` only, returns max 2 events
+- **app/page.tsx** — inline event card markup replaced with `<EventCard>` component
+- **app/events/page.tsx** — replaced old `EventCard` usage with new gradient-based component; removed `mapStatus` helper and `StatusBadge` import
+- **test/landing.test.ts** — updated mock chainable to include `eq` method; added assertions for active-only filter and limit(2)
+
+### refactor: replace static landing page data with live Supabase queries
+
+- **lib/landing.ts** — rewrite from static event array to `getUpcomingEvents()` server helper querying Supabase; add `formatEventDate`, `formatTime`, `eventStatusLabel`, `accentClass` helpers
+- **app/page.tsx** — convert to async server component calling `getUpcomingEvents()`; hero section uses first upcoming event; event cards link to `/events/:id`; empty state when no events exist
+- **test/landing.test.ts** — rewrite to test extracted helpers (formatEventDate, formatTime, eventStatusLabel, accentClass) and getUpcomingEvents with mocked Supabase
+
 ### feat: add delete event option for facilitators
 
 - **components/event-card.tsx** — add `onDelete` callback prop; render delete icon button in card footer when facilitator
@@ -79,7 +121,6 @@
 ### feat: add StartupLab landing page
 
 - **app/page.tsx** — implement the Figma-inspired business center landing page with sign-in and sign-up entry points
-- **lib/landing.ts** — define featured upcoming-event content
 ### feat: add auth form pages with design system layout
 
 - **components/auth-layout.tsx** — shared split layout component with brand panel (gradient) and mini-nav for auth pages

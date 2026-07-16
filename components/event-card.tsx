@@ -1,28 +1,20 @@
 import Link from "next/link";
-import { StatusBadge, type EventStatus } from "@/components/status-badge";
+import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, Users } from "lucide-react";
+
+import { accentClass, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
 
 interface EventCardProps {
   eventId: number;
   title: string;
-  status: EventStatus;
+  status: string;
   date: string;
-  time?: string;
-  description?: string;
-  attendeeCount?: number;
+  startTime: string;
+  endTime: string;
+  venueName: string;
   courseName?: string;
-  actionLabel?: string;
-  actionHref?: string;
+  accentIndex?: number;
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
-}
-
-function formatDate(dateStr: string) {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function EventCard({
@@ -30,58 +22,61 @@ export function EventCard({
   title,
   status,
   date,
-  time,
-  description,
-  attendeeCount,
+  startTime,
+  endTime,
+  venueName,
   courseName,
-  actionLabel,
-  actionHref,
+  accentIndex = 0,
   showEdit,
   onDelete,
 }: EventCardProps) {
-  const href = actionHref || `/events/${eventId}`;
-  const label = actionLabel || (showEdit && status === "draft" ? "Edit" : "View details");
-
   return (
-    <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-surface p-4">
-      <StatusBadge status={status} className="self-start" />
-      <h4 className="text-[15px] font-semibold text-foreground">{title}</h4>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="material-symbols-rounded text-[15px]">calendar_today</span>
-        {formatDate(date)}
-        {time && ` · ${time}`}
-      </div>
-      {description && <p className="text-[13px] leading-relaxed text-muted-foreground">{description}</p>}
-      {courseName && <div className="text-xs text-muted-foreground">Course: {courseName}</div>}
-      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
-        {attendeeCount !== undefined && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="material-symbols-rounded text-[15px]">group</span>
-            {attendeeCount.toLocaleString()} registered
+    <article className="overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
+      <div className={`relative h-48 bg-gradient-to-br ${accentClass(accentIndex)} p-6 text-white`}>
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+        <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
+          <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
+        </span>
+        <div className="relative mt-9 flex items-center gap-3 text-white/95">
+          <span className="grid size-10 place-items-center rounded-xl bg-white/20">
+            <Users className="size-5" />
           </span>
-        )}
-        {!attendeeCount && <span />}
-        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">StartupLab {courseName || "Workshop Series"}</span>
+        </div>
+      </div>
+      <div className="p-6">
+        <h3 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h3>
+        <div className="mt-4 space-y-2 text-sm text-[#526069]">
+          <p className="flex items-center gap-2">
+            <CalendarDays className="size-4 text-[#3db9ee]" /> {formatEventDate(date)}
+          </p>
+          <p className="flex items-center gap-2">
+            <Clock3 className="size-4 text-[#3db9ee]" /> {formatTime(startTime)} – {formatTime(endTime)}
+          </p>
+          <p className="flex items-center gap-2">
+            <MapPin className="size-4 text-[#3db9ee]" /> {venueName}
+          </p>
+        </div>
+        <div className="mt-6 flex items-center justify-between">
+          <Link
+            href={`/events/${eventId}`}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-[#168cb9] hover:underline"
+          >
+            View details <ChevronRight className="size-4" />
+          </Link>
           {showEdit && onDelete && (
             <button
               onClick={(e) => {
                 e.preventDefault();
                 if (confirm("Delete this event? This cannot be undone.")) onDelete(eventId);
               }}
-              className="flex items-center gap-1 text-xs font-medium text-destructive transition-colors hover:text-destructive/80"
+              className="text-xs font-medium text-red-500 transition-colors hover:text-red-600"
             >
-              <span className="material-symbols-rounded text-[15px]">delete</span>
+              Delete
             </button>
           )}
-          <Link
-            href={href}
-            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80"
-          >
-            {label}
-            <span className="material-symbols-rounded text-[15px]">arrow_forward</span>
-          </Link>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

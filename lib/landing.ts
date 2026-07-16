@@ -1,16 +1,71 @@
-export const upcomingEvents = [
-  {
-    title: "AI for Business Growth",
-    date: "May 24, 2026",
-    time: "10:00 AM – 12:00 PM",
-    type: "Workshop",
-    accent: "from-sky-500 via-cyan-400 to-teal-300",
-  },
-  {
-    title: "Founders' Innovation Night",
-    date: "June 6, 2026",
-    time: "6:30 PM – 9:00 PM",
-    type: "Networking",
-    accent: "from-blue-700 via-sky-500 to-cyan-300",
-  },
+import { getServiceClient } from "@/lib/db";
+
+export interface LandingEvent {
+  event_id: number;
+  title: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  venue_name: string;
+  status: string;
+  course_name: string | null;
+}
+
+const ACCENT_CLASSES = [
+  "from-sky-500 via-cyan-400 to-teal-300",
+  "from-blue-700 via-sky-500 to-cyan-300",
+  "from-indigo-600 via-blue-500 to-cyan-400",
+  "from-sky-600 via-cyan-500 to-emerald-400",
 ];
+
+export function accentClass(index: number): string {
+  return ACCENT_CLASSES[index % ACCENT_CLASSES.length];
+}
+
+export function formatEventDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+export function formatTime(timeStr: string): string {
+  const [h, m] = timeStr.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+export function eventStatusLabel(status: string): string {
+  switch (status) {
+    case "active":
+      return "Upcoming";
+    case "draft":
+      return "Draft";
+    case "complete":
+      return "Past";
+    default:
+      return status;
+  }
+}
+
+export async function getUpcomingEvents(): Promise<LandingEvent[]> {
+  const supabase = getServiceClient();
+  const today = new Date().toISOString().split("T")[0];
+  const { data } = await supabase
+    .from("EVENTS")
+    .select("*, COURSE(course_name)")
+    .eq("status", "active")
+    .gte("event_date", today)
+    .order("event_date", { ascending: true })
+    .limit(2);
+
+  return (data ?? []).map((e) => ({
+    event_id: e.event_id,
+    title: e.title,
+    event_date: e.event_date,
+    start_time: e.start_time,
+    end_time: e.end_time,
+    venue_name: e.venue_name,
+    status: e.status,
+    course_name: e.COURSE?.course_name ?? null,
+  }));
+}
