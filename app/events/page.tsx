@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
-import type { EventStatus } from "@/components/status-badge";
 
 interface Course {
   course_name: string;
@@ -31,19 +30,6 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: "completed", label: "Completed" },
   { key: "drafts", label: "Drafts" },
 ];
-
-function mapStatus(status: string): EventStatus {
-  switch (status) {
-    case "active":
-      return "active";
-    case "complete":
-      return "completed";
-    case "draft":
-      return "draft";
-    default:
-      return "upcoming";
-  }
-}
 
 export default function EventsPage() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -160,15 +146,18 @@ export default function EventsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event) => (
+          {filteredEvents.map((event, index) => (
             <EventCard
               key={event.event_id}
               eventId={event.event_id}
               title={event.title}
-              status={mapStatus(event.status)}
+              status={event.status}
               date={event.event_date}
-              time={`${event.start_time} - ${event.end_time}`}
-              description={event.venue_name}
+              startTime={event.start_time}
+              endTime={event.end_time}
+              venueName={event.venue_name}
+              courseName={event.COURSE?.course_name ?? undefined}
+              accentIndex={index}
               showEdit={isFacilitator}
               onDelete={isFacilitator ? handleDelete : undefined}
             />

@@ -53,10 +53,10 @@ export async function getUpcomingEvents(): Promise<LandingEvent[]> {
   const { data } = await supabase
     .from("EVENTS")
     .select("*, COURSE(course_name)")
-    .in("status", ["active", "draft"])
+    .eq("status", "active")
     .gte("event_date", today)
     .order("event_date", { ascending: true })
-    .limit(6);
+    .limit(2);
 
   return (data ?? []).map((e) => ({
     event_id: e.event_id,
