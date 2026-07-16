@@ -33,6 +33,11 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
 };
 
+const GUEST_NAV_ITEMS: NavItem[] = [
+  { label: "Home", href: "/", icon: "home" },
+  { label: "Events", href: "/events", icon: "event" },
+];
+
 function getInitials(firstName?: string, lastName?: string): string {
   const first = firstName?.charAt(0) || "";
   const last = lastName?.charAt(0) || "";
@@ -46,7 +51,7 @@ export function Navbar() {
   const { signOut } = useClerk();
 
   const userRole = (user?.publicMetadata?.role as UserRole) || "attendee";
-  const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : [];
+  const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
 
   const handleSignOut = async () => {
     await signOut();
@@ -54,15 +59,17 @@ export function Navbar() {
   };
 
   return (
-    <aside className="flex w-[210px] shrink-0 flex-col border-r border-border bg-elevated p-4 text-[10.5px]">
-      <div className="mb-4 flex items-center gap-1.5 text-sm font-bold">
-        <svg className="size-3.5 text-accent" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
+    <aside className="fixed inset-y-0 left-0 z-20 hidden w-[202px] flex-col border-r border-[#bdc8d0] bg-white px-5 py-7 lg:flex">
+      <Link href="/" className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]">
+        <span className="grid size-8 place-items-center rounded-lg bg-[#3db9ee] text-white">
+          <svg className="size-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </span>
         StartupLab
-      </div>
+      </Link>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
+      <nav className="mt-12 space-y-2" aria-label="Primary navigation">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
@@ -71,50 +78,53 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-1.5 py-1.5 text-[10.5px] transition-colors",
-                isActive
-                  ? "bg-surface-hover font-semibold text-foreground"
-                  : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive ? "bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078] hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
               )}
             >
-              <span className="material-symbols-rounded text-sm">{item.icon}</span>
+              <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {isSignedIn && (
-        <div className="mt-auto flex items-center justify-between gap-1.5 border-t border-border pt-3">
-          <div className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-accent-foreground">
-            {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined)}
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-            title="Sign out"
-          >
-            <span className="material-symbols-rounded text-sm">logout</span>
-          </button>
-        </div>
-      )}
-
-      {!isSignedIn && (
-        <div className="mt-auto flex gap-1.5 border-t border-border pt-3">
-          <Link
-            href="/sign-in"
-            className="flex-1 rounded-md px-2 py-1.5 text-center text-[10px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="flex-1 rounded-md bg-primary px-2 py-1.5 text-center text-[10px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Sign up
-          </Link>
-        </div>
-      )}
+      <div className="mt-auto space-y-3">
+        {isSignedIn ? (
+          <>
+            <div className="flex items-center gap-2 rounded-lg bg-[#f4f7f8] px-3 py-2">
+              <div className="grid size-7 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
+                {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined)}
+              </div>
+              <span className="truncate text-sm font-medium text-[#1b1c1c]">
+                {user?.firstName} {user?.lastName}
+              </span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-2.5 text-xs font-semibold tracking-[0.04em] text-[#647078] transition hover:border-[#e5484d] hover:text-[#e5484d]"
+            >
+              <span className="material-symbols-rounded text-[16px]">logout</span>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/sign-in"
+              className="block rounded-lg border border-[#bdc8d0] py-2.5 text-center text-xs font-semibold tracking-[0.04em] transition hover:border-[#3db9ee] hover:text-[#1789b8]"
+            >
+              SIGN IN
+            </Link>
+            <Link
+              href="/sign-up"
+              className="block rounded-lg bg-[#3db9ee] py-2.5 text-center text-xs font-semibold tracking-[0.04em] text-white transition hover:bg-[#239dce]"
+            >
+              SIGN UP
+            </Link>
+          </>
+        )}
+      </div>
     </aside>
   );
 }
