@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { speakerProfileUpdateSchema } from "@/modules/event-management";
+import { deleteFromStorage } from "@/lib/storage";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator", "speaker");
@@ -54,6 +55,18 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
+
+  const { data: profile } = await supabase
+    .from("SPEAKER_PROFILES")
+    .select("user_id, photo_url")
+    .eq("speaker_profile_id", id)
+    .single();
+
+  if (profile?.photo_url) {
+    const { data: userFiles } = await supabase.storage.from("profile_images").list(`users/${profile.user_id}`);
+    const paths = (userFiles ?? []).map((f) => `users/${profile.user_id}/${f.name}`);
+    await deleteFromStorage("profile_images", paths);
+  }
 
   const { error } = await supabase.from("SPEAKER_PROFILES").delete().eq("speaker_profile_id", id);
 

@@ -12,6 +12,7 @@ interface EventCardProps {
   endTime: string;
   venueName: string;
   courseName?: string;
+  coverImageUrl?: string | null;
   accentIndex?: number;
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
@@ -26,14 +27,20 @@ export function EventCard({
   endTime,
   venueName,
   courseName,
+  coverImageUrl,
   accentIndex = 0,
   showEdit,
   onDelete,
 }: EventCardProps) {
   return (
     <article className="overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <div className={`relative h-48 bg-gradient-to-br ${accentClass(accentIndex)} p-6 text-white`}>
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+      <div className="relative h-48 overflow-hidden p-6 text-white">
+        <div className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)}`} />
+        {coverImageUrl && <img src={coverImageUrl} alt={title} className="absolute inset-0 size-full object-cover" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        {!coverImageUrl && (
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+        )}
         <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
           <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
         </span>
