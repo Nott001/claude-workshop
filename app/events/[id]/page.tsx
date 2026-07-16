@@ -244,15 +244,6 @@ export default function EventDetailPage() {
                   </div>
 
                   <div className="flex flex-col gap-8">
-                    {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
-                      <button
-                        onClick={handleRegister}
-                        className="inline-flex w-fit items-center justify-center rounded-lg bg-[#3db9ee] px-10 py-4 text-base font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#239dce]"
-                      >
-                        Register
-                      </button>
-                    )}
-
                     {showCountdown && <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />}
                   </div>
                 </div>

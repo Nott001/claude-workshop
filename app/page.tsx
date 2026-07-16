@@ -68,21 +68,39 @@ export default async function HomePage() {
                 Live workshops and networking events designed to keep you at the forefront of business innovation.
               </p>
             </div>
-            <div className="mt-12 grid gap-6 lg:grid-cols-2">
-              {events.map((event, index) => (
-                <EventCard
-                  key={event.event_id}
-                  eventId={event.event_id}
-                  title={event.title}
-                  status={event.status}
-                  date={event.event_date}
-                  startTime={event.start_time}
-                  endTime={event.end_time}
-                  venueName={event.venue_name}
-                  courseName={event.course_name ?? undefined}
-                  accentIndex={index}
-                />
-              ))}
+            <div className={`mt-12 gap-6 ${events.length === 1 ? "flex justify-center" : "grid lg:grid-cols-2"}`}>
+              {events.length === 1 ? (
+                <div className="max-w-[540px]">
+                  <EventCard
+                    eventId={events[0].event_id}
+                    title={events[0].title}
+                    status={events[0].status}
+                    date={events[0].event_date}
+                    startTime={events[0].start_time}
+                    endTime={events[0].end_time}
+                    venueName={events[0].venue_name}
+                    courseName={events[0].course_name ?? undefined}
+                    coverImageUrl={events[0].cover_image_url}
+                    accentIndex={0}
+                  />
+                </div>
+              ) : (
+                events.map((event, index) => (
+                  <EventCard
+                    key={event.event_id}
+                    eventId={event.event_id}
+                    title={event.title}
+                    status={event.status}
+                    date={event.event_date}
+                    startTime={event.start_time}
+                    endTime={event.end_time}
+                    venueName={event.venue_name}
+                    courseName={event.course_name ?? undefined}
+                    coverImageUrl={event.cover_image_url}
+                    accentIndex={index}
+                  />
+                ))
+              )}
             </div>
             {events.length > 0 && (
               <div className="mt-12 text-center">
