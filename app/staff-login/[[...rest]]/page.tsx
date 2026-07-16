@@ -1,6 +1,23 @@
 import { SignIn } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getServiceClient } from "@/lib/db";
+import type { UserRole } from "@/types";
 
-export default function StaffLoginPage() {
+const STAFF_ROLES: UserRole[] = ["facilitator", "speaker"];
+
+export default async function StaffLoginPage() {
+  const { userId } = await auth();
+
+  if (userId) {
+    const supabase = getServiceClient();
+    const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+
+    if (!dbUser || !STAFF_ROLES.includes(dbUser.role as UserRole)) {
+      redirect("/events");
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-8">
       <div className="flex w-full max-w-[240px] flex-col items-center gap-2.5 text-center">
@@ -12,6 +29,7 @@ export default function StaffLoginPage() {
         <SignIn
           routing="path"
           path="/staff-login"
+          afterSignInUrl="/events"
           appearance={{
             elements: {
               rootBox: "w-full",

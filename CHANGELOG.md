@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### feat: add Inter font and Material Symbols Rounded icons from design system
+
+- **app/layout.tsx** — load Inter via `next/font/google` with `--font-inter` CSS variable; add Material Symbols Rounded link tag with `display=optional`
+- **app/globals.css** — map `--font-sans` and `--font-heading` to `--font-inter`; add `.msr` and `.material-symbols-rounded` CSS classes for icon rendering
+
+### fix: redirect post-login to /events and fix navbar role detection
+
+- **app/sign-in/[[...sign-in]]/page.tsx** — add `afterSignInUrl="/events"` so users land on events after login
+- **app/staff-login/[[...rest]]/page.tsx** — add `afterSignInUrl="/events"` for same redirect
+- **components/navbar.tsx** — fetch role from `/api/auth/me` (Supabase) instead of `user.publicMetadata.role` (Clerk), which was never populated by the auth webhook
+
+### chore: remove debug menu entirely and block non-staff from staff login
+
+- **components/debug-menu.tsx** — delete debug menu component
+- **DEBUG-REMOVAL.md** — delete removal instructions
+- **app/layout.tsx** — remove DebugMenu import and rendering
+- **middleware.ts** — remove debug_mode cookie bypass and unused NextResponse import
+- **lib/auth/role-guard.ts** — remove debug_mode/debug_role cookie bypass logic
+- **app/staff-login/[[...rest]]/page.tsx** — add server-side role check: redirect non-staff users (attendee) to /events
+
+### feat: update debug menu with all pages and remove dashboard references
+
+- **components/debug-menu.tsx** — remove dashboard from all role nav items, add tickets for attendee, add payments for facilitator, keep courses/new and events/new links
+
+### feat: add event and course creation forms with design system styling
+
+- **app/events/new/page.tsx** — rewrite with design system form patterns (labeled fields, file upload, currency select, error banner, back navigation)
+- **app/courses/new/page.tsx** — new page with course name, description textarea, and cancel/create buttons
+- **components/ui/textarea.tsx** — new Textarea component matching design system input styling
+
 ### feat: update navbar to light theme and unify across all pages
 
 - **components/navbar.tsx** — restyle to light theme matching landing page design (white background, blue accent, material icons)
