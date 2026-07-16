@@ -62,6 +62,8 @@ export interface Event {
   end_time: string;
   venue_address: string | null;
   venue_name: string;
+  description: string | null;
+  overview: string | null;
   lat: number | null;
   lng: number | null;
   price: number;
