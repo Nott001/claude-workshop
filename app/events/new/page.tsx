@@ -2,6 +2,10 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormField, FormLabel } from "@/components/ui/form";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -83,54 +87,107 @@ export default function NewEventPage() {
   }
 
   return (
-    <div>
-      <button onClick={() => router.push("/events")}>&larr; Back to Events</button>
-      <h1>Create Event</h1>
+    <div className="flex flex-1 flex-col p-5">
+      <div className="mb-4">
+        <button
+          onClick={() => router.push("/events")}
+          className="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+          Back to Events
+        </button>
+        <h1 className="text-base font-bold text-foreground">Create Event</h1>
+      </div>
 
-      {error && <p>{error}</p>}
+      {error && (
+        <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <Form onSubmit={handleSubmit} className="max-w-lg space-y-4">
+        <FormField>
+          <FormLabel>Event title</FormLabel>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Q4 Venture Fund Pitch" required />
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField>
+            <FormLabel>Event date</FormLabel>
+            <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
+          </FormField>
+          <FormField>
+            <FormLabel>Linked course</FormLabel>
+            <Input type="number" value={courseId} onChange={(e) => setCourseId(e.target.value)} placeholder="Optional" />
+          </FormField>
         </div>
-        <div>
-          <label>Event Date</label>
-          <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField>
+            <FormLabel>Start time</FormLabel>
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+          </FormField>
+          <FormField>
+            <FormLabel>End time</FormLabel>
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+          </FormField>
         </div>
-        <div>
-          <label>Start Time</label>
-          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+
+        <FormField>
+          <FormLabel>Venue name</FormLabel>
+          <Input
+            value={venueName}
+            onChange={(e) => setVenueName(e.target.value)}
+            placeholder="e.g. StartupLab Main Hall"
+            required
+          />
+        </FormField>
+
+        <FormField>
+          <FormLabel>Venue address</FormLabel>
+          <Input value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} placeholder="Optional" />
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField>
+            <FormLabel>Price</FormLabel>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0 for free"
+            />
+          </FormField>
+          <FormField>
+            <FormLabel>Currency</FormLabel>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PHP">PHP</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
         </div>
-        <div>
-          <label>End Time</label>
-          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-        </div>
-        <div>
-          <label>Venue Name</label>
-          <input value={venueName} onChange={(e) => setVenueName(e.target.value)} required />
-        </div>
-        <div>
-          <label>Venue Address</label>
-          <input value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} />
-        </div>
-        <div>
-          <label>Course ID (optional)</label>
-          <input type="number" value={courseId} onChange={(e) => setCourseId(e.target.value)} />
-        </div>
-        <div>
-          <label>Price</label>
-          <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
-        </div>
-        <div>
-          <label>Currency</label>
-          <input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
-        </div>
-        <div>
-          <label>Cover Image</label>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} />
-          {coverImageFile && <p>Selected: {coverImageFile.name}</p>}
-          <input
+
+        <FormField>
+          <FormLabel>Cover image</FormLabel>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={handleFileChange}
+              className="text-sm text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+            />
+            {coverImageFile && <span className="text-xs text-muted-foreground">{coverImageFile.name}</span>}
+          </div>
+          <Input
             type="url"
             value={coverImageUrl}
             onChange={(e) => {
@@ -138,12 +195,20 @@ export default function NewEventPage() {
               setCoverImageFile(null);
             }}
             placeholder="Or paste image URL"
+            className="mt-1.5"
           />
+        </FormField>
+
+        <div className="flex gap-2 pt-2">
+          <Button type="submit" disabled={uploading}>
+            <span className="material-symbols-rounded text-[16px]">{uploading ? "cloud_upload" : "add_circle"}</span>
+            {uploading ? "Uploading..." : "Create event"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.push("/events")}>
+            Cancel
+          </Button>
         </div>
-        <button type="submit" disabled={uploading}>
-          {uploading ? "Uploading..." : "Create Event"}
-        </button>
-      </form>
+      </Form>
     </div>
   );
 }
