@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: add direct register/pay button on event detail page
+
+- **app/events/[id]/page.tsx** — replace "Register for this event" link with a direct handler: unauthenticated users redirected to `/sign-in?redirect_url=/events/{id}`, authenticated users call eligibility check → create payment → redirect to HitPay checkout URL; shows "View my ticket" when already registered, loading spinner during registration, error state with retry
+
 ### feat: redesign event detail page with design system layout
 
 - **app/events/[id]/page.tsx** — complete rewrite: gradient hero with cover image support, two-column layout (1.5fr main + 1fr sidebar), status badge, date/time/venue icons, speakers list with avatars, linked curriculum card, scheduling sidebar card, venue sidebar card, role-aware actions (register for attendees, publish/edit/delete for facilitators), role fetched from `/api/auth/me`

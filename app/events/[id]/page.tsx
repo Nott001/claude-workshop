@@ -78,9 +78,44 @@ export default function EventDetailPage() {
       .catch(() => {});
   }, [isLoaded, isSignedIn]);
 
+  const [registrationStatus, setRegistrationStatus] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleRegister() {
+    if (!isSignedIn) {
+      router.push(`/sign-in?redirect_url=/events/${eventId}`);
+      return;
+    }
+
+    setRegistrationStatus("registering");
+
+    const eligibilityRes = await fetch(`/api/events/${eventId}/register`, { method: "POST" });
+    if (!eligibilityRes.ok) {
+      if (eligibilityRes.status === 409) {
+        setRegistrationStatus("already_registered");
+        return;
+      }
+      setRegistrationStatus("error");
+      return;
+    }
+
+    const payRes = await fetch("/api/payments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_id: Number(eventId) }),
+    });
+
+    if (!payRes.ok) {
+      setRegistrationStatus("error");
+      return;
+    }
+
+    const { payment_id, checkout_url } = await payRes.json();
+    setRegistrationStatus("redirecting");
+    router.push(checkout_url || `/checkout/${payment_id}?success=true`);
+  }
 
   async function handlePublish() {
     setPublishing(true);
@@ -283,15 +318,43 @@ export default function EventDetailPage() {
             </div>
           )}
 
-          {event.status === "active" && isSignedIn && (
-            <button
-              onClick={() => router.push(`/events/${eventId}/register`)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <span className="material-symbols-rounded text-sm">how_to_reg</span>
-              Register for this event
-            </button>
-          )}
+          {event.status === "active" &&
+            (registrationStatus === "already_registered" ? (
+              <button
+                onClick={() => router.push("/tickets")}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-hover"
+              >
+                <span className="material-symbols-rounded text-sm">confirmation_number</span>
+                View my ticket
+              </button>
+            ) : registrationStatus === "registering" ? (
+              <button
+                disabled
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground opacity-50"
+              >
+                <span className="material-symbols-rounded text-sm animate-spin">progress_activity</span>
+                Registering...
+              </button>
+            ) : registrationStatus === "error" ? (
+              <div className="space-y-2">
+                <button
+                  onClick={handleRegister}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <span className="material-symbols-rounded text-sm">how_to_reg</span>
+                  Try again
+                </button>
+                <p className="text-xs text-destructive">Registration failed. Please try again.</p>
+              </div>
+            ) : (
+              <button
+                onClick={handleRegister}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <span className="material-symbols-rounded text-sm">{isSignedIn ? "how_to_reg" : "login"}</span>
+                {isSignedIn ? "Register & Pay" : "Sign in to register"}
+              </button>
+            ))}
 
           {isSignedIn && canManage && (
             <div className="space-y-2">
