@@ -1,10 +1,115 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  formatEventDate,
+  formatTime,
+  eventStatusLabel,
+  accentClass,
+  getUpcomingEvents,
+} from "@/lib/landing";
 
-import { upcomingEvents } from "@/lib/landing";
+let fromMock: ReturnType<typeof vi.fn>;
 
-describe("landing page content", () => {
-  it("provides the two events displayed in the featured grid", () => {
-    expect(upcomingEvents).toHaveLength(2);
-    expect(upcomingEvents.every((event) => event.title && event.date && event.time)).toBe(true);
+vi.mock("@/lib/db", () => ({
+  getServiceClient: vi.fn(() => ({
+    from: (...args: unknown[]) => fromMock(...args),
+  })),
+}));
+
+function makeChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({ data, error: null }),
+  };
+}
+
+describe("landing helpers", () => {
+  it("formatEventDate produces human-readable dates", () => {
+    expect(formatEventDate("2026-05-24")).toContain("May");
+    expect(formatEventDate("2026-05-24")).toContain("24");
+    expect(formatEventDate("2026-05-24")).toContain("2026");
+  });
+
+  it("formatTime converts 24h to 12h", () => {
+    expect(formatTime("10:00")).toBe("10:00 AM");
+    expect(formatTime("18:30")).toBe("6:30 PM");
+    expect(formatTime("00:00")).toBe("12:00 AM");
+    expect(formatTime("12:00")).toBe("12:00 PM");
+  });
+
+  it("eventStatusLabel maps statuses correctly", () => {
+    expect(eventStatusLabel("active")).toBe("Upcoming");
+    expect(eventStatusLabel("draft")).toBe("Draft");
+    expect(eventStatusLabel("complete")).toBe("Past");
+    expect(eventStatusLabel("unknown")).toBe("unknown");
+  });
+
+  it("accentClass cycles through gradient classes", () => {
+    expect(accentClass(0)).toBe("from-sky-500 via-cyan-400 to-teal-300");
+    expect(accentClass(4)).toBe(accentClass(0));
+  });
+});
+
+describe("getUpcomingEvents", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns mapped events from Supabase", async () => {
+    const rawEvents = [
+      {
+        event_id: 1,
+        title: "AI Workshop",
+        event_date: "2026-09-15",
+        start_time: "10:00",
+        end_time: "12:00",
+        venue_name: "Main Hall",
+        status: "active",
+        COURSE: { course_name: "AI 101" },
+      },
+      {
+        event_id: 2,
+        title: "Founders Night",
+        event_date: "2026-09-22",
+        start_time: "18:30",
+        end_time: "21:00",
+        venue_name: "Rooftop",
+        status: "draft",
+        COURSE: null,
+      },
+    ];
+    fromMock = vi.fn().mockReturnValue(makeChain(rawEvents));
+
+    const events = await getUpcomingEvents();
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual({
+      event_id: 1,
+      title: "AI Workshop",
+      event_date: "2026-09-15",
+      start_time: "10:00",
+      end_time: "12:00",
+      venue_name: "Main Hall",
+      status: "active",
+      course_name: "AI 101",
+    });
+    expect(events[1].course_name).toBeNull();
+  });
+
+  it("returns empty array when Supabase returns null", async () => {
+    fromMock = vi.fn().mockReturnValue(makeChain(null));
+
+    const events = await getUpcomingEvents();
+    expect(events).toEqual([]);
+  });
+
+  it("queries EVENTS table with correct filters", async () => {
+    fromMock = vi.fn().mockReturnValue(makeChain([]));
+
+    await getUpcomingEvents();
+
+    expect(fromMock).toHaveBeenCalledWith("EVENTS");
   });
 });
