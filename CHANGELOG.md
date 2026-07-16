@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### feat: update navbar to light theme and unify across all pages
+
+- **components/navbar.tsx** — restyle to light theme matching landing page design (white background, blue accent, material icons)
+- **components/app-shell.tsx** — show navbar on all pages except auth routes; add left padding for sidebar offset
+- **app/page.tsx** — remove inline sidebar (now provided by AppShell), use MarketingFooter shared component
+
+### fix: update design system to light theme
+
+- **design-system_2_1.html** — swap monochrome scale to light mode defaults, update surface role mappings, adjust shadow opacity for light backgrounds, update accent/semantic colors for light theme contrast
+
 ### feat: add universal navbar and shared design system components
 
 - **components/navbar.tsx** — vertical sidebar navbar with role-based navigation items, brand logo, and user actions (avatar, sign out)

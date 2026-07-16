@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 
-const HIDE_NAVBAR_PATHS = ["/", "/sign-in", "/sign-up", "/staff-login"];
+const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Navbar />
-      <main className="flex flex-1 flex-col overflow-auto">{children}</main>
+      <main className="flex flex-1 flex-col overflow-auto lg:pl-[202px]">{children}</main>
     </div>
   );
 }
