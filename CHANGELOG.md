@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: redesign event detail page with design system layout
+
+- **app/events/[id]/page.tsx** — complete rewrite: gradient hero with cover image support, two-column layout (1.5fr main + 1fr sidebar), status badge, date/time/venue icons, speakers list with avatars, linked curriculum card, scheduling sidebar card, venue sidebar card, role-aware actions (register for attendees, publish/edit/delete for facilitators), role fetched from `/api/auth/me`
+
 ### refactor: unify EventCard design and filter landing to active events only
 
 - **components/event-card.tsx** — rewrite with gradient header, frosted glass badge, icon rows, and "View details" link matching landing page design; props now accept raw status string, start/end times, venue name, course name, and accent index
