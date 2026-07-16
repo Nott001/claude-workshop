@@ -48,7 +48,7 @@ export function EventCard({
           <span className="grid size-10 place-items-center rounded-xl bg-white/20">
             <Users className="size-5" />
           </span>
-          <span className="text-sm font-medium">StartupLab {courseName || "Workshop Series"}</span>
+          {courseName && <span className="text-sm font-medium">{courseName}</span>}
         </div>
       </div>
       <div className="p-6">
