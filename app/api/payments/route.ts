@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
-import { paymentInitSchema } from "@/modules/commerce";
+import { paymentInitSchema, generateQrToken } from "@/modules/commerce";
 import { createPayment } from "@/lib/hitpay";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const DEBUG_BYPASS = process.env.NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT === "true";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -50,7 +53,26 @@ export async function POST(req: Request) {
   if (existing && existing.length > 0) {
     const last = existing[0];
     if (last.status === "pending") {
-      return NextResponse.json({ error: "You already have a pending payment for this event" }, { status: 409 });
+      if (DEBUG_BYPASS) {
+        await supabase
+          .from("PAYMENTS")
+          .update({ status: "paid", paid_at: new Date().toISOString() })
+          .eq("payment_id", last.payment_id);
+
+        const qrToken = generateQrToken();
+        await supabase.from("TICKETS").insert({
+          payment_id: last.payment_id,
+          user_id: dbUser.user_id,
+          event_id,
+          qr_token: qrToken,
+        });
+
+        return NextResponse.json({
+          payment_id: last.payment_id,
+          checkout_url: `${APP_URL}/checkout/${last.payment_id}?success=true`,
+        });
+      }
+      return NextResponse.json({ payment_id: last.payment_id });
     }
   }
 
@@ -78,11 +100,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  if (DEBUG_BYPASS) {
+    await supabase
+      .from("PAYMENTS")
+      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("payment_id", payment.payment_id);
+
+    const qrToken = generateQrToken();
+    await supabase.from("TICKETS").insert({
+      payment_id: payment.payment_id,
+      user_id: dbUser.user_id,
+      event_id,
+      qr_token: qrToken,
+    });
+
+    return NextResponse.json({
+      payment_id: payment.payment_id,
+      checkout_url: `${APP_URL}/checkout/${payment.payment_id}?success=true`,
+    });
+  }
+
   try {
     const hitpayRes = await createPayment({
       amount: event.price,
       currency: event.currency,
       reference_id,
+      payment_id: payment.payment_id,
       name: dbUser.full_name,
       email: dbUser.email,
     });

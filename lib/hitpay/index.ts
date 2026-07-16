@@ -16,12 +16,14 @@ export async function createPayment({
   amount,
   currency = "SGD",
   reference_id,
+  payment_id,
   name,
   email,
 }: {
   amount: number;
   currency?: string;
   reference_id: string;
+  payment_id: number;
   name: string;
   email: string;
 }): Promise<HitPayCreatePaymentResponse> {
@@ -31,7 +33,7 @@ export async function createPayment({
     reference_id,
     name,
     email,
-    redirect_url: `${APP_URL}/checkout/${reference_id}?success=true`,
+    redirect_url: `${APP_URL}/checkout/${payment_id}?success=true`,
     webhook: `${APP_URL}/api/payments/webhook`,
   });
 

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### feat: add debug payment bypass for testing without HitPay
+
+- **app/api/payments/route.ts** — when `NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT=true`, skip HitPay call and directly mark payment as paid + issue ticket; also handles existing pending payments
+- **DEBUG-PAYMENT-BYPASS.md** — new file documenting the debug bypass for agent context
+
+### fix: re-route to checkout for pending payments instead of blocking
+
+- **app/api/events/[id]/register/route.ts** — return `pending_payment_id` with 200 instead of 409 when a pending payment exists, so the user can be re-routed to the checkout page to poll for status
+- **app/api/payments/route.ts** — return existing `payment_id` instead of 409 when a pending payment exists, so the register page can redirect to checkout
+- **app/events/[id]/register/page.tsx** — handle `pending_payment_id` from both the register API and payments API by redirecting to `/checkout/{id}?success=true`; redesign with gradient header card, event info, user info display, terms checkbox, and styled buttons matching the design system
+
 ### feat: add Tickets navbar item, redesign tickets page, simplify register flow
 
 - **components/navbar.tsx** — add "Tickets" nav item with confirmation_number icon for attendee role
