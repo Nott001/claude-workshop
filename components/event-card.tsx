@@ -13,6 +13,7 @@ interface EventCardProps {
   actionLabel?: string;
   actionHref?: string;
   showEdit?: boolean;
+  onDelete?: (eventId: number) => void;
 }
 
 function formatDate(dateStr: string) {
@@ -36,6 +37,7 @@ export function EventCard({
   actionLabel,
   actionHref,
   showEdit,
+  onDelete,
 }: EventCardProps) {
   const href = actionHref || `/events/${eventId}`;
   const label = actionLabel || (showEdit && status === "draft" ? "Edit" : "View details");
@@ -59,13 +61,26 @@ export function EventCard({
           </span>
         )}
         {!attendeeCount && <span />}
-        <Link
-          href={href}
-          className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80"
-        >
-          {label}
-          <span className="material-symbols-rounded text-[15px]">arrow_forward</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {showEdit && onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirm("Delete this event? This cannot be undone.")) onDelete(eventId);
+              }}
+              className="flex items-center gap-1 text-xs font-medium text-destructive transition-colors hover:text-destructive/80"
+            >
+              <span className="material-symbols-rounded text-[15px]">delete</span>
+            </button>
+          )}
+          <Link
+            href={href}
+            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80"
+          >
+            {label}
+            <span className="material-symbols-rounded text-[15px]">arrow_forward</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

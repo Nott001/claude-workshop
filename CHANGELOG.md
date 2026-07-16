@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
-### feat: self-host Inter and Material Symbols Rounded fonts locally
+### feat: add delete event option for facilitators
+
+- **components/event-card.tsx** — add `onDelete` callback prop; render delete icon button in card footer when facilitator
+- **app/events/page.tsx** — add `handleDelete` calling `DELETE /api/events/:id`, remove event from list on success; pass `onDelete` to EventCard for facilitators
 
 - **public/fonts/** — download Inter (latin + latin-ext, normal + italic) and Material Symbols Rounded woff2 files
 - **app/fonts.css** — new file with local `@font-face` declarations for Inter and Material Symbols Rounded (placed before Tailwind imports so they aren't stripped)

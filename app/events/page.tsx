@@ -99,6 +99,13 @@ export default function EventsPage() {
     drafts: events.filter((e) => e.status === "draft").length,
   };
 
+  async function handleDelete(eventId: number) {
+    const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+    if (res.ok) {
+      setEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+    }
+  }
+
   if (!isLoaded || loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -163,6 +170,7 @@ export default function EventsPage() {
               time={`${event.start_time} - ${event.end_time}`}
               description={event.venue_name}
               showEdit={isFacilitator}
+              onDelete={isFacilitator ? handleDelete : undefined}
             />
           ))}
         </div>
