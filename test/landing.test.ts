@@ -1,11 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  formatEventDate,
-  formatTime,
-  eventStatusLabel,
-  accentClass,
-  getUpcomingEvents,
-} from "@/lib/landing";
+import { formatEventDate, formatTime, eventStatusLabel, accentClass, getUpcomingEvents } from "@/lib/landing";
 
 let fromMock: ReturnType<typeof vi.fn>;
 
@@ -18,6 +12,7 @@ vi.mock("@/lib/db", () => ({
 function makeChain(data: unknown[]) {
   return {
     select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
@@ -105,11 +100,14 @@ describe("getUpcomingEvents", () => {
     expect(events).toEqual([]);
   });
 
-  it("queries EVENTS table with correct filters", async () => {
-    fromMock = vi.fn().mockReturnValue(makeChain([]));
+  it("queries EVENTS table with active-only filter", async () => {
+    const chain = makeChain([]);
+    fromMock = vi.fn().mockReturnValue(chain);
 
     await getUpcomingEvents();
 
     expect(fromMock).toHaveBeenCalledWith("EVENTS");
+    expect(chain.eq).toHaveBeenCalledWith("status", "active");
+    expect(chain.limit).toHaveBeenCalledWith(2);
   });
 });

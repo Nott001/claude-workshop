@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### refactor: unify EventCard design and filter landing to active events only
+
+- **components/event-card.tsx** — rewrite with gradient header, frosted glass badge, icon rows, and "View details" link matching landing page design; props now accept raw status string, start/end times, venue name, course name, and accent index
+- **lib/landing.ts** — `getUpcomingEvents()` now filters to `status=active` only, returns max 2 events
+- **app/page.tsx** — inline event card markup replaced with `<EventCard>` component
+- **app/events/page.tsx** — replaced old `EventCard` usage with new gradient-based component; removed `mapStatus` helper and `StatusBadge` import
+- **test/landing.test.ts** — updated mock chainable to include `eq` method; added assertions for active-only filter and limit(2)
+
 ### refactor: replace static landing page data with live Supabase queries
 
 - **lib/landing.ts** — rewrite from static event array to `getUpcomingEvents()` server helper querying Supabase; add `formatEventDate`, `formatTime`, `eventStatusLabel`, `accentClass` helpers
