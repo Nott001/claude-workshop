@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
+import { CourseCard } from "@/components/course-card";
 import type { Course } from "@/types";
 
 export default function CoursesPage() {
-  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +40,10 @@ export default function CoursesPage() {
     const res = await fetch("/api/courses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ course_name: formName, course_description: formDescription || null }),
+      body: JSON.stringify({
+        course_name: formName,
+        course_description: formDescription || null,
+      }),
     });
     if (!res.ok) return;
     setCreateOpen(false);
@@ -57,7 +58,10 @@ export default function CoursesPage() {
     const res = await fetch(`/api/courses/${editCourse.course_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ course_name: formName, course_description: formDescription || null }),
+      body: JSON.stringify({
+        course_name: formName,
+        course_description: formDescription || null,
+      }),
     });
     if (!res.ok) return;
     setEditCourse(null);
@@ -88,18 +92,28 @@ export default function CoursesPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl p-8">
-        <p className="text-muted-foreground">Loading courses...</p>
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-foreground">Loading courses...</div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-foreground text-3xl font-bold">Courses</h1>
+    <div className="flex flex-1 flex-col p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-base font-bold text-foreground">Courses</span>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button onClick={openCreate}>Create Course</Button>} />
+          <DialogTrigger
+            render={
+              <button
+                onClick={openCreate}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <span className="material-symbols-rounded text-sm">add_circle</span>
+                Create course
+              </button>
+            }
+          />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Course</DialogTitle>
@@ -121,57 +135,69 @@ export default function CoursesPage() {
         </Dialog>
       </div>
 
-      {error && <p className="text-destructive mb-4">{error}</p>}
+      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       {courses.length === 0 ? (
-        <p className="text-muted-foreground">No courses yet. Create your first course.</p>
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="text-sm text-muted-foreground">No courses yet. Create your first course.</div>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {courses.map((course) => (
-            <Card key={course.course_id}>
-              <CardHeader>
-                <CardTitle>{course.course_name}</CardTitle>
-                {course.course_description && <CardDescription>{course.course_description}</CardDescription>}
-              </CardHeader>
-              <CardFooter className="flex gap-2">
-                <Button variant="outline" onClick={() => router.push(`/courses/${course.course_id}`)}>
-                  View Modules
-                </Button>
-                <Dialog>
-                  <DialogTrigger
-                    render={
-                      <Button variant="outline" onClick={() => openEdit(course)}>
-                        Edit
-                      </Button>
-                    }
-                  />
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Course</DialogTitle>
-                    </DialogHeader>
-                    <Form onSubmit={handleUpdate}>
-                      <FormField>
-                        <FormLabel>Name</FormLabel>
-                        <Input value={formName} onChange={(e) => setFormName(e.target.value)} required />
-                      </FormField>
-                      <FormField>
-                        <FormLabel>Description</FormLabel>
-                        <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
-                      </FormField>
-                      <Button type="submit" className="mt-4">
-                        Update
-                      </Button>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-                <Button variant="destructive" onClick={() => handleDelete(course.course_id)}>
-                  Delete
-                </Button>
-              </CardFooter>
-            </Card>
+            <div key={course.course_id} className="group relative">
+              <CourseCard courseId={course.course_id} title={course.course_name} moduleCount={0} />
+              <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openEdit(course);
+                  }}
+                  className="rounded bg-surface p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+                  title="Edit"
+                >
+                  <span className="material-symbols-rounded text-sm">edit</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleDelete(course.course_id);
+                  }}
+                  className="rounded bg-surface p-1.5 text-muted-foreground hover:bg-red-900/20 hover:text-red-500"
+                  title="Delete"
+                >
+                  <span className="material-symbols-rounded text-sm">delete</span>
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}
+
+      <Dialog
+        open={!!editCourse}
+        onOpenChange={(open) => {
+          if (!open) setEditCourse(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Course</DialogTitle>
+          </DialogHeader>
+          <Form onSubmit={handleUpdate}>
+            <FormField>
+              <FormLabel>Name</FormLabel>
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} required />
+            </FormField>
+            <FormField>
+              <FormLabel>Description</FormLabel>
+              <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
+            </FormField>
+            <Button type="submit" className="mt-4">
+              Update
+            </Button>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
