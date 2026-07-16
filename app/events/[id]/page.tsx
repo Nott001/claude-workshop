@@ -351,8 +351,8 @@ export default function EventDetailPage() {
                 onClick={handleRegister}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-rounded text-sm">{isSignedIn ? "how_to_reg" : "login"}</span>
-                {isSignedIn ? "Register & Pay" : "Sign in to register"}
+                <span className="material-symbols-rounded text-sm">how_to_reg</span>
+                Register
               </button>
             ))}
 
