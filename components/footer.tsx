@@ -15,8 +15,7 @@ function AttendeeFooter() {
             <span className="text-xl font-bold text-foreground">StartupLab</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Empowering the next generation of business leaders through AI-driven
-            innovation and education.
+            Empowering the next generation of business leaders through AI-driven innovation and education.
           </p>
         </div>
 
@@ -47,9 +46,7 @@ function AttendeeFooter() {
       </div>
 
       <div className="border-t border-border pt-8">
-        <p className="text-xs text-muted-foreground">
-          &copy; 2024 StartupLab Business Center. All rights reserved.
-        </p>
+        <p className="text-xs text-muted-foreground">&copy; 2024 StartupLab Business Center. All rights reserved.</p>
       </div>
     </footer>
   );
