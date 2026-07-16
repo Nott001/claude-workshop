@@ -18,17 +18,19 @@ const ROLE_NAV_ITEMS: Record<UserRole, { label: string; href: string }[]> = {
   attendee: [
     { label: "Home", href: "/" },
     { label: "Events", href: "/events" },
+    { label: "Tickets", href: "/tickets" },
   ],
   speaker: [
     { label: "Events", href: "/events" },
-    { label: "Settings", href: "/settings" },
   ],
   facilitator: [
     { label: "Events", href: "/events" },
     { label: "Create event", href: "/events/new" },
     { label: "Courses", href: "/courses" },
-    { label: "Organization", href: "/organization" },
+    { label: "Create course", href: "/courses/new" },
+    { label: "Organization", href: "/speakers" },
     { label: "Kiosk", href: "/kiosk" },
+    { label: "Payments", href: "/payments" },
   ],
 };
 
@@ -37,12 +39,6 @@ const ROLES: { value: UserRole; label: string }[] = [
   { value: "speaker", label: "Speaker" },
   { value: "facilitator", label: "Facilitator" },
 ];
-
-function getCookie(name: string): string | null {
-  if (typeof window === "undefined") return null;
-  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
-  return match?.split("=")[1] ?? null;
-}
 
 function setCookie(name: string, value: string, maxAge: number) {
   document.cookie = `${name}=${value}; path=/; max-age=${maxAge}`;

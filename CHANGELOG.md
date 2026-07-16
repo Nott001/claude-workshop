@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### feat: update debug menu with all pages and remove dashboard references
+
+- **components/debug-menu.tsx** — remove dashboard from all role nav items, add tickets for attendee, add payments for facilitator, keep courses/new and events/new links
+
+### feat: add event and course creation forms with design system styling
+
+- **app/events/new/page.tsx** — rewrite with design system form patterns (labeled fields, file upload, currency select, error banner, back navigation)
+- **app/courses/new/page.tsx** — new page with course name, description textarea, and cancel/create buttons
+- **components/ui/textarea.tsx** — new Textarea component matching design system input styling
+
 ### feat: update navbar to light theme and unify across all pages
 
 - **components/navbar.tsx** — restyle to light theme matching landing page design (white background, blue accent, material icons)
