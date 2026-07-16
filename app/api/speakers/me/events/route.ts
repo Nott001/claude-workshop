@@ -10,11 +10,7 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser, error: userErr } = await supabase
-    .from("USERS")
-    .select("user_id")
-    .eq("clerk_id", userId)
-    .single();
+  const { data: dbUser, error: userErr } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
 
   if (userErr || !dbUser) {
     console.error("[speaker-events] user lookup failed:", userErr?.message ?? "not found", userId);

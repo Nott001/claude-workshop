@@ -222,9 +222,13 @@ export default function LiveRoomPage() {
   }
 
   async function handleEndSession() {
-    await fetch(`/api/live/${eventId}/state`, { method: "POST" });
+    await fetch(`/api/live/${eventId}/state`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "ended" }),
+    });
     setCurrentLesson(null);
-    setSessionStatus("scheduled");
+    setSessionStatus("ended");
   }
 
   const canControl = userRole === "speaker" || userRole === "facilitator";
