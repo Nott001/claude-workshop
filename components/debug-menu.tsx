@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Sign In", href: "/sign-in" },
   { label: "Sign Up", href: "/sign-up" },
+  { label: "Staff Login", href: "/staff-login" },
 ];
 
 const ROLE_NAV_ITEMS: Record<UserRole, { label: string; href: string }[]> = {
