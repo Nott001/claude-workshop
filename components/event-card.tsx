@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, Users } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles } from "lucide-react";
 
 import { accentClass, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
 
@@ -11,7 +11,6 @@ interface EventCardProps {
   startTime: string;
   endTime: string;
   venueName: string;
-  courseName?: string;
   coverImageUrl?: string | null;
   accentIndex?: number;
   showEdit?: boolean;
@@ -26,7 +25,6 @@ export function EventCard({
   startTime,
   endTime,
   venueName,
-  courseName,
   coverImageUrl,
   accentIndex = 0,
   showEdit,
@@ -44,12 +42,6 @@ export function EventCard({
         <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
           <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
         </span>
-        <div className="relative mt-9 flex items-center gap-3 text-white/95">
-          <span className="grid size-10 place-items-center rounded-xl bg-white/20">
-            <Users className="size-5" />
-          </span>
-          {courseName && <span className="text-sm font-medium">{courseName}</span>}
-        </div>
       </div>
       <div className="p-6">
         <h3 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h3>

@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ bucket:
   }
 
   const headers: Record<string, string> = {
-    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cache-Control": "public, max-age=0, must-revalidate",
     "Content-Type": data.type || "application/octet-stream",
   };
 
