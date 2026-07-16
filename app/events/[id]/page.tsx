@@ -46,6 +46,7 @@ interface Event {
   overview: string | null;
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
+  payment_count?: number;
 }
 
 function formatHeroDateTime(dateStr: string, startTime: string, endTime: string): string {
@@ -110,6 +111,21 @@ export default function EventDetailPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [sessionLive, setSessionLive] = useState(false);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    if (!event) return;
+    fetch(`/api/live/${eventId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((state) => {
+        if (state && state.session_status === "live") setSessionLive(true);
+      })
+      .catch(() => {});
+  }, [event, eventId]);
 
   async function handleRegister() {
     if (!isSignedIn) {
@@ -135,19 +151,35 @@ export default function EventDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this event? This cannot be undone.")) return;
+    setDeleteConfirmText("");
+    setDeleteError(null);
+    if (event && event.payment_count && event.payment_count > 0) {
+      setShowDeleteModal(true);
+    } else {
+      if (confirm("Delete this event? This cannot be undone.")) {
+        await confirmDelete();
+      }
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
     setDeleteError(null);
     const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
-    if (res.status === 409) {
-      const body = await res.json();
-      setDeleteError(body.error ?? "Cannot delete: event has payments");
-      return;
-    }
     if (!res.ok) {
-      setDeleteError("Failed to delete event");
+      const body = await res.json();
+      setDeleteError(body.error ?? "Failed to delete event");
+      setDeleting(false);
       return;
     }
     router.push("/events");
+  }
+
+  async function handleStartSession() {
+    setStarting(true);
+    await fetch(`/api/live/${eventId}/state`, { method: "POST" });
+    setSessionLive(true);
+    setStarting(false);
   }
 
   if (loading) {
@@ -212,15 +244,6 @@ export default function EventDetailPage() {
                   </div>
 
                   <div className="flex flex-col gap-8">
-                    {event.status === "active" && (
-                      <button
-                        onClick={handleRegister}
-                        className="inline-flex w-fit items-center justify-center rounded-lg bg-[#3db9ee] px-10 py-4 text-base font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#239dce]"
-                      >
-                        Register
-                      </button>
-                    )}
-
                     {showCountdown && <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />}
                   </div>
                 </div>
@@ -323,7 +346,7 @@ export default function EventDetailPage() {
 
                     {/* Buttons */}
                     <div className="flex flex-col gap-3">
-                      {event.status === "active" && (
+                      {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
                         <button
                           onClick={handleRegister}
                           className="flex w-full items-center justify-center rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
@@ -399,6 +422,16 @@ export default function EventDetailPage() {
                       {publishing ? "Publishing..." : "Publish Event"}
                     </button>
                   )}
+                  {event.status === "active" && !sessionLive && (
+                    <button
+                      onClick={handleStartSession}
+                      disabled={starting}
+                      className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:opacity-50"
+                    >
+                      <span className="material-symbols-rounded text-sm">play_arrow</span>
+                      {starting ? "Starting..." : "Start event session"}
+                    </button>
+                  )}
                   <button
                     onClick={() => router.push(`/events/${eventId}/edit`)}
                     className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B1C1C] transition-colors hover:bg-gray-50"
@@ -426,15 +459,58 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            {/* Enter session button (for ticket holders) */}
-            {event.status === "active" && (hasTicket || DEBUG_BYPASS) && !canManage && (
-              <button
-                onClick={() => router.push(`/events/${eventId}/live`)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
-              >
-                <span className="material-symbols-rounded text-sm">play_circle</span>
-                Enter event session
-              </button>
+            {/* Enter session button */}
+            {event.status === "active" &&
+              sessionLive &&
+              (hasTicket || DEBUG_BYPASS || isFacilitator || userRole === "speaker") && (
+                <button
+                  onClick={() => router.push(`/events/${eventId}/live`)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                >
+                  <span className="material-symbols-rounded text-sm">play_circle</span>
+                  Enter event session
+                </button>
+              )}
+
+            {/* Delete confirmation modal */}
+            {showDeleteModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="mx-4 w-full max-w-md rounded-xl border border-[#bdc8d0] bg-white p-6 shadow-lg">
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="material-symbols-rounded text-2xl text-red-500">warning</span>
+                    <h3 className="text-sm font-semibold text-[#1B1C1C]">Delete event</h3>
+                  </div>
+                  <p className="mb-2 text-sm text-[#3E484F]">
+                    This event has existing payments. Deleting it will also remove all associated data, including payments,
+                    tickets, and chat messages. This action <strong>cannot be undone</strong>.
+                  </p>
+                  <p className="mb-4 text-sm text-[#3E484F]">
+                    Type <strong>understood</strong> to confirm.
+                  </p>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder='type "understood"'
+                    className="mb-4 w-full rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm text-[#1B1C1C] outline-none focus:border-red-400"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowDeleteModal(false)}
+                      className="rounded-lg border border-[#bdc8d0] bg-white px-4 py-2 text-xs font-medium text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      disabled={deleteConfirmText !== "understood" || deleting}
+                      className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                    >
+                      {deleting ? "Deleting..." : "Delete event"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Marketing Footer */}

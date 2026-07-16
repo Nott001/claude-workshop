@@ -34,6 +34,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .from("LIVE_SESSION_STATE")
       .update({
         current_lesson_id: null,
+        session_status: "scheduled",
         updated_by: dbUser.user_id,
         updated_at: new Date().toISOString(),
       })
@@ -49,6 +50,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { error: insertError } = await supabase.from("LIVE_SESSION_STATE").insert({
     event_id: Number(id),
     current_lesson_id: null,
+    session_status: "live",
     updated_by: dbUser.user_id,
   });
 
@@ -56,5 +58,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, action: "initialized" }, { status: 201 });
+  return NextResponse.json({ success: true, action: "started" }, { status: 201 });
 }

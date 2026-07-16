@@ -7,11 +7,13 @@ describe("LiveSessionState type", () => {
     const state: LiveSessionState = {
       event_id: 1,
       current_lesson_id: 42,
+      session_status: "live",
       updated_by: 5,
       updated_at: "2026-07-09T12:00:00Z",
     };
     expect(state.event_id).toBe(1);
     expect(state.current_lesson_id).toBe(42);
+    expect(state.session_status).toBe("live");
     expect(state.updated_by).toBe(5);
   });
 
@@ -19,10 +21,23 @@ describe("LiveSessionState type", () => {
     const state: LiveSessionState = {
       event_id: 1,
       current_lesson_id: null,
+      session_status: "scheduled",
       updated_by: 5,
       updated_at: "2026-07-09T12:00:00Z",
     };
     expect(state.current_lesson_id).toBeNull();
+    expect(state.session_status).toBe("scheduled");
+  });
+
+  it("accepts ended session_status", () => {
+    const state: LiveSessionState = {
+      event_id: 1,
+      current_lesson_id: null,
+      session_status: "ended",
+      updated_by: 5,
+      updated_at: "2026-07-09T14:00:00Z",
+    };
+    expect(state.session_status).toBe("ended");
   });
 });
 
