@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### fix: redirect post-login to /events and fix navbar role detection
+
+- **app/sign-in/[[...sign-in]]/page.tsx** — add `afterSignInUrl="/events"` so users land on events after login
+- **app/staff-login/[[...rest]]/page.tsx** — add `afterSignInUrl="/events"` for same redirect
+- **components/navbar.tsx** — fetch role from `/api/auth/me` (Supabase) instead of `user.publicMetadata.role` (Clerk), which was never populated by the auth webhook
+
 ### chore: remove debug menu entirely and block non-staff from staff login
 
 - **components/debug-menu.tsx** — delete debug menu component

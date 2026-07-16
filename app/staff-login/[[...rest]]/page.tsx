@@ -29,6 +29,7 @@ export default async function StaffLoginPage() {
         <SignIn
           routing="path"
           path="/staff-login"
+          afterSignInUrl="/events"
           appearance={{
             elements: {
               rootBox: "w-full",
