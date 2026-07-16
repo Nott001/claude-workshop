@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
@@ -49,8 +50,19 @@ export function Navbar() {
   const router = useRouter();
   const { user, isSignedIn } = useUser();
   const { signOut } = useClerk();
+  const [dbRole, setDbRole] = useState<UserRole | null>(null);
 
-  const userRole = (user?.publicMetadata?.role as UserRole) || "attendee";
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) setDbRole(data.role as UserRole);
+      })
+      .catch(() => {});
+  }, [isSignedIn]);
+
+  const userRole: UserRole = dbRole ?? "attendee";
   const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
 
   const handleSignOut = async () => {
