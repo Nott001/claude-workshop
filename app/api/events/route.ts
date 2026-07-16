@@ -59,6 +59,8 @@ export async function POST(req: Request) {
       end_time: parsed.data.end_time,
       venue_name: parsed.data.venue_name,
       venue_address: parsed.data.venue_address ?? null,
+      description: parsed.data.description ?? null,
+      overview: parsed.data.overview ?? null,
       course_id: parsed.data.course_id ?? null,
       lat: parsed.data.lat ?? null,
       lng: parsed.data.lng ?? null,
