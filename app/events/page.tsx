@@ -157,7 +157,6 @@ export default function EventsPage() {
               startTime={event.start_time}
               endTime={event.end_time}
               venueName={event.venue_name}
-              courseName={event.COURSE?.course_name ?? undefined}
               coverImageUrl={event.cover_image_url}
               accentIndex={index}
               showEdit={isFacilitator}

@@ -79,7 +79,6 @@ export default async function HomePage() {
                     startTime={events[0].start_time}
                     endTime={events[0].end_time}
                     venueName={events[0].venue_name}
-                    courseName={events[0].course_name ?? undefined}
                     coverImageUrl={events[0].cover_image_url}
                     accentIndex={0}
                   />
@@ -95,7 +94,6 @@ export default async function HomePage() {
                     startTime={event.start_time}
                     endTime={event.end_time}
                     venueName={event.venue_name}
-                    courseName={event.course_name ?? undefined}
                     coverImageUrl={event.cover_image_url}
                     accentIndex={index}
                   />
