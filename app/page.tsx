@@ -1,63 +1,12 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarDays,
-  ChevronRight,
-  Clock3,
-  Globe2,
-  Home,
-  MapPin,
-  MessageCircle,
-  Play,
-  Sparkles,
-  UsersRound,
-  Users,
-} from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronRight, Clock3, MapPin, Play, Sparkles, Users } from "lucide-react";
 
 import { upcomingEvents } from "@/lib/landing";
-
-const navItems = [
-  { label: "Home", href: "/", icon: Home },
-  { label: "Events", href: "#upcoming-events", icon: CalendarDays },
-];
+import { MarketingFooter } from "@/components/marketing-footer";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#fbf9f8] text-[#1b1c1c]">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[202px] flex-col border-r border-[#bdc8d0] bg-white px-5 py-7 lg:flex">
-        <Link href="/" className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]">
-          <span className="grid size-8 place-items-center rounded-lg bg-[#3db9ee] text-white">
-            <Sparkles className="size-[18px]" />
-          </span>
-          StartupLab
-        </Link>
-        <nav className="mt-12 space-y-2" aria-label="Primary navigation">
-          {navItems.map(({ label, href, icon: Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${label === "Home" ? "bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078] hover:bg-[#f4f7f8] hover:text-[#1b1c1c]"}`}
-            >
-              <Icon className="size-[18px]" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto space-y-3">
-          <Link
-            href="/sign-in"
-            className="block rounded-lg border border-[#bdc8d0] py-2.5 text-center text-xs font-semibold tracking-[0.04em] transition hover:border-[#3db9ee] hover:text-[#1789b8]"
-          >
-            SIGN IN
-          </Link>
-          <Link
-            href="/sign-up"
-            className="block rounded-lg bg-[#3db9ee] py-2.5 text-center text-xs font-semibold tracking-[0.04em] text-white transition hover:bg-[#239dce]"
-          >
-            SIGN UP
-          </Link>
-        </div>
-      </aside>
       <div className="lg:pl-[202px]">
         <section className="relative overflow-hidden rounded-b-[40px] bg-[#3db9ee] px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
@@ -102,6 +51,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
         <section id="upcoming-events" className="bg-white px-6 py-20 sm:px-12 lg:px-16">
           <div className="mx-auto max-w-[1110px]">
             <div className="mx-auto max-w-2xl text-center">
@@ -161,51 +111,12 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-        <footer className="border-t border-[#bdc8d0] bg-white px-6 py-12 sm:px-12 lg:px-16">
-          <div className="mx-auto flex max-w-[1110px] flex-col gap-12 md:flex-row md:justify-between">
-            <div className="max-w-xs">
-              <div className="flex items-center gap-3 text-2xl font-bold tracking-[-0.03em]">
-                <span className="grid size-8 place-items-center rounded-lg bg-[#3db9ee] text-white">
-                  <Sparkles className="size-[18px]" />
-                </span>
-                StartupLab
-              </div>
-              <p className="mt-5 text-sm leading-5 text-[#3e484f]">
-                Empowering the next generation of business leaders through AI-driven innovation and education.
-              </p>
-            </div>
-            <div className="flex gap-16">
-              <div>
-                <h2 className="font-bold">Company</h2>
-                <div className="mt-4 space-y-2 text-sm text-[#3e484f]">
-                  <a href="#about" className="block hover:text-[#1789b8]">
-                    About Us
-                  </a>
-                  <a href="mailto:hello@startuplab.example" className="block hover:text-[#1789b8]">
-                    Contact
-                  </a>
-                </div>
-              </div>
-              <div>
-                <h2 className="font-bold">Connect</h2>
-                <div className="mt-4 flex gap-4 text-[#3e484f]">
-                  <a href="#website" aria-label="Website">
-                    <Globe2 className="size-5" />
-                  </a>
-                  <a href="#community" aria-label="Community">
-                    <UsersRound className="size-5" />
-                  </a>
-                  <a href="#contact" aria-label="Contact">
-                    <MessageCircle className="size-5" />
-                  </a>
-                </div>
-              </div>
-            </div>
+
+        <div className="px-6 py-12 sm:px-12 lg:px-16">
+          <div className="mx-auto max-w-[1110px]">
+            <MarketingFooter />
           </div>
-          <div className="mx-auto mt-12 max-w-[1110px] border-t border-[#bdc8d0] pt-6 text-xs text-[#607079]">
-            © 2026 StartupLab Business Center. All rights reserved.
-          </div>
-        </footer>
+        </div>
       </div>
     </main>
   );
