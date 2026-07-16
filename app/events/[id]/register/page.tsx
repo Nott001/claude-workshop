@@ -70,7 +70,21 @@ export default function RegisterPage() {
     const body = await res.json();
 
     if (body.pending_payment_id) {
-      router.push(`/checkout/${body.pending_payment_id}?success=true`);
+      const payRes = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: Number(eventId) }),
+      });
+
+      const payBody = await payRes.json();
+      if (payBody.checkout_url) {
+        window.location.href = payBody.checkout_url;
+      } else if (payBody.payment_id) {
+        router.push(`/checkout/${payBody.payment_id}?success=true`);
+      } else {
+        setError(payBody.error ?? "Failed to process payment");
+        setSubmitting(false);
+      }
       return;
     }
 
