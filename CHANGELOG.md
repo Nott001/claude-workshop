@@ -2,12 +2,25 @@
 
 ## [Unreleased]
 
-### feat: add ticket-gated Enter session button and redesign live room
+### feat: add session status, start/end session controls, storage cleanup, and image proxy
 
-- **app/events/[id]/page.tsx** — fetch ticket ownership on load; show "Enter event session" button when user has a ticket (or `?debug_bypass_session=true` is set); button routes to `/events/{id}/live`
-- **app/events/[id]/live/page.tsx** — redesign with in-session navbar (event title, elapsed timer, Exit button), two-column layout (syllabus + Q&A), lesson list with Live/completed/upcoming indicators, speaker controls bar (Previous/Next/Reset/lesson select), and Q&A chat panel
-- **DEBUG-PAYMENT-BYPASS.md** — add session bypass documentation
-- **AGENTS.md** — add session bypass reference
+- **supabase/migrations/00012_add_session_status.sql** — add `session_status` column (`scheduled`, `live`, `ended`) to `LIVE_SESSION_STATE`
+- **types/index.ts** — add `SessionStatus` type and `session_status` field to `LiveSessionState`
+- **app/api/live/[eventId]/state/route.ts** — set `session_status = 'live'` on init, `'scheduled'` on reset
+- **app/api/live/[eventId]/route.ts** — set `session_status = 'live'` when selecting a lesson
+- **app/events/[id]/live/page.tsx** — show "Session not started" for non-facilitators before session is live; add "Start Session" button with early-start warning; add "End Session" button; live indicator; elapsed timer only runs when live
+- **app/events/[id]/page.tsx** — fetch session state; show "Start event session" (green, no navigation) for facilitators when session is not live; show "Enter event session" (blue) for all authorized users when live; hide Register for facilitators/speakers; delete modal requires typing "understood" when event has payments; simple confirm when no payments; modal uses `bg-white` for solid background
+- **app/api/events/[id]/route.ts** — remove payment delete restriction; cascade delete tickets → payments → event; include `payment_count` in GET response for facilitators; clean up event image and linked course assets/videos from storage on delete
+- **app/api/courses/[id]/route.ts** — clean up course assets/videos from storage on delete
+- **app/api/modules/[id]/route.ts** — clean up lesson assets/videos from storage on delete
+- **app/api/lessons/[id]/route.ts** — clean up lesson assets/videos from storage on delete
+- **app/api/speakers/[id]/route.ts** — clean up profile image from storage on delete
+- **app/api/auth/route.ts** — clean up profile image from storage on user deletion
+- **lib/storage/index.ts** — add `deleteFromStorage`, `listStorageFolder`; switch `uploadToStorage` from `getPublicUrl` to proxy URL
+- **app/api/storage/[bucket]/[...path]/route.ts** — new image proxy that serves files from Supabase storage using the service role key
+- **components/event-card.tsx** — add `coverImageUrl` prop; render cover image with gradient fallback and dark overlay for text readability
+- **app/events/page.tsx** — pass `cover_image_url` to EventCard
+- **test/live-session.test.ts** — update tests for `session_status` field
 
 ### feat: add debug payment bypass for testing without HitPay
 

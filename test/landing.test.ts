@@ -89,6 +89,7 @@ describe("getUpcomingEvents", () => {
       venue_name: "Main Hall",
       status: "active",
       course_name: "AI 101",
+      cover_image_url: null,
     });
     expect(events[1].course_name).toBeNull();
   });

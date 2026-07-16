@@ -19,6 +19,7 @@ interface Event {
   venue_name: string;
   venue_address: string | null;
   status: "draft" | "active" | "complete";
+  cover_image_url: string | null;
   COURSE: Course | null;
 }
 
@@ -156,7 +157,7 @@ export default function EventsPage() {
               startTime={event.start_time}
               endTime={event.end_time}
               venueName={event.venue_name}
-              courseName={event.COURSE?.course_name ?? undefined}
+              coverImageUrl={event.cover_image_url}
               accentIndex={index}
               showEdit={isFacilitator}
               onDelete={isFacilitator ? handleDelete : undefined}

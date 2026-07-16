@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { courseSchema } from "@/modules/course-content";
+import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -69,6 +70,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
+
+  const { data: modules } = await supabase.from("MODULES").select("module_id").eq("course_id", id);
+  for (const mod of modules ?? []) {
+    const { data: lessons } = await supabase.from("LESSONS").select("lesson_id").eq("module_id", mod.module_id);
+    for (const lesson of lessons ?? []) {
+      const folder = `courses/${id}/modules/${mod.module_id}/lessons/${lesson.lesson_id}`;
+      const [assetPaths, videoPaths] = await Promise.all([
+        listStorageFolder("course_assets", folder),
+        listStorageFolder("course_videos", folder),
+      ]);
+      await Promise.all([deleteFromStorage("course_assets", assetPaths), deleteFromStorage("course_videos", videoPaths)]);
+    }
+  }
+
   const { error } = await supabase.from("COURSE").delete().eq("course_id", id);
 
   if (error) {

@@ -86,6 +86,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       {
         event_id: Number(id),
         current_lesson_id: parsed.data.current_lesson_id,
+        session_status: "live",
         updated_by: dbUser.user_id,
         updated_at: new Date().toISOString(),
       },
