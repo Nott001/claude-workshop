@@ -105,7 +105,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .limit(1);
 
   if (existingPending && existingPending.length > 0) {
-    return NextResponse.json({ error: "You already have a pending payment for this event" }, { status: 409 });
+    return NextResponse.json({ eligible: true, pending_payment_id: existingPending[0].payment_id });
   }
 
   return NextResponse.json({ eligible: true });
