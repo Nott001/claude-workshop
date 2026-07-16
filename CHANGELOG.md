@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
-### feat: add Inter font and Material Symbols Rounded icons from design system
+### feat: self-host Inter and Material Symbols Rounded fonts locally
+
+- **public/fonts/** — download Inter (latin + latin-ext, normal + italic) and Material Symbols Rounded woff2 files
+- **app/globals.css** — replace Google Fonts link with local `@font-face` declarations for Inter and Material Symbols Rounded; set `--font-sans` to `"Inter", system-ui, sans-serif`
+- **app/layout.tsx** — remove `next/font/google` import and Google Fonts `<link>` tags; fonts now served from `/fonts/`
 
 - **app/layout.tsx** — load Inter via `next/font/google` with `--font-inter` CSS variable; add Material Symbols Rounded link tag with `display=optional`
 - **app/globals.css** — map `--font-sans` and `--font-heading` to `--font-inter`; add `.msr` and `.material-symbols-rounded` CSS classes for icon rendering
