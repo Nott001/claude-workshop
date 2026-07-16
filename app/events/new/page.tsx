@@ -147,8 +147,6 @@ export default function NewEventPage() {
     }
   }
 
-
-
   return (
     <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
