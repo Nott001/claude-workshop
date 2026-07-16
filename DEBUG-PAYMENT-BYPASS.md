@@ -41,3 +41,34 @@ If a pending payment already exists for the user+event, it also bypasses and iss
 ## Before production
 
 Remove this env var and ensure HitPay is properly configured. See `lib/hitpay/index.ts` for the payment integration.
+
+---
+
+# Debug Session Bypass
+
+## Overview
+
+During development, you may want to enter the event session room without owning a ticket. This is useful for testing the live session room, syllabus, and Q&A chat.
+
+## Enabling
+
+Add the query parameter `?debug_bypass_session=true` to the event detail page URL:
+
+```
+http://localhost:3000/events/1?debug_bypass_session=true
+```
+
+## What it does
+
+When `?debug_bypass_session=true` is present on the event detail page:
+
+1. The "Enter event session" button appears regardless of ticket ownership
+2. Clicking it routes to `/events/{id}/live` which loads the live session room
+
+## Testing the session room
+
+1. Create an event with a linked course (with modules and lessons)
+2. Navigate to the event detail page with `?debug_bypass_session=true`
+3. Click **Enter event session**
+4. The live room loads with the event's course syllabus and Q&A chat
+5. If you are a facilitator, you'll see speaker controls (Previous/Next/Reset)

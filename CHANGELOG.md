@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### feat: add ticket-gated Enter session button and redesign live room
+
+- **app/events/[id]/page.tsx** — fetch ticket ownership on load; show "Enter event session" button when user has a ticket (or `?debug_bypass_session=true` is set); button routes to `/events/{id}/live`
+- **app/events/[id]/live/page.tsx** — redesign with in-session navbar (event title, elapsed timer, Exit button), two-column layout (syllabus + Q&A), lesson list with Live/completed/upcoming indicators, speaker controls bar (Previous/Next/Reset/lesson select), and Q&A chat panel
+- **DEBUG-PAYMENT-BYPASS.md** — add session bypass documentation
+- **AGENTS.md** — add session bypass reference
+
 ### feat: add debug payment bypass for testing without HitPay
 
 - **app/api/payments/route.ts** — when `NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT=true`, skip HitPay call and directly mark payment as paid + issue ticket; also handles existing pending payments
