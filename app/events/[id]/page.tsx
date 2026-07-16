@@ -347,12 +347,34 @@ export default function EventDetailPage() {
                     {/* Buttons */}
                     <div className="flex flex-col gap-3">
                       {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
-                        <button
-                          onClick={handleRegister}
-                          className="flex w-full items-center justify-center rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
-                        >
-                          Register
-                        </button>
+                        <>
+                          {hasTicket || DEBUG_BYPASS ? (
+                            sessionLive ? (
+                              <button
+                                onClick={() => router.push(`/events/${eventId}/live`)}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                              >
+                                <span className="material-symbols-rounded text-base">lock_open</span>
+                                Enter event session
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] bg-gray-100 px-4 py-3 text-base font-bold text-[#6E7881] cursor-not-allowed"
+                              >
+                                <span className="material-symbols-rounded text-base">lock</span>
+                                Event not started
+                              </button>
+                            )
+                          ) : (
+                            <button
+                              onClick={handleRegister}
+                              className="flex w-full items-center justify-center rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                            >
+                              Register
+                            </button>
+                          )}
+                        </>
                       )}
 
                       <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] px-4 py-3 text-base font-bold text-[#191C1E] transition-colors hover:bg-gray-50">
@@ -460,17 +482,15 @@ export default function EventDetailPage() {
             )}
 
             {/* Enter session button */}
-            {event.status === "active" &&
-              sessionLive &&
-              (hasTicket || DEBUG_BYPASS || isFacilitator || userRole === "speaker") && (
-                <button
-                  onClick={() => router.push(`/events/${eventId}/live`)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
-                >
-                  <span className="material-symbols-rounded text-sm">play_circle</span>
-                  Enter event session
-                </button>
-              )}
+            {event.status === "active" && sessionLive && (isFacilitator || userRole === "speaker") && (
+              <button
+                onClick={() => router.push(`/events/${eventId}/live`)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+              >
+                <span className="material-symbols-rounded text-sm">play_circle</span>
+                Enter event session
+              </button>
+            )}
 
             {/* Delete confirmation modal */}
             {showDeleteModal && (
