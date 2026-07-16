@@ -53,6 +53,10 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [hasTicket, setHasTicket] = useState(false);
+
+  const DEBUG_BYPASS =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug_bypass_session") === "true";
 
   useEffect(() => {
     async function load() {
@@ -77,6 +81,19 @@ export default function EventDetailPage() {
       .then((data) => setUserRole(data.role ?? null))
       .catch(() => {});
   }, [isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    fetch("/api/tickets")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((tickets) => {
+        const hasTicketForEvent = tickets.some(
+          (t: { event_id: number; status: string }) => t.event_id === Number(eventId) && t.status !== "cancelled",
+        );
+        setHasTicket(hasTicketForEvent);
+      })
+      .catch(() => {});
+  }, [eventId, isLoaded, isSignedIn]);
 
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -299,6 +316,16 @@ export default function EventDetailPage() {
             >
               <span className="material-symbols-rounded text-sm">how_to_reg</span>
               Register
+            </button>
+          )}
+
+          {event.status === "active" && (hasTicket || DEBUG_BYPASS) && (
+            <button
+              onClick={() => router.push(`/events/${eventId}/live`)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-100"
+            >
+              <span className="material-symbols-rounded text-sm">play_circle</span>
+              Enter event session
             </button>
           )}
 
