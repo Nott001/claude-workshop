@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### refactor: replace static landing page data with live Supabase queries
+
+- **lib/landing.ts** — rewrite from static event array to `getUpcomingEvents()` server helper querying Supabase; add `formatEventDate`, `formatTime`, `eventStatusLabel`, `accentClass` helpers
+- **app/page.tsx** — convert to async server component calling `getUpcomingEvents()`; hero section uses first upcoming event; event cards link to `/events/:id`; empty state when no events exist
+- **test/landing.test.ts** — rewrite to test extracted helpers (formatEventDate, formatTime, eventStatusLabel, accentClass) and getUpcomingEvents with mocked Supabase
+
 ### feat: add delete event option for facilitators
 
 - **components/event-card.tsx** — add `onDelete` callback prop; render delete icon button in card footer when facilitator
@@ -79,7 +85,6 @@
 ### feat: add StartupLab landing page
 
 - **app/page.tsx** — implement the Figma-inspired business center landing page with sign-in and sign-up entry points
-- **lib/landing.ts** — define featured upcoming-event content
 ### feat: add auth form pages with design system layout
 
 - **components/auth-layout.tsx** — shared split layout component with brand panel (gradient) and mini-nav for auth pages
