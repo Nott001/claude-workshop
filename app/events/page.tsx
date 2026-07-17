@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
+import { PostLoginRedirect } from "@/components/post-login-redirect";
 
 interface Course {
   course_name: string;
@@ -111,6 +112,7 @@ export default function EventsPage() {
 
   return (
     <div className="flex flex-1 flex-col p-5">
+      <PostLoginRedirect />
       <div className="mb-3 flex items-center justify-between">
         <span className="text-base font-bold text-foreground">Event list</span>
         {isSignedIn && isFacilitator && (

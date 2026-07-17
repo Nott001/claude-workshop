@@ -87,6 +87,7 @@ export default function SpeakerDashboardPage() {
                 venueName={event.venue_name}
                 courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}
+                detailHref={`/speakers/dashboard/${event.event_id}`}
               />
             ))}
           </div>

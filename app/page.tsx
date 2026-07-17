@@ -4,6 +4,7 @@ import { ArrowRight, Play } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { EventCard } from "@/components/event-card";
 import { getUpcomingEvents, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
+import { PostLoginRedirect } from "@/components/post-login-redirect";
 
 export default async function HomePage() {
   const events = await getUpcomingEvents();
@@ -11,7 +12,8 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#fbf9f8] text-[#1b1c1c]">
-      <div>
+      <PostLoginRedirect />
+      <div className="lg:pl-[202px]">
         <section className="relative overflow-hidden rounded-b-[40px] bg-[#3db9ee] px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="relative mx-auto grid max-w-[1110px] items-center gap-10 lg:min-h-[427px] lg:grid-cols-[1.1fr_.8fr] lg:gap-12">
