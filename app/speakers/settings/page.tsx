@@ -88,9 +88,7 @@ export default function SpeakerSettingsPage() {
     <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
       <div className="flex flex-1 flex-col px-16 pt-16 pb-12">
         <div className="mb-12 max-w-[1280px] w-full">
-          <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-foreground">
-            Account Settings
-          </h1>
+          <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-foreground">Account Settings</h1>
           <p className="mt-2 text-lg text-muted-foreground">
             Manage your speaker profile, credentials, and security preferences.
           </p>
@@ -113,27 +111,19 @@ export default function SpeakerSettingsPage() {
               <div className="flex flex-col items-center justify-center rounded-xl bg-[#efeded] p-6">
                 <div className="relative size-32 rounded-full border-4 border-white shadow-[0_10px_15px_-3px_rgba(0,0,0,.1),0_4px_6px_-4px_rgba(0,0,0,.1)]">
                   {profile?.photo_url ? (
-                    <img
-                      src={profile.photo_url}
-                      alt={fullName}
-                      className="size-full rounded-full object-cover"
-                    />
+                    <img src={profile.photo_url} alt={fullName} className="size-full rounded-full object-cover" />
                   ) : (
                     <div className="grid size-full place-items-center rounded-full bg-[#c2e8ff] text-3xl font-bold text-[#3db9ee]">
                       {initials}
                     </div>
                   )}
                 </div>
-                <span className="mt-4 text-sm font-medium tracking-wider text-muted-foreground">
-                  Change Avatar
-                </span>
+                <span className="mt-4 text-sm font-medium tracking-wider text-muted-foreground">Change Avatar</span>
               </div>
 
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium tracking-wider text-muted-foreground">
-                    Full Name
-                  </label>
+                  <label className="text-sm font-medium tracking-wider text-muted-foreground">Full Name</label>
                   <input
                     type="text"
                     value={fullName}
@@ -142,9 +132,7 @@ export default function SpeakerSettingsPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium tracking-wider text-muted-foreground">
-                    Professional Title
-                  </label>
+                  <label className="text-sm font-medium tracking-wider text-muted-foreground">Professional Title</label>
                   <input
                     type="text"
                     value={designation}
@@ -155,9 +143,7 @@ export default function SpeakerSettingsPage() {
               </div>
 
               <div className="col-span-2 flex flex-col gap-1">
-                <label className="text-sm font-medium tracking-wider text-muted-foreground">
-                  Professional Bio
-                </label>
+                <label className="text-sm font-medium tracking-wider text-muted-foreground">Professional Bio</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
@@ -175,9 +161,7 @@ export default function SpeakerSettingsPage() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium tracking-wider text-muted-foreground">
-                Email Address
-              </label>
+              <label className="text-sm font-medium tracking-wider text-muted-foreground">Email Address</label>
               <input
                 type="email"
                 value={email}

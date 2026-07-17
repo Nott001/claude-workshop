@@ -9,6 +9,7 @@ export interface LandingEvent {
   venue_name: string;
   status: string;
   course_name: string | null;
+  cover_image_url: string | null;
 }
 
 const ACCENT_CLASSES = [
@@ -67,5 +68,6 @@ export async function getUpcomingEvents(): Promise<LandingEvent[]> {
     venue_name: e.venue_name,
     status: e.status,
     course_name: e.COURSE?.course_name ?? null,
+    cover_image_url: e.cover_image_url ?? null,
   }));
 }

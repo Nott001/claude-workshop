@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, Users } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles } from "lucide-react";
 
 import { accentClass, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
 
@@ -11,7 +11,7 @@ interface EventCardProps {
   startTime: string;
   endTime: string;
   venueName: string;
-  courseName?: string;
+  coverImageUrl?: string | null;
   accentIndex?: number;
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
@@ -26,7 +26,7 @@ export function EventCard({
   startTime,
   endTime,
   venueName,
-  courseName,
+  coverImageUrl,
   accentIndex = 0,
   showEdit,
   onDelete,
@@ -34,17 +34,16 @@ export function EventCard({
 }: EventCardProps) {
   return (
     <article className="overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <div className={`relative h-48 bg-gradient-to-br ${accentClass(accentIndex)} p-6 text-white`}>
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+      <div className="relative h-48 overflow-hidden p-6 text-white">
+        <div className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)}`} />
+        {coverImageUrl && <img src={coverImageUrl} alt={title} className="absolute inset-0 size-full object-cover" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        {!coverImageUrl && (
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+        )}
         <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
           <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
         </span>
-        <div className="relative mt-9 flex items-center gap-3 text-white/95">
-          <span className="grid size-10 place-items-center rounded-xl bg-white/20">
-            <Users className="size-5" />
-          </span>
-          <span className="text-sm font-medium">StartupLab {courseName || "Workshop Series"}</span>
-        </div>
       </div>
       <div className="p-6">
         <h3 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h3>

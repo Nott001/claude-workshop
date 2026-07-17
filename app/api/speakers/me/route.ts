@@ -10,11 +10,7 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, full_name, email")
-    .eq("clerk_id", userId)
-    .single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id, full_name, email").eq("clerk_id", userId).single();
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -52,11 +48,7 @@ export async function PATCH(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id")
-    .eq("clerk_id", userId)
-    .single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
@@ -19,6 +19,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const body = await req.json().catch(() => ({}));
+  const targetStatus = body?.status === "ended" ? "ended" : null;
+
   const { data: existing, error: fetchError } = await supabase
     .from("LIVE_SESSION_STATE")
     .select("event_id")
@@ -30,25 +33,28 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
 
   if (existing) {
-    const { error: resetError } = await supabase
+    const newStatus = targetStatus ?? "scheduled";
+    const { error: updateError } = await supabase
       .from("LIVE_SESSION_STATE")
       .update({
         current_lesson_id: null,
+        session_status: newStatus,
         updated_by: dbUser.user_id,
         updated_at: new Date().toISOString(),
       })
       .eq("event_id", id);
 
-    if (resetError) {
-      return NextResponse.json({ error: resetError.message }, { status: 500 });
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, action: "reset" });
+    return NextResponse.json({ success: true, action: newStatus === "ended" ? "ended" : "reset" });
   }
 
   const { error: insertError } = await supabase.from("LIVE_SESSION_STATE").insert({
     event_id: Number(id),
     current_lesson_id: null,
+    session_status: targetStatus ?? "live",
     updated_by: dbUser.user_id,
   });
 
@@ -56,5 +62,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, action: "initialized" }, { status: 201 });
+  return NextResponse.json({ success: true, action: "started" }, { status: 201 });
 }

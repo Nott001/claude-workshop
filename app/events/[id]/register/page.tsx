@@ -77,9 +77,7 @@ export default function RegisterPage() {
       });
 
       const payBody = await payRes.json();
-      if (payBody.checkout_url) {
-        window.location.href = payBody.checkout_url;
-      } else if (payBody.payment_id) {
+      if (payBody.payment_id) {
         router.push(`/checkout/${payBody.payment_id}?success=true`);
       } else {
         setError(payBody.error ?? "Failed to process payment");
@@ -106,10 +104,10 @@ export default function RegisterPage() {
     }
 
     const { payment_id, checkout_url } = await payRes.json();
-    if (checkout_url) {
-      window.location.href = checkout_url;
-    } else {
+    if (payment_id) {
       router.push(`/checkout/${payment_id}?success=true`);
+    } else if (checkout_url) {
+      window.location.href = checkout_url;
     }
   }
 

@@ -43,6 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({
       event_id: Number(id),
       current_lesson_id: null,
+      session_status: "scheduled",
       updated_by: null,
       updated_at: null,
     });
@@ -86,6 +87,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       {
         event_id: Number(id),
         current_lesson_id: parsed.data.current_lesson_id,
+        session_status: "live",
         updated_by: dbUser.user_id,
         updated_at: new Date().toISOString(),
       },
