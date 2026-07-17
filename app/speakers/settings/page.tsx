@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { Footer } from "@/components/footer";
 import { Toast } from "@/components/toast";
@@ -104,7 +105,7 @@ export default function SpeakerSettingsPage() {
                 disabled={saving}
                 className="rounded-lg bg-[#3db9ee] px-6 py-3 text-base font-semibold text-[#00465f] shadow-[0_10px_15px_-3px_rgba(0,0,0,.1),0_4px_6px_-4px_rgba(0,0,0,.1)] transition-colors hover:bg-[#239dce] disabled:opacity-50"
               >
-                {saving ? "Saving..." : "Update Info"}
+                {saving ? "Saving..." : "Save Profile"}
               </button>
             </div>
 
@@ -184,6 +185,14 @@ export default function SpeakerSettingsPage() {
                 className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-2.5 text-base text-foreground opacity-70"
               />
             </div>
+
+            <Link
+              href="/speakers/update-info"
+              className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-4 py-3 text-sm font-semibold text-[#00658d] transition-colors hover:border-[#3db9ee] hover:text-[#1789b8]"
+            >
+              <span className="material-symbols-rounded text-[18px]">edit</span>
+              Update Email & Password
+            </Link>
           </div>
         </div>
       </div>
