@@ -15,6 +15,7 @@ interface EventCardProps {
   accentIndex?: number;
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
+  detailHref?: string;
 }
 
 export function EventCard({
@@ -29,6 +30,7 @@ export function EventCard({
   accentIndex = 0,
   showEdit,
   onDelete,
+  detailHref,
 }: EventCardProps) {
   return (
     <article className="overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
@@ -58,7 +60,7 @@ export function EventCard({
         </div>
         <div className="mt-6 flex items-center justify-between">
           <Link
-            href={`/events/${eventId}`}
+            href={detailHref ?? `/events/${eventId}`}
             className="inline-flex items-center gap-1 text-sm font-semibold text-[#168cb9] hover:underline"
           >
             View details <ChevronRight className="size-4" />
