@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: rewrite Create Course page with inline curriculum builder
+
+- **app/courses/new/page.tsx** — replace simple title+description form with full curriculum builder; two-column form grid (title + description); "Add module" creates modules via API with auto-incrementing names; inline module rename (pencil icon toggles input, saves on Enter/blur via PATCH); "Add lesson to topic" opens dialog with lesson name, content type select, and optional content URL; lesson rows display sequence number, description, and content type badge; delete controls for modules and lessons; auto-creates course on first module add if not yet saved; redirects to course detail on submit
+
 ### feat: restyle attendance kiosk page to match design system
 
 - **app/kiosk/page.tsx** — replace manual event ID input with fetched event picker (title, date/time, venue, status badge) using `GET /api/events?filter=upcoming`; restyle all views with Tailwind utility classes and light theme tokens; add top branding bar ("StartupLab — Kiosk mode") with selected event name; increase all touch targets to minimum 48px; add camera scanner with dashed QR frame overlay, manual input section, and styled result feedback cards (green/amber/red); keep all existing functionality (camera, BarcodeDetector, manual submit, checkin API)
