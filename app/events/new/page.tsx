@@ -50,9 +50,17 @@ export default function NewEventPage() {
       .then((res) => (res.ok ? res.json() : []))
       .then(setSpeakers)
       .catch(() => {});
-    fetch("/api/courses")
-      .then((res) => (res.ok ? res.json() : []))
-      .then(setCourses)
+
+    Promise.all([
+      fetch("/api/courses").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/events").then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([allCourses, allEvents]) => {
+        const linkedIds = new Set(
+          allEvents.map((e: { course_id: number | null }) => e.course_id).filter((id): id is number => id != null),
+        );
+        setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
+      })
       .catch(() => {});
   }, []);
 
