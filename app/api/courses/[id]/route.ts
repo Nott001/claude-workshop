@@ -16,6 +16,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       MODULES (
         *,
         LESSONS (*)
+      ),
+      EVENTS (
+        event_id,
+        title,
+        event_date,
+        status
       )
     `,
     )

@@ -27,11 +27,19 @@ interface Module {
   LESSONS: Lesson[];
 }
 
+interface LinkedEvent {
+  event_id: number;
+  title: string;
+  event_date: string;
+  status: string;
+}
+
 interface CourseDetail {
   course_id: number;
   course_name: string;
   course_description: string | null;
   MODULES: Module[];
+  EVENTS: LinkedEvent[];
 }
 
 export default function CourseDetailPage() {
@@ -155,6 +163,36 @@ export default function CourseDetailPage() {
           </Dialog>
         </div>
       </div>
+
+      {course.EVENTS && course.EVENTS.length > 0 && (
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Linked Events</h2>
+          <div className="space-y-2">
+            {course.EVENTS.map((evt) => (
+              <button
+                key={evt.event_id}
+                onClick={() => router.push(`/events/${evt.event_id}`)}
+                className="flex w-full items-center justify-between rounded-lg border border-[#F3F4F6] bg-[#FAFBFC] px-5 py-3 text-left transition-colors hover:bg-[#F3F4F6]"
+              >
+                <div>
+                  <span className="text-sm font-semibold text-[#334155]">{evt.title}</span>
+                  <span className="ml-3 text-xs text-[#6B7280]">
+                    {new Date(evt.event_date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#2563EB]">
+                    {evt.status}
+                  </span>
+                </div>
+                <span className="material-symbols-rounded text-[16px] text-[#9CA3AF]">arrow_forward</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {course.MODULES.length === 0 ? (
         <p className="text-muted-foreground">No modules yet. Add your first module.</p>
