@@ -308,6 +308,31 @@ export default function EventDetailPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Linked Curriculum */}
+                {event.COURSE && (
+                  <div className="mt-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+                        <span className="material-symbols-rounded text-lg text-[#3db9ee]">school</span>
+                      </div>
+                      <div>
+                        <h2 className="text-[20px] font-semibold text-[#1B1C1C]">Linked Curriculum</h2>
+                      </div>
+                    </div>
+                    <h3 className="mb-2 text-[24px] font-bold text-[#1B1C1C]">{event.COURSE.course_name}</h3>
+                    {event.COURSE.course_description && (
+                      <p className="mb-4 text-base leading-[26px] text-[#3E484F]">{event.COURSE.course_description}</p>
+                    )}
+                    <button
+                      onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                    >
+                      <span className="material-symbols-rounded text-sm">open_in_new</span>
+                      View Curriculum
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Sidebar: 1 column */}

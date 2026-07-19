@@ -16,6 +16,12 @@ interface SpeakerProfile {
   designation: string | null;
 }
 
+interface Course {
+  course_id: number;
+  course_name: string;
+  course_description: string | null;
+}
+
 export default function NewEventPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -34,6 +40,7 @@ export default function NewEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerProfile[]>([]);
   const [speakerId, setSpeakerId] = useState<string>("");
+  const [courses, setCourses] = useState<Course[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +49,18 @@ export default function NewEventPage() {
     fetch("/api/speakers")
       .then((res) => (res.ok ? res.json() : []))
       .then(setSpeakers)
+      .catch(() => {});
+
+    Promise.all([
+      fetch("/api/courses").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/events").then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([allCourses, allEvents]) => {
+        const linkedIds = new Set(
+          allEvents.map((e: { course_id: number | null }) => e.course_id).filter((id): id is number => id != null),
+        );
+        setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
+      })
       .catch(() => {});
   }, []);
 
@@ -73,7 +92,7 @@ export default function NewEventPage() {
       venue_address: venueAddress || null,
       description: description || null,
       overview: overview || null,
-      course_id: courseId ? Number(courseId) : null,
+      course_id: courseId && courseId !== "__none__" ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
       cover_image_url: null as string | null,
@@ -253,21 +272,25 @@ export default function NewEventPage() {
               />
             </FormField>
 
-            <div className="rounded-lg border border-[#DBEAFE] bg-blue-50 p-4">
-              <FormField>
-                <FormLabel className="text-sm font-bold text-[#1E3A8A]">Link to Curriculum Library (Optional)</FormLabel>
-                <p className="mb-1 text-xs font-medium text-[#2563EB]">
-                  Connect this event to an existing curriculum for automatic resource sharing.
-                </p>
-                <Input
-                  type="number"
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  placeholder="Digital Strategy 101"
-                  className="mt-3 rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
-                />
-              </FormField>
-            </div>
+            <FormField>
+              <FormLabel className="text-sm font-semibold text-[#334155]">Link to Curriculum Library (Optional)</FormLabel>
+              <p className="mb-1 text-xs font-medium text-[#2563EB]">
+                Connect this event to an existing curriculum for automatic resource sharing.
+              </p>
+              <Select value={courseId} onValueChange={setCourseId}>
+                <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
+                  <SelectValue placeholder="No curriculum linked" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None — no curriculum</SelectItem>
+                  {courses.map((c) => (
+                    <SelectItem key={c.course_id} value={String(c.course_id)}>
+                      {c.course_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <FormField>
