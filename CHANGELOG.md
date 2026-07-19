@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: restyle attendance kiosk page to match design system
+
+- **app/kiosk/page.tsx** — replace manual event ID input with fetched event picker (title, date/time, venue, status badge) using `GET /api/events?filter=upcoming`; restyle all views with Tailwind utility classes and light theme tokens; add top branding bar ("StartupLab — Kiosk mode") with selected event name; increase all touch targets to minimum 48px; add camera scanner with dashed QR frame overlay, manual input section, and styled result feedback cards (green/amber/red); keep all existing functionality (camera, BarcodeDetector, manual submit, checkin API)
+
 ### feat: add session status, start/end session controls, storage cleanup, and image proxy
 
 - **supabase/migrations/00012_add_session_status.sql** — add `session_status` column (`scheduled`, `live`, `ended`) to `LIVE_SESSION_STATE`
