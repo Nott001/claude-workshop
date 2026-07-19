@@ -14,9 +14,7 @@ export function SessionStats({ progressPercent, activeParticipants }: SessionSta
           <span className="material-symbols-rounded text-[18px] text-[#5f5e5e]">trending_up</span>
         </div>
         <div className="flex items-end gap-2">
-          <span className="text-[32px] font-semibold leading-10 tracking-[-0.32px] text-[#1b1c1c]">
-            {progressPercent}%
-          </span>
+          <span className="text-[32px] font-semibold leading-10 tracking-[-0.32px] text-[#1b1c1c]">{progressPercent}%</span>
           <div className="flex h-5 flex-1 items-end pb-2">
             <div className="h-3 w-full overflow-hidden rounded-full bg-[#e4e2e1]">
               <div

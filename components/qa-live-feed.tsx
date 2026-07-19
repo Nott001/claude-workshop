@@ -23,9 +23,7 @@ export function QALiveFeed({ questions, newCount, onAnswer, onFilter }: QALiveFe
         <div className="flex items-center gap-2">
           <span className="text-[20px] leading-[30px] text-[#1b1c1c]">Q&A Live Feed</span>
           {newCount > 0 && (
-            <span className="rounded-full bg-[#3db9ee] px-2 py-0.5 text-[10px] font-bold text-white">
-              {newCount} NEW
-            </span>
+            <span className="rounded-full bg-[#3db9ee] px-2 py-0.5 text-[10px] font-bold text-white">{newCount} NEW</span>
           )}
         </div>
         <button onClick={onFilter} className="p-1">
@@ -44,11 +42,7 @@ export function QALiveFeed({ questions, newCount, onAnswer, onFilter }: QALiveFe
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 {q.authorAvatar ? (
-                  <img
-                    src={q.authorAvatar}
-                    alt=""
-                    className="size-6 overflow-hidden rounded-full bg-[#e4e2e1] object-cover"
-                  />
+                  <img src={q.authorAvatar} alt="" className="size-6 overflow-hidden rounded-full bg-[#e4e2e1] object-cover" />
                 ) : (
                   <div className="flex size-6 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
                     <span className="material-symbols-rounded text-[14px] text-[#5f5e5e]">person</span>
