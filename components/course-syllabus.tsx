@@ -63,11 +63,7 @@ export function CourseSyllabus({ modules, onMarkComplete, onPrepareDraft }: Cour
           const isCompleted = mod.status === "completed";
           const isActive = mod.status === "in_progress";
 
-          const rowBg = isCompleted
-            ? "bg-[rgba(219,218,217,0.2)] opacity-60"
-            : isActive
-              ? "bg-[rgba(194,232,255,0.05)]"
-              : "";
+          const rowBg = isCompleted ? "bg-[rgba(219,218,217,0.2)] opacity-60" : isActive ? "bg-[rgba(194,232,255,0.05)]" : "";
 
           const rowBorder = isActive
             ? "border-inset shadow-[inset_0px_0px_0px_2px_#068]"
@@ -85,11 +81,7 @@ export function CourseSyllabus({ modules, onMarkComplete, onPrepareDraft }: Cour
 
               <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center justify-between">
-                  <h3
-                    className={`text-[20px] leading-[30px] ${
-                      isActive ? "text-[#3db9ee]" : "text-[#1b1c1c]"
-                    }`}
-                  >
+                  <h3 className={`text-[20px] leading-[30px] ${isActive ? "text-[#3db9ee]" : "text-[#1b1c1c]"}`}>
                     {mod.title}
                   </h3>
                   {isActive && (
@@ -123,10 +115,7 @@ export function CourseSyllabus({ modules, onMarkComplete, onPrepareDraft }: Cour
                 )}
 
                 {mod.status === "upcoming" && (
-                  <button
-                    onClick={() => onPrepareDraft?.(mod.id)}
-                    className="self-end pt-2 text-base font-bold text-[#3db9ee]"
-                  >
+                  <button onClick={() => onPrepareDraft?.(mod.id)} className="self-end pt-2 text-base font-bold text-[#3db9ee]">
                     Prepare Draft
                   </button>
                 )}

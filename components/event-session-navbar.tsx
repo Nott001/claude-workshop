@@ -26,20 +26,12 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, onExit }: Ev
 
       <div className="flex items-center gap-4">
         <div className="flex flex-col items-center border-r border-[#bdc8d0] pr-4">
-          <span className="text-[10px] font-bold uppercase tracking-[1px] text-[#5f5e5e] leading-[15px]">
-            Elapsed
-          </span>
-          <span className="font-mono text-base font-bold leading-6 text-[#068]">
-            {elapsed}
-          </span>
+          <span className="text-[10px] font-bold uppercase tracking-[1px] text-[#5f5e5e] leading-[15px]">Elapsed</span>
+          <span className="font-mono text-base font-bold leading-6 text-[#068]">{elapsed}</span>
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold uppercase tracking-[1px] text-[#5f5e5e] leading-[15px]">
-            Remaining
-          </span>
-          <span className="font-mono text-base font-bold leading-6 text-[#1b1c1c]">
-            {remaining}
-          </span>
+          <span className="text-[10px] font-bold uppercase tracking-[1px] text-[#5f5e5e] leading-[15px]">Remaining</span>
+          <span className="font-mono text-base font-bold leading-6 text-[#1b1c1c]">{remaining}</span>
         </div>
       </div>
 

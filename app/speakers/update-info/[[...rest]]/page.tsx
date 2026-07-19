@@ -8,10 +8,8 @@ import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import { Footer } from "@/components/footer";
 import { Toast } from "@/components/toast";
 
-const cardClass =
-  "rounded-xl border border-[#bdc8d1] bg-white p-[33px] flex flex-col gap-6";
-const labelClass =
-  "text-[14px] font-semibold text-[#3e4850] tracking-[0.7px] leading-4";
+const cardClass = "rounded-xl border border-[#bdc8d1] bg-white p-[33px] flex flex-col gap-6";
+const labelClass = "text-[14px] font-semibold text-[#3e4850] tracking-[0.7px] leading-4";
 const inputClass =
   "w-full rounded-xl border border-[#bdc8d1] bg-white px-[17px] py-[15px] text-base text-[#0f172a] outline-none transition-colors placeholder:text-[#6b7280] focus:border-[#29b6f6] focus:ring-1 focus:ring-[#29b6f6]";
 const readOnlyInputClass =
@@ -35,12 +33,11 @@ export default function SpeakerUpdateInfoPage() {
 
   const currentEmail = user?.emailAddresses?.[0]?.emailAddress ?? "";
 
-  const addEmail = useReverification(
-    (email: string) =>
-      user!.createEmailAddress({ email }).then(async (ea) => {
-        await ea.prepareVerification({ strategy: "email_code" });
-        return ea;
-      }),
+  const addEmail = useReverification((email: string) =>
+    user!.createEmailAddress({ email }).then(async (ea) => {
+      await ea.prepareVerification({ strategy: "email_code" });
+      return ea;
+    }),
   );
 
   const updatePassword = useReverification(
@@ -122,21 +119,15 @@ export default function SpeakerUpdateInfoPage() {
             <span className="material-symbols-rounded text-[18px]">arrow_back</span>
             Back to Settings
           </Link>
-          <h1 className="text-[32px] font-bold tracking-[-0.32px] text-[#0f172a] leading-[40px]">
-            Account Settings
-          </h1>
-          <p className="mt-1 text-base text-[#5f5e5e] leading-6">
-            Manage your security credentials and professional identity.
-          </p>
+          <h1 className="text-[32px] font-bold tracking-[-0.32px] text-[#0f172a] leading-[40px]">Account Settings</h1>
+          <p className="mt-1 text-base text-[#5f5e5e] leading-6">Manage your security credentials and professional identity.</p>
         </div>
 
         <div className="flex max-w-[800px] w-full flex-col gap-8">
           <form onSubmit={handleEmailUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
               <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">mail</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">
-                Update Email Address
-              </h2>
+              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Email Address</h2>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -172,9 +163,7 @@ export default function SpeakerUpdateInfoPage() {
           <form onSubmit={handlePasswordUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
               <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">lock</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">
-                Update Password
-              </h2>
+              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Password</h2>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -216,9 +205,7 @@ export default function SpeakerUpdateInfoPage() {
               </div>
 
               <div className="flex gap-3 rounded-xl bg-[#f2f4f6] p-4">
-                <span className="material-symbols-rounded mt-0.5 text-[14px] text-[#5f5e5e]">
-                  info
-                </span>
+                <span className="material-symbols-rounded mt-0.5 text-[14px] text-[#5f5e5e]">info</span>
                 <p className="text-[12px] leading-[18px] text-[#5f5e5e]">
                   Security Tip: Use a combination of uppercase letters, numbers, and symbols to create a robust password.
                 </p>
