@@ -75,7 +75,9 @@ export default function SpeakerEventDetailsPage() {
     }
 
     fetchEvent();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   if (loading) {
@@ -129,9 +131,7 @@ export default function SpeakerEventDetailsPage() {
                   label={statusLabel(event.status)}
                   className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
                 />
-                <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">
-                  {event.title}
-                </h1>
+                <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
                 <div className="flex items-center gap-6 pt-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">
                     <CalendarDays className="size-4" />
@@ -153,42 +153,26 @@ export default function SpeakerEventDetailsPage() {
           {/* Quick Stats */}
           <div className="col-span-4 flex flex-col gap-6">
             <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">
-                Total Registered Attendees
-              </span>
+              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">Total Registered Attendees</span>
               <span className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-[#3db9ee]">
                 {event.attendee_count.toLocaleString()}
               </span>
             </div>
 
             <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] px-8 py-12 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">
-                Status
-              </span>
+              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">Status</span>
               <div className="mt-2 flex items-center gap-4">
-                {isLive && (
-                  <span className="size-3 animate-pulse rounded-full bg-[#3db9ee]" />
-                )}
-                {isUpcoming && (
-                  <span className="size-3 rounded-full bg-[#3db9ee]" />
-                )}
-                {isComplete && (
-                  <span className="size-3 rounded-full bg-[#5f5e5e]" />
-                )}
-                <span className="text-[24px] font-semibold leading-[32px] text-[#1b1c1c]">
-                  {statusLabel(event.status)}
-                </span>
+                {isLive && <span className="size-3 animate-pulse rounded-full bg-[#3db9ee]" />}
+                {isUpcoming && <span className="size-3 rounded-full bg-[#3db9ee]" />}
+                {isComplete && <span className="size-3 rounded-full bg-[#5f5e5e]" />}
+                <span className="text-[24px] font-semibold leading-[32px] text-[#1b1c1c]">{statusLabel(event.status)}</span>
               </div>
               {isUpcoming && (
                 <div className="mt-4">
                   <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />
                 </div>
               )}
-              {!isUpcoming && (
-                <span className="mt-2 text-base text-[#3e484f]">
-                  {event.venue_name}
-                </span>
-              )}
+              {!isUpcoming && <span className="mt-2 text-base text-[#3e484f]">{event.venue_name}</span>}
             </div>
           </div>
 
@@ -204,9 +188,7 @@ export default function SpeakerEventDetailsPage() {
                     </p>
                   ))
                 ) : (
-                  <p className="text-base leading-[26px] text-[#5f5e5e]">
-                    No description available for this event.
-                  </p>
+                  <p className="text-base leading-[26px] text-[#5f5e5e]">No description available for this event.</p>
                 )}
               </div>
             </div>

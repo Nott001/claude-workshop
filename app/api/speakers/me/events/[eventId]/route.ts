@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ eventId: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   const { userId } = await auth();
   if (!userId) {
@@ -14,11 +11,7 @@ export async function GET(
 
   const supabase = getServiceClient();
 
-  const { data: dbUser, error: userErr } = await supabase
-    .from("USERS")
-    .select("user_id")
-    .eq("clerk_id", userId)
-    .single();
+  const { data: dbUser, error: userErr } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
 
   if (userErr || !dbUser) {
     console.error("[speaker-event-detail] user lookup failed:", userErr?.message, userId);

@@ -89,7 +89,9 @@ export default function LiveEventSessionPage() {
     }
 
     fetchSession();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   useEffect(() => {
@@ -110,9 +112,7 @@ export default function LiveEventSessionPage() {
       if (!prev) return prev;
       return {
         ...prev,
-        modules: prev.modules.map((m) =>
-          m.id === moduleId ? { ...m, status: "completed" as const } : m
-        ),
+        modules: prev.modules.map((m) => (m.id === moduleId ? { ...m, status: "completed" as const } : m)),
       };
     });
   }
@@ -139,25 +139,14 @@ export default function LiveEventSessionPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
-      <EventSessionNavbar
-        eventName={session.eventName}
-        elapsed={elapsed}
-        remaining={remaining}
-        onExit={handleExit}
-      />
+      <EventSessionNavbar eventName={session.eventName} elapsed={elapsed} remaining={remaining} onExit={handleExit} />
 
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-16 pt-24 pb-12">
-        <SessionStats
-          progressPercent={session.progressPercent}
-          activeParticipants={session.activeParticipants}
-        />
+        <SessionStats progressPercent={session.progressPercent} activeParticipants={session.activeParticipants} />
 
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-8 flex flex-col gap-6">
-            <CourseSyllabus
-              modules={session.modules}
-              onMarkComplete={handleMarkComplete}
-            />
+            <CourseSyllabus modules={session.modules} onMarkComplete={handleMarkComplete} />
 
             <div className="rounded-xl border border-[#bdc8d0] bg-white p-6 shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
               <div className="mb-6 flex items-center justify-between">
@@ -169,23 +158,14 @@ export default function LiveEventSessionPage() {
               </div>
               <div className="flex gap-4">
                 {session.resources.map((r) => (
-                  <ResourceCard
-                    key={r.id}
-                    title={r.title}
-                    type={r.type}
-                    size={r.size}
-                  />
+                  <ResourceCard key={r.id} title={r.title} type={r.type} size={r.size} />
                 ))}
               </div>
             </div>
           </div>
 
           <div className="col-span-4">
-            <QALiveFeed
-              questions={session.questions}
-              newCount={session.newQuestionCount}
-              onAnswer={handleAnswer}
-            />
+            <QALiveFeed questions={session.questions} newCount={session.newQuestionCount} onAnswer={handleAnswer} />
           </div>
         </div>
       </div>
