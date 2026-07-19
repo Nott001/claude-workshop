@@ -52,10 +52,34 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
+
+  if (parsed.data.course_id !== undefined && parsed.data.course_id !== null) {
+    const { data: courseExists } = await supabase
+      .from("COURSE")
+      .select("course_id")
+      .eq("course_id", parsed.data.course_id)
+      .single();
+
+    if (!courseExists) {
+      return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
+    }
+
+    const { data: existingLink } = await supabase
+      .from("EVENTS")
+      .select("event_id")
+      .eq("course_id", parsed.data.course_id)
+      .neq("event_id", id)
+      .limit(1);
+
+    if (existingLink && existingLink.length > 0) {
+      return NextResponse.json({ error: { message: "This course is already linked to another event" } }, { status: 400 });
+    }
+  }
+
   const { data: event, error } = await supabase.from("EVENTS").update(parsed.data).eq("event_id", id).select().single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
   }
 
   return NextResponse.json(event);
@@ -102,19 +126,19 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (paymentIds.length > 0) {
     const { error: ticketErr } = await supabase.from("TICKETS").delete().in("payment_id", paymentIds);
     if (ticketErr) {
-      return NextResponse.json({ error: ticketErr.message }, { status: 500 });
+      return NextResponse.json({ error: { message: ticketErr.message } }, { status: 500 });
     }
 
     const { error: paymentErr } = await supabase.from("PAYMENTS").delete().in("payment_id", paymentIds);
     if (paymentErr) {
-      return NextResponse.json({ error: paymentErr.message }, { status: 500 });
+      return NextResponse.json({ error: { message: paymentErr.message } }, { status: 500 });
     }
   }
 
   const { error } = await supabase.from("EVENTS").delete().eq("event_id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

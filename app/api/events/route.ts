@@ -50,6 +50,29 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
+
+  if (parsed.data.course_id) {
+    const { data: courseExists } = await supabase
+      .from("COURSE")
+      .select("course_id")
+      .eq("course_id", parsed.data.course_id)
+      .single();
+
+    if (!courseExists) {
+      return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
+    }
+
+    const { data: existingLink } = await supabase
+      .from("EVENTS")
+      .select("event_id")
+      .eq("course_id", parsed.data.course_id)
+      .limit(1);
+
+    if (existingLink && existingLink.length > 0) {
+      return NextResponse.json({ error: { message: "This course is already linked to another event" } }, { status: 400 });
+    }
+  }
+
   const { data: event, error } = await supabase
     .from("EVENTS")
     .insert({
@@ -73,7 +96,7 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
   }
 
   return NextResponse.json(event, { status: 201 });
