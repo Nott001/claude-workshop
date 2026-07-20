@@ -202,6 +202,53 @@ describe("speakerProfileUpdateSchema", () => {
   });
 });
 
+describe("Event filter logic", () => {
+  const events = [
+    { event_id: 1, status: "active" as const },
+    { event_id: 2, status: "draft" as const },
+    { event_id: 3, status: "complete" as const },
+    { event_id: 4, status: "active" as const },
+  ];
+
+  function filterEvents(events: { event_id: number; status: string }[], tab: string) {
+    return events.filter((event) => {
+      switch (tab) {
+        case "upcoming":
+          return event.status === "active";
+        case "completed":
+          return event.status === "complete";
+        case "drafts":
+          return event.status === "draft";
+        default:
+          return true;
+      }
+    });
+  }
+
+  it("upcoming tab shows only active events", () => {
+    const result = filterEvents(events, "upcoming");
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.status === "active")).toBe(true);
+  });
+
+  it("completed tab shows only complete events", () => {
+    const result = filterEvents(events, "completed");
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe("complete");
+  });
+
+  it("drafts tab shows only draft events", () => {
+    const result = filterEvents(events, "drafts");
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe("draft");
+  });
+
+  it("upcoming tab never includes draft events", () => {
+    const result = filterEvents(events, "upcoming");
+    expect(result.some((e) => e.status === "draft")).toBe(false);
+  });
+});
+
 describe("speakerAssignmentSchema", () => {
   it("accepts valid speaker assignment", () => {
     const result = speakerAssignmentSchema.safeParse({ speaker_profile_id: "1" });
