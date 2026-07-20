@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
@@ -119,15 +118,6 @@ export default function EventsPage() {
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-base font-bold text-foreground">Event list</span>
-        {isSignedIn && isFacilitator && (
-          <Link
-            href="/events/new"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <span className="material-symbols-rounded text-sm">add_circle</span>
-            Create event
-          </Link>
-        )}
       </div>
 
       <div className="mb-3 flex gap-1.5">
