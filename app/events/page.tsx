@@ -23,24 +23,38 @@ interface Event {
   COURSE: Course | null;
 }
 
-type FilterTab = "active" | "upcoming" | "completed" | "drafts";
+type FilterTab = "upcoming" | "completed" | "drafts";
 
-const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: "active", label: "Active" },
+const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
   { key: "drafts", label: "Drafts" },
 ];
 
+const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
+  { key: "upcoming", label: "Upcoming" },
+  { key: "completed", label: "Completed" },
+];
+
 export default function EventsPage() {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<FilterTab>("active");
+  const [activeTab, setActiveTab] = useState<FilterTab>("upcoming");
+  const [dbRole, setDbRole] = useState<string | null>(null);
 
-  const userRole = (user?.publicMetadata?.role as string) || "attendee";
-  const isFacilitator = userRole === "facilitator";
+  const isFacilitator = dbRole === "facilitator";
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) setDbRole(data.role);
+      })
+      .catch(() => {});
+  }, [isSignedIn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,10 +80,8 @@ export default function EventsPage() {
 
   const filteredEvents = events.filter((event) => {
     switch (activeTab) {
-      case "active":
-        return event.status === "active";
       case "upcoming":
-        return event.status === "active" || event.status === "draft";
+        return event.status === "active";
       case "completed":
         return event.status === "complete";
       case "drafts":
@@ -80,18 +92,10 @@ export default function EventsPage() {
   });
 
   const tabCounts = {
-    active: events.filter((e) => e.status === "active").length,
-    upcoming: events.filter((e) => e.status === "active" || e.status === "draft").length,
+    upcoming: events.filter((e) => e.status === "active").length,
     completed: events.filter((e) => e.status === "complete").length,
     drafts: events.filter((e) => e.status === "draft").length,
   };
-
-  async function handleDelete(eventId: number) {
-    const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
-    if (res.ok) {
-      setEvents((prev) => prev.filter((e) => e.event_id !== eventId));
-    }
-  }
 
   if (!isLoaded || loading) {
     return (
@@ -109,6 +113,8 @@ export default function EventsPage() {
     );
   }
 
+  const filterTabs = isFacilitator ? FACILITATOR_TABS : ATTENDEE_TABS;
+
   return (
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-3 flex items-center justify-between">
@@ -125,7 +131,7 @@ export default function EventsPage() {
       </div>
 
       <div className="mb-3 flex gap-1.5">
-        {FILTER_TABS.map((tab) => (
+        {filterTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -160,7 +166,6 @@ export default function EventsPage() {
               coverImageUrl={event.cover_image_url}
               accentIndex={index}
               showEdit={isFacilitator}
-              onDelete={isFacilitator ? handleDelete : undefined}
             />
           ))}
         </div>
