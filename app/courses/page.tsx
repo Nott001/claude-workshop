@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormField, FormLabel } from "@/components/ui/form";
 import type { Course } from "@/types";
 
 export default function CoursesPage() {
@@ -13,12 +10,22 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
 
   useEffect(() => {
-    fetchCourses();
+    async function load() {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/courses");
+      if (!res.ok) {
+        setError("Failed to load courses");
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setCourses(data);
+      setLoading(false);
+    }
+    load();
   }, []);
 
   async function fetchCourses() {
@@ -35,34 +42,11 @@ export default function CoursesPage() {
     setLoading(false);
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await fetch("/api/courses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        course_name: formName,
-        course_description: formDescription || null,
-      }),
-    });
-    if (!res.ok) return;
-    setCreateOpen(false);
-    setFormName("");
-    setFormDescription("");
-    await fetchCourses();
-  }
-
   async function handleDelete(id: number) {
     if (!confirm("Delete this course? This will remove all modules and lessons.")) return;
     const res = await fetch(`/api/courses/${id}`, { method: "DELETE" });
     if (!res.ok) return;
     await fetchCourses();
-  }
-
-  function openCreate() {
-    setFormName("");
-    setFormDescription("");
-    setCreateOpen(true);
   }
 
   if (loading) {
@@ -95,13 +79,9 @@ export default function CoursesPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push("/courses/new")}>
-              <span className="material-symbols-rounded text-sm">post_add</span>
-              New Course
-            </Button>
-            <Button onClick={openCreate}>
+            <Button onClick={() => router.push("/courses/new")}>
               <span className="material-symbols-rounded text-sm">add_circle</span>
-              Quick Create
+              New Course
             </Button>
           </div>
         </div>
@@ -116,7 +96,7 @@ export default function CoursesPage() {
           <div className="rounded-xl border-2 border-dashed border-[#D1D5DB] bg-white py-16 text-center">
             <span className="material-symbols-rounded mb-3 block text-[40px] text-[#D1D5DB]">menu_book</span>
             <p className="text-sm text-[#6B7280]">No courses yet. Create your first course to get started.</p>
-            <Button className="mt-4" onClick={openCreate}>
+            <Button className="mt-4" onClick={() => router.push("/courses/new")}>
               <span className="material-symbols-rounded text-sm">add_circle</span>
               Create Course
             </Button>
@@ -162,27 +142,6 @@ export default function CoursesPage() {
             </div>
           </div>
         )}
-
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Course</DialogTitle>
-            </DialogHeader>
-            <Form onSubmit={handleCreate}>
-              <FormField>
-                <FormLabel>Name</FormLabel>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} required />
-              </FormField>
-              <FormField>
-                <FormLabel>Description</FormLabel>
-                <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
-              </FormField>
-              <Button type="submit" className="mt-4">
-                Save
-              </Button>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

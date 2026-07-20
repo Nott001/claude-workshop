@@ -42,13 +42,6 @@ export interface Lesson {
   updated_at: string;
 }
 
-export interface LessonProgress {
-  lesson_id: number;
-  user_id: number;
-  is_completed: boolean;
-  updated_at: string;
-}
-
 export type EventStatus = "draft" | "active" | "complete";
 
 export interface Event {

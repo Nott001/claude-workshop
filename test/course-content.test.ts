@@ -1,13 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  courseSchema,
-  moduleSchema,
-  lessonSchema,
-  progressSchema,
-  contentTypes,
-  getContentTypeLabel,
-} from "@/modules/course-content";
-import type { Course, Module, Lesson, LessonProgress, ContentType } from "@/types";
+import { courseSchema, moduleSchema, lessonSchema, contentTypes, getContentTypeLabel } from "@/modules/course-content";
+import type { Course, Module, Lesson, ContentType } from "@/types";
 
 describe("Course content types", () => {
   it("supports all content types", () => {
@@ -58,16 +51,6 @@ describe("Course content types", () => {
     };
     expect(lesson.content_type).toBe("pdf");
     expect(lesson.sequence_order).toBe(1);
-  });
-
-  it("LessonProgress interface has correct shape", () => {
-    const progress: LessonProgress = {
-      lesson_id: 1,
-      user_id: 1,
-      is_completed: false,
-      updated_at: "2026-01-01T00:00:00Z",
-    };
-    expect(progress.is_completed).toBe(false);
   });
 });
 
@@ -150,28 +133,6 @@ describe("lessonSchema", () => {
       content_url: "not-a-url",
       sequence_order: "1",
     });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("progressSchema", () => {
-  it("accepts valid progress data", () => {
-    const result = progressSchema.safeParse({ is_completed: true });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts false is_completed", () => {
-    const result = progressSchema.safeParse({ is_completed: false });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects non-boolean is_completed", () => {
-    const result = progressSchema.safeParse({ is_completed: "yes" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects negative units (legacy field)", () => {
-    const result = progressSchema.safeParse({ units_completed: -1 });
     expect(result.success).toBe(false);
   });
 });
