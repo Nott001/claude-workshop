@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, Clock3, MapPin, Users, Lock, ArrowLeft } from "lucide-react";
+import { CalendarDays, Clock3, MapPin, Users, ArrowLeft } from "lucide-react";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Footer } from "@/components/footer";
@@ -200,26 +200,13 @@ export default function SpeakerEventDetailsPage() {
               <h2 className="text-[24px] font-semibold text-[#1b1c1c]">Speaker Actions</h2>
 
               <div className="mt-6">
-                {isLive ? (
-                  <Link
-                    href={`/speakers/dashboard/live/${eventId}`}
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#3db9ee] py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#2da3d9]"
-                  >
-                    <span className="material-symbols-rounded text-[19px]">play_arrow</span>
-                    Enter Event Session
-                  </Link>
-                ) : (
-                  <div className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border border-[#bdc8d0] bg-[#f5f3f3] py-4 text-[16px] font-bold text-[#9ca3af]">
-                    <Lock className="size-5" />
-                    {isComplete ? "Session Ended" : "Session Locked"}
-                  </div>
-                )}
-
-                {isUpcoming && (
-                  <p className="mt-4 text-center text-sm text-[#5f5e5e]">
-                    The session will be available when the event goes live.
-                  </p>
-                )}
+                <Link
+                  href={`/events/${eventId}/room`}
+                  className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#3db9ee] py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#2da3d9]"
+                >
+                  <span className="material-symbols-rounded text-[19px]">play_arrow</span>
+                  Enter Event Room
+                </Link>
               </div>
             </div>
           </div>
