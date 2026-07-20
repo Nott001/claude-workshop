@@ -41,18 +41,21 @@ export async function POST(req: Request) {
   const eventType = evt.type;
 
   if (eventType === "user.created" || eventType === "user.updated") {
-    const { id, email_addresses, first_name, last_name } = evt.data;
+    const { id, email_addresses, first_name, last_name, public_metadata } = evt.data;
     const primaryEmail = email_addresses?.[0]?.email_address ?? "";
     const fullName = [first_name, last_name].filter(Boolean).join(" ") || primaryEmail;
+    const role = typeof public_metadata?.role === "string" ? public_metadata.role : undefined;
 
-    const { error } = await supabase.from("USERS").upsert(
-      {
-        clerk_id: id,
-        email: primaryEmail,
-        full_name: fullName,
-      },
-      { onConflict: "clerk_id" },
-    );
+    const upsertPayload: Record<string, unknown> = {
+      clerk_id: id,
+      email: primaryEmail,
+      full_name: fullName,
+    };
+    if (role) {
+      upsertPayload.role = role;
+    }
+
+    const { error } = await supabase.from("USERS").upsert(upsertPayload, { onConflict: "clerk_id" });
 
     if (error) {
       return new NextResponse(`Failed to sync user: ${error.message}`, { status: 500 });
