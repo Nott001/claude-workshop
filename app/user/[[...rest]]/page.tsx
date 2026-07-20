@@ -12,7 +12,7 @@ export default function UserSettingsPage() {
           <span className="material-symbols-rounded text-base">arrow_back</span>
           Back
         </Link>
-        <UserProfile />
+        <UserProfile routing="hash" />
       </div>
     </div>
   );
