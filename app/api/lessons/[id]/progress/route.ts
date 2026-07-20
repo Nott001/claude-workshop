@@ -26,30 +26,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const { data: lesson } = await supabase.from("LESSONS").select("total_units").eq("lesson_id", id).single();
-
-  if (!lesson) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-  }
-
-  const units = parsed.data.units_completed;
-  if (units > lesson.total_units) {
-    return NextResponse.json(
-      { error: `units_completed (${units}) exceeds total_units (${lesson.total_units})` },
-      { status: 400 },
-    );
-  }
-
-  const isCompleted = units === lesson.total_units;
-
   const { data: progress, error } = await supabase
     .from("LESSON_PROGRESS")
     .upsert(
       {
         lesson_id: Number(id),
         user_id: dbUser.user_id,
-        units_completed: units,
-        is_completed: isCompleted,
+        is_completed: parsed.data.is_completed,
       },
       { onConflict: "lesson_id, user_id" },
     )

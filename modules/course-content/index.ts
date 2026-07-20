@@ -17,12 +17,11 @@ export const lessonSchema = z.object({
   description: z.string().min(1).max(255),
   content_type: z.enum(["pdf", "video", "image", "link"]),
   content_url: z.string().url().optional(),
-  total_units: z.coerce.number().int().min(1),
   sequence_order: z.coerce.number().int().min(1),
 });
 
 export const progressSchema = z.object({
-  units_completed: z.coerce.number().int().min(0),
+  is_completed: z.boolean(),
 });
 
 export function getContentTypeIcon(type: ContentType): string {
