@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { Footer } from "@/components/footer";
@@ -17,10 +17,12 @@ interface SpeakerProfile {
 
 export default function SpeakerSettingsPage() {
   const { user } = useUser();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<SpeakerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ title: string; description: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<{ title: string; description: string; type?: "success" | "error" } | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [designation, setDesignation] = useState("");
@@ -65,8 +67,35 @@ export default function SpeakerSettingsPage() {
     if (res.ok) {
       setToast({ title: "Settings Updated", description: "Your profile has been successfully saved." });
       setProfile((prev) => (prev ? { ...prev, designation, bio } : prev));
+    } else {
+      setToast({ title: "Error", description: "Failed to save profile.", type: "error" });
     }
     setSaving(false);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload/profile-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setProfile((prev) => (prev ? { ...prev, photo_url: data.url } : prev));
+      setToast({ title: "Photo Updated", description: "Your profile photo has been updated." });
+    } else {
+      const data = await res.json();
+      setToast({ title: "Upload Failed", description: data.error ?? "Could not upload photo.", type: "error" });
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const initials = fullName
@@ -109,7 +138,11 @@ export default function SpeakerSettingsPage() {
 
             <div className="grid grid-cols-2 gap-8">
               <div className="flex flex-col items-center justify-center rounded-xl bg-[#efeded] p-6">
-                <div className="relative size-32 rounded-full border-4 border-white shadow-[0_10px_15px_-3px_rgba(0,0,0,.1),0_4px_6px_-4px_rgba(0,0,0,.1)]">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="relative size-32 rounded-full border-4 border-white shadow-[0_10px_15px_-3px_rgba(0,0,0,.1),0_4px_6px_-4px_rgba(0,0,0,.1)] transition-opacity hover:opacity-80 disabled:opacity-50"
+                >
                   {profile?.photo_url ? (
                     <img src={profile.photo_url} alt={fullName} className="size-full rounded-full object-cover" />
                   ) : (
@@ -117,8 +150,22 @@ export default function SpeakerSettingsPage() {
                       {initials}
                     </div>
                   )}
-                </div>
-                <span className="mt-4 text-sm font-medium tracking-wider text-muted-foreground">Change Avatar</span>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors hover:bg-black/20">
+                    <span className="material-symbols-rounded text-2xl text-white opacity-0 transition-opacity hover:opacity-100">
+                      camera_alt
+                    </span>
+                  </div>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <span className="mt-4 text-sm font-medium tracking-wider text-muted-foreground">
+                  {uploading ? "Uploading..." : "Change Avatar"}
+                </span>
               </div>
 
               <div className="flex flex-col gap-4">
@@ -183,7 +230,12 @@ export default function SpeakerSettingsPage() {
 
       {toast && (
         <div className="fixed bottom-4 right-8 z-50">
-          <Toast title={toast.title} description={toast.description} type="success" onClose={() => setToast(null)} />
+          <Toast
+            title={toast.title}
+            description={toast.description}
+            type={toast.type ?? "success"}
+            onClose={() => setToast(null)}
+          />
         </div>
       )}
 
