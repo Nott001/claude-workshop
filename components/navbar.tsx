@@ -22,7 +22,6 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   speaker: [
     { label: "Events", href: "/speakers/dashboard", icon: "event" },
-    { label: "Settings", href: "/speakers/settings", icon: "settings" },
   ],
   facilitator: [
     { label: "Events", href: "/events", icon: "event" },
@@ -107,12 +106,22 @@ export function Navbar() {
           <>
             <div className="flex items-center gap-2 rounded-lg bg-[#f4f7f8] px-3 py-2">
               <div className="grid size-7 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
-                {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined)}
+                {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
+                  (user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ?? "?").toUpperCase()}
               </div>
               <span className="truncate text-sm font-medium text-[#1b1c1c]">
-                {user?.firstName} {user?.lastName}
+                {user?.firstName
+                  ? `${user.firstName} ${user.lastName ?? ""}`
+                  : (user?.emailAddresses?.[0]?.emailAddress ?? "User")}
               </span>
             </div>
+            <Link
+              href="/user"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-2.5 text-xs font-semibold tracking-[0.04em] text-[#647078] transition hover:border-[#3db9ee] hover:text-[#1789b8]"
+            >
+              <span className="material-symbols-rounded text-[16px]">settings</span>
+              Settings
+            </Link>
             <button
               onClick={handleSignOut}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-2.5 text-xs font-semibold tracking-[0.04em] text-[#647078] transition hover:border-[#e5484d] hover:text-[#e5484d]"
