@@ -68,9 +68,6 @@ export default function EventDetailPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasTicket, setHasTicket] = useState(false);
 
-  const DEBUG_BYPASS =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug_bypass_session") === "true";
-
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -114,19 +111,6 @@ export default function EventDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [sessionLive, setSessionLive] = useState(false);
-  const [starting, setStarting] = useState(false);
-
-  useEffect(() => {
-    if (!event) return;
-    fetch(`/api/live/${eventId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((state) => {
-        if (state && state.session_status === "live") setSessionLive(true);
-      })
-      .catch(() => {});
-  }, [event, eventId]);
-
   async function handleRegister() {
     if (!isSignedIn) {
       router.push(`/sign-in?redirect_url=/events/${eventId}`);
@@ -175,13 +159,6 @@ export default function EventDetailPage() {
     router.push("/events");
   }
 
-  async function handleStartSession() {
-    setStarting(true);
-    await fetch(`/api/live/${eventId}/state`, { method: "POST" });
-    setSessionLive(true);
-    setStarting(false);
-  }
-
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -201,6 +178,7 @@ export default function EventDetailPage() {
   const isFacilitator = userRole === "facilitator";
   const canManage = isFacilitator;
   const showCountdown = event.status === "active";
+  const isEventStarted = new Date(`${event.event_date}T${event.start_time}`) <= new Date();
 
   return (
     <div className="flex flex-1 flex-col bg-white">
@@ -375,14 +353,14 @@ export default function EventDetailPage() {
                     <div className="flex flex-col gap-3">
                       {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
                         <>
-                          {hasTicket || DEBUG_BYPASS ? (
-                            sessionLive ? (
+                          {hasTicket ? (
+                            isEventStarted ? (
                               <button
                                 onClick={() => router.push(`/events/${eventId}/live`)}
                                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
                               >
                                 <span className="material-symbols-rounded text-base">lock_open</span>
-                                Enter event session
+                                Enter event room
                               </button>
                             ) : (
                               <button
@@ -390,7 +368,7 @@ export default function EventDetailPage() {
                                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] bg-gray-100 px-4 py-3 text-base font-bold text-[#6E7881] cursor-not-allowed"
                               >
                                 <span className="material-symbols-rounded text-base">lock</span>
-                                Event not started
+                                Event not yet started
                               </button>
                             )
                           ) : (
@@ -402,6 +380,16 @@ export default function EventDetailPage() {
                             </button>
                           )}
                         </>
+                      )}
+
+                      {event.status === "active" && userRole === "speaker" && (
+                        <button
+                          onClick={() => router.push(`/events/${eventId}/live`)}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                        >
+                          <span className="material-symbols-rounded text-base">lock_open</span>
+                          Enter event room
+                        </button>
                       )}
 
                       <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] px-4 py-3 text-base font-bold text-[#191C1E] transition-colors hover:bg-gray-50">
@@ -471,14 +459,13 @@ export default function EventDetailPage() {
                       {publishing ? "Publishing..." : "Publish Event"}
                     </button>
                   )}
-                  {event.status === "active" && !sessionLive && (
+                  {event.status === "active" && (
                     <button
-                      onClick={handleStartSession}
-                      disabled={starting}
-                      className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:opacity-50"
+                      onClick={() => router.push(`/events/${eventId}/live`)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100"
                     >
-                      <span className="material-symbols-rounded text-sm">play_arrow</span>
-                      {starting ? "Starting..." : "Start event session"}
+                      <span className="material-symbols-rounded text-sm">play_circle</span>
+                      Enter event room
                     </button>
                   )}
                   <button
@@ -506,17 +493,6 @@ export default function EventDetailPage() {
                 {publishError && <p className="text-xs text-red-500">{publishError}</p>}
                 {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
               </div>
-            )}
-
-            {/* Enter session button */}
-            {event.status === "active" && sessionLive && (isFacilitator || userRole === "speaker") && (
-              <button
-                onClick={() => router.push(`/events/${eventId}/live`)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
-              >
-                <span className="material-symbols-rounded text-sm">play_circle</span>
-                Enter event session
-              </button>
             )}
 
             {/* Delete confirmation modal */}
