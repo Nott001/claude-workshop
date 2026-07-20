@@ -5,7 +5,7 @@
 ### feat: simplify event listing filters — role-based tabs, draft events isolated to Drafts tab
 
 - **app/events/page.tsx** — replace fixed 4-tab layout (Active, Upcoming, Completed, Drafts) with role-dependent tabs: facilitators see Upcoming, Completed, Drafts; attendees see Upcoming, Completed; draft events no longer appear in the Upcoming tab; default tab changed from Active to Upcoming
-- **app/events/page.tsx** — fetch user role from `/api/auth/me` (Supabase) instead of `user.publicMetadata.role` (Clerk), which was never populated by the auth webhook; this fixes the facilitator tabs not rendering; remove delete button from event cards on listing page (delete still available on event detail page)
+- **app/events/page.tsx** — fetch user role from `/api/auth/me` (Supabase) instead of `user.publicMetadata.role` (Clerk), which was never populated by the auth webhook; this fixes the facilitator tabs not rendering; remove delete button and create event button from events listing page (create still available in navbar sidebar, delete still available on event detail page)
 - **test/event-management.test.ts** — add filter logic tests verifying upcoming/completed/drafts tabs return correct event statuses and drafts never leak into Upcoming
 
 ### feat: replace real-time live sessions with self-serve event resource rooms
