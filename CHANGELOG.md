@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### feat: restrict course access to facilitators and unify course page design language
+
+- **app/api/courses/route.ts** — add `requireRole("facilitator")` to GET handler to restrict course listing
+- **app/api/courses/[id]/route.ts** — add `requireRole("facilitator")` to GET handler for course detail
+- **app/api/lessons/[id]/route.ts** — add `requireRole("facilitator")` to GET handler for lesson detail
+- **app/api/courses/[id]/progress/route.ts** — change from `requireRole("attendee", "facilitator")` to `requireRole("facilitator")`; remove dead attendee branch
+- **app/events/[id]/page.tsx** — hide "View Curriculum" button behind `userRole === "facilitator"`
+- **app/courses/page.tsx** — restyle with `bg-[#FBF9F8]`, `max-w-[896px]`, styled list items, "ALL COURSES" header, edit/delete on hover per-row, Quick Create dialog
+- **app/courses/[id]/page.tsx** — restyle course detail as curriculum builder with inline module rename (pencil icon), lesson dialog with file upload/URL inputs matching create page, course name/description edit dialog, unified design language
+- **app/courses/new/page.tsx** — add file upload input to lesson dialog; auto-detect content type from uploaded file MIME type or URL extension; remove manual content type dropdown; show file upload and URL inputs simultaneously with mutual exclusion; disable submit until lesson name + (file or URL) provided
+
 ### feat: rewrite Create Course page with inline curriculum builder
 
 - **app/courses/new/page.tsx** — replace simple title+description form with full curriculum builder; two-column form grid (title + description); "Add module" creates modules via API with auto-incrementing names; inline module rename (pencil icon toggles input, saves on Enter/blur via PATCH); "Add lesson to topic" opens dialog with lesson name, content type select, and optional content URL; lesson rows display sequence number, description, and content type badge; delete controls for modules and lessons; auto-creates course on first module add if not yet saved; redirects to course detail on submit
