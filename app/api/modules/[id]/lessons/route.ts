@@ -24,7 +24,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       description: parsed.data.description,
       content_type: parsed.data.content_type,
       content_url: parsed.data.content_url,
-      total_units: parsed.data.total_units,
       sequence_order: parsed.data.sequence_order,
     })
     .select()

@@ -1,13 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  courseSchema,
-  moduleSchema,
-  lessonSchema,
-  progressSchema,
-  contentTypes,
-  getContentTypeLabel,
-} from "@/modules/course-content";
-import type { Course, Module, Lesson, LessonProgress, ContentType } from "@/types";
+import { courseSchema, moduleSchema, lessonSchema, contentTypes, getContentTypeLabel } from "@/modules/course-content";
+import type { Course, Module, Lesson, ContentType } from "@/types";
 
 describe("Course content types", () => {
   it("supports all content types", () => {
@@ -52,25 +45,12 @@ describe("Course content types", () => {
       description: "Test Lesson",
       content_type: "pdf",
       content_url: "https://example.com/doc.pdf",
-      total_units: 3,
       sequence_order: 1,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
     expect(lesson.content_type).toBe("pdf");
-    expect(lesson.total_units).toBe(3);
-  });
-
-  it("LessonProgress interface has correct shape", () => {
-    const progress: LessonProgress = {
-      lesson_id: 1,
-      user_id: 1,
-      units_completed: 2,
-      is_completed: false,
-      updated_at: "2026-01-01T00:00:00Z",
-    };
-    expect(progress.units_completed).toBe(2);
-    expect(progress.is_completed).toBe(false);
+    expect(lesson.sequence_order).toBe(1);
   });
 });
 
@@ -119,7 +99,6 @@ describe("lessonSchema", () => {
       description: "Lesson 1",
       content_type: "pdf",
       content_url: "https://example.com/doc.pdf",
-      total_units: "1",
       sequence_order: "1",
     });
     expect(result.success).toBe(true);
@@ -131,7 +110,6 @@ describe("lessonSchema", () => {
         description: "Lesson",
         content_type: ct,
         content_url: "https://example.com/doc",
-        total_units: "1",
         sequence_order: "1",
       });
       expect(result.success).toBe(true);
@@ -143,43 +121,18 @@ describe("lessonSchema", () => {
       description: "Lesson",
       content_type: "audio",
       content_url: "https://example.com/doc",
-      total_units: "1",
       sequence_order: "1",
     });
     expect(result.success).toBe(false);
   });
 
-  it("rejects invalid URL", () => {
+  it("accepts relative or invalid URL (storage proxy path)", () => {
     const result = lessonSchema.safeParse({
       description: "Lesson",
       content_type: "pdf",
       content_url: "not-a-url",
-      total_units: "1",
       sequence_order: "1",
     });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects zero total_units", () => {
-    const result = lessonSchema.safeParse({
-      description: "Lesson",
-      content_type: "pdf",
-      content_url: "https://example.com/doc.pdf",
-      total_units: "0",
-      sequence_order: "1",
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("progressSchema", () => {
-  it("accepts valid progress data", () => {
-    const result = progressSchema.safeParse({ units_completed: "0" });
     expect(result.success).toBe(true);
-  });
-
-  it("rejects negative units", () => {
-    const result = progressSchema.safeParse({ units_completed: "-1" });
-    expect(result.success).toBe(false);
   });
 });

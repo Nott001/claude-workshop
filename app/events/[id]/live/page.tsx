@@ -14,7 +14,6 @@ interface Lesson {
   description: string;
   content_type: string;
   content_url: string;
-  total_units: number;
   sequence_order: number;
 }
 
