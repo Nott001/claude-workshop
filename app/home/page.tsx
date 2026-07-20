@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Play, ArrowRight } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
-import { MarketingFooter } from "@/components/marketing-footer";
+import { Footer } from "@/components/footer";
 import { EventCard } from "@/components/event-card";
 import { formatEventDate, formatTime, eventStatusLabel, type LandingEvent } from "@/lib/landing";
 
@@ -122,11 +122,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <div className="px-6 py-12 sm:px-12 lg:px-16">
-          <div className="mx-auto max-w-[1110px]">
-            <MarketingFooter />
-          </div>
-        </div>
+        <Footer role="attendee" />
       </div>
     </>
   );
