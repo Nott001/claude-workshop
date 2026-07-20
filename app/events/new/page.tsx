@@ -280,7 +280,12 @@ export default function NewEventPage() {
               {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
               <Select value={courseId} onValueChange={setCourseId}>
                 <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
-                  <SelectValue placeholder="No curriculum linked" />
+                  <SelectValue placeholder="No curriculum linked">
+                    {(value: string) => {
+                      if (!value || value === "__none__") return "No curriculum linked";
+                      return courses.find((c) => String(c.course_id) === value)?.course_name ?? "No curriculum linked";
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None — no curriculum</SelectItem>
