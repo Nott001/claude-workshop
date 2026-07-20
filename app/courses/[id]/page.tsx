@@ -166,17 +166,6 @@ export default function CourseDetailPage() {
     await reloadCourse();
   }
 
-  async function handleRemoveResource(lessonId: number) {
-    if (!confirm("Remove the uploaded resource from this lesson?")) return;
-    const res = await fetch(`/api/lessons/${lessonId}/resource`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Failed to remove resource");
-      return;
-    }
-    await reloadCourse();
-  }
-
   function openLessonDialog(moduleId: number) {
     setActiveModuleId(moduleId);
     setLessonDescription("");
@@ -562,15 +551,6 @@ export default function CourseDetailPage() {
                               <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url, "_blank")}>
                                 View
                               </Button>
-                            )}
-                            {lesson.content_url && (
-                              <button
-                                onClick={() => handleRemoveResource(lesson.lesson_id)}
-                                className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-amber-50 hover:text-[#D97706]"
-                                title="Remove resource"
-                              >
-                                <span className="material-symbols-rounded text-[14px]">link_off</span>
-                              </button>
                             )}
                             <button
                               onClick={() => handleDeleteLesson(lesson.lesson_id)}
