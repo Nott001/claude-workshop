@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### feat: allow courses to be linked to multiple events
+
+- **supabase/migrations/00016_remove_course_id_unique.sql** — new migration: drop UNIQUE constraint on `EVENTS.course_id` so the same course can be linked to many events
+- **app/api/events/route.ts** — remove uniqueness check (no longer querying EVENTS for duplicate course_id)
+- **app/api/events/[id]/route.ts** — same removal in PATCH handler
+
+### fix: allow relative storage URLs in event and lesson schemas
+
+- **modules/course-content/index.ts** — remove `.url()` validation from `content_url` in lessonSchema (storage returns relative paths via proxy)
+- **modules/event-management/index.ts** — remove `.url()` validation from `cover_image_url` in eventBaseSchema and `photo_url` in speakerProfileUpdateSchema
+- **test/course-content.test.ts** — update "rejects invalid URL" test to expect relative/invalid URLs to pass
+- **test/event-management.test.ts** — same update for cover_image_url test
+
 ### fix: show course name in event dropdown instead of raw value
 
 - **app/events/new/page.tsx** — use `SelectValue` render prop to display "No curriculum linked" when value is `__none__` and course name when a course is selected
