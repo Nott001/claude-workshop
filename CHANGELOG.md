@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### feat: replace real-time live sessions with self-serve event resource rooms
+
+- **supabase/migrations/00017_drop_live_session_state.sql** — new migration: drop `LIVE_SESSION_STATE` table and remove from realtime publication
+- **app/api/live/** — delete all live session API routes (GET/PATCH session, POST state)
+- **modules/live-session/index.ts** — delete `liveSessionUpdateSchema` module
+- **lib/realtime/index.ts** — remove `subscribeToLiveSession` and `LiveSessionState` import
+- **types/index.ts** — remove `SessionStatus` type and `LiveSessionState` interface
+- **test/live-session.test.ts** — delete (154 total tests, 0 in live-session)
+- **app/events/[id]/page.tsx** — remove session polling, session state, "Start session" button, and debug bypass; add `isEventStarted` check; add "Enter event room" button for speakers always and for attendees when event has started + has ticket
+- **app/events/[id]/live/page.tsx** — rewrite as self-serve resource room: loads linked curriculum, displays lessons as clickable resource cards (grouped by module), opens a modal with `LessonViewer` on card click; access control: speakers/facilitators always allowed, attendees require valid ticket + event started
+- **app/api/courses/[id]/route.ts** — remove `requireRole("facilitator")` from GET so event room can fetch course data for all authorized users
+
 ### feat: allow courses to be linked to multiple events
 
 - **supabase/migrations/00016_remove_course_id_unique.sql** — new migration: drop UNIQUE constraint on `EVENTS.course_id` so the same course can be linked to many events
