@@ -20,9 +20,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Events", href: "/events", icon: "event" },
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },
   ],
-  speaker: [
-    { label: "Events", href: "/speakers/dashboard", icon: "event" },
-  ],
+  speaker: [{ label: "Events", href: "/speakers/dashboard", icon: "event" }],
   facilitator: [
     { label: "Events", href: "/events", icon: "event" },
     { label: "Create event", href: "/events/new", icon: "add_circle" },

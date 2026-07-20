@@ -66,7 +66,7 @@ export default function EventRoomPage() {
 
       const role = userData.role as string;
 
-      if (role === "facilitator" || role === "speaker") {
+      if (role === "facilitator") {
         if (eventData.course_id) {
           const courseRes = await fetch(`/api/courses/${eventData.course_id}`);
           if (courseRes.ok) {
@@ -75,6 +75,30 @@ export default function EventRoomPage() {
           }
         }
         if (!cancelled) setAccess("allowed");
+        return;
+      }
+
+      if (role === "speaker") {
+        const speakerRes = await fetch("/api/speakers/me");
+        const speakerData = speakerRes.ok ? await speakerRes.json() : null;
+        const assigned =
+          speakerData?.speaker_profile_id &&
+          eventData.EVENT_SPEAKERS?.some(
+            (es: { SPEAKER_PROFILES: { speaker_profile_id: number } }) =>
+              es.SPEAKER_PROFILES.speaker_profile_id === speakerData.speaker_profile_id,
+          );
+        if (assigned) {
+          if (eventData.course_id) {
+            const courseRes = await fetch(`/api/courses/${eventData.course_id}`);
+            if (courseRes.ok) {
+              const courseData: CourseData = await courseRes.json();
+              if (!cancelled) setCourse(courseData);
+            }
+          }
+          if (!cancelled) setAccess("allowed");
+        } else {
+          if (!cancelled) setAccess("denied");
+        }
         return;
       }
 
