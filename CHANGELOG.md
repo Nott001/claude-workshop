@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### fix: allow null content_url in lessons, show API errors, add remove-resource button
+
+- **supabase/migrations/00014_allow_null_content_url.sql** — new migration: `ALTER TABLE "LESSONS" ALTER COLUMN content_url DROP NOT NULL`
+- **modules/course-content/index.ts** — allow `content_url` to be `null` in `lessonSchema` (nullable + optional)
+- **app/api/lessons/[id]/route.ts** — differentiate `undefined` (don't update) from `null` (clear) in PATCH handler
+- **app/api/lessons/[id]/resource/route.ts** — new DELETE endpoint to remove a lesson's uploaded resource (deletes storage files, sets content_url to null)
+- **app/courses/[id]/page.tsx** — show API error messages when lesson creation fails; add "Remove resource" button on lesson rows; hide View button when no content_url
+- **app/courses/new/page.tsx** — same error handling and remove-resource button
+
 ### feat: add drag-and-drop reordering for modules and lessons
 
 - **app/courses/[id]/page.tsx** — add drag-and-drop for module cards and lesson rows using native HTML Drag and Drop API; on drop, reorder locally and auto-save via PATCH API calls for all affected items
