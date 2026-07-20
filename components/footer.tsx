@@ -8,7 +8,7 @@ const imgTwitter = "https://www.figma.com/api/mcp/asset/56f59f55-c565-4c7d-a2d4-
 function AttendeeFooter() {
   return (
     <footer className="flex flex-col gap-12 border-t border-border bg-background px-16 pt-12 pb-12">
-      <div className="flex items-start justify-between">
+      <div className="mx-auto flex w-full max-w-[1110px] items-start justify-between">
         <div className="flex max-w-[320px] flex-col gap-6">
           <div className="flex items-center gap-3">
             <img src={imgLogo} alt="" className="size-8" />
@@ -23,8 +23,8 @@ function AttendeeFooter() {
           <div className="flex flex-col gap-4">
             <h5 className="text-base font-bold text-foreground">Company</h5>
             <ul className="flex list-none flex-col gap-2">
-              <li className="text-sm text-muted-foreground">About Us</li>
-              <li className="text-sm text-muted-foreground">Contact</li>
+              <li><a href="/about" className="text-sm text-muted-foreground hover:text-foreground">About Us</a></li>
+              <li><a href="/contact" className="text-sm text-muted-foreground hover:text-foreground">Contact</a></li>
             </ul>
           </div>
 
@@ -45,7 +45,7 @@ function AttendeeFooter() {
         </div>
       </div>
 
-      <div className="border-t border-border pt-8">
+      <div className="mx-auto w-full max-w-[1110px] border-t border-border pt-8">
         <p className="text-xs text-muted-foreground">&copy; 2024 StartupLab Business Center. All rights reserved.</p>
       </div>
     </footer>
@@ -63,6 +63,6 @@ function StaffFooter() {
 }
 
 export function Footer({ role }: { role: UserRole }) {
-  if (role === "attendee") return <AttendeeFooter />;
+  if (role === "attendee" || role === "speaker") return <AttendeeFooter />;
   return <StaffFooter />;
 }
