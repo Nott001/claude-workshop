@@ -105,6 +105,24 @@ export default function EventDetailPage() {
       .catch(() => {});
   }, [eventId, isLoaded, isSignedIn]);
 
+  const [speakerProfileId, setSpeakerProfileId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || userRole !== "speaker") return;
+    fetch("/api/speakers/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.speaker_profile_id) setSpeakerProfileId(data.speaker_profile_id);
+      })
+      .catch(() => {});
+  }, [isLoaded, isSignedIn, userRole]);
+
+  const isSpeakerAssigned =
+    speakerProfileId &&
+    event?.EVENT_SPEAKERS?.some(
+      (es: { SPEAKER_PROFILES: { speaker_profile_id: number } }) => es.SPEAKER_PROFILES.speaker_profile_id === speakerProfileId,
+    );
+
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -382,7 +400,7 @@ export default function EventDetailPage() {
                         </>
                       )}
 
-                      {event.status === "active" && userRole === "speaker" && (
+                      {userRole === "speaker" && isSpeakerAssigned && (
                         <button
                           onClick={() => router.push(`/events/${eventId}/room`)}
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
@@ -459,15 +477,13 @@ export default function EventDetailPage() {
                       {publishing ? "Publishing..." : "Publish Event"}
                     </button>
                   )}
-                  {event.status === "active" && (
-                    <button
-                      onClick={() => router.push(`/events/${eventId}/room`)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100"
-                    >
-                      <span className="material-symbols-rounded text-sm">play_circle</span>
-                      Enter event room
-                    </button>
-                  )}
+                  <button
+                    onClick={() => router.push(`/events/${eventId}/room`)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100"
+                  >
+                    <span className="material-symbols-rounded text-sm">play_circle</span>
+                    Enter event room
+                  </button>
                   <button
                     onClick={() => router.push(`/events/${eventId}/edit`)}
                     className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B1C1C] transition-colors hover:bg-gray-50"
