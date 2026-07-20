@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### fix: show course name in event dropdown instead of raw value
+
+- **app/events/new/page.tsx** — use `SelectValue` render prop to display "No curriculum linked" when value is `__none__` and course name when a course is selected
+- **app/events/[id]/edit/page.tsx** — same fix
+
 ### fix: show all courses in event form dropdown instead of filtering linked ones
 
 - **app/events/new/page.tsx** — remove `linkedIds` filtering that excluded courses already linked to other events; show all courses and let the backend's UNIQUE constraint enforce exclusivity
