@@ -59,25 +59,12 @@ export default function EditEventPage() {
 
   useEffect(() => {
     async function load() {
-      const [eventRes, coursesRes, eventsRes] = await Promise.all([
-        fetch(`/api/events/${eventId}`),
-        fetch("/api/courses"),
-        fetch("/api/events"),
-      ]);
+      const [eventRes, coursesRes] = await Promise.all([fetch(`/api/events/${eventId}`), fetch("/api/courses")]);
 
       setCoursesError(null);
       if (!coursesRes.ok) {
         const body = await coursesRes.json().catch(() => ({}));
         setCoursesError(body.error?.message ?? body.error ?? `Failed to load courses (${coursesRes.status})`);
-      } else if (eventsRes.ok) {
-        const [allCourses, allEvents] = await Promise.all([coursesRes.json(), eventsRes.json()]);
-        const linkedIds = new Set(
-          allEvents
-            .filter((e: { event_id: number }) => e.event_id !== Number(eventId))
-            .map((e: { course_id: number | null }) => e.course_id)
-            .filter((id): id is number => id != null),
-        );
-        setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
       } else {
         const allCourses = await coursesRes.json();
         setCourses(allCourses);
