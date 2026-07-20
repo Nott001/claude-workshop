@@ -12,7 +12,7 @@ interface Lesson {
   module_id: number;
   description: string;
   content_type: string;
-  content_url: string;
+  content_url: string | null;
   sequence_order: number;
 }
 
@@ -166,6 +166,17 @@ export default function CourseDetailPage() {
     await reloadCourse();
   }
 
+  async function handleRemoveResource(lessonId: number) {
+    if (!confirm("Remove the uploaded resource from this lesson?")) return;
+    const res = await fetch(`/api/lessons/${lessonId}/resource`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? "Failed to remove resource");
+      return;
+    }
+    await reloadCourse();
+  }
+
   function openLessonDialog(moduleId: number) {
     setActiveModuleId(moduleId);
     setLessonDescription("");
@@ -294,7 +305,11 @@ export default function CourseDetailPage() {
       }),
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? "Failed to create lesson");
+      return;
+    }
     const lesson = await res.json();
 
     if (lessonContentFile) {
@@ -313,8 +328,11 @@ export default function CourseDetailPage() {
         });
 
         if (!uploadRes.ok) {
-          setError("Lesson saved but file upload failed. You can re-edit to upload again.");
+          const uploadData = await uploadRes.json().catch(() => null);
+          setError(uploadData?.error ?? "Lesson saved but file upload failed.");
           setUploading(false);
+          await reloadCourse();
+          return;
         }
         setUploading(false);
       }
@@ -540,9 +558,20 @@ export default function CourseDetailPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url, "_blank")}>
-                              View
-                            </Button>
+                            {lesson.content_url && (
+                              <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url, "_blank")}>
+                                View
+                              </Button>
+                            )}
+                            {lesson.content_url && (
+                              <button
+                                onClick={() => handleRemoveResource(lesson.lesson_id)}
+                                className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-amber-50 hover:text-[#D97706]"
+                                title="Remove resource"
+                              >
+                                <span className="material-symbols-rounded text-[14px]">link_off</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeleteLesson(lesson.lesson_id)}
                               className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"

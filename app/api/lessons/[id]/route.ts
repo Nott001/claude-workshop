@@ -36,17 +36,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
-  const { data: lesson, error } = await supabase
-    .from("LESSONS")
-    .update({
-      description: parsed.data.description,
-      content_type: parsed.data.content_type,
-      content_url: parsed.data.content_url,
-      sequence_order: parsed.data.sequence_order,
-    })
-    .eq("lesson_id", id)
-    .select()
-    .single();
+
+  const updateData: Record<string, unknown> = {
+    description: parsed.data.description,
+    content_type: parsed.data.content_type,
+    sequence_order: parsed.data.sequence_order,
+  };
+  if (parsed.data.content_url !== undefined) {
+    updateData.content_url = parsed.data.content_url;
+  }
+
+  const { data: lesson, error } = await supabase.from("LESSONS").update(updateData).eq("lesson_id", id).select().single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
