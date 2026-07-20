@@ -19,7 +19,6 @@ interface User {
 interface ProgressEntry {
   lesson_id: number;
   user_id: number;
-  units_completed: number;
   is_completed: boolean;
 }
 
@@ -87,9 +86,7 @@ export default function ProgressPage() {
                 <td>{user.full_name}</td>
                 {allLessons.map((lesson) => {
                   const prog = data.progress.find((p) => p.lesson_id === lesson.lesson_id && p.user_id === user.user_id);
-                  return (
-                    <td key={lesson.lesson_id}>{prog ? `${prog.units_completed}/${prog.is_completed ? "✓" : "—"}` : "—"}</td>
-                  );
+                  return <td key={lesson.lesson_id}>{prog ? (prog.is_completed ? "✓" : "—") : "—"}</td>;
                 })}
               </tr>
             ))}
@@ -119,7 +116,7 @@ export default function ProgressPage() {
               <tr key={lesson.lesson_id}>
                 <td>{lesson.description}</td>
                 <td>{mod?.module_name ?? "—"}</td>
-                <td>{prog ? `${prog.units_completed}/${prog.is_completed ? "✓" : "—"}` : "Not started"}</td>
+                <td>{prog ? (prog.is_completed ? "✓" : "—") : "Not started"}</td>
               </tr>
             );
           })}

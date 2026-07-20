@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### feat: remove lesson units and redundant pages; simplify progress to binary
+
+- **app/courses/[id]/modules/[moduleId]/page.tsx** — delete (redundant with inline curriculum builder on detail page)
+- **app/courses/[id]/lessons/[lessonId]/page.tsx** — delete (redundant with lesson-viewer component)
+- **app/courses/[id]/page.tsx** — remove "Edit" navigation button pointing to deleted modules page; change "View" button on lesson rows to open content URL directly
+- **supabase/migrations/00013_remove_lesson_units.sql** — new migration: `ALTER TABLE "LESSONS" DROP COLUMN total_units`, `ALTER TABLE "LESSON_PROGRESS" DROP COLUMN units_completed`
+- **types/index.ts** — remove `total_units` from `Lesson`, remove `units_completed` from `LessonProgress`
+- **modules/course-content/index.ts** — remove `total_units` from `lessonSchema`; change `progressSchema` to `{ is_completed: z.boolean() }`
+- **app/api/lessons/[id]/route.ts** — remove `total_units` from PATCH update
+- **app/api/modules/[id]/lessons/route.ts** — remove `total_units` from INSERT
+- **app/api/lessons/[id]/progress/route.ts** — simplify to accept `is_completed: boolean` instead of `units_completed` with total_units validation
+- **app/courses/[id]/progress/page.tsx** — simplify display: show ✓ or — instead of `units_completed / is_completed`
+- **app/courses/new/page.tsx** — remove `total_units` from local interface and lesson create payload
+- **components/lesson-viewer.tsx** — remove `total_units` from interface
+- **app/events/[id]/live/page.tsx** — remove `total_units` from interface
+- **test/course-content.test.ts** — update to 21 tests: remove `total_units`/`units_completed` assertions, add binary progress schema tests
+
 ### feat: restrict course access to facilitators and unify course page design language
 
 - **app/api/courses/route.ts** — add `requireRole("facilitator")` to GET handler to restrict course listing

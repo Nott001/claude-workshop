@@ -14,7 +14,6 @@ interface Lesson {
   description: string;
   content_type: string;
   content_url: string;
-  total_units: number;
   sequence_order: number;
 }
 
@@ -208,7 +207,6 @@ export default function NewCoursePage() {
         description: lessonDescription,
         content_type: contentType,
         content_url: lessonContentFile ? undefined : lessonContentUrl || undefined,
-        total_units: 1,
         sequence_order: sequenceOrder,
       }),
     });

@@ -13,7 +13,6 @@ interface Lesson {
   description: string;
   content_type: string;
   content_url: string;
-  total_units: number;
   sequence_order: number;
 }
 
@@ -213,7 +212,6 @@ export default function CourseDetailPage() {
         description: lessonDescription,
         content_type: contentType,
         content_url: lessonContentFile ? undefined : lessonContentUrl || undefined,
-        total_units: 1,
         sequence_order: sequenceOrder,
       }),
     });
@@ -410,16 +408,8 @@ export default function CourseDetailPage() {
                     </span>
 
                     <button
-                      onClick={() => router.push(`/courses/${courseId}/modules/${mod.module_id}`)}
-                      className="ml-auto rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#334155]"
-                      title="Edit lessons"
-                    >
-                      <span className="material-symbols-rounded text-[14px]">edit_note</span>
-                    </button>
-
-                    <button
                       onClick={() => handleDeleteModule(mod.module_id)}
-                      className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                      className="ml-auto rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
                       title="Delete module"
                     >
                       <span className="material-symbols-rounded text-[14px]">delete</span>
@@ -443,11 +433,7 @@ export default function CourseDetailPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/courses/${courseId}/lessons/${lesson.lesson_id}`)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url, "_blank")}>
                               View
                             </Button>
                             <button
