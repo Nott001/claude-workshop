@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### fix: show all courses in event form dropdown instead of filtering linked ones
+
+- **app/events/new/page.tsx** — remove `linkedIds` filtering that excluded courses already linked to other events; show all courses and let the backend's UNIQUE constraint enforce exclusivity
+- **app/events/[id]/edit/page.tsx** — same fix; also remove the now-unnecessary `/api/events` fetch for course filtering
+
 ### fix: show API errors and add create-course link in event course dropdown
 
 - **app/events/new/page.tsx** — surface fetch errors from `/api/courses` to the user instead of silently swallowing them; show "No courses available — create one first" disabled option in dropdown; add "Create a course" link navigating to `/courses/new`

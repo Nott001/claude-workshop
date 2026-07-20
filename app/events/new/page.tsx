@@ -52,22 +52,15 @@ export default function NewEventPage() {
       .then(setSpeakers)
       .catch(() => {});
 
-    Promise.all([
-      fetch("/api/courses").then(async (r) => {
+    fetch("/api/courses")
+      .then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
           throw new Error(body.error?.message ?? body.error ?? `Failed to load courses (${r.status})`);
         }
         return r.json();
-      }),
-      fetch("/api/events").then((r) => (r.ok ? r.json() : [])),
-    ])
-      .then(([allCourses, allEvents]) => {
-        const linkedIds = new Set(
-          allEvents.map((e: { course_id: number | null }) => e.course_id).filter((id): id is number => id != null),
-        );
-        setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
       })
+      .then(setCourses)
       .catch((err) => setCoursesError(err instanceof Error ? err.message : "Failed to load courses"));
   }, []);
 
