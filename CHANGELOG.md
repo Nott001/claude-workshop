@@ -10,8 +10,11 @@
 - **lib/realtime/index.ts** — remove `subscribeToLiveSession` and `LiveSessionState` import
 - **types/index.ts** — remove `SessionStatus` type and `LiveSessionState` interface
 - **test/live-session.test.ts** — delete (154 total tests, 0 in live-session)
-- **app/events/[id]/page.tsx** — remove session polling, session state, "Start session" button, and debug bypass; add `isEventStarted` check; add "Enter event room" button for speakers always and for attendees when event has started + has ticket
-- **app/events/[id]/live/page.tsx** — rewrite as self-serve resource room: loads linked curriculum, displays lessons as clickable resource cards (grouped by module), opens a modal with `LessonViewer` on card click; access control: speakers/facilitators always allowed, attendees require valid ticket + event started
+- **app/events/[id]/page.tsx** — remove session polling, session state, "Start session" button, and debug bypass; add `isEventStarted` check; add "Enter event room" button for speakers always and for attendees when event has started + has ticket; route changed from `/live` to `/room`
+- **app/events/[id]/live/page.tsx** — rewrite as self-serve resource room: loads linked curriculum, displays lessons as clickable resource cards (grouped by module), opens a nearly-full-screen modal with `LessonViewer` on card click; links rendered in iframes with fallback to open in new tab; access control: speakers/facilitators always allowed, attendees require valid ticket + event started
+- **app/speakers/dashboard/live/[eventId]/page.tsx** — replace full dashboard page with redirect to `/events/[eventId]/room` so speakers see the same resource room
+- **app/speakers/dashboard/[eventId]/page.tsx** — change "Enter Event Session" link to `/events/[eventId]/room` and always show it (no more `isLive` gate); remove unused `Lock` import
+- **components/lesson-viewer.tsx** — add `sandbox` attribute to link iframes; show "Open in new tab" fallback when iframe fails to load; make all content fill the container with `size-full`
 - **app/api/courses/[id]/route.ts** — remove `requireRole("facilitator")` from GET so event room can fetch course data for all authorized users
 
 ### feat: allow courses to be linked to multiple events

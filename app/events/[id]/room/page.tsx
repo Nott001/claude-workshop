@@ -239,23 +239,34 @@ export default function EventRoomPage() {
 
       {selectedLesson && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2"
           onClick={() => setSelectedLesson(null)}
         >
           <div
-            className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-border bg-white shadow-lg"
+            className="flex h-full w-full max-h-[98vh] max-w-[98vw] flex-col rounded-xl border border-border bg-white shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-sm font-semibold text-foreground">{selectedLesson.description}</h2>
-              <button
-                onClick={() => setSelectedLesson(null)}
-                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-              >
-                <span className="material-symbols-rounded text-lg">close</span>
-              </button>
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-base font-semibold text-foreground">{selectedLesson.description}</h2>
+              <div className="flex items-center gap-2">
+                <a
+                  href={selectedLesson.content_url ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                  title="Open in new tab"
+                >
+                  <span className="material-symbols-rounded text-lg">open_in_new</span>
+                </a>
+                <button
+                  onClick={() => setSelectedLesson(null)}
+                  className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                >
+                  <span className="material-symbols-rounded text-lg">close</span>
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-6">
               {selectedLesson.content_url ? (
                 <LessonViewer lesson={selectedLesson} />
               ) : (
