@@ -63,17 +63,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!courseExists) {
       return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
     }
-
-    const { data: existingLink } = await supabase
-      .from("EVENTS")
-      .select("event_id")
-      .eq("course_id", parsed.data.course_id)
-      .neq("event_id", id)
-      .limit(1);
-
-    if (existingLink && existingLink.length > 0) {
-      return NextResponse.json({ error: { message: "This course is already linked to another event" } }, { status: 400 });
-    }
   }
 
   const { data: event, error } = await supabase.from("EVENTS").update(parsed.data).eq("event_id", id).select().single();

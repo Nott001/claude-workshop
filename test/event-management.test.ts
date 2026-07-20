@@ -99,7 +99,7 @@ describe("eventSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid cover_image_url", () => {
+  it("accepts relative cover_image_url (storage proxy path)", () => {
     const result = eventSchema.safeParse({
       title: "Test Event",
       event_date: "2026-06-15",
@@ -108,7 +108,7 @@ describe("eventSchema", () => {
       venue_name: "Convention Center",
       cover_image_url: "not-a-url",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects end_time before start_time", () => {

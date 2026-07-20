@@ -16,7 +16,7 @@ export const moduleSchema = z.object({
 export const lessonSchema = z.object({
   description: z.string().min(1).max(255),
   content_type: z.enum(["pdf", "video", "image", "link"]),
-  content_url: z.string().url().nullable().optional(),
+  content_url: z.string().nullable().optional(),
   sequence_order: z.coerce.number().int().min(1),
 });
 

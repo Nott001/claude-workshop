@@ -126,13 +126,13 @@ describe("lessonSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects invalid URL", () => {
+  it("accepts relative or invalid URL (storage proxy path)", () => {
     const result = lessonSchema.safeParse({
       description: "Lesson",
       content_type: "pdf",
       content_url: "not-a-url",
       sequence_order: "1",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });
