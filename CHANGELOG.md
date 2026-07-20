@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### feat: add drag-and-drop reordering for modules and lessons
+
+- **app/courses/[id]/page.tsx** — add drag-and-drop for module cards and lesson rows using native HTML Drag and Drop API; on drop, reorder locally and auto-save via PATCH API calls for all affected items
+- **app/courses/new/page.tsx** — same drag-and-drop reordering for curriculum builder during course creation
+
 ### feat: remove lesson units and redundant pages; simplify progress to binary
 
 - **app/courses/[id]/modules/[moduleId]/page.tsx** — delete (redundant with inline curriculum builder on detail page)
