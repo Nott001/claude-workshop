@@ -44,6 +44,8 @@ export default function NewCoursePage() {
   const [lessonContentUrl, setLessonContentUrl] = useState("");
   const [lessonContentFile, setLessonContentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
+  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -187,6 +189,79 @@ export default function NewCoursePage() {
     if (type === "video") return "/api/upload/course-video";
     if (type === "pdf" || type === "image") return "/api/upload/course-asset";
     return null;
+  }
+
+  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(moduleId));
+  }
+
+  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
+    e.preventDefault();
+    setDragOverModuleId(null);
+    const draggedId = Number(e.dataTransfer.getData("text/plain"));
+    if (!draggedId || draggedId === targetModuleId) return;
+
+    const draggedIdx = modules.findIndex((m) => m.module_id === draggedId);
+    const targetIdx = modules.findIndex((m) => m.module_id === targetModuleId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+
+    const next = [...modules];
+    const [moved] = next.splice(draggedIdx, 1);
+    next.splice(targetIdx, 0, moved);
+    const reordered = next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
+    setModules(reordered);
+
+    await Promise.all(
+      reordered.map((m) =>
+        fetch(`/api/modules/${m.module_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
+        }),
+      ),
+    );
+  }
+
+  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(lessonId));
+  }
+
+  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
+    e.preventDefault();
+    setDragOverLessonId(null);
+    const draggedId = Number(e.dataTransfer.getData("text/plain"));
+    if (!draggedId || draggedId === targetLessonId) return;
+
+    const mod = modules.find((m) => m.module_id === moduleId);
+    if (!mod) return;
+
+    const lessons = [...mod.LESSONS];
+    const draggedIdx = lessons.findIndex((l) => l.lesson_id === draggedId);
+    const targetIdx = lessons.findIndex((l) => l.lesson_id === targetLessonId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+
+    const [moved] = lessons.splice(draggedIdx, 1);
+    lessons.splice(targetIdx, 0, moved);
+    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
+
+    setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: reordered } : m)));
+
+    await Promise.all(
+      reordered.map((l) =>
+        fetch(`/api/lessons/${l.lesson_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: l.description,
+            content_type: l.content_type,
+            content_url: l.content_url,
+            sequence_order: l.sequence_order,
+          }),
+        }),
+      ),
+    );
   }
 
   async function handleAddLesson() {
@@ -343,7 +418,23 @@ export default function NewCoursePage() {
           ) : (
             <div className="space-y-3">
               {modules.map((mod) => (
-                <div key={mod.module_id} className="rounded-lg border border-[#F3F4F6] bg-[#FAFBFC] p-5">
+                <div
+                  key={mod.module_id}
+                  draggable
+                  onDragStart={(e) => handleModuleDragStart(e, mod.module_id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverModuleId(mod.module_id);
+                  }}
+                  onDragLeave={() => setDragOverModuleId(null)}
+                  onDrop={(e) => handleModuleDrop(e, mod.module_id)}
+                  onDragEnd={() => setDragOverModuleId(null)}
+                  className={`rounded-lg border bg-[#FAFBFC] p-5 transition-shadow ${
+                    dragOverModuleId === mod.module_id
+                      ? "border-[#29B6F6] shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                      : "border-[#F3F4F6]"
+                  }`}
+                >
                   <div className="mb-3 flex items-center gap-2">
                     {renamingModuleId === mod.module_id ? (
                       <input
@@ -390,7 +481,20 @@ export default function NewCoursePage() {
                       {mod.LESSONS.map((lesson) => (
                         <div
                           key={lesson.lesson_id}
-                          className="flex items-center justify-between rounded-lg border border-[#F3F4F6] bg-white px-4 py-2.5"
+                          draggable
+                          onDragStart={(e) => handleLessonDragStart(e, lesson.lesson_id)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverLessonId(lesson.lesson_id);
+                          }}
+                          onDragLeave={() => setDragOverLessonId(null)}
+                          onDrop={(e) => handleLessonDrop(e, lesson.lesson_id, mod.module_id)}
+                          onDragEnd={() => setDragOverLessonId(null)}
+                          className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
+                            dragOverLessonId === lesson.lesson_id
+                              ? "border-[#29B6F6] bg-white shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                              : "border-[#F3F4F6] bg-white"
+                          }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-xs font-medium text-[#9CA3AF]">
