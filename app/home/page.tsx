@@ -1,18 +1,30 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { Play, ArrowRight } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 import { MarketingFooter } from "@/components/marketing-footer";
 import { EventCard } from "@/components/event-card";
-import { getUpcomingEvents, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
-import { PostLoginRedirect } from "@/components/post-login-redirect";
+import { formatEventDate, formatTime, eventStatusLabel, type LandingEvent } from "@/lib/landing";
 
-export default async function HomePage() {
-  const events = await getUpcomingEvents();
+export default function HomePage() {
+  const { user } = useUser();
+  const [events, setEvents] = useState<LandingEvent[]>([]);
+
+  useEffect(() => {
+    fetch("/api/events?filter=upcoming")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setEvents(Array.isArray(data) ? data.slice(0, 2) : []))
+      .catch(() => {});
+  }, []);
+
   const featured = events[0] ?? null;
+  const firstName = user?.firstName ?? "there";
 
   return (
     <>
-      <PostLoginRedirect />
       <div className="min-h-screen bg-[#fbf9f8] text-[#1b1c1c]">
         <section className="relative overflow-hidden rounded-b-[40px] bg-[#3db9ee] px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
@@ -20,20 +32,12 @@ export default async function HomePage() {
             <div>
               <p className="mb-3 text-sm font-semibold tracking-[0.16em] text-white/80 uppercase">Learn. Connect. Grow.</p>
               <h1 className="max-w-xl text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl lg:leading-[1.12]">
-                StartupLab
-                <br />
-                Business Center
+                Welcome, {firstName}!
               </h1>
               <p className="mt-5 max-w-[576px] text-base leading-7 text-white/90 sm:text-lg">
                 Unlock the opportunities of the business era by equipping yourself with the knowledge and skills to harness
                 artificial intelligence effectively for growth and innovation.
               </p>
-              <Link
-                href="/sign-up"
-                className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-[#3db9ee] shadow-lg shadow-sky-900/10 transition hover:-translate-y-0.5"
-              >
-                Join Now <ArrowRight className="size-[18px]" />
-              </Link>
             </div>
             <div className="relative mx-auto w-full max-w-[448px] overflow-hidden rounded-3xl border border-white/40 bg-white/40 p-1 shadow-2xl shadow-sky-950/20 backdrop-blur-sm">
               <div className="relative flex aspect-[1.85] items-end overflow-hidden rounded-[20px] bg-gradient-to-br from-[#153d64] via-[#1b7295] to-[#5dd3e7] p-6">
@@ -72,7 +76,7 @@ export default async function HomePage() {
             </div>
             <div className={`mt-12 gap-6 ${events.length === 1 ? "grid" : "grid lg:grid-cols-2"}`}>
               {events.length === 1 ? (
-                <div className="lg:col-span-2 mx-auto w-full max-w-[66%]">
+                <div className="mx-auto w-full max-w-[66%] lg:col-span-2">
                   <EventCard
                     eventId={events[0].event_id}
                     title={events[0].title}

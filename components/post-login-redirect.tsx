@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 const ROLE_HOME: Record<string, string> = {
   speaker: "/speakers/dashboard",
   facilitator: "/events",
-  attendee: "/events",
+  attendee: "/home",
 };
 
 export function PostLoginRedirect() {
