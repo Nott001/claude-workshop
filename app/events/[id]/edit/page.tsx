@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
-interface Event {
+interface EventData {
   event_id: number;
   title: string;
   event_date: string;
@@ -31,6 +32,13 @@ interface Course {
   course_description: string | null;
 }
 
+interface SpeakerProfile {
+  speaker_profile_id: number;
+  USERS: { full_name: string; email: string } | null;
+  bio: string | null;
+  designation: string | null;
+}
+
 export default function EditEventPage() {
   const router = useRouter();
   const params = useParams();
@@ -47,35 +55,44 @@ export default function EditEventPage() {
   const [currency, setCurrency] = useState("PHP");
   const [description, setDescription] = useState("");
   const [overview, setOverview] = useState("");
-  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<"draft" | "active" | "complete">("draft");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesError, setCoursesError] = useState<string | null>(null);
+  const [speakers, setSpeakers] = useState<SpeakerProfile[]>([]);
+  const [speakerId, setSpeakerId] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
-      const [eventRes, coursesRes] = await Promise.all([fetch(`/api/events/${eventId}`), fetch("/api/courses")]);
+      const [eventRes, coursesRes, speakersRes] = await Promise.all([
+        fetch(`/api/events/${eventId}`),
+        fetch("/api/courses"),
+        fetch("/api/speakers"),
+      ]);
 
-      setCoursesError(null);
+      const allCourses = coursesRes.ok ? await coursesRes.json() : [];
+      setCourses(allCourses);
       if (!coursesRes.ok) {
         const body = await coursesRes.json().catch(() => ({}));
         setCoursesError(body.error?.message ?? body.error ?? `Failed to load courses (${coursesRes.status})`);
-      } else {
-        const allCourses = await coursesRes.json();
-        setCourses(allCourses);
       }
+
+      const allSpeakers = speakersRes.ok ? await speakersRes.json() : [];
+      setSpeakers(allSpeakers);
 
       if (!eventRes.ok) {
         setError("Event not found");
         setLoading(false);
         return;
       }
-      const data: Event = await eventRes.json();
+      const data: EventData = await eventRes.json();
       setTitle(data.title);
       setEventDate(data.event_date);
       setStartTime(data.start_time);
@@ -87,12 +104,38 @@ export default function EditEventPage() {
       setCurrency(data.currency ?? "PHP");
       setDescription(data.description ?? "");
       setOverview(data.overview ?? "");
-      setCoverImageUrl(data.cover_image_url ?? "");
+      setExistingCoverUrl(data.cover_image_url);
       setStatus(data.status);
       setLoading(false);
+
+      const assignmentsRes = await fetch(`/api/events/${eventId}/speakers`);
+      if (assignmentsRes.ok) {
+        const assignments = await assignmentsRes.json();
+        if (assignments.length > 0 && assignments[0].speaker_profile_id) {
+          setSpeakerId(String(assignments[0].speaker_profile_id));
+        }
+      }
     }
     load();
   }, [eventId]);
+
+  function handleFileDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      setCoverImageFile(file);
+      setCoverImagePreview(URL.createObjectURL(file));
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      setCoverImagePreview(URL.createObjectURL(file));
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,7 +154,7 @@ export default function EditEventPage() {
       course_id: courseId && courseId !== "__none__" ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
-      cover_image_url: coverImageFile ? undefined : coverImageUrl || null,
+      cover_image_url: coverImageFile ? undefined : existingCoverUrl,
       status,
     };
 
@@ -148,16 +191,25 @@ export default function EditEventPage() {
       setUploading(false);
     }
 
+    const assignmentRes = await fetch(`/api/events/${eventId}/speakers`);
+    const currentAssignments = assignmentRes.ok ? await assignmentRes.json() : [];
+    const currentSpeakerId = currentAssignments.length > 0 ? String(currentAssignments[0].speaker_profile_id) : "";
+
+    if (speakerId && speakerId !== currentSpeakerId) {
+      if (currentSpeakerId) {
+        await fetch(`/api/events/${eventId}/speakers/${currentSpeakerId}`, { method: "DELETE" });
+      }
+      await fetch(`/api/events/${eventId}/speakers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ speaker_profile_id: Number(speakerId) }),
+      });
+    } else if (!speakerId && currentSpeakerId) {
+      await fetch(`/api/events/${eventId}/speakers/${currentSpeakerId}`, { method: "DELETE" });
+    }
+
     setSubmitting(false);
     router.push(`/events/${eventId}`);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCoverImageFile(file);
-      setCoverImageUrl("");
-    }
   }
 
   if (loading) {
@@ -167,6 +219,8 @@ export default function EditEventPage() {
       </div>
     );
   }
+
+  const previewSrc = coverImagePreview ?? existingCoverUrl;
 
   return (
     <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
@@ -193,10 +247,76 @@ export default function EditEventPage() {
           <Form onSubmit={handleSubmit} className="space-y-8">
             <div className="flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
               <div className="rounded-lg bg-blue-50 p-2">
-                <span className="material-symbols-rounded text-[20px] text-[#29B6F6]">event</span>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M4 2.5C3.17157 2.5 2.5 3.17157 2.5 4V16C2.5 16.8284 3.17157 17.5 4 17.5H16C16.8284 17.5 17.5 16.8284 17.5 16V8.5C17.5 7.67157 16.8284 7 16 7H12V4C12 3.17157 11.3284 2.5 10.5 2.5H4ZM10.5 9C10.7761 9 11 9.22386 11 9.5V13.5C11 13.7761 10.7761 14 10.5 14H4.5C4.22386 14 4 13.7761 4 13.5V9.5C4 9.22386 4.22386 9 4.5 9H10.5Z"
+                    fill="#29B6F6"
+                  />
+                </svg>
               </div>
-              <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">EVENT DETAILS</span>
+              <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">EVENT FOUNDATIONS</span>
             </div>
+
+            <FormField>
+              <FormLabel className="text-sm font-semibold text-[#334155]">Event Hero Image</FormLabel>
+              <div
+                onDrop={handleFileDrop}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors",
+                  dragOver ? "border-accent bg-accent/5" : "border-[#D1D5DB]",
+                )}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {previewSrc ? (
+                  <div className="relative w-full max-w-md">
+                    <img src={previewSrc} alt="Hero preview" className="max-h-48 w-full rounded-lg object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCoverImageFile(null);
+                        setCoverImagePreview(null);
+                        setExistingCoverUrl(null);
+                      }}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
+                    >
+                      <span className="material-symbols-rounded text-[16px]">close</span>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-2">
+                      <path
+                        d="M24 16v12m-6-6h12m10-6v16a4 4 0 01-4 4H12a4 4 0 01-4-4V22a4 4 0 014-4h3l3-4h6m12 0v6"
+                        stroke="#29B6F6"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-medium text-[#29B6F6]">Upload a hero image</span>
+                      <span className="text-sm text-[#4B5563]">or drag and drop</span>
+                    </div>
+                    <span className="mt-1 text-xs text-[#6B7280]">PNG, JPG, GIF up to 10MB</span>
+                  </>
+                )}
+              </div>
+            </FormField>
 
             <FormField>
               <FormLabel className="text-sm font-semibold text-[#334155]">Event Name</FormLabel>
@@ -207,6 +327,49 @@ export default function EditEventPage() {
                 className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
                 required
               />
+            </FormField>
+
+            <FormField>
+              <FormLabel className="text-sm font-semibold text-[#334155]">Link to Curriculum Library (Optional)</FormLabel>
+              <p className="mb-1 text-xs font-medium text-[#2563EB]">
+                Connect this event to an existing curriculum for automatic resource sharing.
+              </p>
+              {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
+              <Select value={courseId} onValueChange={setCourseId}>
+                <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
+                  <SelectValue placeholder="No curriculum linked">
+                    {(value: string) => {
+                      if (!value || value === "__none__") return "No curriculum linked";
+                      return courses.find((c) => String(c.course_id) === value)?.course_name ?? "No curriculum linked";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None — no curriculum</SelectItem>
+                  {courses.map((c) => (
+                    <SelectItem key={c.course_id} value={String(c.course_id)}>
+                      {c.course_name}
+                    </SelectItem>
+                  ))}
+                  {courses.length === 0 && !coursesError && (
+                    <SelectItem value="__create__" disabled>
+                      No courses available — create one first
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {courses.length === 0 && !coursesError && (
+                <p className="mt-2 text-xs text-[#6B7280]">
+                  No courses available.{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/courses/new")}
+                    className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1d4ed8]"
+                  >
+                    Create a course
+                  </button>
+                </p>
+              )}
             </FormField>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -297,45 +460,29 @@ export default function EditEventPage() {
             </div>
 
             <FormField>
-              <FormLabel className="text-sm font-semibold text-[#334155]">Link to Curriculum Library (Optional)</FormLabel>
-              <p className="mb-1 text-xs font-medium text-[#2563EB]">
-                Connect this event to an existing curriculum for automatic resource sharing.
-              </p>
-              {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
-              <Select value={courseId} onValueChange={setCourseId}>
-                <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
-                  <SelectValue placeholder="No curriculum linked">
-                    {(value: string) => {
-                      if (!value || value === "__none__") return "No curriculum linked";
-                      return courses.find((c) => String(c.course_id) === value)?.course_name ?? "No curriculum linked";
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None — no curriculum</SelectItem>
-                  {courses.map((c) => (
-                    <SelectItem key={c.course_id} value={String(c.course_id)}>
-                      {c.course_name}
-                    </SelectItem>
-                  ))}
-                  {courses.length === 0 && !coursesError && (
-                    <SelectItem value="__create__" disabled>
-                      No courses available — create one first
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {courses.length === 0 && !coursesError && (
-                <p className="mt-2 text-xs text-[#6B7280]">
-                  No courses available.{" "}
-                  <button
-                    type="button"
-                    onClick={() => router.push("/courses/new")}
-                    className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1d4ed8]"
-                  >
-                    Create a course
-                  </button>
-                </p>
+              <FormLabel className="text-sm font-semibold text-[#334155]">Speaker Assignment</FormLabel>
+              {speakers.length > 0 ? (
+                <Select value={speakerId} onValueChange={setSpeakerId}>
+                  <SelectTrigger className="w-full rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]">
+                    <SelectValue placeholder="Select a speaker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None — no speaker</SelectItem>
+                    {speakers.map((s) => (
+                      <SelectItem key={s.speaker_profile_id} value={String(s.speaker_profile_id)}>
+                        {s.USERS?.full_name ?? `Speaker #${s.speaker_profile_id}`}
+                        {s.designation ? ` (${s.designation})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={speakerId}
+                  onChange={(e) => setSpeakerId(e.target.value)}
+                  placeholder="Speaker profile ID (optional)"
+                  className="rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
+                />
               )}
             </FormField>
 
@@ -357,23 +504,6 @@ export default function EditEventPage() {
                 placeholder="Provide a detailed agenda or session breakdown..."
                 className="min-h-[108px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
               />
-            </FormField>
-
-            <FormField>
-              <FormLabel className="text-sm font-semibold text-[#334155]">Cover Image</FormLabel>
-              {coverImageUrl && !coverImageFile && (
-                <div className="mb-3">
-                  <img src={coverImageUrl} alt="Current cover" className="max-h-40 rounded-lg object-cover" />
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                onChange={handleFileChange}
-                className="text-sm text-[#6B7280]"
-              />
-              {coverImageFile && <p className="mt-1 text-xs text-[#6B7280]">Selected: {coverImageFile.name}</p>}
             </FormField>
 
             <FormField>
