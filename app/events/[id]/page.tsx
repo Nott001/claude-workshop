@@ -324,13 +324,15 @@ export default function EventDetailPage() {
                     {event.COURSE.course_description && (
                       <p className="mb-4 text-base leading-[26px] text-[#3E484F]">{event.COURSE.course_description}</p>
                     )}
-                    <button
-                      onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
-                    >
-                      <span className="material-symbols-rounded text-sm">open_in_new</span>
-                      View Curriculum
-                    </button>
+                    {userRole === "facilitator" && (
+                      <button
+                        onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                      >
+                        <span className="material-symbols-rounded text-sm">open_in_new</span>
+                        View Curriculum
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

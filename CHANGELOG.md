@@ -2,6 +2,95 @@
 
 ## [Unreleased]
 
+### feat: allow courses to be linked to multiple events
+
+- **supabase/migrations/00016_remove_course_id_unique.sql** — new migration: drop UNIQUE constraint on `EVENTS.course_id` so the same course can be linked to many events
+- **app/api/events/route.ts** — remove uniqueness check (no longer querying EVENTS for duplicate course_id)
+- **app/api/events/[id]/route.ts** — same removal in PATCH handler
+
+### fix: allow relative storage URLs in event and lesson schemas
+
+- **modules/course-content/index.ts** — remove `.url()` validation from `content_url` in lessonSchema (storage returns relative paths via proxy)
+- **modules/event-management/index.ts** — remove `.url()` validation from `cover_image_url` in eventBaseSchema and `photo_url` in speakerProfileUpdateSchema
+- **test/course-content.test.ts** — update "rejects invalid URL" test to expect relative/invalid URLs to pass
+- **test/event-management.test.ts** — same update for cover_image_url test
+
+### fix: show course name in event dropdown instead of raw value
+
+- **app/events/new/page.tsx** — use `SelectValue` render prop to display "No curriculum linked" when value is `__none__` and course name when a course is selected
+- **app/events/[id]/edit/page.tsx** — same fix
+
+### fix: show all courses in event form dropdown instead of filtering linked ones
+
+- **app/events/new/page.tsx** — remove `linkedIds` filtering that excluded courses already linked to other events; show all courses and let the backend's UNIQUE constraint enforce exclusivity
+- **app/events/[id]/edit/page.tsx** — same fix; also remove the now-unnecessary `/api/events` fetch for course filtering
+
+### fix: show API errors and add create-course link in event course dropdown
+
+- **app/events/new/page.tsx** — surface fetch errors from `/api/courses` to the user instead of silently swallowing them; show "No courses available — create one first" disabled option in dropdown; add "Create a course" link navigating to `/courses/new`
+- **app/events/[id]/edit/page.tsx** — same fixes; also show all courses when the events API fails (instead of hiding courses), and preserve the currently linked course in the dropdown
+
+### refactor: remove Quick Create, progress tracking, and add URL normalization
+
+- **app/courses/page.tsx** — remove Quick Create dialog (button, state, handler, Dialog import)
+- **app/courses/[id]/page.tsx** — add `normalizeUrl()` to auto-prefix `https://` when missing; remove "Mark progress" button
+- **app/courses/new/page.tsx** — add `normalizeUrl()` to auto-prefix `https://` when missing
+- **app/courses/[id]/progress/page.tsx** — delete (progress page removed)
+- **app/api/courses/[id]/progress/route.ts** — delete (progress endpoint removed)
+- **app/api/lessons/[id]/progress/route.ts** — delete (progress endpoint removed)
+- **types/index.ts** — remove `LessonProgress` type
+- **modules/course-content/index.ts** — remove `progressSchema`
+- **supabase/migrations/00015_drop_lesson_progress.sql** — new migration: `DROP TABLE "LESSON_PROGRESS"`
+- **test/course-content.test.ts** — remove `progressSchema` and `LessonProgress` tests (168 tests, 16 in course-content)
+
+### refactor: remove separate remove-resource button — delete lesson already cleans up storage
+
+- **app/courses/[id]/page.tsx** — remove `handleRemoveResource` and the separate "Remove resource" button (the lesson DELETE handler already deletes storage files)
+- **app/courses/new/page.tsx** — same removal
+- **app/api/lessons/[id]/resource/route.ts** — delete (no longer needed)
+
+### fix: allow null content_url in lessons, show API errors, add remove-resource button
+
+- **supabase/migrations/00014_allow_null_content_url.sql** — new migration: `ALTER TABLE "LESSONS" ALTER COLUMN content_url DROP NOT NULL`
+- **modules/course-content/index.ts** — allow `content_url` to be `null` in `lessonSchema` (nullable + optional)
+- **app/api/lessons/[id]/route.ts** — differentiate `undefined` (don't update) from `null` (clear) in PATCH handler
+- **app/api/lessons/[id]/resource/route.ts** — new DELETE endpoint to remove a lesson's uploaded resource (deletes storage files, sets content_url to null)
+- **app/courses/[id]/page.tsx** — show API error messages when lesson creation fails; add "Remove resource" button on lesson rows; hide View button when no content_url
+- **app/courses/new/page.tsx** — same error handling and remove-resource button
+
+### feat: add drag-and-drop reordering for modules and lessons
+
+- **app/courses/[id]/page.tsx** — add drag-and-drop for module cards and lesson rows using native HTML Drag and Drop API; on drop, reorder locally and auto-save via PATCH API calls for all affected items
+- **app/courses/new/page.tsx** — same drag-and-drop reordering for curriculum builder during course creation
+
+### feat: remove lesson units and redundant pages; simplify progress to binary
+
+- **app/courses/[id]/modules/[moduleId]/page.tsx** — delete (redundant with inline curriculum builder on detail page)
+- **app/courses/[id]/lessons/[lessonId]/page.tsx** — delete (redundant with lesson-viewer component)
+- **app/courses/[id]/page.tsx** — remove "Edit" navigation button pointing to deleted modules page; change "View" button on lesson rows to open content URL directly
+- **supabase/migrations/00013_remove_lesson_units.sql** — new migration: `ALTER TABLE "LESSONS" DROP COLUMN total_units`, `ALTER TABLE "LESSON_PROGRESS" DROP COLUMN units_completed`
+- **types/index.ts** — remove `total_units` from `Lesson`, remove `units_completed` from `LessonProgress`
+- **modules/course-content/index.ts** — remove `total_units` from `lessonSchema`; change `progressSchema` to `{ is_completed: z.boolean() }`
+- **app/api/lessons/[id]/route.ts** — remove `total_units` from PATCH update
+- **app/api/modules/[id]/lessons/route.ts** — remove `total_units` from INSERT
+- **app/api/lessons/[id]/progress/route.ts** — simplify to accept `is_completed: boolean` instead of `units_completed` with total_units validation
+- **app/courses/[id]/progress/page.tsx** — simplify display: show ✓ or — instead of `units_completed / is_completed`
+- **app/courses/new/page.tsx** — remove `total_units` from local interface and lesson create payload
+- **components/lesson-viewer.tsx** — remove `total_units` from interface
+- **app/events/[id]/live/page.tsx** — remove `total_units` from interface
+- **test/course-content.test.ts** — update to 21 tests: remove `total_units`/`units_completed` assertions, add binary progress schema tests
+
+### feat: restrict course access to facilitators and unify course page design language
+
+- **app/api/courses/route.ts** — add `requireRole("facilitator")` to GET handler to restrict course listing
+- **app/api/courses/[id]/route.ts** — add `requireRole("facilitator")` to GET handler for course detail
+- **app/api/lessons/[id]/route.ts** — add `requireRole("facilitator")` to GET handler for lesson detail
+- **app/api/courses/[id]/progress/route.ts** — change from `requireRole("attendee", "facilitator")` to `requireRole("facilitator")`; remove dead attendee branch
+- **app/events/[id]/page.tsx** — hide "View Curriculum" button behind `userRole === "facilitator"`
+- **app/courses/page.tsx** — restyle with `bg-[#FBF9F8]`, `max-w-[896px]`, styled list items, "ALL COURSES" header, edit/delete on hover per-row, Quick Create dialog
+- **app/courses/[id]/page.tsx** — restyle course detail as curriculum builder with inline module rename (pencil icon), lesson dialog with file upload/URL inputs matching create page, course name/description edit dialog, unified design language
+- **app/courses/new/page.tsx** — add file upload input to lesson dialog; auto-detect content type from uploaded file MIME type or URL extension; remove manual content type dropdown; show file upload and URL inputs simultaneously with mutual exclusion; disable submit until lesson name + (file or URL) provided
+
 ### feat: rewrite Create Course page with inline curriculum builder
 
 - **app/courses/new/page.tsx** — replace simple title+description form with full curriculum builder; two-column form grid (title + description); "Add module" creates modules via API with auto-incrementing names; inline module rename (pencil icon toggles input, saves on Enter/blur via PATCH); "Add lesson to topic" opens dialog with lesson name, content type select, and optional content URL; lesson rows display sequence number, description, and content type badge; delete controls for modules and lessons; auto-creates course on first module add if not yet saved; redirects to course detail on submit

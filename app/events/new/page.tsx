@@ -41,6 +41,7 @@ export default function NewEventPage() {
   const [speakers, setSpeakers] = useState<SpeakerProfile[]>([]);
   const [speakerId, setSpeakerId] = useState<string>("");
   const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,17 +52,16 @@ export default function NewEventPage() {
       .then(setSpeakers)
       .catch(() => {});
 
-    Promise.all([
-      fetch("/api/courses").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/events").then((r) => (r.ok ? r.json() : [])),
-    ])
-      .then(([allCourses, allEvents]) => {
-        const linkedIds = new Set(
-          allEvents.map((e: { course_id: number | null }) => e.course_id).filter((id): id is number => id != null),
-        );
-        setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
+    fetch("/api/courses")
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.error?.message ?? body.error ?? `Failed to load courses (${r.status})`);
+        }
+        return r.json();
       })
-      .catch(() => {});
+      .then(setCourses)
+      .catch((err) => setCoursesError(err instanceof Error ? err.message : "Failed to load courses"));
   }, []);
 
   function handleFileDrop(e: React.DragEvent) {
@@ -277,9 +277,15 @@ export default function NewEventPage() {
               <p className="mb-1 text-xs font-medium text-[#2563EB]">
                 Connect this event to an existing curriculum for automatic resource sharing.
               </p>
+              {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
               <Select value={courseId} onValueChange={setCourseId}>
                 <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
-                  <SelectValue placeholder="No curriculum linked" />
+                  <SelectValue placeholder="No curriculum linked">
+                    {(value: string) => {
+                      if (!value || value === "__none__") return "No curriculum linked";
+                      return courses.find((c) => String(c.course_id) === value)?.course_name ?? "No curriculum linked";
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None — no curriculum</SelectItem>
@@ -288,8 +294,25 @@ export default function NewEventPage() {
                       {c.course_name}
                     </SelectItem>
                   ))}
+                  {courses.length === 0 && !coursesError && (
+                    <SelectItem value="__create__" disabled>
+                      No courses available — create one first
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
+              {courses.length === 0 && !coursesError && (
+                <p className="mt-2 text-xs text-[#6B7280]">
+                  No courses available.{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/courses/new")}
+                    className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1d4ed8]"
+                  >
+                    Create a course
+                  </button>
+                </p>
+              )}
             </FormField>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

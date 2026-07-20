@@ -4,6 +4,11 @@ import { getServiceClient } from "@/lib/db";
 import { courseSchema } from "@/modules/course-content";
 
 export async function GET() {
+  const guard = await requireRole("facilitator");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
   const supabase = getServiceClient();
   const { data: courses, error } = await supabase.from("COURSE").select("*").order("course_id", { ascending: false });
 

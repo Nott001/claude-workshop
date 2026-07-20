@@ -14,7 +14,7 @@ const eventBaseSchema = z.object({
   lng: z.coerce.number().nullable().optional(),
   price: z.coerce.number().min(0).optional(),
   currency: z.string().length(3).optional(),
-  cover_image_url: z.string().url().nullable().optional(),
+  cover_image_url: z.string().nullable().optional(),
   status: z.enum(["draft", "active", "complete"]).optional(),
 });
 
@@ -27,13 +27,13 @@ export const eventPartialSchema = eventBaseSchema.partial();
 export const speakerProfileSchema = z.object({
   user_id: z.coerce.number().int().positive(),
   bio: z.string().nullable().optional(),
-  photo_url: z.string().url().nullable().optional(),
+  photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
 });
 
 export const speakerProfileUpdateSchema = z.object({
   bio: z.string().nullable().optional(),
-  photo_url: z.string().url().nullable().optional(),
+  photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
 });
 

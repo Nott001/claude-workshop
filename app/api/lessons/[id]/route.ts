@@ -5,6 +5,11 @@ import { lessonSchema } from "@/modules/course-content";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireRole("facilitator");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
   const { id } = await params;
   const supabase = getServiceClient();
 
@@ -31,18 +36,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
-  const { data: lesson, error } = await supabase
-    .from("LESSONS")
-    .update({
-      description: parsed.data.description,
-      content_type: parsed.data.content_type,
-      content_url: parsed.data.content_url,
-      total_units: parsed.data.total_units,
-      sequence_order: parsed.data.sequence_order,
-    })
-    .eq("lesson_id", id)
-    .select()
-    .single();
+
+  const updateData: Record<string, unknown> = {
+    description: parsed.data.description,
+    content_type: parsed.data.content_type,
+    sequence_order: parsed.data.sequence_order,
+  };
+  if (parsed.data.content_url !== undefined) {
+    updateData.content_url = parsed.data.content_url;
+  }
+
+  const { data: lesson, error } = await supabase.from("LESSONS").update(updateData).eq("lesson_id", id).select().single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

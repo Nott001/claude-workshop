@@ -37,17 +37,8 @@ export interface Lesson {
   description: string;
   content_type: ContentType;
   content_url: string;
-  total_units: number;
   sequence_order: number;
   created_at: string;
-  updated_at: string;
-}
-
-export interface LessonProgress {
-  lesson_id: number;
-  user_id: number;
-  units_completed: number;
-  is_completed: boolean;
   updated_at: string;
 }
 

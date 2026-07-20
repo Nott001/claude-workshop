@@ -13,8 +13,7 @@ interface Lesson {
   module_id: number;
   description: string;
   content_type: string;
-  content_url: string;
-  total_units: number;
+  content_url: string | null;
   sequence_order: number;
 }
 
@@ -42,8 +41,11 @@ export default function NewCoursePage() {
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
   const [lessonDescription, setLessonDescription] = useState("");
-  const [lessonContentType, setLessonContentType] = useState<string>("pdf");
   const [lessonContentUrl, setLessonContentUrl] = useState("");
+  const [lessonContentFile, setLessonContentFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
+  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -162,9 +164,112 @@ export default function NewCoursePage() {
   function openLessonDialog(moduleId: number) {
     setActiveModuleId(moduleId);
     setLessonDescription("");
-    setLessonContentType("pdf");
     setLessonContentUrl("");
+    setLessonContentFile(null);
     setLessonDialogOpen(true);
+  }
+
+  function detectContentType(): string {
+    if (lessonContentFile) {
+      if (lessonContentFile.type === "application/pdf") return "pdf";
+      if (lessonContentFile.type.startsWith("video/")) return "video";
+      if (lessonContentFile.type.startsWith("image/")) return "image";
+    }
+    if (lessonContentUrl) {
+      const url = normalizeUrl(lessonContentUrl);
+      const ext = url.split(".").pop()?.toLowerCase() || "";
+      if (ext === "pdf") return "pdf";
+      if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
+      if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
+      return "link";
+    }
+    return "pdf";
+  }
+
+  function normalizeUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return trimmed;
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+    return `https://${trimmed}`;
+  }
+
+  function getUploadEndpoint(type: string): string | null {
+    if (type === "video") return "/api/upload/course-video";
+    if (type === "pdf" || type === "image") return "/api/upload/course-asset";
+    return null;
+  }
+
+  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(moduleId));
+  }
+
+  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
+    e.preventDefault();
+    setDragOverModuleId(null);
+    const draggedId = Number(e.dataTransfer.getData("text/plain"));
+    if (!draggedId || draggedId === targetModuleId) return;
+
+    const draggedIdx = modules.findIndex((m) => m.module_id === draggedId);
+    const targetIdx = modules.findIndex((m) => m.module_id === targetModuleId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+
+    const next = [...modules];
+    const [moved] = next.splice(draggedIdx, 1);
+    next.splice(targetIdx, 0, moved);
+    const reordered = next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
+    setModules(reordered);
+
+    await Promise.all(
+      reordered.map((m) =>
+        fetch(`/api/modules/${m.module_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
+        }),
+      ),
+    );
+  }
+
+  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(lessonId));
+  }
+
+  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
+    e.preventDefault();
+    setDragOverLessonId(null);
+    const draggedId = Number(e.dataTransfer.getData("text/plain"));
+    if (!draggedId || draggedId === targetLessonId) return;
+
+    const mod = modules.find((m) => m.module_id === moduleId);
+    if (!mod) return;
+
+    const lessons = [...mod.LESSONS];
+    const draggedIdx = lessons.findIndex((l) => l.lesson_id === draggedId);
+    const targetIdx = lessons.findIndex((l) => l.lesson_id === targetLessonId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+
+    const [moved] = lessons.splice(draggedIdx, 1);
+    lessons.splice(targetIdx, 0, moved);
+    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
+
+    setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: reordered } : m)));
+
+    await Promise.all(
+      reordered.map((l) =>
+        fetch(`/api/lessons/${l.lesson_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: l.description,
+            content_type: l.content_type,
+            content_url: l.content_url,
+            sequence_order: l.sequence_order,
+          }),
+        }),
+      ),
+    );
   }
 
   async function handleAddLesson() {
@@ -174,23 +279,57 @@ export default function NewCoursePage() {
     if (!mod) return;
 
     const sequenceOrder = mod.LESSONS.length + 1;
+    setError(null);
+
+    const contentType = detectContentType();
+
     const res = await fetch(`/api/modules/${activeModuleId}/lessons`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         description: lessonDescription,
-        content_type: lessonContentType,
-        content_url: lessonContentUrl || undefined,
-        total_units: 1,
+        content_type: contentType,
+        content_url: lessonContentFile ? undefined : lessonContentUrl ? normalizeUrl(lessonContentUrl) : undefined,
         sequence_order: sequenceOrder,
       }),
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? "Failed to create lesson");
+      return;
+    }
     const lesson = await res.json();
+
+    if (lessonContentFile) {
+      setUploading(true);
+      const endpoint = getUploadEndpoint(contentType);
+      if (endpoint) {
+        const formData = new FormData();
+        formData.append("file", lessonContentFile);
+        formData.append("lesson_id", String(lesson.lesson_id));
+        formData.append("course_id", String(modules[0].course_id));
+        formData.append("module_id", String(activeModuleId));
+
+        const uploadRes = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json().catch(() => null);
+          setError(uploadData?.error ?? "Lesson saved but file upload failed.");
+          setUploading(false);
+          return;
+        }
+        setUploading(false);
+      }
+    }
+
     setModules((prev) => prev.map((m) => (m.module_id === activeModuleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
     setLessonDialogOpen(false);
     setActiveModuleId(null);
+    setLessonContentFile(null);
   }
 
   return (
@@ -293,7 +432,23 @@ export default function NewCoursePage() {
           ) : (
             <div className="space-y-3">
               {modules.map((mod) => (
-                <div key={mod.module_id} className="rounded-lg border border-[#F3F4F6] bg-[#FAFBFC] p-5">
+                <div
+                  key={mod.module_id}
+                  draggable
+                  onDragStart={(e) => handleModuleDragStart(e, mod.module_id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverModuleId(mod.module_id);
+                  }}
+                  onDragLeave={() => setDragOverModuleId(null)}
+                  onDrop={(e) => handleModuleDrop(e, mod.module_id)}
+                  onDragEnd={() => setDragOverModuleId(null)}
+                  className={`rounded-lg border bg-[#FAFBFC] p-5 transition-shadow ${
+                    dragOverModuleId === mod.module_id
+                      ? "border-[#29B6F6] shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                      : "border-[#F3F4F6]"
+                  }`}
+                >
                   <div className="mb-3 flex items-center gap-2">
                     {renamingModuleId === mod.module_id ? (
                       <input
@@ -340,7 +495,20 @@ export default function NewCoursePage() {
                       {mod.LESSONS.map((lesson) => (
                         <div
                           key={lesson.lesson_id}
-                          className="flex items-center justify-between rounded-lg border border-[#F3F4F6] bg-white px-4 py-2.5"
+                          draggable
+                          onDragStart={(e) => handleLessonDragStart(e, lesson.lesson_id)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverLessonId(lesson.lesson_id);
+                          }}
+                          onDragLeave={() => setDragOverLessonId(null)}
+                          onDrop={(e) => handleLessonDrop(e, lesson.lesson_id, mod.module_id)}
+                          onDragEnd={() => setDragOverLessonId(null)}
+                          className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
+                            dragOverLessonId === lesson.lesson_id
+                              ? "border-[#29B6F6] bg-white shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                              : "border-[#F3F4F6] bg-white"
+                          }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-xs font-medium text-[#9CA3AF]">
@@ -402,28 +570,44 @@ export default function NewCoursePage() {
             </FormField>
 
             <FormField className="mt-3">
-              <FormLabel>Content type</FormLabel>
-              <select
-                value={lessonContentType}
-                onChange={(e) => setLessonContentType(e.target.value)}
-                className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="pdf">PDF</option>
-                <option value="video">Video</option>
-                <option value="image">Image</option>
-                <option value="link">Link</option>
-              </select>
+              <FormLabel>Upload file</FormLabel>
+              <input
+                type="file"
+                accept="application/pdf,video/mp4,video/webm,video/quicktime,image/jpeg,image/png"
+                onChange={(e) => {
+                  setLessonContentFile(e.target.files?.[0] ?? null);
+                  if (e.target.files?.[0]) setLessonContentUrl("");
+                }}
+                className="block w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#374151] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#2563EB] hover:file:bg-blue-100"
+              />
+              {lessonContentFile && <p className="mt-1 text-xs text-[#6B7280]">Selected: {lessonContentFile.name}</p>}
             </FormField>
 
             <FormField className="mt-3">
-              <FormLabel>Content URL (optional)</FormLabel>
-              <Input value={lessonContentUrl} onChange={(e) => setLessonContentUrl(e.target.value)} placeholder="https://..." />
+              <FormLabel>Or paste a URL</FormLabel>
+              <Input
+                value={lessonContentUrl}
+                onChange={(e) => {
+                  setLessonContentUrl(e.target.value);
+                  if (e.target.value) setLessonContentFile(null);
+                }}
+                placeholder="https://..."
+              />
             </FormField>
 
             <div className="mt-4 flex gap-2">
-              <Button type="submit" disabled={!lessonDescription.trim()}>
-                <span className="material-symbols-rounded text-[16px]">add_circle</span>
-                Add lesson
+              <Button
+                type="submit"
+                disabled={!lessonDescription.trim() || uploading || (!lessonContentFile && !lessonContentUrl.trim())}
+              >
+                {uploading ? (
+                  <>Uploading...</>
+                ) : (
+                  <>
+                    <span className="material-symbols-rounded text-[16px]">add_circle</span>
+                    Add lesson
+                  </>
+                )}
               </Button>
               <Button type="button" variant="outline" onClick={() => setLessonDialogOpen(false)}>
                 Cancel
