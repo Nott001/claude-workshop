@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### fix: show API errors and add create-course link in event course dropdown
+
+- **app/events/new/page.tsx** — surface fetch errors from `/api/courses` to the user instead of silently swallowing them; show "No courses available — create one first" disabled option in dropdown; add "Create a course" link navigating to `/courses/new`
+- **app/events/[id]/edit/page.tsx** — same fixes; also show all courses when the events API fails (instead of hiding courses), and preserve the currently linked course in the dropdown
+
 ### refactor: remove Quick Create, progress tracking, and add URL normalization
 
 - **app/courses/page.tsx** — remove Quick Create dialog (button, state, handler, Dialog import)
