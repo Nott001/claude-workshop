@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { formatTime } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { FloatingAssistButton } from "@/components/floating-assist-button";
-import { MarketingFooter } from "@/components/marketing-footer";
+import { Footer } from "@/components/footer";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -552,8 +552,7 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            {/* Marketing Footer */}
-            <MarketingFooter />
+            <Footer role="attendee" />
           </div>
         </div>
       </div>

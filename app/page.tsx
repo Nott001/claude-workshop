@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
 
-import { MarketingFooter } from "@/components/marketing-footer";
+import { Footer } from "@/components/footer";
 import { EventCard } from "@/components/event-card";
 import { getUpcomingEvents, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
 import { PostLoginRedirect } from "@/components/post-login-redirect";
@@ -118,11 +118,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <div className="px-6 py-12 sm:px-12 lg:px-16">
-          <div className="mx-auto max-w-[1110px]">
-            <MarketingFooter />
-          </div>
-        </div>
+        <Footer role="attendee" />
       </div>
     </>
   );
