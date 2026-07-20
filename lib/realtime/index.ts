@@ -1,33 +1,10 @@
 import { supabase } from "@/lib/db";
-import type { LiveSessionState } from "@/types";
 import type { ChatMessage } from "@/types";
 import type { Ticket } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-type StateCallback = (state: LiveSessionState) => void;
 type ChatCallback = (message: ChatMessage) => void;
 type TicketCallback = (ticket: Ticket) => void;
-
-export function subscribeToLiveSession(eventId: number, onStateChange: StateCallback): RealtimeChannel {
-  const channel = supabase
-    .channel(`live-session-${eventId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "LIVE_SESSION_STATE",
-        filter: `event_id=eq.${eventId}`,
-      },
-      (payload) => {
-        const newState = payload.new as LiveSessionState;
-        onStateChange(newState);
-      },
-    )
-    .subscribe();
-
-  return channel;
-}
 
 export function subscribeToChatMessages(
   eventId: number,

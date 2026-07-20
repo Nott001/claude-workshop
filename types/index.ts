@@ -91,16 +91,6 @@ export interface Payment {
   updated_at: string;
 }
 
-export type SessionStatus = "scheduled" | "live" | "ended";
-
-export interface LiveSessionState {
-  event_id: number;
-  current_lesson_id: number | null;
-  session_status: SessionStatus;
-  updated_by: number;
-  updated_at: string;
-}
-
 export interface Ticket {
   payment_id: number;
   user_id: number;
