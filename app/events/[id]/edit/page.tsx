@@ -54,6 +54,7 @@ export default function EditEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,7 +65,11 @@ export default function EditEventPage() {
         fetch("/api/events"),
       ]);
 
-      if (coursesRes.ok && eventsRes.ok) {
+      setCoursesError(null);
+      if (!coursesRes.ok) {
+        const body = await coursesRes.json().catch(() => ({}));
+        setCoursesError(body.error?.message ?? body.error ?? `Failed to load courses (${coursesRes.status})`);
+      } else if (eventsRes.ok) {
         const [allCourses, allEvents] = await Promise.all([coursesRes.json(), eventsRes.json()]);
         const linkedIds = new Set(
           allEvents
@@ -73,6 +78,9 @@ export default function EditEventPage() {
             .filter((id): id is number => id != null),
         );
         setCourses(allCourses.filter((c: Course) => !linkedIds.has(c.course_id)));
+      } else {
+        const allCourses = await coursesRes.json();
+        setCourses(allCourses);
       }
 
       if (!eventRes.ok) {
@@ -306,6 +314,7 @@ export default function EditEventPage() {
               <p className="mb-1 text-xs font-medium text-[#2563EB]">
                 Connect this event to an existing curriculum for automatic resource sharing.
               </p>
+              {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
               <Select value={courseId} onValueChange={setCourseId}>
                 <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
                   <SelectValue placeholder="No curriculum linked" />
@@ -317,8 +326,25 @@ export default function EditEventPage() {
                       {c.course_name}
                     </SelectItem>
                   ))}
+                  {courses.length === 0 && !coursesError && (
+                    <SelectItem value="__create__" disabled>
+                      No courses available — create one first
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
+              {courses.length === 0 && !coursesError && (
+                <p className="mt-2 text-xs text-[#6B7280]">
+                  No courses available.{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/courses/new")}
+                    className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1d4ed8]"
+                  >
+                    Create a course
+                  </button>
+                </p>
+              )}
             </FormField>
 
             <FormField>
