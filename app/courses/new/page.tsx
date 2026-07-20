@@ -42,8 +42,9 @@ export default function NewCoursePage() {
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
   const [lessonDescription, setLessonDescription] = useState("");
-  const [lessonContentType, setLessonContentType] = useState<string>("pdf");
   const [lessonContentUrl, setLessonContentUrl] = useState("");
+  const [lessonContentFile, setLessonContentFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -162,9 +163,31 @@ export default function NewCoursePage() {
   function openLessonDialog(moduleId: number) {
     setActiveModuleId(moduleId);
     setLessonDescription("");
-    setLessonContentType("pdf");
     setLessonContentUrl("");
+    setLessonContentFile(null);
     setLessonDialogOpen(true);
+  }
+
+  function detectContentType(): string {
+    if (lessonContentFile) {
+      if (lessonContentFile.type === "application/pdf") return "pdf";
+      if (lessonContentFile.type.startsWith("video/")) return "video";
+      if (lessonContentFile.type.startsWith("image/")) return "image";
+    }
+    if (lessonContentUrl) {
+      const ext = lessonContentUrl.split(".").pop()?.toLowerCase() || "";
+      if (ext === "pdf") return "pdf";
+      if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
+      if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
+      return "link";
+    }
+    return "pdf";
+  }
+
+  function getUploadEndpoint(type: string): string | null {
+    if (type === "video") return "/api/upload/course-video";
+    if (type === "pdf" || type === "image") return "/api/upload/course-asset";
+    return null;
   }
 
   async function handleAddLesson() {
@@ -174,13 +197,17 @@ export default function NewCoursePage() {
     if (!mod) return;
 
     const sequenceOrder = mod.LESSONS.length + 1;
+    setError(null);
+
+    const contentType = detectContentType();
+
     const res = await fetch(`/api/modules/${activeModuleId}/lessons`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         description: lessonDescription,
-        content_type: lessonContentType,
-        content_url: lessonContentUrl || undefined,
+        content_type: contentType,
+        content_url: lessonContentFile ? undefined : lessonContentUrl || undefined,
         total_units: 1,
         sequence_order: sequenceOrder,
       }),
@@ -188,9 +215,34 @@ export default function NewCoursePage() {
 
     if (!res.ok) return;
     const lesson = await res.json();
+
+    if (lessonContentFile) {
+      setUploading(true);
+      const endpoint = getUploadEndpoint(contentType);
+      if (endpoint) {
+        const formData = new FormData();
+        formData.append("file", lessonContentFile);
+        formData.append("lesson_id", String(lesson.lesson_id));
+        formData.append("course_id", String(modules[0].course_id));
+        formData.append("module_id", String(activeModuleId));
+
+        const uploadRes = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          setError("Lesson saved but file upload failed. You can re-edit to upload again.");
+          setUploading(false);
+        }
+        setUploading(false);
+      }
+    }
+
     setModules((prev) => prev.map((m) => (m.module_id === activeModuleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
     setLessonDialogOpen(false);
     setActiveModuleId(null);
+    setLessonContentFile(null);
   }
 
   return (
@@ -402,28 +454,44 @@ export default function NewCoursePage() {
             </FormField>
 
             <FormField className="mt-3">
-              <FormLabel>Content type</FormLabel>
-              <select
-                value={lessonContentType}
-                onChange={(e) => setLessonContentType(e.target.value)}
-                className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="pdf">PDF</option>
-                <option value="video">Video</option>
-                <option value="image">Image</option>
-                <option value="link">Link</option>
-              </select>
+              <FormLabel>Upload file</FormLabel>
+              <input
+                type="file"
+                accept="application/pdf,video/mp4,video/webm,video/quicktime,image/jpeg,image/png"
+                onChange={(e) => {
+                  setLessonContentFile(e.target.files?.[0] ?? null);
+                  if (e.target.files?.[0]) setLessonContentUrl("");
+                }}
+                className="block w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#374151] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#2563EB] hover:file:bg-blue-100"
+              />
+              {lessonContentFile && <p className="mt-1 text-xs text-[#6B7280]">Selected: {lessonContentFile.name}</p>}
             </FormField>
 
             <FormField className="mt-3">
-              <FormLabel>Content URL (optional)</FormLabel>
-              <Input value={lessonContentUrl} onChange={(e) => setLessonContentUrl(e.target.value)} placeholder="https://..." />
+              <FormLabel>Or paste a URL</FormLabel>
+              <Input
+                value={lessonContentUrl}
+                onChange={(e) => {
+                  setLessonContentUrl(e.target.value);
+                  if (e.target.value) setLessonContentFile(null);
+                }}
+                placeholder="https://..."
+              />
             </FormField>
 
             <div className="mt-4 flex gap-2">
-              <Button type="submit" disabled={!lessonDescription.trim()}>
-                <span className="material-symbols-rounded text-[16px]">add_circle</span>
-                Add lesson
+              <Button
+                type="submit"
+                disabled={!lessonDescription.trim() || uploading || (!lessonContentFile && !lessonContentUrl.trim())}
+              >
+                {uploading ? (
+                  <>Uploading...</>
+                ) : (
+                  <>
+                    <span className="material-symbols-rounded text-[16px]">add_circle</span>
+                    Add lesson
+                  </>
+                )}
               </Button>
               <Button type="button" variant="outline" onClick={() => setLessonDialogOpen(false)}>
                 Cancel
