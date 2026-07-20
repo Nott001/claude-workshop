@@ -161,23 +161,6 @@ export default function NewCoursePage() {
     );
   }
 
-  async function handleRemoveResource(lessonId: number, moduleId: number) {
-    if (!confirm("Remove the uploaded resource from this lesson?")) return;
-    const res = await fetch(`/api/lessons/${lessonId}/resource`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Failed to remove resource");
-      return;
-    }
-    setModules((prev) =>
-      prev.map((m) =>
-        m.module_id === moduleId
-          ? { ...m, LESSONS: m.LESSONS.map((l) => (l.lesson_id === lessonId ? { ...l, content_url: "" } : l)) }
-          : m,
-      ),
-    );
-  }
-
   function openLessonDialog(moduleId: number) {
     setActiveModuleId(moduleId);
     setLessonDescription("");
@@ -528,24 +511,13 @@ export default function NewCoursePage() {
                               {lesson.content_type}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            {lesson.content_url && (
-                              <button
-                                onClick={() => handleRemoveResource(lesson.lesson_id, mod.module_id)}
-                                className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-amber-50 hover:text-[#D97706]"
-                                title="Remove resource"
-                              >
-                                <span className="material-symbols-rounded text-[14px]">link_off</span>
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteLesson(lesson.lesson_id, mod.module_id)}
-                              className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
-                              title="Delete lesson"
-                            >
-                              <span className="material-symbols-rounded text-[14px]">delete</span>
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleDeleteLesson(lesson.lesson_id, mod.module_id)}
+                            className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                            title="Delete lesson"
+                          >
+                            <span className="material-symbols-rounded text-[14px]">delete</span>
+                          </button>
                         </div>
                       ))}
                     </div>

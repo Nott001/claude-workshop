@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### refactor: remove separate remove-resource button — delete lesson already cleans up storage
+
+- **app/courses/[id]/page.tsx** — remove `handleRemoveResource` and the separate "Remove resource" button (the lesson DELETE handler already deletes storage files)
+- **app/courses/new/page.tsx** — same removal
+- **app/api/lessons/[id]/resource/route.ts** — delete (no longer needed)
+
 ### fix: allow null content_url in lessons, show API errors, add remove-resource button
 
 - **supabase/migrations/00014_allow_null_content_url.sql** — new migration: `ALTER TABLE "LESSONS" ALTER COLUMN content_url DROP NOT NULL`
