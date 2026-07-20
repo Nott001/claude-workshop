@@ -16,7 +16,7 @@ interface NavItem {
 
 const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   attendee: [
-    { label: "Home", href: "/", icon: "home" },
+    { label: "Home", href: "/home", icon: "home" },
     { label: "Events", href: "/events", icon: "event" },
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },
   ],
