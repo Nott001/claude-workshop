@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### refactor: remove Quick Create, progress tracking, and add URL normalization
+
+- **app/courses/page.tsx** — remove Quick Create dialog (button, state, handler, Dialog import)
+- **app/courses/[id]/page.tsx** — add `normalizeUrl()` to auto-prefix `https://` when missing; remove "Mark progress" button
+- **app/courses/new/page.tsx** — add `normalizeUrl()` to auto-prefix `https://` when missing
+- **app/courses/[id]/progress/page.tsx** — delete (progress page removed)
+- **app/api/courses/[id]/progress/route.ts** — delete (progress endpoint removed)
+- **app/api/lessons/[id]/progress/route.ts** — delete (progress endpoint removed)
+- **types/index.ts** — remove `LessonProgress` type
+- **modules/course-content/index.ts** — remove `progressSchema`
+- **supabase/migrations/00015_drop_lesson_progress.sql** — new migration: `DROP TABLE "LESSON_PROGRESS"`
+- **test/course-content.test.ts** — remove `progressSchema` and `LessonProgress` tests (168 tests, 16 in course-content)
+
 ### refactor: remove separate remove-resource button — delete lesson already cleans up storage
 
 - **app/courses/[id]/page.tsx** — remove `handleRemoveResource` and the separate "Remove resource" button (the lesson DELETE handler already deletes storage files)

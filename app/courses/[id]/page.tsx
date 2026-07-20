@@ -181,13 +181,21 @@ export default function CourseDetailPage() {
       if (lessonContentFile.type.startsWith("image/")) return "image";
     }
     if (lessonContentUrl) {
-      const ext = lessonContentUrl.split(".").pop()?.toLowerCase() || "";
+      const url = normalizeUrl(lessonContentUrl);
+      const ext = url.split(".").pop()?.toLowerCase() || "";
       if (ext === "pdf") return "pdf";
       if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
       if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
       return "link";
     }
     return "pdf";
+  }
+
+  function normalizeUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return trimmed;
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+    return `https://${trimmed}`;
   }
 
   function getUploadEndpoint(type: string): string | null {
@@ -289,7 +297,7 @@ export default function CourseDetailPage() {
       body: JSON.stringify({
         description: lessonDescription,
         content_type: contentType,
-        content_url: lessonContentFile ? undefined : lessonContentUrl || undefined,
+        content_url: lessonContentFile ? undefined : lessonContentUrl ? normalizeUrl(lessonContentUrl) : undefined,
         sequence_order: sequenceOrder,
       }),
     });
@@ -385,12 +393,7 @@ export default function CourseDetailPage() {
                 {course.course_description && <p className="mt-1 text-sm text-[#6B7280]">{course.course_description}</p>}
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push(`/courses/${courseId}/progress`)}>
-                <span className="material-symbols-rounded text-sm">assessment</span>
-                Progress
-              </Button>
-            </div>
+            <div className="flex gap-2"></div>
           </div>
         </div>
 

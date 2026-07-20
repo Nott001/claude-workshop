@@ -20,10 +20,6 @@ export const lessonSchema = z.object({
   sequence_order: z.coerce.number().int().min(1),
 });
 
-export const progressSchema = z.object({
-  is_completed: z.boolean(),
-});
-
 export function getContentTypeIcon(type: ContentType): string {
   const icons: Record<ContentType, string> = {
     pdf: "FileText",
