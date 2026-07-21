@@ -43,7 +43,6 @@ interface Event {
   price: number;
   currency: string;
   description: string | null;
-  overview: string | null;
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
   payment_count?: number;
@@ -254,13 +253,6 @@ export default function EventDetailPage() {
                 {event.description && (
                   <div>
                     <p className="text-lg leading-[29.25px] text-[#3E484F]">{event.description}</p>
-                  </div>
-                )}
-
-                {/* Overview */}
-                {event.overview && (
-                  <div>
-                    <p className="text-lg leading-[29.25px] text-[#3E484F]">{event.overview}</p>
                   </div>
                 )}
 
