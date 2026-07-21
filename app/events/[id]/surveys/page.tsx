@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface Survey {
   survey_id: number;
@@ -14,22 +14,21 @@ export default function SurveyListPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn } = useUser();
+  const { user: authUser } = useCurrentUser();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const userRole = authUser?.role ?? null;
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    Promise.all([
-      fetch("/api/auth/me").then((r) => r.json()),
-      fetch(`/api/events/${eventId}/surveys`).then((r) => r.json()),
-    ]).then(([user, data]) => {
-      setUserRole(user.role);
-      setSurveys(data);
-      setLoading(false);
-    });
-  }, [eventId, isLoaded, isSignedIn]);
+    if (!authUser) return;
+    fetch(`/api/events/${eventId}/surveys`)
+      .then((r) => r.json())
+      .then((data) => {
+        setSurveys(data);
+        setLoading(false);
+      });
+  }, [eventId, authUser]);
 
   if (loading) return <div>Loading...</div>;
 
