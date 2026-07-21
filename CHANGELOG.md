@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### feat: restyle View Attendees page with filters, search, and pagination
+
+- **app/api/events/[id]/attendees/route.ts** — new facilitator-only endpoint returning all registered attendees for an event (TICKETS + USERS join) with ticket_status, search by name/email, status filtering, and paginated results
+- **app/kiosk/[id]/attendees/page.tsx** — rewrite from unstyled HTML table to Organization page pattern: styled table with avatar initials, name, email, status badge (Registered/Checked in/Cancelled), registration date, check-in time; add filter tabs (All / Checked in / Not checked in), search input, pagination, back-to-kiosk link, Supabase Realtime subscription for live updates
+
 ### feat: simplify event listing filters — role-based tabs, draft events isolated to Drafts tab
 
 - **app/events/page.tsx** — replace fixed 4-tab layout (Active, Upcoming, Completed, Drafts) with role-dependent tabs: facilitators see Upcoming, Completed, Drafts; attendees see Upcoming, Completed; draft events no longer appear in the Upcoming tab; default tab changed from Active to Upcoming
