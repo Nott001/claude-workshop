@@ -4,10 +4,7 @@ const startMock = vi.fn().mockResolvedValue(undefined);
 const stopMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("html5-qrcode", () => ({
-  Html5Qrcode: vi.fn().mockImplementation(function (this: {
-    start: typeof startMock;
-    stop: typeof stopMock;
-  }) {
+  Html5Qrcode: vi.fn().mockImplementation(function (this: { start: typeof startMock; stop: typeof stopMock }) {
     this.start = startMock;
     this.stop = stopMock;
   }),
@@ -74,12 +71,7 @@ describe("QrScanner", () => {
       },
     );
 
-    await scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      vi.fn(),
-      vi.fn(),
-    );
+    await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, vi.fn(), vi.fn());
 
     const onScan = vi.fn();
     successCb?.("test-qr-token-123");
