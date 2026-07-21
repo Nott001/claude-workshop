@@ -110,9 +110,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
               key={filter}
               onClick={() => handleStatusFilter(filter)}
               className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                statusFilter === filter
-                  ? "bg-[#3db9ee]/10 text-[#3db9ee]"
-                  : "bg-[#f4f7f8] text-[#647078] hover:bg-[#e8edf0]"
+                statusFilter === filter ? "bg-[#3db9ee]/10 text-[#3db9ee]" : "bg-[#f4f7f8] text-[#647078] hover:bg-[#e8edf0]"
               }`}
             >
               {STATUS_LABELS[filter]}

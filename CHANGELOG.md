@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### refactor: extract currentUser() helper and useCurrentUser() hook to eliminate auth repetition
+
+- **lib/auth/current-user.ts** — new `currentUser()` server helper combining `auth()` + `syncUser()` into one call
+- **hooks/use-current-user.ts** — new `useCurrentUser()` client hook replacing `fetch("/api/auth/me")` boilerplate
+- **lib/auth/role-guard.ts** — use `currentUser()` instead of inline `auth()` + `syncUser()`
+- **app/api/auth/me/route.ts** — use `currentUser()` instead of `auth()` + `syncUser()`
+- **app/api/events/[id]/register/route.ts** — use `currentUser()` in GET and POST
+- **app/api/events/[id]/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/events/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/chat/[eventId]/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/surveys/[id]/responses/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/speakers/[id]/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/organization/[userId]/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/api/payments/[id]/route.ts** — replace inline USERS lookup with `currentUser()`
+- **app/staff-login/[[...rest]]/page.tsx** — replace inline USERS lookup with `currentUser()`
+- **components/navbar.tsx** — use `useCurrentUser()` instead of inline fetch
+- **components/post-login-redirect.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/events/[id]/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/events/[id]/room/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/events/[id]/support/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/events/[id]/surveys/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/events/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/organization/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/user/[[...rest]]/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/emails/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **app/kiosk/page.tsx** — use `useCurrentUser()` instead of inline fetch
+- **test/current-user.test.ts** — 3 unit tests for currentUser
+
 ### feat: remove timegate lock and map feature from event session room
 
 - **supabase/migrations/00020_remove_event_time_constraint.sql** — new migration: drop `chk_event_time` constraint from `EVENTS` so past events remain accessible
