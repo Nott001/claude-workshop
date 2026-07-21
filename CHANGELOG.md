@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### feat: add real-time Q&A panel to the event room
+
+- **components/qa-panel.tsx** — new Q&A side panel using the `live_qa` chat channel with real-time Supabase subscriptions, question feed, submit input, and Answer button for facilitators/speakers
+- **app/events/[id]/room/page.tsx** — integrate QAPanel as a sidebar alongside the lesson content; lock the panel with a lock icon and message when the event has not started yet
+- **test/qa-panel.test.ts** — verify `live_qa` channel validation through chat module schemas
+
 ### refactor: extract currentUser() helper and useCurrentUser() hook to eliminate auth repetition
 
 - **lib/auth/current-user.ts** — new `currentUser()` server helper combining `auth()` + `syncUser()` into one call
