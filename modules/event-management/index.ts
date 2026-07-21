@@ -9,8 +9,6 @@ const eventBaseSchema = z.object({
   venue_address: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   course_id: z.coerce.number().int().positive().nullable().optional(),
-  lat: z.coerce.number().nullable().optional(),
-  lng: z.coerce.number().nullable().optional(),
   price: z.coerce.number().min(0).optional(),
   currency: z.string().length(3).optional(),
   cover_image_url: z.string().nullable().optional(),
