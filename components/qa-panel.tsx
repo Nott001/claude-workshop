@@ -114,6 +114,12 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
       return;
     }
 
+    const sent = await res.json();
+    setMessages((prev) => {
+      if (prev.some((m) => m.message_id === sent.message_id)) return prev;
+      return [...prev, sent as ChatMessageWithUser];
+    });
+
     setNewMessage("");
     setReplyTarget(null);
     setSending(false);

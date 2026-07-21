@@ -258,19 +258,18 @@ export default function EventDetailPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.7)] to-[rgba(0,0,0,0)]" />
                   <div className="absolute bottom-8 left-8 right-8 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      {event && isEventLive(event.event_date, event.start_time, event.end_time) && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
-                          <span className="size-1.5 rounded-full bg-white animate-pulse" />
-                          Live
-                        </span>
-                      )}
+                    {event && isEventLive(event.event_date, event.start_time, event.end_time) ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white w-fit">
+                        <span className="size-1.5 rounded-full bg-white animate-pulse" />
+                        Live
+                      </span>
+                    ) : (
                       <StatusBadge
                         status={badgeStatus}
                         label={badgeLabel}
                         className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
                       />
-                    </div>
+                    )}
                     <h1 className="text-[36px] font-bold leading-[44px] tracking-[-0.02em] text-white">{event.title}</h1>
                     <div className="flex flex-wrap gap-6 text-sm font-medium text-white/90">
                       <span className="flex items-center gap-2">
