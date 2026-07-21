@@ -121,8 +121,6 @@ describe("Type shapes", () => {
       end_time: "17:00",
       venue_name: "Venue",
       venue_address: null,
-      lat: null,
-      lng: null,
       price: 0,
       currency: "PHP",
       cover_image_url: null,
