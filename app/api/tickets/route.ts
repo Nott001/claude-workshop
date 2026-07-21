@@ -22,7 +22,7 @@ export async function GET() {
 
   let query = supabase
     .from("TICKETS")
-    .select("*, EVENTS(title, event_date, venue_name)")
+    .select("*, EVENTS(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
     .order("issued_at", { ascending: false });
 
   if (dbUser.role === "attendee") {
