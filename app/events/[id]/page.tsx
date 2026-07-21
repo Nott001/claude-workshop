@@ -150,6 +150,8 @@ export default function EventDetailPage() {
       (es: { SPEAKER_PROFILES: { speaker_profile_id: number } }) => es.SPEAKER_PROFILES.speaker_profile_id === speakerProfileId,
     );
 
+  const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
+
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -673,12 +675,19 @@ export default function EventDetailPage() {
                       {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
                         <>
                           {hasTicket ? (
-                            <button
-                              onClick={() => router.push(`/events/${eventId}/room`)}
-                              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
-                            >
-                              Enter event room
-                            </button>
+                            <div className="flex flex-col gap-2">
+                              {!eventStarted && (
+                                <p className="text-xs text-[#6E7980] leading-relaxed">
+                                  The event hasn&apos;t started yet. Feel free to explore the available resources ahead of time.
+                                </p>
+                              )}
+                              <button
+                                onClick={() => router.push(`/events/${eventId}/room`)}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                              >
+                                Enter event room
+                              </button>
+                            </div>
                           ) : (
                             <button
                               onClick={handleRegister}
@@ -698,11 +707,6 @@ export default function EventDetailPage() {
                           Enter event room
                         </button>
                       )}
-
-                      <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] px-4 py-3 text-base font-bold text-[#191C1E] transition-colors hover:bg-gray-50">
-                        <span className="material-symbols-rounded text-[15px]">calendar_today</span>
-                        Add to calendar
-                      </button>
                     </div>
                   </div>
                 </div>
