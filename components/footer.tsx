@@ -23,8 +23,16 @@ function AttendeeFooter() {
           <div className="flex flex-col gap-4">
             <h5 className="text-base font-bold text-foreground">Company</h5>
             <ul className="flex list-none flex-col gap-2">
-              <li><a href="/about" className="text-sm text-muted-foreground hover:text-foreground">About Us</a></li>
-              <li><a href="/contact" className="text-sm text-muted-foreground hover:text-foreground">Contact</a></li>
+              <li>
+                <a href="/about" className="text-sm text-muted-foreground hover:text-foreground">
+                  About Us
+                </a>
+              </li>
+              <li>
+                <a href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
 
