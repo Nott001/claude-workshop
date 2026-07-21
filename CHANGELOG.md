@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### refactor: drop event overview column and hide speaker email from attendees
+
+- **supabase/migrations/00019_drop_event_overview.sql** — new migration: `ALTER TABLE "EVENTS" DROP COLUMN IF EXISTS overview`
+- **types/index.ts** — remove `overview` field from `Event` interface
+- **modules/event-management/index.ts** — remove `overview` from `eventBaseSchema`
+- **app/api/events/route.ts** — remove `overview` from POST insert payload
+- **app/events/new/page.tsx** — remove overview state, payload field, and form textarea
+- **app/events/[id]/edit/page.tsx** — remove overview state, data population, payload field, and form textarea
+- **app/events/[id]/page.tsx** — remove local `overview` type and overview rendering section; remove speaker email from attendee-facing speaker card
+- **test/event-management.test.ts** — remove `overview` from mock Event object
+- **test/storage.test.ts** — remove `overview` from mock Event object
+
 ### feat: restyle View Attendees page with filters, search, and pagination
 
 - **app/api/events/[id]/attendees/route.ts** — new facilitator-only endpoint returning all registered attendees for an event (TICKETS + USERS join) with ticket_status, search by name/email, status filtering, and paginated results

@@ -48,9 +48,13 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
     return { success: false };
   }
 
+  const to = process.env.RESEND_DEBUG_TO
+    ? [process.env.RESEND_DEBUG_TO]
+    : [params.to.email];
+
   const { error } = await resend.emails.send({
     from: fromAddress,
-    to: [params.to.email],
+    to,
     subject: params.subject,
     html: params.htmlContent,
   });
