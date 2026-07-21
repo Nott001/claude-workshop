@@ -8,7 +8,6 @@ const eventBaseSchema = z.object({
   venue_name: z.string().min(1).max(255),
   venue_address: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  overview: z.string().nullable().optional(),
   course_id: z.coerce.number().int().positive().nullable().optional(),
   lat: z.coerce.number().nullable().optional(),
   lng: z.coerce.number().nullable().optional(),
