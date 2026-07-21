@@ -146,7 +146,7 @@ export default function NewEventPage() {
     try {
       const event = await createEvent();
       await Promise.all([assignSpeaker(event.event_id), uploadCoverImage(event.event_id)]);
-      
+
       const publishRes = await fetch(`/api/events/${event.event_id}/publish`, { method: "POST" });
       if (!publishRes.ok) {
         const data = await publishRes.json();
