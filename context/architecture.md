@@ -24,7 +24,7 @@
 | Database | Supabase (PostgreSQL) | Managed Postgres with typed client SDK |
 | Real-time | Supabase Realtime (Postgres LISTEN/NOTIFY via Realtime) | Zero additional infra — when LIVE_SESSION_STATE updates, the change event broadcasts to subscribed clients. **vs Socket.io:** Supabase Realtime avoids a separate WebSocket server or custom Node server, reducing deployment complexity and keeping data authority in Postgres. **Setup:** Realtime must be enabled per-table via Supabase Dashboard → Database → Replication. Required tables: `LIVE_SESSION_STATE`, `CHAT_MESSAGES`, `TICKETS`. |
 | Payments | HitPay | Specified in scope; webhook-based async flow |
-| Email | Brevo | Transactional email API; generous free tier |
+| Email | Resend | Transactional email API via Resend SDK |
 | Monitoring | Sentry (errors) + Statuscake (uptime) | As specified |
 
 ## Data Flow Diagrams
@@ -98,7 +98,7 @@ lib/
   auth/             Clerk middleware helpers, role guards
   hitpay/           HitPay signature verification + API calls
   realtime/         Supabase Realtime channel setup
-  email/            Brevo client wrapper
+  email/            Resend client wrapper
   qr/               QR code generation
 modules/
   course-content/   Domain logic (course <-> module <-> lesson)
