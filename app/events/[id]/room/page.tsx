@@ -28,7 +28,7 @@ interface CourseData {
   MODULES: Module[];
 }
 
-type AccessLevel = "allowed" | "not_started" | "no_ticket" | "no_course" | "loading" | "denied";
+type AccessLevel = "allowed" | "no_ticket" | "no_course" | "loading" | "denied";
 
 export default function EventRoomPage() {
   const params = useParams();
@@ -113,12 +113,6 @@ export default function EventRoomPage() {
         return;
       }
 
-      const eventStarted = new Date(`${eventData.event_date}T${eventData.start_time}`) <= new Date();
-      if (!eventStarted) {
-        if (!cancelled) setAccess("not_started");
-        return;
-      }
-
       if (eventData.course_id) {
         const courseRes = await fetch(`/api/courses/${eventData.course_id}`);
         if (courseRes.ok) {
@@ -176,24 +170,6 @@ export default function EventRoomPage() {
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5]"
           >
             Register
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (access === "not_started") {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-center">
-          <span className="material-symbols-rounded text-4xl text-muted-foreground/50">schedule</span>
-          <p className="mt-3 text-sm text-muted-foreground">The event has not started yet.</p>
-          <p className="text-xs text-muted-foreground/60">Please wait until the event begins.</p>
-          <button
-            onClick={() => router.push(`/events/${eventId}`)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover"
-          >
-            Back to event
           </button>
         </div>
       </div>
