@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import dynamic from "next/dynamic";
 import type { Event } from "@/types";
+
+const QrScanner = dynamic(() => import("@/components/qr-scanner").then((m) => m.QrScanner), { ssr: false });
 
 interface CheckinResponse {
   status: "success" | "duplicate" | "rejected";
@@ -40,10 +43,6 @@ export default function KioskPage() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const scanTimerRef = useRef<number | null>(null);
   const clearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -71,63 +70,9 @@ export default function KioskPage() {
 
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
-      if (scanTimerRef.current) clearInterval(scanTimerRef.current);
       if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     };
   }, []);
-
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setCameraActive(true);
-      setCameraError(null);
-
-      scanTimerRef.current = window.setInterval(scanFrame, 500);
-    } catch {
-      setCameraError("Camera unavailable. Use manual input below.");
-      setCameraActive(false);
-    }
-  }, []);
-
-  function scanFrame() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    if ("BarcodeDetector" in globalThis) {
-      const detector = new (
-        globalThis as typeof window & {
-          BarcodeDetector: new (o: { formats: string[] }) => {
-            detect: (s: HTMLCanvasElement) => Promise<{ rawValue: string }[]>;
-          };
-        }
-      )("BarcodeDetector")({ formats: ["qr_code"] });
-      detector.detect(canvas).then((barcodes) => {
-        if (barcodes.length > 0 && !processing) {
-          handleCheckin(barcodes[0].rawValue);
-        }
-      });
-    }
-  }
 
   async function handleCheckin(token: string) {
     if (processing || !token.trim()) return;
@@ -248,11 +193,6 @@ export default function KioskPage() {
             onClick={() => {
               setSelectedEvent(null);
               setCameraActive(false);
-              if (streamRef.current) {
-                streamRef.current.getTracks().forEach((t) => t.stop());
-                streamRef.current = null;
-              }
-              if (scanTimerRef.current) clearInterval(scanTimerRef.current);
             }}
             className="flex h-8 items-center gap-1.5 rounded-lg border border-[#bdc8d0] bg-white px-3 text-xs font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
           >
@@ -272,7 +212,10 @@ export default function KioskPage() {
 
           {!cameraActive && !cameraError && (
             <button
-              onClick={startCamera}
+              onClick={() => {
+                setCameraActive(true);
+                setCameraError(null);
+              }}
               className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#bdc8d0] bg-[#f4f7f8] text-sm font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
             >
               <span className="material-symbols-rounded text-[22px]">photo_camera</span>
@@ -288,13 +231,14 @@ export default function KioskPage() {
           )}
 
           {cameraActive && (
-            <div className="relative mb-6 overflow-hidden rounded-xl border border-[#bdc8d0]">
-              <video ref={videoRef} autoPlay muted playsInline className="block w-full" />
-              <canvas ref={canvasRef} className="hidden" />
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="h-[140px] w-[140px] rounded-xl border-2 border-dashed border-white/70" />
-              </div>
-            </div>
+            <QrScanner
+              onScan={handleCheckin}
+              active={cameraActive}
+              onError={(msg) => {
+                setCameraError(msg);
+                setCameraActive(false);
+              }}
+            />
           )}
 
           <form onSubmit={handleManualSubmit} className="w-full">
@@ -369,11 +313,6 @@ export default function KioskPage() {
               onClick={() => {
                 setSelectedEvent(null);
                 setCameraActive(false);
-                if (streamRef.current) {
-                  streamRef.current.getTracks().forEach((t) => t.stop());
-                  streamRef.current = null;
-                }
-                if (scanTimerRef.current) clearInterval(scanTimerRef.current);
               }}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-[#bdc8d0] bg-white text-sm font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
             >
