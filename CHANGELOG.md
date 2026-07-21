@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### feat: add facilitator event dashboard and redesign tickets page
+
+- **app/events/[id]/page.tsx** — add separate facilitator dashboard view with hero cover image, linked curriculum card, speaker card (photo, name, designation, email, bio), analytics (tickets issued count), action buttons (enter room, edit, publish, delete, view attendees), recent registrations table; remove old "Event Management" panel from attendee path
+- **app/tickets/page.tsx** — redesign ticket cards as boarding-pass style with large scannable QR code (192px), event details (date, time range, venue, price), payment metadata, and paid timestamp
+- **app/api/events/[id]/route.ts** — include nested `USERS(full_name, email)` in speaker profile query; return `attendee_count` for facilitators
+- **app/api/tickets/[paymentId]/route.ts** — include `PAYMENTS(paid_at)` in response; include full event fields (start/end time, venue address, price, currency)
+- **app/api/tickets/route.ts** — include full event fields in list response
+- **app/api/speakers/me/events/[eventId]/route.ts** — fix ticket count filter from `status = 'active'` to `status != 'cancelled'`
+- **components/countdown-timer.tsx** — add `light` prop for white text variant
+- **lib/email/index.ts**, **test/sync-user.test.ts** — formatting
+
 ### refactor: drop event overview column and hide speaker email from attendees
 
 - **supabase/migrations/00019_drop_event_overview.sql** — new migration: `ALTER TABLE "EVENTS" DROP COLUMN IF EXISTS overview`

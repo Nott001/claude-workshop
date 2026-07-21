@@ -50,9 +50,7 @@ describe("syncUser", () => {
       select: vi.fn().mockReturnThis(),
       single: mockSingle({ data: newUser, error: null }),
     };
-    const mockFrom = vi.fn()
-      .mockReturnValueOnce(selectChain)
-      .mockReturnValueOnce(upsertChain);
+    const mockFrom = vi.fn().mockReturnValueOnce(selectChain).mockReturnValueOnce(upsertChain);
     vi.mocked(getServiceClient).mockReturnValue({
       from: mockFrom,
     } as unknown as ReturnType<typeof getServiceClient>);
@@ -111,9 +109,7 @@ describe("syncUser", () => {
       single: mockSingle({ data: null, error: { message: "Insert failed" } }),
     };
     vi.mocked(getServiceClient).mockReturnValue({
-      from: vi.fn()
-        .mockReturnValueOnce(selectChain)
-        .mockReturnValueOnce(upsertChain),
+      from: vi.fn().mockReturnValueOnce(selectChain).mockReturnValueOnce(upsertChain),
     } as unknown as ReturnType<typeof getServiceClient>);
 
     const { clerkClient } = await import("@clerk/nextjs/server");
