@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: restyle View Attendees page with filters, search, and pagination
+
+- **app/api/events/[id]/attendees/route.ts** — new facilitator-only endpoint returning all registered attendees for an event (TICKETS + USERS join) with ticket_status, search by name/email, status filtering, and paginated results
+- **app/kiosk/[id]/attendees/page.tsx** — rewrite from unstyled HTML table to Organization page pattern: styled table with avatar initials, name, email, status badge (Registered/Checked in/Cancelled), registration date, check-in time; add filter tabs (All / Checked in / Not checked in), search input, pagination, back-to-kiosk link, Supabase Realtime subscription for live updates
 ### fix: add on-demand user sync and fix post-login redirect
 
 - **lib/auth/sync-user.ts** — new utility: when a Clerk user is not found in Supabase, fetch their profile from the Clerk API and upsert into USERS; acts as a resilient fallback when the Clerk webhook fails or is delayed
