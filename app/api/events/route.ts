@@ -74,8 +74,6 @@ export async function POST(req: Request) {
       venue_address: parsed.data.venue_address ?? null,
       description: parsed.data.description ?? null,
       course_id: parsed.data.course_id ?? null,
-      lat: parsed.data.lat ?? null,
-      lng: parsed.data.lng ?? null,
       price: parsed.data.price ?? 0,
       currency: parsed.data.currency ?? "PHP",
       cover_image_url: parsed.data.cover_image_url ?? null,
