@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { paymentInitSchema, generateQrToken } from "@/modules/commerce";
 import { createPayment } from "@/lib/hitpay";
+import { generateQRDataUrl } from "@/lib/qr";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const DEBUG_BYPASS = process.env.NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT === "true";
@@ -75,6 +76,21 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: ticketError.message }, { status: 500 });
         }
 
+        const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+        const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
+        if (eventData) {
+          const qrDataUrl = await generateQRDataUrl(qrToken);
+          fireAndForgetEmailNotification({
+            user_id: dbUser.user_id,
+            email: dbUser.email,
+            name: dbUser.full_name,
+            email_type: "ticket_issued",
+            eventTitle: eventData.title,
+            eventDate: eventData.event_date,
+            qrDataUrl,
+          });
+        }
+
         return NextResponse.json({
           payment_id: last.payment_id,
           checkout_url: `${APP_URL}/checkout/${last.payment_id}?success=true`,
@@ -130,6 +146,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: ticketError.message }, { status: 500 });
     }
 
+    const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+    const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
+    if (eventData) {
+      const qrDataUrl = await generateQRDataUrl(qrToken);
+      fireAndForgetEmailNotification({
+        user_id: dbUser.user_id,
+        email: dbUser.email,
+        name: dbUser.full_name,
+        email_type: "ticket_issued",
+        eventTitle: eventData.title,
+        eventDate: eventData.event_date,
+        qrDataUrl,
+      });
+    }
+
     return NextResponse.json({
       payment_id: payment.payment_id,
       checkout_url: `${APP_URL}/checkout/${payment.payment_id}?success=true`,
@@ -150,16 +181,6 @@ export async function POST(req: Request) {
       .from("PAYMENTS")
       .update({ hitpay_reference_id: hitpayRes.reference_id })
       .eq("payment_id", payment.payment_id);
-
-    const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
-    fireAndForgetEmailNotification({
-      user_id: dbUser.user_id,
-      email: dbUser.email,
-      name: dbUser.full_name,
-      email_type: "registration_confirmation",
-      eventTitle: event.title,
-      eventDate: event.event_date,
-    });
 
     return NextResponse.json({
       payment_id: payment.payment_id,

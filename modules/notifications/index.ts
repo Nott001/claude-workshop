@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const emailTypeEnum = z.enum(["registration_confirmation", "ticket_issued", "check_in_confirmed"]);
+export const emailTypeEnum = z.enum(["ticket_issued", "check_in_confirmed"]);
 
 export const emailStatusEnum = z.enum(["sent", "failed"]);
 

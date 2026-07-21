@@ -1,25 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { emailLogInsertSchema, emailLogFilterSchema, emailTypeEnum, emailStatusEnum } from "@/modules/notifications";
 import type { EmailLog, EmailType, EmailStatus } from "@/types";
+import { emailTemplates } from "@/lib/email";
 
 describe("Email types", () => {
   it("EmailLog interface has correct shape", () => {
     const log: EmailLog = {
       log_id: 1,
       user_id: 1,
-      email_type: "registration_confirmation",
+      email_type: "ticket_issued",
       status: "sent",
       sent_at: "2026-07-10T12:00:00Z",
       created_at: "2026-07-10T12:00:00Z",
       updated_at: "2026-07-10T12:00:00Z",
     };
-    expect(log.email_type).toBe("registration_confirmation");
+    expect(log.email_type).toBe("ticket_issued");
     expect(log.status).toBe("sent");
   });
 
   it("EmailType accepts all valid values", () => {
-    const types: EmailType[] = ["registration_confirmation", "ticket_issued", "check_in_confirmed"];
-    expect(types).toHaveLength(3);
+    const types: EmailType[] = ["ticket_issued", "check_in_confirmed"];
+    expect(types).toHaveLength(2);
   });
 
   it("EmailStatus accepts all valid values", () => {
@@ -29,10 +30,6 @@ describe("Email types", () => {
 });
 
 describe("emailTypeEnum", () => {
-  it("accepts registration_confirmation", () => {
-    expect(emailTypeEnum.safeParse("registration_confirmation").success).toBe(true);
-  });
-
   it("accepts ticket_issued", () => {
     expect(emailTypeEnum.safeParse("ticket_issued").success).toBe(true);
   });
@@ -82,7 +79,7 @@ describe("emailLogInsertSchema", () => {
 
   it("rejects missing user_id", () => {
     const result = emailLogInsertSchema.safeParse({
-      email_type: "registration_confirmation",
+      email_type: "check_in_confirmed",
       status: "sent",
     });
     expect(result.success).toBe(false);
@@ -100,10 +97,51 @@ describe("emailLogInsertSchema", () => {
   it("rejects invalid status", () => {
     const result = emailLogInsertSchema.safeParse({
       user_id: 1,
-      email_type: "registration_confirmation",
+      email_type: "ticket_issued",
       status: "pending",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("emailTemplates", () => {
+  it("exports ticketIssued template with registration + QR", () => {
+    const html = emailTemplates.ticketIssued.buildHtml({
+      name: "Bob",
+      eventTitle: "Conference",
+      eventDate: "2026-08-15",
+      qrDataUrl: "data:image/png;base64,abc123",
+    });
+    expect(html).toContain("Registration Confirmed");
+    expect(html).toContain("Ticket Issued");
+    expect(html).toContain("Bob");
+    expect(html).toContain("Conference");
+    expect(html).toContain("data:image/png;base64,abc123");
+  });
+
+  it("exports ticketIssued template without QR", () => {
+    const html = emailTemplates.ticketIssued.buildHtml({
+      name: "Bob",
+      eventTitle: "Conference",
+      eventDate: "2026-08-15",
+    });
+    expect(html).toContain("Bob");
+    expect(html).not.toContain("base64");
+  });
+
+  it("exports checkInConfirmed template", () => {
+    const html = emailTemplates.checkInConfirmed.buildHtml({
+      name: "Carol",
+      eventTitle: "Meetup",
+    });
+    expect(html).toContain("Check-In Confirmed");
+    expect(html).toContain("Carol");
+    expect(html).toContain("Meetup");
+  });
+
+  it("has correct subject lines", () => {
+    expect(emailTemplates.ticketIssued.subject).toContain("Registration Confirmed");
+    expect(emailTemplates.checkInConfirmed.subject).toBe("Check-In Confirmed");
   });
 });
 
