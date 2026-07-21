@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### feat: remove timegate lock and map feature from event session room
+
+- **supabase/migrations/00020_remove_event_time_constraint.sql** — new migration: drop `chk_event_time` constraint from `EVENTS` so past events remain accessible
+- **supabase/migrations/00021_drop_event_location_columns.sql** — new migration: drop `lat` and `lng` columns from `EVENTS`
+- **app/events/[id]/room/page.tsx** — remove event-start time check that blocked ticket holders before the scheduled time; remove `"not_started"` access level and its UI
+- **app/events/[id]/page.tsx** — remove `isEventStarted` check and disabled "Event not yet started" button; remove unlock icons from "Enter event room" buttons; remove map preview block; remove share/social buttons; hide price section when user already has a ticket; remove `lat`/`lng` from local Event interface
+- **types/index.ts** — remove `lat` and `lng` fields from `Event` interface
+- **modules/event-management/index.ts** — remove `lat` and `lng` from event Zod schema
+- **app/api/events/route.ts** — remove `lat` and `lng` from POST insert payload
+- **test/event-management.test.ts**, **test/storage.test.ts** — remove `lat`/`lng` from mock Event objects
+
 ### feat: add facilitator event dashboard and redesign tickets page
 
 - **app/events/[id]/page.tsx** — add separate facilitator dashboard view with hero cover image, linked curriculum card, speaker card (photo, name, designation, email, bio), analytics (tickets issued count), action buttons (enter room, edit, publish, delete, view attendees), recent registrations table; remove old "Event Management" panel from attendee path
