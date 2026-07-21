@@ -45,6 +45,7 @@ export default function EventRoomPage() {
   const [course, setCourse] = useState<CourseData | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function EventRoomPage() {
       setEventDate(eventData.event_date ?? "");
       setStartTime(eventData.start_time ?? "");
       setUserRole(userData.role ?? null);
+      setCurrentUserId(userData.user_id ?? null);
 
       const role = userData.role as string;
 
@@ -252,7 +254,12 @@ export default function EventRoomPage() {
         </div>
 
         <div className="hidden xl:flex w-80 shrink-0 flex-col border-l border-border h-full">
-          <QAPanel eventId={eventId} userRole={userRole as UserRole | null} eventStarted={eventStarted} />
+          <QAPanel
+            eventId={eventId}
+            userRole={userRole as UserRole | null}
+            currentUserId={currentUserId}
+            eventStarted={eventStarted}
+          />
         </div>
       </div>
 

@@ -5,12 +5,13 @@ import { subscribeToChatMessages } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
 
 interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string };
+  USER: { full_name: string; role: UserRole; profile_image_url: string | null };
 }
 
 interface QAPanelProps {
   eventId: string;
   userRole: UserRole | null;
+  currentUserId: number | null;
   eventStarted: boolean;
 }
 
@@ -31,7 +32,7 @@ function groupMessages(messages: ChatMessageWithUser[]) {
   return { questions, answersByParent };
 }
 
-export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProps) {
+export default function QAPanel({ eventId, userRole, currentUserId, eventStarted }: QAPanelProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,34 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
     });
     return () => sub.unsubscribe();
   }, [eventId]);
+
+  useEffect(() => {
+    if (!eventId || !eventStarted) return;
+    const id = setInterval(async () => {
+      const last = messages[messages.length - 1];
+      const params = new URLSearchParams({ channel: "live_qa", limit: "10" });
+      if (last) params.set("after", last.sent_at);
+      try {
+        const res = await fetch(`/api/chat/${eventId}?${params}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.messages?.length) {
+          setMessages((prev) => {
+            const merged = [...prev];
+            let changed = false;
+            for (const m of data.messages) {
+              if (!merged.some((x) => x.message_id === m.message_id)) {
+                merged.push(m as ChatMessageWithUser);
+                changed = true;
+              }
+            }
+            return changed ? merged : prev;
+          });
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(id);
+  }, [eventId, eventStarted]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -141,6 +170,28 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  function userBadge(msg: ChatMessageWithUser) {
+    if (msg.USER?.role === "speaker") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-[#fff3e0] px-1.5 py-0.5 text-[9px] font-bold text-[#e65100]">
+          <span className="material-symbols-rounded text-[10px]">mic</span>
+          Speaker
+        </span>
+      );
+    }
+
+    if (msg.USER?.role === "facilitator") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
+          <span className="material-symbols-rounded text-[10px]">support_agent</span>
+          Staff
+        </span>
+      );
+    }
+
+    return null;
+  }
+
   if (!eventStarted) {
     return (
       <div className="flex h-full flex-col rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
@@ -182,20 +233,30 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
               {questions.map((q) => {
                 const answers = answersByParent.get(q.message_id) ?? [];
                 const isAnswered = answers.length > 0 || q.answered_verbally;
+                const isSpeaker = q.USER?.role === "speaker";
 
                 return (
                   <div key={q.message_id}>
                     <div
                       className={`flex flex-col gap-1 rounded-lg border-l-4 bg-[#fbf9f8] p-3 shadow-[0_1px_1px_rgba(0,0,0,0.05)] ${
-                        isAnswered ? "border-[#3db9ee]" : "border-[#6e7980]"
+                        isAnswered ? "border-[#3db9ee]" : isSpeaker ? "border-[#e65100]" : "border-[#6e7980]"
                       }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between">
                         <div className="flex items-center gap-1.5">
-                          <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
-                            <span className="material-symbols-rounded text-[10px] text-[#5f5e5e]">person</span>
+                          {q.USER?.profile_image_url ? (
+                            <img src={q.USER.profile_image_url} alt="" className="size-5 rounded-full object-cover" />
+                          ) : (
+                            <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
+                              <span className="material-symbols-rounded text-[10px] text-[#5f5e5e]">person</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#1b1c1c]"}`}>
+                              {q.USER?.full_name ?? "Unknown"}
+                            </span>
+                            {userBadge(q)}
                           </div>
-                          <span className="text-[10px] font-bold text-[#1b1c1c]">{q.USER?.full_name ?? "Unknown"}</span>
                         </div>
                         <span className="text-[10px] text-[#5f5e5e]">{formatTime(q.sent_at)}</span>
                       </div>
@@ -208,7 +269,7 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
                             Answered verbally
                           </span>
                         )}
-                        {canAnswer && !q.answered_verbally && (
+                        {canAnswer && !q.answered_verbally && currentUserId !== q.user_id && (
                           <>
                             <button
                               onClick={() => handleAnswer(q.message_id)}
@@ -228,23 +289,37 @@ export default function QAPanel({ eventId, userRole, eventStarted }: QAPanelProp
                       </div>
                     </div>
 
-                    {answers.map((a) => (
-                      <div
-                        key={a.message_id}
-                        className="ml-4 mt-2 flex flex-col gap-1 rounded-lg border-l-2 border-[#3db9ee] bg-white p-3 shadow-[0_1px_1px_rgba(0,0,0,0.05)]"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
-                              <span className="material-symbols-rounded text-[10px] text-white">support_agent</span>
+                    {answers.map((a) => {
+                      const isSpeaker = a.USER?.role === "speaker";
+                      return (
+                        <div
+                          key={a.message_id}
+                          className={`ml-4 mt-2 flex flex-col gap-1 rounded-lg border-l-2 bg-white p-3 shadow-[0_1px_1px_rgba(0,0,0,0.05)] ${
+                            isSpeaker ? "border-[#e65100]" : "border-[#3db9ee]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-1.5">
+                              {a.USER?.profile_image_url ? (
+                                <img src={a.USER.profile_image_url} alt="" className="size-5 rounded-full object-cover" />
+                              ) : (
+                                <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
+                                  <span className="material-symbols-rounded text-[10px] text-white">support_agent</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#00658d]"}`}>
+                                  {a.USER?.full_name ?? "Unknown"}
+                                </span>
+                                {userBadge(a)}
+                              </div>
                             </div>
-                            <span className="text-[10px] font-bold text-[#00658d]">{a.USER?.full_name ?? "Unknown"}</span>
+                            <span className="text-[10px] text-[#5f5e5e]">{formatTime(a.sent_at)}</span>
                           </div>
-                          <span className="text-[10px] text-[#5f5e5e]">{formatTime(a.sent_at)}</span>
+                          <p className="text-sm leading-5 text-[#1b1c1c]">{a.message}</p>
                         </div>
-                        <p className="text-sm leading-5 text-[#1b1c1c]">{a.message}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
