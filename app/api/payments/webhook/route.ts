@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/hitpay";
 import { canTransitionPayment, generateQrToken } from "@/modules/commerce";
+import { generateQRDataUrl } from "@/lib/qr";
 
 export async function POST(req: Request) {
   const signature = req.headers.get("hitpay-signature") ?? "";
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
         supabase.from("EVENTS").select("title, event_date").eq("event_id", existingPayment.event_id).single(),
       ]);
       if (user && event) {
+        const qrDataUrl = await generateQRDataUrl(qrToken);
         fireAndForgetEmailNotification({
           user_id: existingPayment.user_id,
           email: user.email,
@@ -96,6 +98,7 @@ export async function POST(req: Request) {
           email_type: "ticket_issued",
           eventTitle: event.title,
           eventDate: event.event_date,
+          qrDataUrl,
         });
       }
     }

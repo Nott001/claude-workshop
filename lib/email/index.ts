@@ -1,5 +1,14 @@
-const BREVO_API_KEY = process.env.BREVO_API_KEY!;
-const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+import { Resend } from "resend";
+
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
+
+function getFromAddress(): string | null {
+  return process.env.RESEND_FROM_ADDRESS ?? null;
+}
 
 interface SendEmailParams {
   to: { email: string; name: string };
@@ -7,21 +16,13 @@ interface SendEmailParams {
   htmlContent: string;
 }
 
-function registrationConfirmationHtml(params: { name: string; eventTitle: string; eventDate: string }): string {
+function ticketIssuedHtml(params: { name: string; eventTitle: string; eventDate: string; qrDataUrl?: string }): string {
   return `
-    <h1>Registration Confirmed</h1>
+    <h1>Registration Confirmed &mdash; Ticket Issued</h1>
     <p>Hi ${params.name},</p>
-    <p>You have registered for <strong>${params.eventTitle}</strong> on ${params.eventDate}.</p>
-    <p>Your payment is being processed. You will receive your ticket once payment is confirmed.</p>
-  `;
-}
-
-function ticketIssuedHtml(params: { name: string; eventTitle: string; eventDate: string }): string {
-  return `
-    <h1>Ticket Issued</h1>
-    <p>Hi ${params.name},</p>
-    <p>Your ticket for <strong>${params.eventTitle}</strong> on ${params.eventDate} has been issued.</p>
-    <p>Present your QR code at the event to check in.</p>
+    <p>You are registered for <strong>${params.eventTitle}</strong> on ${params.eventDate}.</p>
+    <p>Your payment has been confirmed and your ticket is ready. Present the QR code below at the event to check in.</p>
+    ${params.qrDataUrl ? `<p><img src="${params.qrDataUrl}" alt="QR code" width="200" height="200" style="display:block;margin:24px auto" /></p>` : ""}
   `;
 }
 
@@ -35,47 +36,36 @@ function checkInConfirmedHtml(params: { name: string; eventTitle: string }): str
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean }> {
-  if (!BREVO_API_KEY) {
-    console.warn("BREVO_API_KEY not set; skipping email send");
+  const fromAddress = getFromAddress();
+  if (!fromAddress) {
+    console.warn("RESEND_FROM_ADDRESS not set; skipping email send");
     return { success: false };
   }
 
-  try {
-    const res = await fetch(BREVO_API_URL, {
-      method: "POST",
-      headers: {
-        "api-key": BREVO_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        sender: { name: "Event Platform", email: "noreply@example.com" },
-        to: [params.to],
-        subject: params.subject,
-        htmlContent: params.htmlContent,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.warn("Brevo send failed:", res.status, text);
-      return { success: false };
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.warn("Brevo send error:", err);
+  const resend = getResend();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set; skipping email send");
     return { success: false };
   }
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [params.to.email],
+    subject: params.subject,
+    html: params.htmlContent,
+  });
+
+  if (error) {
+    console.warn("Resend send failed:", error.message);
+    return { success: false };
+  }
+
+  return { success: true };
 }
 
 export const emailTemplates = {
-  registrationConfirmation: {
-    subject: "Registration Confirmed",
-    buildHtml: registrationConfirmationHtml,
-  },
   ticketIssued: {
-    subject: "Your Ticket Has Been Issued",
+    subject: "Registration Confirmed &mdash; Your Ticket Is Ready",
     buildHtml: ticketIssuedHtml,
   },
   checkInConfirmed: {
