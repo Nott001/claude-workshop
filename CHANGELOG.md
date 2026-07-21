@@ -4,9 +4,14 @@
 
 ### feat: add real-time Q&A panel to the event room
 
-- **components/qa-panel.tsx** — new Q&A side panel using the `live_qa` chat channel with real-time Supabase subscriptions, question feed, submit input, and Answer button for facilitators/speakers
-- **app/events/[id]/room/page.tsx** — integrate QAPanel as a sidebar alongside the lesson content; lock the panel with a lock icon and message when the event has not started yet
-- **test/qa-panel.test.ts** — verify `live_qa` channel validation through chat module schemas
+- **components/qa-panel.tsx** — new Q&A side panel using the `live_qa` chat channel with real-time Supabase subscriptions, threaded answer view, "Mark as verbally answered" for speakers/facilitators
+- **app/events/[id]/room/page.tsx** — integrate QAPanel as a sidebar alongside the lesson content; lock with lock icon and message when event has not started
+- **app/api/chat/[eventId]/route.ts** — fix param name bug (`id`→`eventId`) causing 404; add `reply_to` and `answered_verbally` to message insert
+- **app/api/chat/[eventId]/[messageId]/route.ts** — fix param name bug; add PATCH handler for toggling `answered_verbally`
+- **supabase/migrations/00022_add_chat_message_threading.sql** — add `reply_to` (FK self-ref) and `answered_verbally` columns to CHAT_MESSAGES
+- **types/index.ts** — add `reply_to` and `answered_verbally` to ChatMessage
+- **modules/chat/index.ts** — add `reply_to` and `answered_verbally` to sendMessageSchema
+- **test/qa-panel.test.ts** — verify threading fields and answered_verbally schema
 
 ### refactor: extract currentUser() helper and useCurrentUser() hook to eliminate auth repetition
 
