@@ -9,13 +9,9 @@ export function fireAndForgetEmailNotification(params: {
   email_type: EmailType;
   eventTitle: string;
   eventDate?: string;
+  qrDataUrl?: string;
 }) {
-  const templateKey =
-    params.email_type === "registration_confirmation"
-      ? "registrationConfirmation"
-      : params.email_type === "ticket_issued"
-        ? "ticketIssued"
-        : "checkInConfirmed";
+  const templateKey = params.email_type === "ticket_issued" ? "ticketIssued" : "checkInConfirmed";
   const template = emailTemplates[templateKey];
 
   const eventDate = params.eventDate ?? "";
@@ -25,7 +21,12 @@ export function fireAndForgetEmailNotification(params: {
       const result = await sendEmail({
         to: { email: params.email, name: params.name },
         subject: template.subject,
-        htmlContent: template.buildHtml({ name: params.name, eventTitle: params.eventTitle, eventDate }),
+        htmlContent: template.buildHtml({
+          name: params.name,
+          eventTitle: params.eventTitle,
+          eventDate,
+          qrDataUrl: params.qrDataUrl,
+        }),
       });
 
       const supabase = getServiceClient();

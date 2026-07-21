@@ -114,7 +114,7 @@ export interface ChatMessage {
   updated_at: string;
 }
 
-export type EmailType = "registration_confirmation" | "ticket_issued" | "check_in_confirmed";
+export type EmailType = "ticket_issued" | "check_in_confirmed";
 export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
