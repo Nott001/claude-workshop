@@ -13,6 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get("channel");
   const before = searchParams.get("before");
+  const after = searchParams.get("after");
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 50);
 
   if (!channel || !["support", "live_qa"].includes(channel)) {
@@ -36,11 +37,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
 
   let query = supabase
     .from("CHAT_MESSAGES")
-    .select("*, USER:user_id(full_name)")
+    .select("*, USER:user_id(full_name, role, profile_image_url)")
     .eq("event_id", eventId)
     .eq("channel", channel)
-    .is("deleted_at", null)
-    .order("sent_at", { ascending: false });
+    .is("deleted_at", null);
+
+  if (after) {
+    query = query.gt("sent_at", after).order("sent_at", { ascending: true });
+  } else {
+    query = query.order("sent_at", { ascending: false });
+  }
 
   if (before) {
     query = query.lt("sent_at", before);
@@ -56,7 +62,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
   const result = hasMore ? messages.slice(0, limit) : (messages ?? []);
   const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].sent_at : null;
 
-  result.reverse();
+  if (!after) result.reverse();
 
   return NextResponse.json({ messages: result, nextCursor });
 }
@@ -116,7 +122,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
       reply_to: parsed.data.reply_to ?? null,
       answered_verbally: parsed.data.answered_verbally ?? false,
     })
-    .select("*, USER:user_id(full_name)")
+    .select("*, USER:user_id(full_name, role, profile_image_url)")
     .single();
 
   if (error) {
