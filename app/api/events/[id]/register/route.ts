@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
+import { syncUser } from "@/lib/auth/sync-user";
 import { paymentInitSchema } from "@/modules/commerce";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,11 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, full_name, email, role")
-    .eq("clerk_id", userId)
-    .single();
+  const dbUser = await syncUser(userId);
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -60,11 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, full_name, email, role")
-    .eq("clerk_id", userId)
-    .single();
+  const dbUser = await syncUser(userId);
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
