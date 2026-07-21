@@ -30,6 +30,14 @@
 - **app/kiosk/page.tsx** — use `useCurrentUser()` instead of inline fetch
 - **test/current-user.test.ts** — 3 unit tests for currentUser
 
+### refactor: remove add-to-calendar button and add early-access note on event detail page
+
+- **app/events/[id]/page.tsx** — remove dead "Add to calendar" button (no handler); add `eventStarted` check (event_date + start_time vs now); show early-access note for ticketed attendees when event hasn't started yet
+
+### refactor: replace 'Enter' with 'Access' for event room button
+
+- **app/events/[id]/page.tsx** — change "Enter event room" to "Access event room" on all three instances (attendee, speaker, facilitator)
+
 ### feat: remove timegate lock and map feature from event session room
 
 - **supabase/migrations/00020_remove_event_time_constraint.sql** — new migration: drop `chk_event_time` constraint from `EVENTS` so past events remain accessible
