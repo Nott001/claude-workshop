@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Toast } from "@/components/toast";
 import { cn } from "@/lib/utils";
 
 interface SpeakerProfile {
@@ -43,6 +44,7 @@ export default function NewEventPage() {
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -144,7 +146,15 @@ export default function NewEventPage() {
     try {
       const event = await createEvent();
       await Promise.all([assignSpeaker(event.event_id), uploadCoverImage(event.event_id)]);
-      router.push("/events");
+      
+      const publishRes = await fetch(`/api/events/${event.event_id}/publish`, { method: "POST" });
+      if (!publishRes.ok) {
+        const data = await publishRes.json();
+        throw new Error(data.error?.message ?? "Event created but failed to publish");
+      }
+
+      setShowToast(true);
+      setTimeout(() => router.push(`/events/${event.event_id}`), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
       setSubmitting(false);
@@ -455,12 +465,18 @@ export default function NewEventPage() {
                 }}
                 className="rounded-lg px-8 py-3 text-base font-bold leading-6 text-white transition-colors hover:bg-[#239dce]"
               >
-                {submitting ? "Creating..." : "Continue to Review"}
+                {submitting ? "Publishing..." : "Publish"}
               </Button>
             </div>
           </Form>
         </div>
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Toast title="Event published successfully!" />
+        </div>
+      )}
     </div>
   );
 }
