@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import type { UserRole, User } from "@/types";
+import { syncUser } from "@/lib/auth/sync-user";
 
 type RoleGuardResult =
   | { allowed: true; error: null; user: Pick<User, "role"> }
@@ -12,10 +13,7 @@ export async function requireRole(...allowedRoles: UserRole[]): Promise<RoleGuar
     return { allowed: false, error: "Unauthenticated", user: null };
   }
 
-  const { getServiceClient } = await import("@/lib/db");
-  const supabase = getServiceClient();
-
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+  const dbUser = await syncUser(userId);
 
   if (!dbUser || !allowedRoles.includes(dbUser.role as UserRole)) {
     return { allowed: false, error: "Forbidden", user: null };

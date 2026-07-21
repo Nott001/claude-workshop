@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getServiceClient } from "@/lib/db";
+import { syncUser } from "@/lib/auth/sync-user";
 
 export async function GET() {
   const { userId } = await auth();
@@ -9,13 +9,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const supabase = getServiceClient();
+  const user = await syncUser(userId);
 
-  const { data: user, error } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
-
-  if (error || !user) {
+  if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json(user);
+  return NextResponse.json({ user_id: user.user_id, role: user.role });
 }
