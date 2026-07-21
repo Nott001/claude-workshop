@@ -3,13 +3,13 @@ import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { eventId } = await params;
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get("channel");
   const before = searchParams.get("before");
@@ -37,7 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   let query = supabase
     .from("CHAT_MESSAGES")
     .select("*, USER:user_id(full_name)")
-    .eq("event_id", id)
+    .eq("event_id", eventId)
     .eq("channel", channel)
     .is("deleted_at", null)
     .order("sent_at", { ascending: false });
@@ -61,13 +61,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({ messages: result, nextCursor });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { eventId } = await params;
   const body = await req.json();
   const parsed = sendMessageSchema.safeParse(body);
   if (!parsed.success) {
@@ -76,7 +76,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const supabase = getServiceClient();
 
-  const { data: event } = await supabase.from("EVENTS").select("event_id, status").eq("event_id", id).single();
+  const { data: event } = await supabase.from("EVENTS").select("event_id, status").eq("event_id", eventId).single();
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -96,7 +96,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { count } = await supabase
     .from("CHAT_MESSAGES")
     .select("*", { count: "exact", head: true })
-    .eq("event_id", id)
+    .eq("event_id", eventId)
     .eq("channel", parsed.data.channel)
     .eq("user_id", dbUser.user_id)
     .gte("sent_at", windowStart)
@@ -109,10 +109,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { data: message, error } = await supabase
     .from("CHAT_MESSAGES")
     .insert({
-      event_id: Number(id),
+      event_id: Number(eventId),
       channel: parsed.data.channel,
       user_id: dbUser.user_id,
       message: parsed.data.message,
+      reply_to: parsed.data.reply_to ?? null,
+      answered_verbally: parsed.data.answered_verbally ?? false,
     })
     .select("*, USER:user_id(full_name)")
     .single();
