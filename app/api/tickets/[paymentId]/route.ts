@@ -25,7 +25,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
 
   let query = supabase
     .from("TICKETS")
-    .select("*, PAYMENTS(status), EVENTS(title, event_date, venue_name)")
+    .select(
+      "*, PAYMENTS(status, paid_at), EVENTS(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)",
+    )
     .eq("payment_id", paymentId);
 
   if (dbUser.role === "attendee") {

@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: event, error } = await supabase
     .from("EVENTS")
-    .select("*, COURSE(*), EVENT_SPEAKERS(SPEAKER_PROFILES(*))")
+    .select("*, COURSE(*), EVENT_SPEAKERS(SPEAKER_PROFILES(*, USERS(full_name, email)))")
     .eq("event_id", id)
     .single();
 
@@ -31,8 +31,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (userRole === "facilitator") {
-    const { count } = await supabase.from("PAYMENTS").select("*", { count: "exact", head: true }).eq("event_id", id);
-    return NextResponse.json({ ...event, payment_count: count ?? 0 });
+    const { count: attendeeCount } = await supabase
+      .from("TICKETS")
+      .select("ticket_id", { count: "exact", head: true })
+      .eq("event_id", id)
+      .neq("status", "cancelled");
+    return NextResponse.json({ ...event, attendee_count: attendeeCount ?? 0 });
   }
 
   return NextResponse.json(event);

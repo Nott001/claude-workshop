@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { ArrowLeft } from "lucide-react";
 
-import { formatTime } from "@/lib/landing";
+import { formatTime, formatEventDate } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { FloatingAssistButton } from "@/components/floating-assist-button";
+import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
 
 interface SpeakerProfile {
@@ -14,7 +16,7 @@ interface SpeakerProfile {
   bio: string | null;
   photo_url: string | null;
   designation: string | null;
-  full_name?: string;
+  USERS?: { full_name: string; email: string } | null;
 }
 
 interface EventSpeaker {
@@ -35,17 +37,15 @@ interface Event {
   end_time: string;
   venue_name: string;
   venue_address: string | null;
-  lat: number | null;
-  lng: number | null;
   course_id: number | null;
   cover_image_url: string | null;
   status: "draft" | "active" | "complete";
   price: number;
   currency: string;
   description: string | null;
-  overview: string | null;
   COURSE: Course | null;
   EVENT_SPEAKERS: EventSpeaker[];
+  attendee_count?: number;
   payment_count?: number;
 }
 
@@ -55,6 +55,15 @@ function formatHeroDateTime(dateStr: string, startTime: string, endTime: string)
   const day = d.getDate();
   const year = d.getFullYear();
   return `${formatTime(startTime)} - ${formatTime(endTime)}, ${month} ${day} ${year}`;
+}
+
+interface AttendeeRow {
+  user_id: number;
+  full_name: string;
+  email: string;
+  ticket_status: "issued" | "checked_in" | "cancelled";
+  issued_at: string;
+  checked_in_at: string | null;
 }
 
 export default function EventDetailPage() {
@@ -67,6 +76,9 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasTicket, setHasTicket] = useState(false);
+  const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
+  const [attendeesTotal, setAttendeesTotal] = useState(0);
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -116,6 +128,21 @@ export default function EventDetailPage() {
       })
       .catch(() => {});
   }, [isLoaded, isSignedIn, userRole]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || userRole !== "facilitator") return;
+    setAttendeesLoading(true);
+    fetch(`/api/events/${eventId}/attendees?limit=5`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setRecentAttendees(data.attendees);
+          setAttendeesTotal(data.total);
+        }
+        setAttendeesLoading(false);
+      })
+      .catch(() => setAttendeesLoading(false));
+  }, [eventId, isLoaded, isSignedIn, userRole]);
 
   const isSpeakerAssigned =
     speakerProfileId &&
@@ -196,7 +223,292 @@ export default function EventDetailPage() {
   const isFacilitator = userRole === "facilitator";
   const canManage = isFacilitator;
   const showCountdown = event.status === "active";
-  const isEventStarted = new Date(`${event.event_date}T${event.start_time}`) <= new Date();
+
+  if (isFacilitator) {
+    const badgeStatus: EventStatus =
+      event.status === "active" ? "upcoming" : event.status === "complete" ? "completed" : "draft";
+    const badgeLabel = event.status === "draft" ? "Draft" : event.status === "active" ? "Upcoming" : "Completed";
+
+    return (
+      <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
+        <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
+          <button
+            onClick={() => router.push("/events")}
+            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-[#5f5e5e] transition-colors hover:text-[#1b1c1c]"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Events
+          </button>
+
+          <div className="grid grid-cols-12 gap-6">
+            {/* Main content */}
+            <div className="col-span-8 flex flex-col gap-6">
+              {/* Hero with cover image */}
+              <div className="relative overflow-hidden rounded-xl border border-[rgba(229,231,235,0.5)] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+                <div className="relative h-[320px]">
+                  {event.cover_image_url ? (
+                    <img src={event.cover_image_url} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="flex size-full items-center justify-center bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300">
+                      <span className="material-symbols-rounded text-6xl text-white/50">image</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.7)] to-[rgba(0,0,0,0)]" />
+                  <div className="absolute bottom-8 left-8 right-8 flex flex-col gap-3">
+                    <StatusBadge
+                      status={badgeStatus}
+                      label={badgeLabel}
+                      className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
+                    />
+                    <h1 className="text-[36px] font-bold leading-[44px] tracking-[-0.02em] text-white">{event.title}</h1>
+                    <div className="flex flex-wrap gap-6 text-sm font-medium text-white/90">
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-rounded text-[16px]">calendar_today</span>
+                        {formatEventDate(event.event_date)}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-rounded text-[16px]">schedule</span>
+                        {formatTime(event.start_time)} – {formatTime(event.end_time)}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-rounded text-[16px]">location_on</span>
+                        {event.venue_name}
+                      </span>
+                    </div>
+                    {event.status === "active" && (
+                      <div className="mt-1">
+                        <CountdownTimer eventDate={event.event_date} startTime={event.start_time} light />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Linked Curriculum */}
+              {event.COURSE && (
+                <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+                      <span className="material-symbols-rounded text-lg text-[#3db9ee]">school</span>
+                    </div>
+                    <div>
+                      <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Linked Curriculum</h2>
+                    </div>
+                  </div>
+                  <h3 className="mb-2 text-[24px] font-bold text-[#1b1c1c]">{event.COURSE.course_name}</h3>
+                  {event.COURSE.course_description && (
+                    <p className="mb-4 text-base leading-[26px] text-[#3E484F]">{event.COURSE.course_description}</p>
+                  )}
+                  <button
+                    onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                  >
+                    <span className="material-symbols-rounded text-sm">open_in_new</span>
+                    View Curriculum
+                  </button>
+                </div>
+              )}
+
+              {/* Speaker */}
+              {event.EVENT_SPEAKERS.length > 0 ? (
+                (() => {
+                  const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
+                  const name = sp.USERS?.full_name || "Speaker";
+                  const email = sp.USERS?.email || null;
+                  const initials = name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2);
+                  return (
+                    <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                      <div className="flex items-center gap-5">
+                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                          {sp.photo_url ? (
+                            <img src={sp.photo_url} alt="" className="size-full object-cover" />
+                          ) : (
+                            <span className="text-xl font-bold text-[#3db9ee]">{initials || "SP"}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-lg font-semibold text-[#1b1c1c]">{name}</p>
+                          {sp.designation && (
+                            <p className="text-xs font-medium uppercase tracking-[0.05em] text-[#6E7980]">{sp.designation}</p>
+                          )}
+                          {email && <p className="mt-1 text-sm text-[#5f5e5e]">{email}</p>}
+                          {sp.bio && <p className="mt-2 text-sm leading-[22px] text-[#3E484F]">{sp.bio}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#d0d5dd] bg-[rgba(255,255,255,0.9)] px-8 py-6 text-center text-sm text-[#5f5e5e] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+                  No speaker assigned yet
+                </div>
+              )}
+
+              {/* Recent Registrations */}
+              <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Recent Registrations</h2>
+                  <button
+                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    className="text-sm font-medium text-[#3db9ee] hover:underline"
+                  >
+                    View all ({attendeesTotal})
+                  </button>
+                </div>
+                {attendeesLoading ? (
+                  <div className="py-8 text-center text-sm text-[#5f5e5e]">Loading...</div>
+                ) : recentAttendees.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-[#5f5e5e]">No registrations yet</div>
+                ) : (
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[rgba(229,231,235,0.5)] text-[#6E7980]">
+                        <th className="pb-3 pr-4 font-medium">Name</th>
+                        <th className="pb-3 pr-4 font-medium">Email</th>
+                        <th className="pb-3 pr-4 font-medium">Status</th>
+                        <th className="pb-3 font-medium">Registered</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentAttendees.map((a) => (
+                        <tr key={a.user_id} className="border-b border-[rgba(229,231,235,0.2)]">
+                          <td className="py-3 pr-4 text-[#1b1c1c]">{a.full_name}</td>
+                          <td className="py-3 pr-4 text-[#5f5e5e]">{a.email}</td>
+                          <td className="py-3 pr-4">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                a.ticket_status === "checked_in"
+                                  ? "bg-green-50 text-green-700"
+                                  : a.ticket_status === "issued"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "bg-gray-50 text-gray-500"
+                              }`}
+                            >
+                              {a.ticket_status === "checked_in"
+                                ? "Checked in"
+                                : a.ticket_status === "issued"
+                                  ? "Registered"
+                                  : "Cancelled"}
+                            </span>
+                          </td>
+                          <td className="py-3 text-[#5f5e5e]">{new Date(a.issued_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="col-span-4 flex flex-col gap-6">
+              {/* Analytics */}
+              <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                <span className="text-sm font-medium text-[#3e484f]">Tickets Issued</span>
+                <p className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-[#3db9ee]">
+                  {event.attendee_count?.toLocaleString() ?? "0"}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                <h2 className="mb-4 text-[16px] font-semibold text-[#1b1c1c]">Actions</h2>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => router.push(`/events/${eventId}/room`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3db9ee] py-3 text-sm font-bold text-white transition-colors hover:bg-[#2da3d9]"
+                  >
+                    <span className="material-symbols-rounded text-sm">play_circle</span>
+                    Enter Event Room
+                  </button>
+                  <button
+                    onClick={() => router.push(`/events/${eventId}/edit`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                  >
+                    <span className="material-symbols-rounded text-sm">edit</span>
+                    Edit Event
+                  </button>
+                  <button
+                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                  >
+                    <span className="material-symbols-rounded text-sm">qr_code_scanner</span>
+                    View All Attendees
+                  </button>
+                  {event.status === "draft" && (
+                    <button
+                      onClick={handlePublish}
+                      disabled={publishing}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 py-3 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <span className="material-symbols-rounded text-sm">publish</span>
+                      {publishing ? "Publishing..." : "Publish Event"}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDelete}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    <span className="material-symbols-rounded text-sm">delete</span>
+                    Delete Event
+                  </button>
+                </div>
+                {publishError && <p className="mt-2 text-xs text-red-500">{publishError}</p>}
+                {deleteError && <p className="mt-2 text-xs text-red-500">{deleteError}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Delete confirmation modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-md rounded-xl border border-[#bdc8d0] bg-white p-6 shadow-lg">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="material-symbols-rounded text-2xl text-red-500">warning</span>
+                <h3 className="text-sm font-semibold text-[#1B1C1C]">Delete event</h3>
+              </div>
+              <p className="mb-2 text-sm text-[#3E484F]">
+                This event has existing payments. Deleting it will also remove all associated data, including payments, tickets,
+                and chat messages. This action <strong>cannot be undone</strong>.
+              </p>
+              <p className="mb-4 text-sm text-[#3E484F]">
+                Type <strong>understood</strong> to confirm.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder='type "understood"'
+                className="mb-4 w-full rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm text-[#1B1C1C] outline-none focus:border-red-400"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="rounded-lg border border-[#bdc8d0] bg-white px-4 py-2 text-xs font-medium text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteConfirmText !== "understood" || deleting}
+                  className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete event"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Footer role="facilitator" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col bg-white">
@@ -257,53 +569,42 @@ export default function EventDetailPage() {
                   </div>
                 )}
 
-                {/* Overview */}
-                {event.overview && (
-                  <div>
-                    <p className="text-lg leading-[29.25px] text-[#3E484F]">{event.overview}</p>
-                  </div>
-                )}
-
-                {/* Speakers */}
-                {event.EVENT_SPEAKERS.length > 0 && (
-                  <div className="mt-8">
-                    <h2 className="mb-8 text-[24px] font-semibold text-[#1B1C1C]">Speakers</h2>
-                    <div className="flex flex-col gap-8">
-                      {event.EVENT_SPEAKERS.map((es) => {
-                        const sp = es.SPEAKER_PROFILES;
-                        return (
-                          <div
-                            key={sp.speaker_profile_id}
-                            className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8"
-                          >
-                            <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                              {sp.photo_url ? (
-                                <img src={sp.photo_url} alt="" className="size-full object-cover" />
-                              ) : (
-                                <span className="text-2xl font-bold text-[#3db9ee]">
-                                  {sp.full_name
-                                    ?.split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .slice(0, 2) || "SP"}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-4">
-                              <div>
-                                <h3 className="text-[24px] font-semibold text-[#1B1C1C]">{sp.full_name || "Speaker"}</h3>
-                                <p className="text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
-                                  {sp.designation || "Speaker"}
-                                </p>
-                              </div>
-                              {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
-                            </div>
+                {/* Speaker */}
+                {event.EVENT_SPEAKERS.length > 0 &&
+                  (() => {
+                    const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
+                    const name = sp.USERS?.full_name || "Speaker";
+                    const email = sp.USERS?.email || null;
+                    const initials = name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2);
+                    return (
+                      <div className="mt-8">
+                        <h2 className="mb-8 text-[24px] font-semibold text-[#1B1C1C]">Speaker</h2>
+                        <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8">
+                          <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                            {sp.photo_url ? (
+                              <img src={sp.photo_url} alt="" className="size-full object-cover" />
+                            ) : (
+                              <span className="text-2xl font-bold text-[#3db9ee]">{initials}</span>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <h3 className="text-[24px] font-semibold text-[#1B1C1C]">{name}</h3>
+                              <p className="text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
+                                {sp.designation || "Speaker"}
+                              </p>
+                            </div>
+                            {email && <p className="text-base text-[#3E484F]">{email}</p>}
+                            {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                 {/* Linked Curriculum */}
                 {event.COURSE && (
@@ -353,7 +654,7 @@ export default function EventDetailPage() {
                     </div>
 
                     {/* Event Price */}
-                    {event.price > 0 && (
+                    {event.price > 0 && !hasTicket && (
                       <div className="flex items-center gap-4">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
                           <span className="material-symbols-rounded text-lg text-[#3db9ee]">payments</span>
@@ -372,23 +673,12 @@ export default function EventDetailPage() {
                       {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
                         <>
                           {hasTicket ? (
-                            isEventStarted ? (
-                              <button
-                                onClick={() => router.push(`/events/${eventId}/room`)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
-                              >
-                                <span className="material-symbols-rounded text-base">lock_open</span>
-                                Enter event room
-                              </button>
-                            ) : (
-                              <button
-                                disabled
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#6E7881] bg-gray-100 px-4 py-3 text-base font-bold text-[#6E7881] cursor-not-allowed"
-                              >
-                                <span className="material-symbols-rounded text-base">lock</span>
-                                Event not yet started
-                              </button>
-                            )
+                            <button
+                              onClick={() => router.push(`/events/${eventId}/room`)}
+                              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                            >
+                              Enter event room
+                            </button>
                           ) : (
                             <button
                               onClick={handleRegister}
@@ -405,7 +695,6 @@ export default function EventDetailPage() {
                           onClick={() => router.push(`/events/${eventId}/room`)}
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
                         >
-                          <span className="material-symbols-rounded text-base">lock_open</span>
                           Enter event room
                         </button>
                       )}
@@ -415,48 +704,6 @@ export default function EventDetailPage() {
                         Add to calendar
                       </button>
                     </div>
-
-                    {/* Share */}
-                    <div className="border-t border-[#BDC8D1] pt-6">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base text-[#5F5E5E]">Share</span>
-                        <div className="flex gap-4">
-                          <button
-                            className="text-[#5F5E5E] transition-colors hover:text-[#3db9ee]"
-                            aria-label="Share on Facebook"
-                          >
-                            <svg className="size-[18px]" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
-                            </svg>
-                          </button>
-                          <button
-                            className="text-[#5F5E5E] transition-colors hover:text-[#3db9ee]"
-                            aria-label="Share on Twitter"
-                          >
-                            <svg className="size-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                            </svg>
-                          </button>
-                          <button
-                            className="text-[#5F5E5E] transition-colors hover:text-[#3db9ee]"
-                            aria-label="Share on LinkedIn"
-                          >
-                            <svg className="size-[20px]" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Map preview */}
-                  <div className="relative h-[192px] overflow-hidden rounded-2xl border border-[#BDC8D1] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    <img src="/images/event-map-preview-3f01c8.png" alt="Map preview" className="size-full object-cover" />
-                    <div className="absolute inset-0 bg-black/10" />
-                    <button className="absolute bottom-[14px] left-[17px] flex items-center rounded-lg bg-white/90 px-2 py-2 text-xs font-medium text-[#191C1E] shadow-[0_4px_6px_-4px_rgba(0,0,0,0.1),0_10px_15px_-3px_rgba(0,0,0,0.1)] backdrop-blur-[6px] transition-colors hover:bg-white">
-                      View in Maps
-                    </button>
                   </div>
                 </div>
               </div>

@@ -18,14 +18,11 @@ describe("Event types", () => {
       end_time: "17:00:00",
       venue_name: "Convention Center",
       venue_address: "123 Main St",
-      lat: null,
-      lng: null,
       price: 0,
       currency: "PHP",
       cover_image_url: null,
       status: "draft",
       description: null,
-      overview: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -69,8 +66,6 @@ describe("eventSchema", () => {
       venue_name: "Convention Center",
       venue_address: "123 Main St",
       course_id: 1,
-      lat: 1.234,
-      lng: 5.678,
     });
     expect(result.success).toBe(true);
   });

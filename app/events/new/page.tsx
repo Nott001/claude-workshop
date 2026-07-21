@@ -31,7 +31,6 @@ export default function NewEventPage() {
   const [venueName, setVenueName] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
   const [description, setDescription] = useState("");
-  const [overview, setOverview] = useState("");
   const [courseId, setCourseId] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("PHP");
@@ -91,7 +90,6 @@ export default function NewEventPage() {
       venue_name: venueName,
       venue_address: venueAddress || null,
       description: description || null,
-      overview: overview || null,
       course_id: courseId && courseId !== "__none__" ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
@@ -435,16 +433,6 @@ export default function NewEventPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Briefly describe the purpose of this event..."
                 className="min-h-[88px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
-              />
-            </FormField>
-
-            <FormField>
-              <FormLabel className="text-sm font-semibold text-[#334155]">Overview</FormLabel>
-              <Textarea
-                value={overview}
-                onChange={(e) => setOverview(e.target.value)}
-                placeholder="Provide a detailed agenda or session breakdown..."
-                className="min-h-[108px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
               />
             </FormField>
 

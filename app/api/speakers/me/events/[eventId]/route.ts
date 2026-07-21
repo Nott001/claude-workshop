@@ -56,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
     .from("TICKETS")
     .select("ticket_id", { count: "exact", head: true })
     .eq("event_id", Number(eventId))
-    .eq("status", "active");
+    .neq("status", "cancelled");
 
   return NextResponse.json({
     event_id: event.event_id,

@@ -18,7 +18,6 @@ interface EventData {
   venue_name: string;
   venue_address: string | null;
   description: string | null;
-  overview: string | null;
   course_id: number | null;
   price: number;
   currency: string;
@@ -54,7 +53,6 @@ export default function EditEventPage() {
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("PHP");
   const [description, setDescription] = useState("");
-  const [overview, setOverview] = useState("");
   const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -103,7 +101,6 @@ export default function EditEventPage() {
       setPrice(String(data.price ?? 0));
       setCurrency(data.currency ?? "PHP");
       setDescription(data.description ?? "");
-      setOverview(data.overview ?? "");
       setExistingCoverUrl(data.cover_image_url);
       setStatus(data.status);
       setLoading(false);
@@ -150,7 +147,6 @@ export default function EditEventPage() {
       venue_name: venueName,
       venue_address: venueAddress || null,
       description: description || null,
-      overview: overview || null,
       course_id: courseId && courseId !== "__none__" ? Number(courseId) : null,
       price: price ? Number(price) : 0,
       currency,
@@ -493,16 +489,6 @@ export default function EditEventPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Briefly describe the purpose of this event..."
                 className="min-h-[88px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
-              />
-            </FormField>
-
-            <FormField>
-              <FormLabel className="text-sm font-semibold text-[#334155]">Overview</FormLabel>
-              <Textarea
-                value={overview}
-                onChange={(e) => setOverview(e.target.value)}
-                placeholder="Provide a detailed agenda or session breakdown..."
-                className="min-h-[108px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
               />
             </FormField>
 
