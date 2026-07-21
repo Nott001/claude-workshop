@@ -8,6 +8,7 @@ export default function SignUpPage() {
         routing="path"
         path="/sign-up"
         signInUrl="/sign-in"
+        afterSignUpUrl="/"
         appearance={{
           elements: {
             rootBox: "w-full max-w-[350px]",

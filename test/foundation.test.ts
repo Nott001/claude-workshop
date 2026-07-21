@@ -3,10 +3,15 @@ import type { User, UserRole } from "@/types";
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: vi.fn(),
+  clerkClient: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   getServiceClient: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/sync-user", () => ({
+  syncUser: vi.fn(),
 }));
 
 describe("User types", () => {
@@ -75,14 +80,8 @@ describe("requireRole", () => {
       protect: vi.fn(),
     });
 
-    const { getServiceClient } = await import("@/lib/db");
-    const mockSelect = vi.fn().mockReturnThis();
-    const mockEq = vi.fn().mockReturnThis();
-    const mockSingle = vi.fn().mockResolvedValue({ data: { role: "attendee" }, error: null });
-
-    vi.mocked(getServiceClient).mockReturnValue({
-      from: vi.fn().mockReturnValue({ select: mockSelect, eq: mockEq, single: mockSingle }),
-    } as unknown as ReturnType<typeof getServiceClient>);
+    const { syncUser } = await import("@/lib/auth/sync-user");
+    vi.mocked(syncUser).mockResolvedValue({ user_id: 1, role: "attendee", full_name: "Test", email: "test@test.com" });
 
     const { requireRole } = await import("@/lib/auth/role-guard");
     const result = await requireRole("facilitator");

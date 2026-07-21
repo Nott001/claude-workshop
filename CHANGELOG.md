@@ -6,6 +6,16 @@
 
 - **app/api/events/[id]/attendees/route.ts** — new facilitator-only endpoint returning all registered attendees for an event (TICKETS + USERS join) with ticket_status, search by name/email, status filtering, and paginated results
 - **app/kiosk/[id]/attendees/page.tsx** — rewrite from unstyled HTML table to Organization page pattern: styled table with avatar initials, name, email, status badge (Registered/Checked in/Cancelled), registration date, check-in time; add filter tabs (All / Checked in / Not checked in), search input, pagination, back-to-kiosk link, Supabase Realtime subscription for live updates
+### fix: add on-demand user sync and fix post-login redirect
+
+- **lib/auth/sync-user.ts** — new utility: when a Clerk user is not found in Supabase, fetch their profile from the Clerk API and upsert into USERS; acts as a resilient fallback when the Clerk webhook fails or is delayed
+- **lib/auth/role-guard.ts** — replace direct Supabase lookup with `syncUser()` so all API routes using `requireRole()` automatically sync missing users
+- **app/api/auth/me/route.ts** — use `syncUser()` instead of direct Supabase query, so the first API call after login creates the user record if missing
+- **app/api/events/[id]/register/route.ts** — use `syncUser()` in both GET and POST handlers so event registration works for newly-created users
+- **app/sign-in/[[...sign-in]]/page.tsx** — change `afterSignInUrl` from `/events` to `/` so `PostLoginRedirect` handles role-based routing (attendee -> /home, facilitator -> /events)
+- **app/sign-up/[[...sign-up]]/page.tsx** — add `afterSignUpUrl="/"` for consistent post-signup redirect
+- **test/sync-user.test.ts** — 4 unit tests: existing user returned, new user created, Clerk API failure, Supabase insert failure
+- **test/foundation.test.ts** — update `requireRole` tests to mock `syncUser` instead of direct Supabase client
 
 ### feat: simplify event listing filters — role-based tabs, draft events isolated to Drafts tab
 
