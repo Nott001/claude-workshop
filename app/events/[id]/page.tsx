@@ -685,7 +685,7 @@ export default function EventDetailPage() {
                                 onClick={() => router.push(`/events/${eventId}/room`)}
                                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
                               >
-                                Enter event room
+                                Access event room
                               </button>
                             </div>
                           ) : (
@@ -704,7 +704,7 @@ export default function EventDetailPage() {
                           onClick={() => router.push(`/events/${eventId}/room`)}
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
                         >
-                          Enter event room
+                          Access event room
                         </button>
                       )}
                     </div>
@@ -733,7 +733,7 @@ export default function EventDetailPage() {
                     className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100"
                   >
                     <span className="material-symbols-rounded text-sm">play_circle</span>
-                    Enter event room
+                    Access event room
                   </button>
                   <button
                     onClick={() => router.push(`/events/${eventId}/edit`)}
