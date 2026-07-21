@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
 
   const supabase = getServiceClient();
 
-  const { data: event } = await supabase.from("EVENTS").select("event_id, status").eq("event_id", id).single();
+  const { data: event } = await supabase.from("EVENTS").select("event_id, status").eq("event_id", eventId).single();
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
