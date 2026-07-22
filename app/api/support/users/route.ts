@@ -38,7 +38,8 @@ export async function GET() {
     .eq("channel", CHANNEL)
     .gte("sent_at", since)
     .is("deleted_at", null)
-    .order("sent_at", { ascending: false });
+    .order("sent_at", { ascending: false })
+    .limit(500);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

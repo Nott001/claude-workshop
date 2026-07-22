@@ -74,14 +74,19 @@ export default function SupportPage() {
         setUsers(data);
         setUsersVersion((v) => v + 1);
       }
-    });
+    }).catch(() => {});
   }, [fetchUsers]);
 
   useEffect(() => {
     if (!usersVersion) return;
     let cancelled = false;
     const id = setInterval(async () => {
-      const data = await fetchUsers();
+      let data;
+      try {
+        data = await fetchUsers();
+      } catch {
+        return;
+      }
       if (cancelled || !data) return;
       setUsers((prev) => {
         const merged = [...data];
@@ -209,11 +214,13 @@ export default function SupportPage() {
     setNewMessage("");
     setSending(false);
 
-    const updatedUsers = await fetchUsers();
-    if (updatedUsers) {
-      setUsers(updatedUsers);
-      setUsersVersion((v) => v + 1);
-    }
+    try {
+      const updatedUsers = await fetchUsers();
+      if (updatedUsers) {
+        setUsers(updatedUsers);
+        setUsersVersion((v) => v + 1);
+      }
+    } catch {}
   }
 
   async function handleEndChat(userId: number) {
@@ -236,11 +243,13 @@ export default function SupportPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, action: "end" }),
       });
-      const updatedUsers = await fetchUsers();
-      if (updatedUsers) {
-        setUsers(updatedUsers);
-        setUsersVersion((v) => v + 1);
-      }
+      try {
+        const updatedUsers = await fetchUsers();
+        if (updatedUsers) {
+          setUsers(updatedUsers);
+          setUsersVersion((v) => v + 1);
+        }
+      } catch {}
     } finally {
       setEndingChat(false);
     }
