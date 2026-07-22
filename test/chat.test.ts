@@ -4,8 +4,8 @@ import type { ChatMessage, ChatChannel } from "@/types";
 
 describe("ChatChannel type", () => {
   it("accepts valid channel values", () => {
-    const channels: ChatChannel[] = ["support", "live_qa"];
-    expect(channels).toHaveLength(2);
+    const channels: ChatChannel[] = ["support", "live_qa", "global_support"];
+    expect(channels).toHaveLength(3);
   });
 });
 
@@ -16,6 +16,7 @@ describe("ChatMessage type", () => {
       event_id: 1,
       channel: "live_qa",
       user_id: 5,
+      recipient_user_id: null,
       message: "Hello, world!",
       sent_at: "2026-07-10T12:00:00Z",
       read_by: [],
@@ -35,6 +36,7 @@ describe("ChatMessage type", () => {
       event_id: 1,
       channel: "support",
       user_id: 3,
+      recipient_user_id: null,
       message: "Need help",
       sent_at: "2026-07-10T12:00:00Z",
       read_by: [],
@@ -44,6 +46,25 @@ describe("ChatMessage type", () => {
       answered_verbally: false,
     };
     expect(msg.deleted_at).toBeTruthy();
+  });
+
+  it("accepts null event_id for global support", () => {
+    const msg: ChatMessage = {
+      message_id: 3,
+      event_id: null,
+      channel: "global_support",
+      user_id: 1,
+      recipient_user_id: null,
+      message: "General help",
+      sent_at: "2026-07-10T12:00:00Z",
+      read_by: [],
+      deleted_at: null,
+      updated_at: "2026-07-10T12:00:00Z",
+      reply_to: null,
+      answered_verbally: false,
+    };
+    expect(msg.event_id).toBeNull();
+    expect(msg.channel).toBe("global_support");
   });
 });
 
@@ -55,6 +76,11 @@ describe("chatChannelEnum", () => {
 
   it("accepts 'live_qa'", () => {
     const result = chatChannelEnum.safeParse("live_qa");
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts 'global_support'", () => {
+    const result = chatChannelEnum.safeParse("global_support");
     expect(result.success).toBe(true);
   });
 
@@ -77,6 +103,19 @@ describe("sendMessageSchema", () => {
   it("accepts support channel", () => {
     const result = sendMessageSchema.safeParse({ channel: "support", message: "Need help" });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts global_support channel", () => {
+    const result = sendMessageSchema.safeParse({ channel: "global_support", message: "Need help" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts global_support with reply_to", () => {
+    const result = sendMessageSchema.safeParse({ channel: "global_support", message: "Reply", reply_to: 42 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.reply_to).toBe(42);
+    }
   });
 
   it("rejects empty message", () => {
