@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### feat: add unread message notifications for support chat
+
+- **supabase/migrations/00030_add_support_sessions_last_read_at.sql** — add `last_read_at` column to SUPPORT_SESSIONS
+- **app/api/support/sessions/[userId]/route.ts** — add PATCH handler to update `last_read_at` when facilitator selects a user
+- **app/api/support/users/route.ts** — compute `unread` flag by comparing message `sent_at` with session `last_read_at`
+- **app/support/page.tsx** — call PATCH on user select; show unread dot + bold message text for unread conversations
+- **components/floating-assist-button.tsx** — poll `/api/support` every 10s, compare with `localStorage` last-read timestamp, show red badge with unread count on button
+
 ### refactor: remove ended_by_user status from support sessions
 
 - **supabase/migrations/00029_drop_ended_by_user_status.sql** — migrate enum from `('active', 'ended_by_facilitator', 'ended_by_user')` to `('active', 'ended_by_facilitator')` since only facilitators can end sessions
