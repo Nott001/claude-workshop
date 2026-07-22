@@ -391,6 +391,15 @@ export default function SupportPage() {
                   {messages.length === 0 && <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet.</p>}
 
                   {messages.map((msg) => {
+                    const isChatEnded = msg.message.startsWith("[Chat ended");
+                    if (isChatEnded) {
+                      return (
+                        <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                          <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
+                          <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                        </div>
+                      );
+                    }
                     const isOwn = msg.user_id === currentUserId;
                     const isStaff = msg.USER?.role === "facilitator";
                     return (
