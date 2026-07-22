@@ -13,6 +13,7 @@ interface QAPanelProps {
   userRole: UserRole | null;
   currentUserId: number | null;
   eventStarted: boolean;
+  eventEnded: boolean;
 }
 
 function groupMessages(messages: ChatMessageWithUser[]) {
@@ -32,7 +33,7 @@ function groupMessages(messages: ChatMessageWithUser[]) {
   return { questions, answersByParent };
 }
 
-export default function QAPanel({ eventId, userRole, currentUserId, eventStarted }: QAPanelProps) {
+export default function QAPanel({ eventId, userRole, currentUserId, eventStarted, eventEnded }: QAPanelProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -142,6 +143,15 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  function formatDateTime(sentAt: string) {
+    const d = new Date(sentAt);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return time;
+    return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+  }
+
   function userBadge(msg: ChatMessageWithUser) {
     if (msg.USER?.role === "speaker") {
       return (
@@ -181,6 +191,8 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
       </div>
     );
   }
+
+  const interactive = !eventEnded;
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
@@ -226,7 +238,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                             {userBadge(q)}
                           </div>
                         </div>
-                        <span className="text-[10px] text-[#5f5e5e]">{formatTime(q.sent_at)}</span>
+                        <span className="text-[10px] text-[#5f5e5e]">{formatDateTime(q.sent_at)}</span>
                       </div>
                       <p className="text-sm leading-5 text-[#1b1c1c]">{q.message}</p>
 
@@ -237,7 +249,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                             Answered verbally
                           </span>
                         )}
-                        {canAnswer && !q.answered_verbally && currentUserId !== q.user_id && (
+                        {interactive && canAnswer && !q.answered_verbally && currentUserId !== q.user_id && (
                           <>
                             <button
                               onClick={() => handleAnswer(q.message_id)}
@@ -278,7 +290,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                                 {userBadge(a)}
                               </div>
                             </div>
-                            <span className="text-[10px] text-[#5f5e5e]">{formatTime(a.sent_at)}</span>
+                            <span className="text-[10px] text-[#5f5e5e]">{formatDateTime(a.sent_at)}</span>
                           </div>
                           <p className="text-sm leading-5 text-[#1b1c1c]">{a.message}</p>
                         </div>
@@ -291,35 +303,41 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={handleSend} className="border-t border-[#bdc8d0] p-3">
-            {replyTarget && (
-              <div className="mb-2 flex items-center justify-between rounded bg-[#e4e2e1] px-2 py-1">
-                <span className="text-[10px] text-[#5f5e5e]">Replying to question...</span>
-                <button type="button" onClick={() => setReplyTarget(null)} className="text-[10px] text-[#5f5e5e]">
-                  <span className="material-symbols-rounded text-sm">close</span>
+          {interactive ? (
+            <form onSubmit={handleSend} className="border-t border-[#bdc8d0] p-3">
+              {replyTarget && (
+                <div className="mb-2 flex items-center justify-between rounded bg-[#e4e2e1] px-2 py-1">
+                  <span className="text-[10px] text-[#5f5e5e]">Replying to question...</span>
+                  <button type="button" onClick={() => setReplyTarget(null)} className="text-[10px] text-[#5f5e5e]">
+                    <span className="material-symbols-rounded text-sm">close</span>
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={canAnswer ? "Type your answer..." : "Ask a question..."}
+                  maxLength={1000}
+                  className="flex-1 rounded-lg border border-[#bdc8d0] px-3 py-2 text-sm outline-none focus:border-[#3db9ee]"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !newMessage.trim()}
+                  className="rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:opacity-50"
+                >
+                  {sending ? "..." : "Send"}
                 </button>
               </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={canAnswer ? "Type your answer..." : "Ask a question..."}
-                maxLength={1000}
-                className="flex-1 rounded-lg border border-[#bdc8d0] px-3 py-2 text-sm outline-none focus:border-[#3db9ee]"
-              />
-              <button
-                type="submit"
-                disabled={sending || !newMessage.trim()}
-                className="rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:opacity-50"
-              >
-                {sending ? "..." : "Send"}
-              </button>
+              {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+            </form>
+          ) : (
+            <div className="border-t border-[#bdc8d0] p-3 text-center">
+              <p className="text-[10px] text-[#6E7980]">This event has ended. Q&A is in view-only mode.</p>
             </div>
-            {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-          </form>
+          )}
         </>
       )}
     </div>
