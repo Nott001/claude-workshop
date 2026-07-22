@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import LessonViewer from "@/components/lesson-viewer";
 import QAPanel from "@/components/qa-panel";
 import { EventSessionNavbar } from "@/components/event-session-navbar";
-import { subscribeToLiveHighlight } from "@/lib/realtime";
 import type { UserRole } from "@/types";
 
 interface Lesson {
@@ -49,15 +50,20 @@ export default function EventRoomPage() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [highlightedLessonId, setHighlightedLessonId] = useState<number | null>(null);
   const [settingHighlight, setSettingHighlight] = useState(false);
-  const lastHighlightUpdatedAtRef = useRef<string | null>(null);
   const isStaff = userRole === "speaker" || userRole === "facilitator";
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 
   const [elapsed, setElapsed] = useState("00:00:00");
   const [remaining, setRemaining] = useState("--:--:--");
+
+  const { data: highlightData, mutate: mutateHighlight } = useSWR(
+    eventId ? `/api/events/${eventId}/live/highlight` : null,
+    fetcher,
+    { refreshInterval: 5000, revalidateOnFocus: false, revalidateOnReconnect: false },
+  );
+  const highlightedLessonId = highlightData?.highlighted_lesson_id ?? null;
 
   useEffect(() => {
     if (!eventDate || !startTime) return;
@@ -177,12 +183,6 @@ export default function EventRoomPage() {
       }
 
       if (!cancelled) setAccess(eventData.course_id ? "allowed" : "no_course");
-
-      const highlightRes = await fetch(`/api/events/${eventId}/live/highlight`);
-      if (highlightRes.ok) {
-        const highlightData = await highlightRes.json();
-        if (!cancelled) setHighlightedLessonId(highlightData.highlighted_lesson_id);
-      }
     }
 
     if (!isLoaded) return;
@@ -194,54 +194,26 @@ export default function EventRoomPage() {
     };
   }, [eventId, isLoaded, isSignedIn]);
 
-  useEffect(() => {
-    if (!eventId || !eventStarted) return;
-    const sub = subscribeToLiveHighlight(Number(eventId), (state) => {
-      setHighlightedLessonId(state.highlighted_lesson_id);
-      lastHighlightUpdatedAtRef.current = state.updated_at;
-    });
-    return () => sub.unsubscribe();
-  }, [eventId, eventStarted]);
-
-  useEffect(() => {
-    if (!eventId || !eventStarted) return;
-    let cancelled = false;
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/events/${eventId}/live/highlight`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        if (data.updated_at && data.updated_at !== lastHighlightUpdatedAtRef.current) {
-          setHighlightedLessonId(data.highlighted_lesson_id);
-          lastHighlightUpdatedAtRef.current = data.updated_at;
-        }
-      } catch {}
-    }, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [eventId, eventStarted]);
-
   function handleSetHighlight(lessonId: number) {
-    setHighlightedLessonId(lessonId);
-    lastHighlightUpdatedAtRef.current = new Date().toISOString();
     setSettingHighlight(true);
+    mutateHighlight({ highlighted_lesson_id: lessonId }, false);
     fetch(`/api/events/${eventId}/live/highlight`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lesson_id: lessonId }),
-    }).finally(() => setSettingHighlight(false));
+    })
+      .then(() => mutateHighlight())
+      .finally(() => setSettingHighlight(false));
   }
 
   function handleClearHighlight() {
-    setHighlightedLessonId(null);
-    lastHighlightUpdatedAtRef.current = new Date().toISOString();
     setSettingHighlight(true);
+    mutateHighlight({ highlighted_lesson_id: null }, false);
     fetch(`/api/events/${eventId}/live/highlight`, {
       method: "DELETE",
-    }).finally(() => setSettingHighlight(false));
+    })
+      .then(() => mutateHighlight())
+      .finally(() => setSettingHighlight(false));
   }
 
   function contentTypeIcon(contentType: string, contentUrl: string | null): string {
