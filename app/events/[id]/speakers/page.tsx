@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -83,7 +84,8 @@ export default function EventSpeakersPage() {
   const availableProfiles = allProfiles.filter((p) => !assignedIds.has(p.speaker_profile_id));
 
   return (
-    <div>
+    <>
+      <div>
       <button onClick={() => router.push(`/events/${eventId}`)}>&larr; Back to Event</button>
       <h1>Manage Speakers</h1>
 
@@ -132,5 +134,7 @@ export default function EventSpeakersPage() {
         </form>
       )}
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

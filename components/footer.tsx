@@ -7,7 +7,7 @@ const imgTwitter = "https://www.figma.com/api/mcp/asset/56f59f55-c565-4c7d-a2d4-
 
 function AttendeeFooter() {
   return (
-    <footer className="flex flex-col gap-12 border-t border-border bg-background px-16 pt-12 pb-12">
+    <footer className="flex w-full flex-col gap-12 border-t border-border bg-background px-16 pt-12 pb-12">
       <div className="mx-auto flex w-full max-w-[1110px] items-start justify-between">
         <div className="flex max-w-[320px] flex-col gap-6">
           <div className="flex items-center gap-3">
@@ -71,6 +71,6 @@ function StaffFooter() {
 }
 
 export function Footer({ role }: { role: UserRole }) {
-  if (role === "attendee" || role === "speaker") return <AttendeeFooter />;
+  if (role === "attendee") return <AttendeeFooter />;
   return <StaffFooter />;
 }

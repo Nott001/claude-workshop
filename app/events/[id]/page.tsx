@@ -10,6 +10,7 @@ import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
+import { AttendeesPanel } from "@/components/attendees-panel";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -95,6 +96,8 @@ export default function EventDetailPage() {
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
   const [attendeesLoading, setAttendeesLoading] = useState(true);
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -174,6 +177,19 @@ export default function EventDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  function getMapUrl(format: "embed" | "search") {
+    const hasCoords = event?.lat != null && event?.lng != null;
+    if (format === "embed") {
+      return hasCoords
+        ? `https://www.google.com/maps?q=${event.lat},${event.lng}&z=15&output=embed`
+        : `https://www.google.com/maps?q=${encodeURIComponent(event!.venue_name + (event!.venue_address ? `, ${event!.venue_address}` : ""))}&output=embed`;
+    }
+    return hasCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event!.venue_name + (event!.venue_address ? `, ${event!.venue_address}` : ""))}`;
+  }
+
   async function handleRegister() {
     if (!isSignedIn) {
       router.push(`/sign-in?redirect_url=/events/${eventId}`);
@@ -370,7 +386,7 @@ export default function EventDetailPage() {
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Recent Registrations</h2>
                   <button
-                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    onClick={() => setShowAttendeesModal(true)}
                     className="text-sm font-medium text-[#3db9ee] hover:underline"
                   >
                     View all ({attendeesTotal})
@@ -450,7 +466,7 @@ export default function EventDetailPage() {
                     Edit Event
                   </button>
                   <button
-                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    onClick={() => setShowAttendeesModal(true)}
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
                   >
                     <span className="material-symbols-rounded text-sm">qr_code_scanner</span>
@@ -517,6 +533,26 @@ export default function EventDetailPage() {
                 >
                   {deleting ? "Deleting..." : "Delete event"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Attendees modal */}
+        {showAttendeesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8">
+            <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#bdc8d0] bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#bdc8d0] px-6 py-4">
+                <h2 className="text-sm font-bold text-[#1b1c1c]">Attendees</h2>
+                <button
+                  onClick={() => setShowAttendeesModal(false)}
+                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-gray-100"
+                >
+                  <span className="material-symbols-rounded text-[20px]">close</span>
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-6">
+                <AttendeesPanel eventId={eventId} />
               </div>
             </div>
           </div>
@@ -653,22 +689,8 @@ export default function EventDetailPage() {
               {/* Sidebar: 1 column */}
               <div className="col-span-1">
                 <div className="sticky top-[70px] flex flex-col gap-6">
-                  {/* Registration info card */}
-                  <div className="flex flex-col gap-6 rounded-2xl border border-[#BDC8D1] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    {/* Venue Location */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                        <span className="material-symbols-rounded text-lg text-[#3db9ee]">location_on</span>
-                      </div>
-                      <div>
-                        <p className="text-base text-[#191C1E]">Venue Location</p>
-                        <p className="text-base text-[#3E4850]">
-                          {event.venue_name}
-                          {event.venue_address && <>, {event.venue_address}</>}
-                        </p>
-                      </div>
-                    </div>
-
+                  {/* Registration card */}
+                  <div className="flex flex-col gap-4 rounded-2xl border border-[#BDC8D1] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     {/* Event Price */}
                     {event.price > 0 && !hasTicket && (
                       <div className="flex items-center gap-4">
@@ -722,6 +744,78 @@ export default function EventDetailPage() {
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Venue card */}
+                  <div className="flex flex-col gap-4 rounded-2xl border border-[#BDC8D1] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                    {/* Venue Location */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+                        <span className="material-symbols-rounded text-lg text-[#3db9ee]">location_on</span>
+                      </div>
+                      <div>
+                        <p className="text-base text-[#191C1E]">Venue Location</p>
+                        <p className="text-base text-[#3E4850]">
+                          {event.venue_name}
+                          {event.venue_address && <>, {event.venue_address}</>}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Map */}
+                    <div
+                      onClick={() => setMapExpanded(true)}
+                      className="relative h-[250px] cursor-pointer overflow-hidden rounded-xl border border-[#BDC8D1]"
+                    >
+                      <iframe
+                        title="Venue map"
+                        src={getMapUrl("embed")}
+                        className="pointer-events-none h-full w-full border-0 opacity-60"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/30">
+                        <span className="rounded-lg bg-white/90 px-3 py-1.5 text-sm font-medium text-[#3E4850] shadow-sm">
+                          Click to view map
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Map Overlay */}
+                    {mapExpanded && (
+                      <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
+                        onClick={() => setMapExpanded(false)}
+                      >
+                        <div
+                          className="relative h-[80vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[#BDC8D1] bg-white shadow-2xl"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => setMapExpanded(false)}
+                            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full bg-white shadow-md transition-colors hover:bg-gray-100"
+                          >
+                            <span className="material-symbols-rounded text-[20px]">close</span>
+                          </button>
+                          <iframe
+                            title="Venue map"
+                            src={getMapUrl("embed")}
+                            className="h-full w-full border-0"
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                          />
+                          <a
+                            href={getMapUrl("search")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 bg-white/90 px-4 py-3 text-sm font-medium text-[#168cb9] shadow-[0_-2px_10px_rgba(0,0,0,.08)] transition-colors hover:bg-white"
+                          >
+                            <span className="material-symbols-rounded text-[16px]">open_in_new</span>
+                            Open in Google Maps
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -817,10 +911,14 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            <Footer role="attendee" />
           </div>
         </div>
       </div>
+
+      <Footer role="attendee" />
+
+      {/* Floating Assist Button */}
+      <FloatingAssistButton />
     </div>
   );
 }

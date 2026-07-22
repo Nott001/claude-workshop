@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { Course } from "@/types";
+import { Footer } from "@/components/footer";
 
 export default function CoursesPage() {
   const router = useRouter();
@@ -58,11 +59,12 @@ export default function CoursesPage() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
           onClick={() => router.push("/events")}
-          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <span className="material-symbols-rounded text-[16px]">arrow_back</span>
           Back to Events
@@ -124,14 +126,14 @@ export default function CoursesPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => router.push(`/courses/${course.course_id}`)}
-                      className="rounded-md p-1.5 text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#334155]"
+                      className="rounded-md p-1.5 text-[#9CA3AF] hover:bg-[#F3F4F6] hover:text-[#334155]"
                       title="Edit"
                     >
                       <span className="material-symbols-rounded text-[16px]">edit</span>
                     </button>
                     <button
                       onClick={() => handleDelete(course.course_id)}
-                      className="rounded-md p-1.5 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                      className="rounded-md p-1.5 text-[#9CA3AF] hover:bg-red-50 hover:text-[#DC2626]"
                       title="Delete"
                     >
                       <span className="material-symbols-rounded text-[16px]">delete</span>
@@ -144,5 +146,7 @@ export default function CoursesPage() {
         )}
       </div>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }
