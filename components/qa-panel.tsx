@@ -47,7 +47,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   const inputRef = useRef<HTMLInputElement>(null);
   const lastSentAtRef = useRef<string | null>(null);
 
-  const canAnswer = userRole === "facilitator" || userRole === "speaker";
+  const isStaff = userRole === "facilitator" || userRole === "speaker";
   const { questions, answersByParent } = groupMessages(messages);
 
   useEffect(() => {
@@ -172,6 +172,12 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
     setNewMessage("");
     setReplyTarget(null);
     setSending(false);
+  }
+
+  async function handleDelete(messageId: number) {
+    const res = await fetch(`/api/chat/${eventId}/${messageId}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setMessages((prev) => prev.filter((m) => m.message_id !== messageId));
   }
 
   async function handleMarkVerbal(questionId: number) {
@@ -309,22 +315,30 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                             Answered verbally
                           </span>
                         )}
-                        {interactive && canAnswer && !q.answered_verbally && currentUserId !== q.user_id && (
-                          <>
-                            <button
-                              onClick={() => handleAnswer(q.message_id)}
-                              className="rounded-lg border border-[#3db9ee] px-2.5 py-1 text-[10px] font-bold text-[#3db9ee] transition-colors hover:bg-[#3db9ee] hover:text-white"
-                            >
-                              Answer
-                            </button>
-                            <button
-                              onClick={() => handleMarkVerbal(q.message_id)}
-                              className="flex items-center gap-1 rounded-lg border border-[#8B989E] px-2.5 py-1 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#6E7980] hover:bg-[#6E7980] hover:text-white"
-                            >
-                              <span className="material-symbols-rounded text-xs">record_voice_over</span>
-                              Spoken
-                            </button>
-                          </>
+                        {interactive && isStaff && currentUserId !== q.user_id && (
+                          <button
+                            onClick={() => handleAnswer(q.message_id)}
+                            className="rounded-lg border border-[#3db9ee] px-2.5 py-1 text-[10px] font-bold text-[#3db9ee] transition-colors hover:bg-[#3db9ee] hover:text-white"
+                          >
+                            Answer
+                          </button>
+                        )}
+                        {interactive && isStaff && !q.answered_verbally && currentUserId !== q.user_id && (
+                          <button
+                            onClick={() => handleMarkVerbal(q.message_id)}
+                            className="flex items-center gap-1 rounded-lg border border-[#8B989E] px-2.5 py-1 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#6E7980] hover:bg-[#6E7980] hover:text-white"
+                          >
+                            <span className="material-symbols-rounded text-xs">record_voice_over</span>
+                            Spoken
+                          </button>
+                        )}
+                        {interactive && isStaff && (
+                          <button
+                            onClick={() => handleDelete(q.message_id)}
+                            className="ml-auto flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                          >
+                            <span className="material-symbols-rounded text-xs">delete</span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -357,9 +371,19 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                                 {userBadge(a)}
                               </div>
                             </div>
-                            <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
-                              {formatDateTime(a.sent_at)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {interactive && isStaff && (
+                                <button
+                                  onClick={() => handleDelete(a.message_id)}
+                                  className="flex items-center gap-1 rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                                >
+                                  <span className="material-symbols-rounded text-xs">delete</span>
+                                </button>
+                              )}
+                              <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
+                                {formatDateTime(a.sent_at)}
+                              </span>
+                            </div>
                           </div>
                           <p className="text-sm leading-relaxed text-[#1b1c1c]">{a.message}</p>
                         </div>
@@ -395,7 +419,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder={canAnswer ? "Type your answer..." : "Ask a question..."}
+                  placeholder={isStaff ? "Type your answer..." : "Ask a question..."}
                   maxLength={1000}
                   className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
                 />
