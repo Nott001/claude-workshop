@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Footer } from "@/components/footer";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";
 type EmailStatus = "sent" | "failed";
@@ -95,6 +96,7 @@ export default function EmailsPage() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-4 flex items-center justify-between">
         <span className="text-base font-bold text-foreground">Email Logs</span>
@@ -172,5 +174,7 @@ export default function EmailsPage() {
         </div>
       )}
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

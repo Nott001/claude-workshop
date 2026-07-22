@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 export default function EditSpeakerProfilePage() {
   const router = useRouter();
@@ -93,6 +94,7 @@ export default function EditSpeakerProfilePage() {
   if (error) return <div>{error}</div>;
 
   return (
+    <>
     <div>
       <button onClick={() => router.push("/speakers")}>&larr; Back to Speakers</button>
       <h1>Edit Speaker Profile</h1>
@@ -131,5 +133,7 @@ export default function EditSpeakerProfilePage() {
         </button>
       </form>
     </div>
+    <Footer role="speaker" />
+    </>
   );
 }

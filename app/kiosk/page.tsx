@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import dynamic from "next/dynamic";
 import type { Event } from "@/types";
 import { AttendeesPanel } from "@/components/attendees-panel";
+import { Footer } from "@/components/footer";
 
 const QrScanner = dynamic(() => import("@/components/qr-scanner").then((m) => m.QrScanner), { ssr: false });
 
@@ -182,6 +183,7 @@ export default function KioskPage() {
   }
 
   return (
+    <>
     <div className="flex min-h-screen flex-col">
       <div className="flex items-center justify-between border-b border-[#bdc8d0] bg-white px-6 py-4">
         <div className="flex items-center gap-2">
@@ -332,5 +334,7 @@ export default function KioskPage() {
         </div>
       </div>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

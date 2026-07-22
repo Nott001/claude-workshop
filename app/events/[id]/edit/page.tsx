@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Footer } from "@/components/footer";
 
 interface EventData {
   event_id: number;
@@ -219,6 +220,7 @@ export default function EditEventPage() {
   const previewSrc = coverImagePreview ?? existingCoverUrl;
 
   return (
+    <>
     <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
@@ -540,5 +542,7 @@ export default function EditEventPage() {
         </div>
       </div>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }
