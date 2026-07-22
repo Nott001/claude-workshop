@@ -7,7 +7,6 @@ import { ArrowLeft } from "lucide-react";
 
 import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
-import { FloatingAssistButton } from "@/components/floating-assist-button";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
 
@@ -815,9 +814,6 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
-
-      {/* Floating Assist Button */}
-      <FloatingAssistButton />
     </div>
   );
 }
