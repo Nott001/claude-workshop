@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Footer } from "@/components/footer";
 
 interface Lesson {
   lesson_id: number;
@@ -333,7 +334,8 @@ export default function NewCoursePage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
+    <>
+      <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
           onClick={() => router.push("/courses")}
@@ -617,5 +619,7 @@ export default function NewCoursePage() {
         </DialogContent>
       </Dialog>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }
