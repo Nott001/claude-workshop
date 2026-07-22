@@ -186,10 +186,6 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
     }
   }
 
-  function formatTime(sentAt: string) {
-    return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
   function formatDateTime(sentAt: string) {
     const d = new Date(sentAt);
     const today = new Date();
@@ -202,7 +198,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   function userBadge(msg: ChatMessageWithUser) {
     if (msg.USER?.role === "speaker") {
       return (
-        <span className="inline-flex items-center gap-1 rounded bg-[#fff3e0] px-1.5 py-0.5 text-[9px] font-bold text-[#e65100]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-[#fff3e0] px-1.5 py-0.5 text-[9px] font-bold text-[#e65100]">
           <span className="material-symbols-rounded text-[10px]">mic</span>
           Speaker
         </span>
@@ -211,7 +207,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
 
     if (msg.USER?.role === "facilitator") {
       return (
-        <span className="inline-flex items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
           <span className="material-symbols-rounded text-[10px]">support_agent</span>
           Staff
         </span>
@@ -223,16 +219,16 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
 
   if (!eventStarted) {
     return (
-      <div className="flex h-full flex-col rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-between border-b border-[#bdc8d0] px-4 py-3">
+      <div className="flex h-full flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[#E8ECEF] px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-rounded text-lg text-[#00658d]">forum</span>
             <span className="text-sm font-semibold text-[#1b1c1c]">Q&A</span>
-            <span className="material-symbols-rounded text-sm text-[#6E7980]">lock</span>
+            <span className="material-symbols-rounded text-sm text-[#8B989E]">lock</span>
           </div>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <span className="material-symbols-rounded text-3xl text-[#6E7980]">lock</span>
+          <span className="material-symbols-rounded text-3xl text-[#8B989E]">lock</span>
           <p className="text-sm text-[#6E7980]">Q&A opens when the event starts.</p>
         </div>
       </div>
@@ -242,24 +238,32 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   const interactive = !eventEnded;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
-      <div className="flex items-center justify-between border-b border-[#bdc8d0] px-4 py-3">
+    <div className="flex h-full flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-sm overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-lg text-[#00658d]">forum</span>
           <span className="text-sm font-semibold text-[#1b1c1c]">Q&A</span>
+          {questions.length > 0 && (
+            <span className="rounded-full bg-[#E8ECEF] px-1.5 py-0.5 text-[10px] font-medium text-[#6E7980]">
+              {questions.length}
+            </span>
+          )}
         </div>
       </div>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center p-4">
-          <p className="text-sm text-[#6E7980]">Loading questions...</p>
+          <div className="flex items-center gap-2">
+            <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
+            <p className="text-sm text-[#6E7980]">Loading questions...</p>
+          </div>
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               {questions.length === 0 && (
-                <p className="py-8 text-center text-sm text-[#6E7980]">No questions yet. Be the first to ask!</p>
+                <p className="py-12 text-center text-sm text-[#8B989E]">No questions yet. Be the first to ask!</p>
               )}
               {questions.map((q) => {
                 const answers = answersByParent.get(q.message_id) ?? [];
@@ -269,25 +273,34 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                 return (
                   <div key={q.message_id}>
                     <div
-                      className={`flex flex-col gap-1 rounded-lg border-l-4 bg-[#fbf9f8] p-3 shadow-[0_1px_1px_rgba(0,0,0,0.05)] ${
-                        isAnswered ? "border-[#3db9ee]" : isSpeaker ? "border-[#e65100]" : "border-[#6e7980]"
-                      }`}
+                      className={
+                        "flex flex-col gap-2 rounded-xl border bg-white p-4 shadow-sm " +
+                        (isAnswered
+                          ? "border-l-4 border-l-[#3db9ee] border-[#E8ECEF]"
+                          : isSpeaker
+                            ? "border-l-4 border-l-[#e65100] border-[#E8ECEF]"
+                            : "border-[#E8ECEF]")
+                      }
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
-                            <span className="material-symbols-rounded text-[10px] text-[#5f5e5e]">person</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E8ECEF]">
+                            <span className="material-symbols-rounded text-xs text-[#6E7980]">person</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#1b1c1c]"}`}>
+                          <div className="flex min-w-0 flex-col">
+                            <span
+                              className={"truncate text-xs font-semibold " + (isSpeaker ? "text-[#e65100]" : "text-[#1b1c1c]")}
+                            >
                               {q.USER?.full_name ?? "Unknown"}
                             </span>
                             {userBadge(q)}
                           </div>
                         </div>
-                        <span className="text-[10px] text-[#5f5e5e]">{formatDateTime(q.sent_at)}</span>
+                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
+                          {formatDateTime(q.sent_at)}
+                        </span>
                       </div>
-                      <p className="text-sm leading-5 text-[#1b1c1c]">{q.message}</p>
+                      <p className="text-sm leading-relaxed text-[#1b1c1c]">{q.message}</p>
 
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         {q.answered_verbally && (
@@ -300,15 +313,15 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                           <>
                             <button
                               onClick={() => handleAnswer(q.message_id)}
-                              className="rounded border border-[#3db9ee] px-3 py-1 text-[10px] font-bold text-[#3db9ee] transition-colors hover:bg-[#3db9ee] hover:text-white"
+                              className="rounded-lg border border-[#3db9ee] px-2.5 py-1 text-[10px] font-bold text-[#3db9ee] transition-colors hover:bg-[#3db9ee] hover:text-white"
                             >
                               Answer
                             </button>
                             <button
                               onClick={() => handleMarkVerbal(q.message_id)}
-                              className="rounded border border-[#6e7980] px-3 py-1 text-[10px] font-bold text-[#6e7980] transition-colors hover:bg-[#6e7980] hover:text-white"
+                              className="flex items-center gap-1 rounded-lg border border-[#8B989E] px-2.5 py-1 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#6E7980] hover:bg-[#6E7980] hover:text-white"
                             >
-                              <span className="material-symbols-rounded text-xs align-middle">record_voice_over</span>
+                              <span className="material-symbols-rounded text-xs">record_voice_over</span>
                               Spoken
                             </button>
                           </>
@@ -321,25 +334,34 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                       return (
                         <div
                           key={a.message_id}
-                          className={`ml-4 mt-2 flex flex-col gap-1 rounded-lg border-l-2 bg-white p-3 shadow-[0_1px_1px_rgba(0,0,0,0.05)] ${
-                            isSpeaker ? "border-[#e65100]" : "border-[#3db9ee]"
-                          }`}
+                          className={
+                            "ml-4 mt-2 flex flex-col gap-2 rounded-xl border bg-[#F8FAFB] p-3 shadow-sm " +
+                            (isSpeaker
+                              ? "border-l-2 border-l-[#e65100] border-[#E8ECEF]"
+                              : "border-l-2 border-l-[#3db9ee] border-[#E8ECEF]")
+                          }
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
-                                <span className="material-symbols-rounded text-[10px] text-white">support_agent</span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
+                                <span className="material-symbols-rounded text-[8px] text-white">support_agent</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#00658d]"}`}>
+                              <div className="flex min-w-0 flex-col">
+                                <span
+                                  className={
+                                    "truncate text-[10px] font-semibold " + (isSpeaker ? "text-[#e65100]" : "text-[#00658d]")
+                                  }
+                                >
                                   {a.USER?.full_name ?? "Unknown"}
                                 </span>
                                 {userBadge(a)}
                               </div>
                             </div>
-                            <span className="text-[10px] text-[#5f5e5e]">{formatDateTime(a.sent_at)}</span>
+                            <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
+                              {formatDateTime(a.sent_at)}
+                            </span>
                           </div>
-                          <p className="text-sm leading-5 text-[#1b1c1c]">{a.message}</p>
+                          <p className="text-sm leading-relaxed text-[#1b1c1c]">{a.message}</p>
                         </div>
                       );
                     })}
@@ -351,11 +373,18 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
           </div>
 
           {interactive ? (
-            <form onSubmit={handleSend} className="border-t border-[#bdc8d0] p-3">
+            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
               {replyTarget && (
-                <div className="mb-2 flex items-center justify-between rounded bg-[#e4e2e1] px-2 py-1">
-                  <span className="text-[10px] text-[#5f5e5e]">Replying to question...</span>
-                  <button type="button" onClick={() => setReplyTarget(null)} className="text-[10px] text-[#5f5e5e]">
+                <div className="mb-2 flex items-center justify-between rounded-lg bg-[#3db9ee]/10 px-3 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-rounded text-xs text-[#3db9ee]">reply</span>
+                    <span className="text-[10px] font-medium text-[#3db9ee]">Replying to a question</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyTarget(null)}
+                    className="text-[#3db9ee] transition-colors hover:text-[#039be5]"
+                  >
                     <span className="material-symbols-rounded text-sm">close</span>
                   </button>
                 </div>
@@ -368,21 +397,31 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder={canAnswer ? "Type your answer..." : "Ask a question..."}
                   maxLength={1000}
-                  className="flex-1 rounded-lg border border-[#bdc8d0] px-3 py-2 text-sm outline-none focus:border-[#3db9ee]"
+                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
                 />
                 <button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
-                  className="rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {sending ? "..." : "Send"}
+                  {sending ? (
+                    <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-rounded text-sm">send</span>
+                      Send
+                    </>
+                  )}
                 </button>
               </div>
-              {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
             </form>
           ) : (
-            <div className="border-t border-[#bdc8d0] p-3 text-center">
-              <p className="text-[10px] text-[#6E7980]">This event has ended. Q&A is in view-only mode.</p>
+            <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3 text-center">
+              <p className="flex items-center justify-center gap-1.5 text-[10px] text-[#8B989E]">
+                <span className="material-symbols-rounded text-xs">info</span>
+                This event has ended. Q&A is in view-only mode.
+              </p>
             </div>
           )}
         </>

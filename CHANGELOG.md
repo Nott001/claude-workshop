@@ -4,14 +4,17 @@
 
 ### feat: add real-time Q&A panel to the event room
 
-- **components/qa-panel.tsx** — new Q&A side panel using the `live_qa` chat channel with real-time Supabase subscriptions, threaded answer view, "Mark as verbally answered" for speakers/facilitators
-- **app/events/[id]/room/page.tsx** — integrate QAPanel as a sidebar alongside the lesson content; lock with lock icon and message when event has not started
-- **app/api/chat/[eventId]/route.ts** — fix param name bug (`id`→`eventId`) causing 404; add `reply_to` and `answered_verbally` to message insert
+- **components/qa-panel.tsx** — new Q&A component using `live_qa` chat channel with Supabase Realtime subscriptions, threaded answer view, "Mark as verbally answered" for speakers/facilitators, 3s polling fallback, optimistic state updates, Speaker/Staff badges stacked below name, event lifecycle states (locked/view-only)
+- **app/events/[id]/room/page.tsx** — floating QAPanel (fixed right-4) with elapsed/remaining timer in EventSessionNavbar; `h-screen` + `min-h-0` layout for proper scrolling; responsive width w-60/sm:w-72/xl:w-80
+- **app/events/[id]/page.tsx** + **components/event-card.tsx** — show Live badge when `isEventLive`
+- **components/app-shell.tsx** — hide side navbar for `/events/*/room` paths
+- **app/api/chat/[eventId]/route.ts** — fix param name bug (`id`→`eventId`) causing 404; add `reply_to` and `answered_verbally` to message insert; add `after` cursor for incremental fetches
 - **app/api/chat/[eventId]/[messageId]/route.ts** — fix param name bug; add PATCH handler for toggling `answered_verbally`
 - **supabase/migrations/00022_add_chat_message_threading.sql** — add `reply_to` (FK self-ref) and `answered_verbally` columns to CHAT_MESSAGES
 - **types/index.ts** — add `reply_to` and `answered_verbally` to ChatMessage
 - **modules/chat/index.ts** — add `reply_to` and `answered_verbally` to sendMessageSchema
-- **test/qa-panel.test.ts** — verify threading fields and answered_verbally schema
+- **lib/landing.ts** — add `isEventLive()` helper
+- **test/qa-panel.test.ts** + **test/chat.test.ts** — verify threading fields, answered_verbally, and live state
 
 ### refactor: extract currentUser() helper and useCurrentUser() hook to eliminate auth repetition
 

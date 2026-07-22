@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import LessonViewer from "@/components/lesson-viewer";
 import QAPanel from "@/components/qa-panel";
+import { EventSessionNavbar } from "@/components/event-session-navbar";
 import type { UserRole } from "@/types";
 
 interface Lesson {
@@ -49,6 +50,41 @@ export default function EventRoomPage() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
+
+  const [elapsed, setElapsed] = useState("00:00:00");
+  const [remaining, setRemaining] = useState("--:--:--");
+
+  useEffect(() => {
+    if (!eventDate || !startTime) return;
+    function tick() {
+      const start = new Date(`${eventDate}T${startTime}`);
+      const end = endTime ? new Date(`${eventDate}T${endTime}`) : null;
+      const now = new Date();
+
+      const elapsedMs = now.getTime() - start.getTime();
+      if (elapsedMs > 0) {
+        const h = Math.floor(elapsedMs / 3600000);
+        const m = Math.floor((elapsedMs % 3600000) / 60000);
+        const s = Math.floor((elapsedMs % 60000) / 1000);
+        setElapsed(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+      }
+
+      if (end) {
+        const remMs = end.getTime() - now.getTime();
+        if (remMs > 0) {
+          const h = Math.floor(remMs / 3600000);
+          const m = Math.floor((remMs % 3600000) / 60000);
+          const s = Math.floor((remMs % 60000) / 1000);
+          setRemaining(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+        } else {
+          setRemaining("00:00:00");
+        }
+      }
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [eventDate, startTime, endTime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,80 +227,69 @@ export default function EventRoomPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-[#FBF9F8]">
-      <div className="flex items-center justify-between border-b border-border bg-white px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <span className="material-symbols-rounded text-lg text-blue-500">bolt</span>
-          {eventTitle}
+    <div className="flex h-screen flex-col bg-[#FBF9F8]">
+      <EventSessionNavbar
+        eventName={eventTitle}
+        elapsed={elapsed}
+        remaining={remaining}
+        onExit={() => router.push(`/events/${eventId}`)}
+      />
+
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0 xl:pr-[352px]">
+        <div className="mx-auto w-full max-w-[896px]">
+          {access === "no_course" && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <span className="material-symbols-rounded text-4xl text-muted-foreground/50">school</span>
+              <p className="mt-3 text-sm text-muted-foreground">No curriculum has been linked to this event yet.</p>
+            </div>
+          )}
+
+          {course && (
+            <div className="space-y-8">
+              <div>
+                <h1 className="text-xl font-bold text-[#1B1C1C]">{course.course_name}</h1>
+                {course.course_description && <p className="mt-1 text-sm text-muted-foreground">{course.course_description}</p>}
+              </div>
+
+              {course.MODULES.map((mod) => (
+                <div key={mod.module_id}>
+                  <h2 className="mb-3 text-sm font-semibold text-[#1B1C1C]">{mod.module_name}</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {mod.LESSONS.map((lesson) => (
+                      <button
+                        key={lesson.lesson_id}
+                        onClick={() => setSelectedLesson(lesson)}
+                        className="flex flex-col items-start gap-3 rounded-xl border border-border bg-white p-4 text-left shadow-[0_4px_20px_0_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_4px_20px_0_rgba(0,0,0,0.1)]"
+                      >
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+                          <span className="material-symbols-rounded text-lg text-[#3db9ee]">
+                            {contentTypes[lesson.content_type] || "description"}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-medium text-[#1B1C1C]">{lesson.description}</span>
+                          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {lesson.content_type}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <button
-          onClick={() => router.push(`/events/${eventId}`)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600"
-        >
-          <span className="material-symbols-rounded text-sm">logout</span>
-          Exit
-        </button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6">
-          <div className="mx-auto w-full max-w-[896px]">
-            {access === "no_course" && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <span className="material-symbols-rounded text-4xl text-muted-foreground/50">school</span>
-                <p className="mt-3 text-sm text-muted-foreground">No curriculum has been linked to this event yet.</p>
-              </div>
-            )}
-
-            {course && (
-              <div className="space-y-8">
-                <div>
-                  <h1 className="text-xl font-bold text-[#1B1C1C]">{course.course_name}</h1>
-                  {course.course_description && (
-                    <p className="mt-1 text-sm text-muted-foreground">{course.course_description}</p>
-                  )}
-                </div>
-
-                {course.MODULES.map((mod) => (
-                  <div key={mod.module_id}>
-                    <h2 className="mb-3 text-sm font-semibold text-[#1B1C1C]">{mod.module_name}</h2>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {mod.LESSONS.map((lesson) => (
-                        <button
-                          key={lesson.lesson_id}
-                          onClick={() => setSelectedLesson(lesson)}
-                          className="flex flex-col items-start gap-3 rounded-xl border border-border bg-white p-4 text-left shadow-[0_4px_20px_0_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_4px_20px_0_rgba(0,0,0,0.1)]"
-                        >
-                          <div className="flex size-10 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                            <span className="material-symbols-rounded text-lg text-[#3db9ee]">
-                              {contentTypes[lesson.content_type] || "description"}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm font-medium text-[#1B1C1C]">{lesson.description}</span>
-                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {lesson.content_type}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="hidden xl:flex w-80 shrink-0 flex-col border-l border-border h-full">
-          <QAPanel
-            eventId={eventId}
-            userRole={userRole as UserRole | null}
-            currentUserId={currentUserId}
-            eventStarted={eventStarted}
-            eventEnded={eventEnded}
-          />
-        </div>
+      <div className="fixed right-4 top-24 z-10 flex h-[calc(100vh-120px)] w-72 flex-col sm:w-80 overflow-hidden rounded-xl">
+        <QAPanel
+          eventId={eventId}
+          userRole={userRole as UserRole | null}
+          currentUserId={currentUserId}
+          eventStarted={eventStarted}
+          eventEnded={eventEnded}
+        />
       </div>
 
       {selectedLesson && (
