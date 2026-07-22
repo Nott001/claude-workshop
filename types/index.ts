@@ -109,6 +109,8 @@ export interface ChatMessage {
   read_by: number[];
   deleted_at: string | null;
   updated_at: string;
+  reply_to: number | null;
+  answered_verbally: boolean;
 }
 
 export type EmailType = "ticket_issued" | "check_in_confirmed";

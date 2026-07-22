@@ -35,6 +35,13 @@ export function formatTime(timeStr: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+export function isEventLive(eventDate: string, startTime: string, endTime: string): boolean {
+  const now = new Date();
+  const start = new Date(`${eventDate}T${startTime}`);
+  const end = new Date(`${eventDate}T${endTime}`);
+  return now >= start && now <= end;
+}
+
 export function eventStatusLabel(status: string): string {
   switch (status) {
     case "active":
