@@ -54,7 +54,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
 
   const { count: attendeeCount } = await supabase
     .from("TICKETS")
-    .select("ticket_id", { count: "exact", head: true })
+    .select("payment_id", { count: "exact", head: true })
     .eq("event_id", Number(eventId))
     .neq("status", "cancelled");
 
