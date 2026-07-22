@@ -206,11 +206,16 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
 
   const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
 
-  function handleStartNew() {
+  async function handleStartNew() {
     setMessages([]);
     setNextCursor(null);
     lastSentAtRef.current = new Date().toISOString();
     setIgnoreChatEnded(true);
+    await fetch("/api/support/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start" }),
+    });
   }
 
   if (!isOpen) return null;
