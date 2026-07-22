@@ -14,7 +14,7 @@ function shouldHideNavbar(pathname: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideNavbar = shouldHideNavbar(pathname);
+  const hideNavbar = HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path));
 
   if (hideNavbar) {
     return <>{children}</>;
