@@ -94,17 +94,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  if (dbUser.role !== "facilitator") {
-    const { data: existing } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .select("session_id")
-      .eq("user_id", dbUser.user_id)
-      .eq("status", "active")
-      .single();
+  const sessionUserId = dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
 
-    if (!existing) {
-      await supabase.from("SUPPORT_SESSIONS").insert({ user_id: dbUser.user_id }).select().single();
-    }
+  const { data: existing } = await supabase
+    .from("SUPPORT_SESSIONS")
+    .select("session_id")
+    .eq("user_id", sessionUserId)
+    .eq("status", "active")
+    .single();
+
+  if (!existing) {
+    await supabase.from("SUPPORT_SESSIONS").insert({ user_id: sessionUserId }).select().single();
   }
 
   const insertPayload: Record<string, unknown> = {
