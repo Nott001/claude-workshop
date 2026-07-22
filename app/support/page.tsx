@@ -120,6 +120,8 @@ export default function SupportPage() {
         }
       }
     });
+
+    fetch(`/api/support/sessions/${selectedUserId}`, { method: "PATCH" }).catch(() => {});
   }, [selectedUserId, fetchMessages]);
 
   useEffect(() => {
@@ -307,7 +309,7 @@ export default function SupportPage() {
                   (selectedUserId === user.user_id ? "bg-[#e8f8fe]" : "")
                 }
               >
-                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-xs font-semibold text-[#1b1c1c]">{user.full_name}</span>
                     {user.session_active ? (
@@ -315,10 +317,13 @@ export default function SupportPage() {
                     ) : (
                       <span className="size-1.5 shrink-0 rounded-full bg-[#8B989E]" title="Ended" />
                     )}
+                    {user.unread && (
+                      <span className="size-2 shrink-0 rounded-full bg-[#00658d]" title="Unread" />
+                    )}
                   </div>
                   <span className="shrink-0 text-[10px] text-[#8B989E]">{formatUserTime(user.last_sent_at)}</span>
                 </div>
-                <span className="truncate text-[11px] text-[#6E7980]">{user.last_message}</span>
+                <span className={"truncate text-[11px] " + (user.unread ? "font-semibold text-[#1b1c1c]" : "text-[#6E7980]")}>{user.last_message}</span>
               </button>
             ))
           )}
