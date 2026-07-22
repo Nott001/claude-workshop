@@ -31,7 +31,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   const isAtBottomRef = useRef(true);
   const lastSentAtRef = useRef<string | null>(null);
 
-  const isFacilitator = userRole === "facilitator";
+  const isStaff = userRole === "facilitator" || userRole === "speaker";
 
   const fetchMessages = useCallback(
     async (before?: string) => {
@@ -219,7 +219,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
               <span>{formatTime(msg.sent_at)}</span>
             </div>
             <p>{msg.message}</p>
-            {isFacilitator && <button onClick={() => handleDelete(msg.message_id)}>Delete</button>}
+            {isStaff && <button onClick={() => handleDelete(msg.message_id)}>Delete</button>}
           </div>
         ))}
 

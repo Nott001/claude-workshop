@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### feat: remove side navbar from event session room — use top navbar only
+
+- **components/app-shell.tsx** — wire the existing `shouldHideNavbar()` function into the actual condition (was defined but never called), so the side navbar is hidden on `/events/*/room` pages
+
 ### feat: add real-time Q&A panel to the event room
 
 - **components/qa-panel.tsx** — new Q&A component using `live_qa` chat channel with Supabase Realtime subscriptions, threaded answer view, "Mark as verbally answered" for speakers/facilitators, 3s polling fallback, optimistic state updates, Speaker/Staff badges stacked below name, event lifecycle states (locked/view-only)

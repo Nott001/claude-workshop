@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { courseSchema } from "@/modules/course-content";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +67,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const { userId } = await auth();
+  if (userId) {
+    await logAuditEvent(supabase, userId, "course.updated", "course", Number(id), {
+      changes: Object.keys(parsed.data),
+    });
+  }
+
   return NextResponse.json(course);
 }
 
@@ -76,6 +85,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
+  const { userId } = await auth();
+
+  const { data: courseInfo } = await supabase.from("COURSE").select("course_name").eq("course_id", id).single();
 
   const { data: modules } = await supabase.from("MODULES").select("module_id").eq("course_id", id);
   for (const mod of modules ?? []) {
@@ -94,6 +106,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (userId) {
+    await logAuditEvent(supabase, userId, "course.deleted", "course", Number(id), {
+      name: courseInfo?.course_name,
+    });
   }
 
   return NextResponse.json({ success: true });

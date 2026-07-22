@@ -11,6 +11,13 @@ const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 const HIDE_ASSIST_PATTERNS = [/^\/events\/[^/]+\/room/];
 
+const HIDE_NAVBAR_PATTERNS: RegExp[] = [];
+
+function shouldHideNavbar(pathname: string) {
+  if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;
+  return HIDE_NAVBAR_PATTERNS.some((re) => re.test(pathname));
+}
+
 function shouldHideAssist(pathname: string) {
   if (HIDE_ASSIST_PATHS.some((path) => pathname.startsWith(path))) return true;
   return HIDE_ASSIST_PATTERNS.some((re) => re.test(pathname));
@@ -20,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isSignedIn } = useUser();
   const [role, setRole] = useState<string | null>(null);
-  const hideNavbar = HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path));
+  const hideNavbar = shouldHideNavbar(pathname);
 
   useEffect(() => {
     if (!isSignedIn) return;
