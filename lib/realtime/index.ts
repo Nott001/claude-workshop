@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/db";
-import type { ChatMessage } from "@/types";
-import type { Ticket } from "@/types";
+import type { ChatMessage, Ticket, LiveSessionState } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type ChatCallback = (message: ChatMessage) => void;
@@ -29,6 +28,29 @@ export function subscribeToChatMessages(
         if (msg.channel === channel && !msg.deleted_at) {
           onMessage(msg);
         }
+      },
+    )
+    .subscribe();
+
+  return sub;
+}
+
+type LiveHighlightCallback = (state: LiveSessionState) => void;
+
+export function subscribeToLiveHighlight(eventId: number, onHighlight: LiveHighlightCallback): RealtimeChannel {
+  const sub = supabase
+    .channel(`live-highlight-${eventId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "LIVE_SESSION_STATE",
+        filter: `event_id=eq.${eventId}`,
+      },
+      (payload) => {
+        const state = payload.new as LiveSessionState;
+        onHighlight(state);
       },
     )
     .subscribe();

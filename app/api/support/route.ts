@@ -32,8 +32,36 @@ export async function GET(req: Request) {
 
   if (dbUser.role !== "facilitator") {
     query = query.or(`user_id.eq.${dbUser.user_id},recipient_user_id.eq.${dbUser.user_id}`);
+
+    const { data: latestSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .select("session_id")
+      .eq("user_id", dbUser.user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latestSession) {
+      query = query.eq("session_id", latestSession.session_id);
+    } else {
+      query = query.is("session_id", null);
+    }
   } else if (filterUserId) {
     query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${dbUser.user_id},recipient_user_id.eq.${filterUserId})`);
+
+    const { data: latestSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .select("session_id")
+      .eq("user_id", Number(filterUserId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latestSession) {
+      query = query.eq("session_id", latestSession.session_id);
+    } else {
+      query = query.is("session_id", null);
+    }
   }
 
   if (after) {
@@ -94,10 +122,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
+  const sessionUserId = dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
+
+  let sessionId: number;
+
+  const { data: existing } = await supabase
+    .from("SUPPORT_SESSIONS")
+    .select("session_id")
+    .eq("user_id", sessionUserId)
+    .eq("status", "active")
+    .single();
+
+  if (existing) {
+    sessionId = existing.session_id;
+  } else {
+    const { data: newSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .insert({ user_id: sessionUserId })
+      .select("session_id")
+      .single();
+    sessionId = newSession!.session_id;
+  }
+
   const insertPayload: Record<string, unknown> = {
     channel: CHANNEL,
     user_id: dbUser.user_id,
     message: parsed.data.message,
+    session_id: sessionId,
   };
 
   if (dbUser.role === "facilitator" && parsed.data.recipient_user_id) {

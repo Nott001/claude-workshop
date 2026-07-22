@@ -17,9 +17,21 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const { data: allSessions } = await supabase
+    .from("SUPPORT_SESSIONS")
+    .select("session_id, user_id, status")
+    .order("created_at", { ascending: false });
+
+  const latestSessionPerUser = new Map<number, { session_id: number; status: string }>();
+  for (const s of allSessions ?? []) {
+    if (!latestSessionPerUser.has(s.user_id)) {
+      latestSessionPerUser.set(s.user_id, { session_id: s.session_id, status: s.status });
+    }
+  }
+
   const { data: messages, error } = await supabase
     .from("CHAT_MESSAGES")
-    .select("user_id, recipient_user_id, message, sent_at, USER:user_id!inner(full_name, role)")
+    .select("user_id, recipient_user_id, message, sent_at, session_id, USER:user_id!inner(full_name, role)")
     .eq("channel", CHANNEL)
     .is("deleted_at", null)
     .order("sent_at", { ascending: false });
@@ -30,19 +42,23 @@ export async function GET() {
 
   const userMap = new Map<
     number,
-    { user_id: number; full_name: string; last_message: string; last_sent_at: string; unread: boolean }
+    { user_id: number; full_name: string; last_message: string; last_sent_at: string; session_active: boolean }
   >();
 
   for (const msg of messages ?? []) {
     const user = msg.USER as unknown as { full_name: string; role: string } | null;
     if (user?.role === "facilitator") continue;
+
+    const latest = latestSessionPerUser.get(msg.user_id);
+    if (latest && msg.session_id !== latest.session_id) continue;
+
     if (!userMap.has(msg.user_id)) {
       userMap.set(msg.user_id, {
         user_id: msg.user_id,
         full_name: user?.full_name ?? "Unknown",
         last_message: msg.message,
         last_sent_at: msg.sent_at,
-        unread: true,
+        session_active: latest?.status === "active",
       });
     }
   }
@@ -52,6 +68,8 @@ export async function GET() {
     if (recipientId != null && userMap.has(recipientId)) {
       const entry = userMap.get(recipientId)!;
       if (new Date(msg.sent_at) > new Date(entry.last_sent_at)) {
+        const latest = latestSessionPerUser.get(recipientId);
+        if (latest && msg.session_id !== latest.session_id) continue;
         entry.last_message = msg.message;
         entry.last_sent_at = msg.sent_at;
       }
