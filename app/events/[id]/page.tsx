@@ -96,6 +96,7 @@ export default function EventDetailPage() {
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
   const [attendeesLoading, setAttendeesLoading] = useState(true);
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   useEffect(() => {
     async function load() {

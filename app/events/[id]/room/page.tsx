@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import LessonViewer from "@/components/lesson-viewer";
-import { Footer } from "@/components/footer";
 import QAPanel from "@/components/qa-panel";
 import { EventSessionNavbar } from "@/components/event-session-navbar";
 import type { UserRole } from "@/types";
