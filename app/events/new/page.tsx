@@ -417,7 +417,14 @@ export default function NewEventPage() {
               {speakers.length > 0 ? (
                 <Select value={speakerId} onValueChange={setSpeakerId}>
                   <SelectTrigger className="w-full rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]">
-                    <SelectValue placeholder="Select a speaker" />
+                    <SelectValue placeholder="Select a speaker">
+                      {(value) => {
+                        const s = speakers.find((sp) => String(sp.speaker_profile_id) === value);
+                        return s
+                          ? `${s.USERS?.full_name ?? `Speaker #${s.speaker_profile_id}`}${s.designation ? ` (${s.designation})` : ""}`
+                          : "Select a speaker";
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {speakers.map((s) => (

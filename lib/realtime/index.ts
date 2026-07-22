@@ -7,19 +7,22 @@ type ChatCallback = (message: ChatMessage) => void;
 type TicketCallback = (ticket: Ticket) => void;
 
 export function subscribeToChatMessages(
-  eventId: number,
-  channel: "support" | "live_qa",
+  eventId: number | null,
+  channel: "support" | "live_qa" | "global_support",
   onMessage: ChatCallback,
 ): RealtimeChannel {
+  const channelName = eventId != null ? `chat-${eventId}-${channel}` : `chat-${channel}`;
+  const filter = eventId != null ? `event_id=eq.${eventId}` : `channel=eq.${channel}`;
+
   const sub = supabase
-    .channel(`chat-${eventId}-${channel}`)
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
         event: "INSERT",
         schema: "public",
         table: "CHAT_MESSAGES",
-        filter: `event_id=eq.${eventId}`,
+        filter,
       },
       (payload) => {
         const msg = payload.new as ChatMessage;

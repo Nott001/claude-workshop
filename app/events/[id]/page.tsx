@@ -8,7 +8,6 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
-import { FloatingAssistButton } from "@/components/floating-assist-button";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
 import { AttendeesPanel } from "@/components/attendees-panel";
@@ -629,7 +628,6 @@ export default function EventDetailPage() {
                   (() => {
                     const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
                     const name = sp.USERS?.full_name || "Speaker";
-                    const email = sp.USERS?.email || null;
                     const initials = name
                       .split(" ")
                       .map((n) => n[0])
@@ -653,7 +651,6 @@ export default function EventDetailPage() {
                                 {sp.designation || "Speaker"}
                               </p>
                             </div>
-                            {email && <p className="text-base text-[#3E484F]">{email}</p>}
                             {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
                           </div>
                         </div>
