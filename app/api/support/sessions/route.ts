@@ -81,11 +81,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ session });
   }
 
-  const endingStatus = isOwn ? "ended_by_user" : "ended_by_facilitator";
-
   const { data: session, error } = await supabase
     .from("SUPPORT_SESSIONS")
-    .update({ status: endingStatus, updated_at: new Date().toISOString() })
+    .update({ status: "ended_by_facilitator", updated_at: new Date().toISOString() })
     .eq("user_id", targetUserId)
     .eq("status", "active")
     .select()
