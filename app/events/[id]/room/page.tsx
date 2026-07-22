@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import LessonViewer from "@/components/lesson-viewer";
+import { Footer } from "@/components/footer";
 
 interface Lesson {
   lesson_id: number;
@@ -177,6 +178,7 @@ export default function EventRoomPage() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col bg-[#FBF9F8]">
       <div className="flex items-center justify-between border-b border-border bg-white px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -280,5 +282,7 @@ export default function EventRoomPage() {
         </div>
       )}
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

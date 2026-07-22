@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Footer } from "@/components/footer";
 
 interface Survey {
   survey_id: number;
@@ -63,5 +64,6 @@ export default function SurveyListPage() {
 
       <button onClick={() => router.push(`/events/${eventId}`)}>&larr; Back to Event</button>
     </div>
+    <Footer role="attendee" />
   );
 }

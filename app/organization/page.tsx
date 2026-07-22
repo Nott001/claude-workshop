@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, type DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import type { UserRole } from "@/types";
+import { Footer } from "@/components/footer";
 
 interface StaffMember {
   user_id: number;
@@ -147,6 +148,7 @@ export default function OrganizationPage() {
   if (userRole !== "facilitator") return null;
 
   return (
+    <>
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold">Manage staff</h1>
@@ -281,5 +283,7 @@ export default function OrganizationPage() {
         </DialogContent>
       </Dialog>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

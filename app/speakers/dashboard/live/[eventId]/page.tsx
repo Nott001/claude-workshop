@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 export default function SpeakerLiveRedirect() {
   const params = useParams();
@@ -13,8 +14,11 @@ export default function SpeakerLiveRedirect() {
   }, [eventId, router]);
 
   return (
+    <>
     <div className="flex min-h-screen items-center justify-center bg-[#fbf9f8]">
       <div className="text-sm text-[#5f5e5e]">Redirecting to event room...</div>
     </div>
+    <Footer role="speaker" />
+    </>
   );
 }

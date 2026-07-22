@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 interface Answer {
   answer_id: number;
@@ -56,6 +57,7 @@ export default function ResponsesPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
+    <>
     <div>
       <h1>Survey Responses</h1>
       <button onClick={() => router.push(`/events/${eventId}/surveys`)}>&larr; Back</button>
@@ -94,5 +96,7 @@ export default function ResponsesPage() {
         </ul>
       )}
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

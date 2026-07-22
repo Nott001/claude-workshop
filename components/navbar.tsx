@@ -50,6 +50,7 @@ export function Navbar() {
   const { user, isSignedIn } = useUser();
   const { signOut } = useClerk();
   const [dbRole, setDbRole] = useState<UserRole | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -59,6 +60,19 @@ export function Navbar() {
         if (data?.role) setDbRole(data.role as UserRole);
       })
       .catch(() => {});
+    fetch("/api/speakers/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.photo_url) setProfilePhoto(data.photo_url);
+      })
+      .catch(() => {});
+
+    const handlePhotoUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.photoUrl) setProfilePhoto(detail.photoUrl);
+    };
+    window.addEventListener("profile-photo-updated", handlePhotoUpdate);
+    return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
   }, [isSignedIn]);
 
   const userRole: UserRole = dbRole ?? "attendee";
@@ -89,8 +103,8 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive ? "bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078] hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out hover:-mx-5 hover:px-5 hover:py-3.5 hover:rounded-none hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
+                isActive ? "-mx-5 px-5 py-3.5 rounded-none bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078]",
               )}
             >
               <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
@@ -104,10 +118,18 @@ export function Navbar() {
         {isSignedIn ? (
           <>
             <div className="flex items-center gap-2 rounded-lg bg-[#f4f7f8] px-3 py-2">
-              <div className="grid size-7 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
-                {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
-                  (user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ?? "?").toUpperCase()}
-              </div>
+              {profilePhoto ? (
+                <img
+                  src={profilePhoto}
+                  alt="Profile"
+                  className="size-7 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="grid size-7 shrink-0 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
+                  {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
+                    (user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ?? "?").toUpperCase()}
+                </div>
+              )}
               <span className="truncate text-sm font-medium text-[#1b1c1c]">
                 {user?.firstName
                   ? `${user.firstName} ${user.lastName ?? ""}`

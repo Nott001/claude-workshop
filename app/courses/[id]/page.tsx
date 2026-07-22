@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
+import { Footer } from "@/components/footer";
 
 interface Lesson {
   lesson_id: number;
@@ -674,6 +675,7 @@ export default function CourseDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
+      <Footer role="attendee" />
     </div>
   );
 }

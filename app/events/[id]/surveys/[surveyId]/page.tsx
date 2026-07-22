@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 interface Question {
   question_id: number;
@@ -89,6 +90,7 @@ export default function SurveyFormPage() {
   if (!survey) return <div>Survey not found</div>;
 
   return (
+    <>
     <div>
       <h1>{survey.title}</h1>
       <form onSubmit={handleSubmit}>
@@ -144,5 +146,7 @@ export default function SurveyFormPage() {
 
       <button onClick={() => router.push(`/events/${eventId}/surveys`)}>&larr; Back</button>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

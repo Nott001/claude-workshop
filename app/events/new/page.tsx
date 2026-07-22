@@ -9,6 +9,7 @@ import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Toast } from "@/components/toast";
 import { cn } from "@/lib/utils";
+import { Footer } from "@/components/footer";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -175,6 +176,7 @@ export default function NewEventPage() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
@@ -478,5 +480,7 @@ export default function NewEventPage() {
         </div>
       )}
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

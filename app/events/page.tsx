@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
+import { Footer } from "@/components/footer";
 
 interface Course {
   course_name: string;
@@ -115,6 +116,7 @@ export default function EventsPage() {
   const filterTabs = isFacilitator ? FACILITATOR_TABS : ATTENDEE_TABS;
 
   return (
+    <>
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-base font-bold text-foreground">Event list</span>
@@ -142,7 +144,7 @@ export default function EventsPage() {
           <div className="text-sm text-muted-foreground">No events found.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event, index) => (
             <EventCard
               key={event.event_id}
@@ -161,5 +163,7 @@ export default function EventsPage() {
         </div>
       )}
     </div>
+    <Footer role={isFacilitator ? "facilitator" : "attendee"} />
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import ChatPanel from "@/components/chat-panel";
 import type { UserRole } from "@/types";
+import { Footer } from "@/components/footer";
 
 export default function SupportPage() {
   const params = useParams();
@@ -28,10 +29,13 @@ export default function SupportPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
+    <>
     <div>
       <h1>Support Chat</h1>
       <p>Use this channel to ask facilitators for help with event logistics.</p>
       <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

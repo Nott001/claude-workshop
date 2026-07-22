@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Footer } from "@/components/footer";
 
 export default function NewSurveyPage() {
   const params = useParams();
@@ -56,6 +57,7 @@ export default function NewSurveyPage() {
   }
 
   return (
+    <>
     <div>
       <h1>Create Survey</h1>
       <form onSubmit={handleSubmit}>
@@ -95,5 +97,7 @@ export default function NewSurveyPage() {
 
       <button onClick={() => router.push(`/events/${eventId}/surveys`)}>&larr; Cancel</button>
     </div>
+    <Footer role="facilitator" />
+    </>
   );
 }

@@ -8,6 +8,8 @@ import {
   validateFileType,
   validateFileSize,
   getExtensionFromMimeType,
+  listStorageFolder,
+  deleteFromStorage,
 } from "@/lib/storage";
 
 export async function POST(req: Request) {
@@ -43,9 +45,16 @@ export async function POST(req: Request) {
   const path = buildProfileImagePath(user.user_id, ext);
 
   try {
+    const oldPaths = await listStorageFolder("profile_images", `users/${user.user_id}`);
+    if (oldPaths.length > 0) {
+      await deleteFromStorage("profile_images", oldPaths);
+    }
+
     const result = await uploadToStorage("profile_images", path, file);
 
-    const { error } = await supabase.from("SPEAKER_PROFILES").update({ photo_url: result.url }).eq("user_id", user.user_id);
+    const { error } = await supabase
+      .from("SPEAKER_PROFILES")
+      .upsert({ user_id: user.user_id, photo_url: result.url }, { onConflict: "user_id" });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

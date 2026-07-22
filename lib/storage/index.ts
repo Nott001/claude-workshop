@@ -103,7 +103,7 @@ export function buildEventImagePath(eventId: number, ext: string): string {
 }
 
 export function buildProfileImagePath(userId: number, ext: string): string {
-  return `users/${userId}/profile.${ext}`;
+  return `users/${userId}/profile_${Date.now()}.${ext}`;
 }
 
 export function buildCourseAssetPath(courseId: number, moduleId: number, lessonId: number, filename: string): string {
