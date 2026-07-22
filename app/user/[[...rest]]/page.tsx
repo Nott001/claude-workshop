@@ -48,6 +48,7 @@ export default function UserSettingsPage() {
   const [savingSpeaker, setSavingSpeaker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const currentEmail = user?.emailAddresses?.[0]?.emailAddress ?? "";
   const isSpeaker = userRole === "speaker";
@@ -69,7 +70,9 @@ export default function UserSettingsPage() {
     fetch("/api/speakers/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setSpeakerProfile(data);
+        if (data) {
+          setSpeakerProfile(data);
+        }
         setSpeakerLoading(false);
       })
       .catch(() => setSpeakerLoading(false));
@@ -194,6 +197,8 @@ export default function UserSettingsPage() {
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setPhotoPreview(previewUrl);
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -201,8 +206,11 @@ export default function UserSettingsPage() {
     if (res.ok) {
       const data = await res.json();
       setSpeakerProfile((prev) => (prev ? { ...prev, photo_url: data.url } : prev));
+      window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl: data.url } }));
       setToast({ title: "Photo Updated", description: "Your profile photo has been updated.", type: "success" });
     } else {
+      URL.revokeObjectURL(previewUrl);
+      setPhotoPreview(null);
       const data = await res.json();
       setToast({ title: "Upload Failed", description: data.error ?? "Could not upload photo.", type: "error" });
     }
@@ -250,12 +258,23 @@ export default function UserSettingsPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="flex flex-col items-center justify-center rounded-xl bg-[#efeded] p-6">
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                      fileInputRef.current?.click();
+                    }}
                     disabled={uploading}
                     className="relative size-32 rounded-full border-4 border-white shadow-[0_10px_15px_-3px_rgba(0,0,0,.1),0_4px_6px_-4px_rgba(0,0,0,.1)] transition-opacity hover:opacity-80 disabled:opacity-50"
                   >
-                    {speakerProfile.photo_url ? (
-                      <img src={speakerProfile.photo_url} alt="" className="size-full rounded-full object-cover" />
+                    {(photoPreview ?? speakerProfile.photo_url) ? (
+                      <img
+                        src={photoPreview ?? speakerProfile.photo_url!}
+                        alt=""
+                        className="size-full rounded-full object-cover"
+                        onError={() => {
+                          setPhotoPreview(null);
+                          setSpeakerProfile((prev) => (prev ? { ...prev, photo_url: null } : prev));
+                        }}
+                      />
                     ) : (
                       <div className="grid size-full place-items-center rounded-full bg-[#c2e8ff] text-3xl font-bold text-[#29b6f6]">
                         {speakerInitials}

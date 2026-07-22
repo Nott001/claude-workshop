@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { CalendarDays, Clock3, MapPin } from "lucide-react";
 
 import { formatEventDate, formatTime } from "@/lib/landing";
+import { Footer } from "@/components/footer";
 
 interface EventData {
   event_id: number;
@@ -251,5 +252,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+    <Footer role="attendee" />
   );
 }
