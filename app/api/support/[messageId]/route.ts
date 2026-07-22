@@ -11,7 +11,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
   const { messageId } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser || dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

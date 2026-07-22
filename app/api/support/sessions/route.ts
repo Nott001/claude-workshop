@@ -10,7 +10,7 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser || dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       .select("session_id")
       .eq("user_id", targetUserId)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ session: existing });

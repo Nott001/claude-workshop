@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       .eq("user_id", dbUser.user_id)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (latestSession) {
       query = query.eq("session_id", latestSession.session_id);
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
       .eq("user_id", Number(filterUserId))
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (latestSession) {
       query = query.eq("session_id", latestSession.session_id);
@@ -103,9 +103,9 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
@@ -122,7 +122,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  const sessionUserId = dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
+  const sessionUserId =
+    dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
 
   let sessionId: number;
 
@@ -131,11 +132,32 @@ export async function POST(req: Request) {
     .select("session_id")
     .eq("user_id", sessionUserId)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (existing) {
     sessionId = existing.session_id;
+  } else if (dbUser.role === "facilitator") {
+    const { data: newSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .insert({ user_id: sessionUserId })
+      .select("session_id")
+      .single();
+    sessionId = newSession!.session_id;
   } else {
+    const { data: anySession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .select("session_id")
+      .eq("user_id", sessionUserId)
+      .limit(1)
+      .maybeSingle();
+
+    if (anySession) {
+      return NextResponse.json(
+        { error: "This conversation has ended. Start a new conversation." },
+        { status: 403 },
+      );
+    }
+
     const { data: newSession } = await supabase
       .from("SUPPORT_SESSIONS")
       .insert({ user_id: sessionUserId })
