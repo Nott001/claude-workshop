@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import LessonViewer from "@/components/lesson-viewer";
 import QAPanel from "@/components/qa-panel";
 import { EventSessionNavbar } from "@/components/event-session-navbar";
+import { subscribeToLiveHighlight } from "@/lib/realtime";
 import type { UserRole } from "@/types";
 
 interface Lesson {
@@ -48,6 +49,10 @@ export default function EventRoomPage() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [highlightedLessonId, setHighlightedLessonId] = useState<number | null>(null);
+  const [settingHighlight, setSettingHighlight] = useState(false);
+  const lastHighlightUpdatedAtRef = useRef<string | null>(null);
+  const isStaff = userRole === "speaker" || userRole === "facilitator";
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 
@@ -172,6 +177,12 @@ export default function EventRoomPage() {
       }
 
       if (!cancelled) setAccess(eventData.course_id ? "allowed" : "no_course");
+
+      const highlightRes = await fetch(`/api/events/${eventId}/live/highlight`);
+      if (highlightRes.ok) {
+        const highlightData = await highlightRes.json();
+        if (!cancelled) setHighlightedLessonId(highlightData.highlighted_lesson_id);
+      }
     }
 
     if (!isLoaded) return;
@@ -182,6 +193,56 @@ export default function EventRoomPage() {
       cancelled = true;
     };
   }, [eventId, isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!eventId || !eventStarted) return;
+    const sub = subscribeToLiveHighlight(Number(eventId), (state) => {
+      setHighlightedLessonId(state.highlighted_lesson_id);
+      lastHighlightUpdatedAtRef.current = state.updated_at;
+    });
+    return () => sub.unsubscribe();
+  }, [eventId, eventStarted]);
+
+  useEffect(() => {
+    if (!eventId || !eventStarted) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}/live/highlight`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.updated_at && data.updated_at !== lastHighlightUpdatedAtRef.current) {
+          setHighlightedLessonId(data.highlighted_lesson_id);
+          lastHighlightUpdatedAtRef.current = data.updated_at;
+        }
+      } catch {}
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [eventId, eventStarted]);
+
+  function handleSetHighlight(lessonId: number) {
+    setHighlightedLessonId(lessonId);
+    lastHighlightUpdatedAtRef.current = new Date().toISOString();
+    setSettingHighlight(true);
+    fetch(`/api/events/${eventId}/live/highlight`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lesson_id: lessonId }),
+    }).finally(() => setSettingHighlight(false));
+  }
+
+  function handleClearHighlight() {
+    setHighlightedLessonId(null);
+    lastHighlightUpdatedAtRef.current = new Date().toISOString();
+    setSettingHighlight(true);
+    fetch(`/api/events/${eventId}/live/highlight`, {
+      method: "DELETE",
+    }).finally(() => setSettingHighlight(false));
+  }
 
   function contentTypeIcon(contentType: string, contentUrl: string | null): string {
     if ((contentType === "video" && contentUrl?.includes("youtube.com")) || contentUrl?.includes("youtu.be")) {
@@ -240,7 +301,7 @@ export default function EventRoomPage() {
         remaining={remaining}
         eventDate={eventDate}
         startTime={startTime}
-        onExit={() => router.push(`/events/${eventId}`)}
+        onExit={() => router.push(isStaff ? `/speakers/dashboard/${eventId}` : `/events/${eventId}`)}
       />
 
       <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0 xl:pr-[352px]">
@@ -265,31 +326,83 @@ export default function EventRoomPage() {
                     {modIdx + 1}. {mod.module_name}
                   </h2>
                   <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-                    {mod.LESSONS.map((lesson, lessonIdx) => (
-                      <button
-                        key={lesson.lesson_id}
-                        onClick={() => setSelectedLesson(lesson)}
-                        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[#F5F8FA]"
-                      >
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                          <span className="material-symbols-rounded text-lg text-[#3db9ee]">
-                            {contentTypeIcon(lesson.content_type, lesson.content_url)}
-                          </span>
-                        </span>
-                        <div className="flex min-w-0 flex-1 flex-col">
-                          <span className="text-sm font-medium text-[#1B1C1C]">
-                            <span className="text-muted-foreground">
-                              {modIdx + 1}.{lessonIdx + 1}
+                    {mod.LESSONS.map((lesson, lessonIdx) => {
+                      const isHighlighted = highlightedLessonId === lesson.lesson_id;
+                      return (
+                        <div
+                          key={lesson.lesson_id}
+                          className={"relative transition-colors " + (isHighlighted ? "bg-[rgba(0,150,199,0.06)]" : "")}
+                        >
+                          {isHighlighted && <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#3db9ee]" />}
+                          <button
+                            onClick={() => setSelectedLesson(lesson)}
+                            className={
+                              "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[#F5F8FA] " +
+                              (isHighlighted ? "pr-20" : "")
+                            }
+                          >
+                            <span
+                              className={
+                                "flex size-10 shrink-0 items-center justify-center rounded-xl " +
+                                (isHighlighted ? "bg-[rgba(0,150,199,0.15)]" : "bg-[rgba(0,101,141,0.1)]")
+                              }
+                            >
+                              <span
+                                className={
+                                  "material-symbols-rounded text-lg " + (isHighlighted ? "text-[#00658d]" : "text-[#3db9ee]")
+                                }
+                              >
+                                {isHighlighted
+                                  ? "radio_button_checked"
+                                  : contentTypeIcon(lesson.content_type, lesson.content_url)}
+                              </span>
                             </span>
-                            &ensp;{lesson.description}
-                          </span>
-                          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {lesson.content_type}
-                          </span>
+                            <div className="flex min-w-0 flex-1 flex-col">
+                              <span className="text-sm font-medium text-[#1B1C1C]">
+                                <span className="text-muted-foreground">
+                                  {modIdx + 1}.{lessonIdx + 1}
+                                </span>
+                                &ensp;{lesson.description}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  {lesson.content_type}
+                                </span>
+                                {isHighlighted && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#00658d]">
+                                    <span className="material-symbols-rounded text-[10px]">visibility</span>
+                                    Guiding
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                          {isStaff && eventStarted && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                              {isHighlighted ? (
+                                <button
+                                  onClick={handleClearHighlight}
+                                  disabled={settingHighlight}
+                                  className="flex items-center gap-1 rounded-lg border border-[rgba(0,150,199,0.3)] bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#00658d] transition-colors hover:bg-[rgba(0,150,199,0.06)] disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-rounded text-xs">close</span>
+                                  Clear
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleSetHighlight(lesson.lesson_id)}
+                                  disabled={settingHighlight}
+                                  className="flex items-center gap-1 rounded-lg border border-[#E8ECEF] bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#3db9ee] hover:text-[#3db9ee] disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-rounded text-xs">arrow_right_alt</span>
+                                  Guide
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <span className="material-symbols-rounded text-lg text-muted-foreground">chevron_right</span>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

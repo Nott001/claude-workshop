@@ -22,12 +22,18 @@ interface EventData {
   attendee_count: number;
 }
 
-function eventStatusBadge(status: string): EventStatus {
+function isCurrentlyLive(eventDate: string, startTime: string, endTime: string): boolean {
+  const now = new Date();
+  const start = new Date(`${eventDate}T${startTime}`);
+  const end = new Date(`${eventDate}T${endTime}`);
+  return now >= start && now <= end;
+}
+
+function eventStatusBadge(status: string, eventDate: string, startTime: string, endTime: string): EventStatus {
+  if (isCurrentlyLive(eventDate, startTime, endTime)) return "live";
   switch (status) {
     case "active":
       return "upcoming";
-    case "live":
-      return "live";
     case "complete":
       return "completed";
     default:
@@ -35,12 +41,11 @@ function eventStatusBadge(status: string): EventStatus {
   }
 }
 
-function statusLabel(status: string): string {
+function statusLabel(status: string, eventDate: string, startTime: string, endTime: string): string {
+  if (isCurrentlyLive(eventDate, startTime, endTime)) return "Live Now";
   switch (status) {
     case "active":
       return "Upcoming Event";
-    case "live":
-      return "Live Now";
     case "complete":
       return "Past Event";
     default:
@@ -102,8 +107,8 @@ export default function SpeakerEventDetailsPage() {
     );
   }
 
-  const isLive = event.status === "live";
-  const isUpcoming = event.status === "active";
+  const isLive = isCurrentlyLive(event.event_date, event.start_time, event.end_time);
+  const isUpcoming = !isLive && event.status === "active";
   const isComplete = event.status === "complete";
 
   return (
@@ -127,8 +132,8 @@ export default function SpeakerEventDetailsPage() {
 
               <div className="absolute bottom-8 left-8 flex flex-col gap-3">
                 <StatusBadge
-                  status={eventStatusBadge(event.status)}
-                  label={statusLabel(event.status)}
+                  status={eventStatusBadge(event.status, event.event_date, event.start_time, event.end_time)}
+                  label={statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
                   className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
                 />
                 <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
@@ -165,7 +170,9 @@ export default function SpeakerEventDetailsPage() {
                 {isLive && <span className="size-3 animate-pulse rounded-full bg-[#3db9ee]" />}
                 {isUpcoming && <span className="size-3 rounded-full bg-[#3db9ee]" />}
                 {isComplete && <span className="size-3 rounded-full bg-[#5f5e5e]" />}
-                <span className="text-[24px] font-semibold leading-[32px] text-[#1b1c1c]">{statusLabel(event.status)}</span>
+                <span className="text-[24px] font-semibold leading-[32px] text-[#1b1c1c]">
+                  {statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
+                </span>
               </div>
               {isUpcoming && (
                 <div className="mt-4">

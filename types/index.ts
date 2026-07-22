@@ -147,6 +147,23 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface LiveSessionState {
+  event_id: number;
+  highlighted_lesson_id: number | null;
+  updated_by: number;
+  updated_at: string;
+}
+
+export type SupportSessionStatus = "active" | "ended_by_facilitator" | "ended_by_user";
+
+export interface SupportSession {
+  session_id: number;
+  user_id: number;
+  status: SupportSessionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
 export type EmailType = "ticket_issued" | "check_in_confirmed";
 export type EmailStatus = "sent" | "failed";
 
