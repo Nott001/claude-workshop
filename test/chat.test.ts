@@ -21,6 +21,8 @@ describe("ChatMessage type", () => {
       read_by: [],
       deleted_at: null,
       updated_at: "2026-07-10T12:00:00Z",
+      reply_to: null,
+      answered_verbally: false,
     };
     expect(msg.message_id).toBe(1);
     expect(msg.channel).toBe("live_qa");
@@ -38,6 +40,8 @@ describe("ChatMessage type", () => {
       read_by: [],
       deleted_at: "2026-07-10T12:05:00Z",
       updated_at: "2026-07-10T12:05:00Z",
+      reply_to: null,
+      answered_verbally: false,
     };
     expect(msg.deleted_at).toBeTruthy();
   });
