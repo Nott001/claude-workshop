@@ -1,0 +1,4 @@
+ALTER TYPE chat_channel ADD VALUE IF NOT EXISTS 'global_support';
+
+ALTER TABLE "CHAT_MESSAGES"
+  ALTER COLUMN event_id DROP NOT NULL;

@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { subscribeToChatMessages } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
 
+const POLL_INTERVAL = 3000;
+
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string };
 }
@@ -27,6 +29,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const lastSentAtRef = useRef<string | null>(null);
 
   const isStaff = userRole === "facilitator" || userRole === "speaker";
 
@@ -80,7 +83,9 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
     const sub = subscribeToChatMessages(Number(eventId), channel, (msg) => {
       setMessages((prev) => {
         if (prev.some((m) => m.message_id === msg.message_id)) return prev;
-        return [...prev, msg as ChatMessageWithUser];
+        const next = [...prev, msg as ChatMessageWithUser];
+        lastSentAtRef.current = next[next.length - 1].sent_at;
+        return next;
       });
     });
 
@@ -88,6 +93,46 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
       sub.unsubscribe();
     };
   }, [eventId, channel]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      const after = lastSentAtRef.current;
+      const params = new URLSearchParams({ channel, limit: "10" });
+      if (after) params.set("after", after);
+      try {
+        const res = await fetch(`/api/chat/${eventId}?${params}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data.messages?.length) return;
+        setMessages((prev) => {
+          const merged = [...prev];
+          let changed = false;
+          for (const m of data.messages as ChatMessageWithUser[]) {
+            if (!merged.some((x) => x.message_id === m.message_id)) {
+              merged.push(m);
+              changed = true;
+            }
+          }
+          if (changed && merged.length > 0) {
+            lastSentAtRef.current = merged[merged.length - 1].sent_at;
+          }
+          return changed ? merged : prev;
+        });
+      } catch {}
+    }, POLL_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [eventId, channel]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      lastSentAtRef.current = messages[messages.length - 1].sent_at;
+    }
+  }, [messages]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
@@ -130,6 +175,14 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
       setSending(false);
       return;
     }
+
+    const sent = await res.json();
+    setMessages((prev) => {
+      if (prev.some((m) => m.message_id === sent.message_id)) return prev;
+      const next = [...prev, sent as ChatMessageWithUser];
+      lastSentAtRef.current = next[next.length - 1].sent_at;
+      return next;
+    });
 
     setNewMessage("");
     setSending(false);
