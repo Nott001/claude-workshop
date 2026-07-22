@@ -592,7 +592,6 @@ export default function EventDetailPage() {
                   (() => {
                     const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
                     const name = sp.USERS?.full_name || "Speaker";
-                    const email = sp.USERS?.email || null;
                     const initials = name
                       .split(" ")
                       .map((n) => n[0])
@@ -616,7 +615,6 @@ export default function EventDetailPage() {
                                 {sp.designation || "Speaker"}
                               </p>
                             </div>
-                            {email && <p className="text-base text-[#3E484F]">{email}</p>}
                             {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
                           </div>
                         </div>
