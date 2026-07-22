@@ -183,12 +183,18 @@ export default function EventRoomPage() {
     };
   }, [eventId, isLoaded, isSignedIn]);
 
-  const contentTypes: Record<string, string> = {
-    pdf: "description",
-    video: "play_circle",
-    image: "image",
-    link: "link",
-  };
+  function contentTypeIcon(contentType: string, contentUrl: string | null): string {
+    if ((contentType === "video" && contentUrl?.includes("youtube.com")) || contentUrl?.includes("youtu.be")) {
+      return "play_circle";
+    }
+    const icons: Record<string, string> = {
+      pdf: "picture_as_pdf",
+      video: "smart_display",
+      image: "image",
+      link: "link",
+    };
+    return icons[contentType] || "description";
+  }
 
   if (access === "loading") {
     return (
@@ -251,27 +257,35 @@ export default function EventRoomPage() {
                 {course.course_description && <p className="mt-1 text-sm text-muted-foreground">{course.course_description}</p>}
               </div>
 
-              {course.MODULES.map((mod) => (
+              {course.MODULES.map((mod, modIdx) => (
                 <div key={mod.module_id}>
-                  <h2 className="mb-3 text-sm font-semibold text-[#1B1C1C]">{mod.module_name}</h2>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {mod.LESSONS.map((lesson) => (
+                  <h2 className="mb-3 text-sm font-semibold text-[#1B1C1C]">
+                    {modIdx + 1}. {mod.module_name}
+                  </h2>
+                  <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+                    {mod.LESSONS.map((lesson, lessonIdx) => (
                       <button
                         key={lesson.lesson_id}
                         onClick={() => setSelectedLesson(lesson)}
-                        className="flex flex-col items-start gap-3 rounded-xl border border-border bg-white p-4 text-left shadow-[0_4px_20px_0_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_4px_20px_0_rgba(0,0,0,0.1)]"
+                        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[#F5F8FA]"
                       >
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
                           <span className="material-symbols-rounded text-lg text-[#3db9ee]">
-                            {contentTypes[lesson.content_type] || "description"}
+                            {contentTypeIcon(lesson.content_type, lesson.content_url)}
                           </span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-medium text-[#1B1C1C]">{lesson.description}</span>
+                        </span>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="text-sm font-medium text-[#1B1C1C]">
+                            <span className="text-muted-foreground">
+                              {modIdx + 1}.{lessonIdx + 1}
+                            </span>
+                            &ensp;{lesson.description}
+                          </span>
                           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             {lesson.content_type}
                           </span>
                         </div>
+                        <span className="material-symbols-rounded text-lg text-muted-foreground">chevron_right</span>
                       </button>
                     ))}
                   </div>
