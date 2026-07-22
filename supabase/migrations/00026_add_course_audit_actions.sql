@@ -1,0 +1,9 @@
+ALTER TYPE audit_action ADD VALUE 'course.created';
+ALTER TYPE audit_action ADD VALUE 'course.updated';
+ALTER TYPE audit_action ADD VALUE 'course.deleted';
+ALTER TYPE audit_action ADD VALUE 'module.created';
+ALTER TYPE audit_action ADD VALUE 'module.updated';
+ALTER TYPE audit_action ADD VALUE 'module.deleted';
+ALTER TYPE audit_action ADD VALUE 'lesson.created';
+ALTER TYPE audit_action ADD VALUE 'lesson.updated';
+ALTER TYPE audit_action ADD VALUE 'lesson.deleted';

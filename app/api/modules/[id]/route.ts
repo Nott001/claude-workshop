@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { moduleSchema } from "@/modules/course-content";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { logAuditEvent } from "@/modules/audit";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
@@ -32,6 +34,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const { userId } = await auth();
+  if (userId) {
+    await logAuditEvent(supabase, userId, "module.updated", "module", Number(id), {
+      changes: Object.keys(parsed.data),
+    });
+  }
+
   return NextResponse.json(module);
 }
 
@@ -43,6 +52,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
+  const { userId } = await auth();
 
   const { data: mod } = await supabase.from("MODULES").select("course_id").eq("module_id", id).single();
   if (mod) {
@@ -61,6 +71,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (userId) {
+    await logAuditEvent(supabase, userId, "module.deleted", "module", Number(id), {
+      course_id: mod?.course_id,
+    });
   }
 
   return NextResponse.json({ success: true });

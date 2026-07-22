@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { logAuditEvent } from "@/modules/audit";
 
 const PAGE_SIZE = 10;
 
@@ -82,6 +83,14 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to send invitation";
     return NextResponse.json({ error: { message } }, { status: 500 });
+  }
+
+  const { userId } = await auth();
+  if (userId) {
+    await logAuditEvent(supabase, userId, "organization.invited", "user", null, {
+      email: parsed.data.email,
+      role: parsed.data.role,
+    });
   }
 
   return NextResponse.json({ email: parsed.data.email, role: parsed.data.role }, { status: 201 });

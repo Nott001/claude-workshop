@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
 import { canTransitionTicket } from "@/modules/commerce";
+import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");
@@ -76,6 +77,13 @@ export async function POST(req: Request) {
       email_type: "check_in_confirmed",
       eventTitle: eventData?.title ?? "",
       eventDate: eventData?.event_date ?? "",
+    });
+  }
+
+  if (userId) {
+    await logAuditEvent(supabase, userId, "checkin.performed", "ticket", ticket.payment_id, {
+      event_id: ticket.event_id,
+      attendee_name: (ticket.USER as { full_name?: string } | undefined)?.full_name,
     });
   }
 
