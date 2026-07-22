@@ -104,7 +104,7 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out hover:-mx-5 hover:px-5 hover:py-3.5 hover:rounded-none hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
+                "flex items-center gap-3 -mx-5 px-5 py-3.5 rounded-none text-sm font-medium [transition:color_400ms_cubic-bezier(0.25,0.1,0.25,1)_1000ms] hover:[transition:color_0ms] hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
                 isActive ? "-mx-5 px-5 py-3.5 rounded-none bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078]",
               )}
             >
