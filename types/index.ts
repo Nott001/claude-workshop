@@ -160,6 +160,7 @@ export interface SupportSession {
   session_id: number;
   user_id: number;
   status: SupportSessionStatus;
+  last_read_at: string | null;
   created_at: string;
   updated_at: string;
 }
