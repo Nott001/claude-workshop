@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import type { UserRole } from "@/types";
+import { logAuditEvent } from "@/modules/audit";
 
 const updateSchema = z.object({
   role: z.enum(["attendee", "speaker", "facilitator"]),
@@ -35,6 +36,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: { message: error.message } }, { status: 500 });
   }
 
+  const { userId: clerkId } = await auth();
+  if (clerkId) {
+    await logAuditEvent(supabase, clerkId, "organization.role_changed", "user", Number(userId), {
+      new_role: parsed.data.role,
+    });
+  }
+
   return NextResponse.json(user);
 }
 
@@ -58,6 +66,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
 
   if (error) {
     return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  }
+
+  if (clerkId) {
+    await logAuditEvent(supabase, clerkId, "organization.removed", "user", Number(userId));
   }
 
   return NextResponse.json({ success: true });

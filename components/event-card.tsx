@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, ChevronRight, Clock3, MapPin, Sparkles } from "lucide-react";
 
-import { accentClass, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
+import { accentClass, formatEventDate, formatTime, eventStatusLabel, isEventLive } from "@/lib/landing";
 
 interface EventCardProps {
   eventId: number;
@@ -32,6 +32,8 @@ export function EventCard({
   onDelete,
   detailHref,
 }: EventCardProps) {
+  const live = isEventLive(date, startTime, endTime);
+
   return (
     <Link
       href={detailHref ?? `/events/${eventId}`}
@@ -45,9 +47,16 @@ export function EventCard({
           {!coverImageUrl && (
             <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
           )}
-          <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-            <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
-          </span>
+          {live ? (
+            <span className="relative inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold">
+              <span className="size-1.5 rounded-full bg-white animate-pulse" />
+              Live
+            </span>
+          ) : (
+            <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
+              <Sparkles className="size-3.5" /> {eventStatusLabel(status)}
+            </span>
+          )}
         </div>
         <div className="p-6">
           <h3 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h3>

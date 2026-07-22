@@ -5,7 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { ArrowLeft } from "lucide-react";
 
-import { formatTime, formatEventDate } from "@/lib/landing";
+import { cn } from "@/lib/utils";
+import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { FloatingAssistButton } from "@/components/floating-assist-button";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
@@ -57,6 +58,22 @@ function formatHeroDateTime(dateStr: string, startTime: string, endTime: string)
   return `${formatTime(startTime)} - ${formatTime(endTime)}, ${month} ${day} ${year}`;
 }
 
+function getBadgeProps(event: Event): { status: EventStatus; label: string } {
+  if (isEventLive(event.event_date, event.start_time, event.end_time)) {
+    return { status: "live", label: "Live" };
+  }
+  switch (event.status) {
+    case "active":
+      return { status: "upcoming", label: "Upcoming" };
+    case "complete":
+      return { status: "completed", label: "Completed" };
+    case "draft":
+      return { status: "draft", label: "Draft" };
+    default:
+      return { status: "draft", label: "Draft" };
+  }
+}
+
 interface AttendeeRow {
   user_id: number;
   full_name: string;
@@ -78,8 +95,7 @@ export default function EventDetailPage() {
   const [hasTicket, setHasTicket] = useState(false);
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
-  const [attendeesLoading, setAttendeesLoading] = useState(false);
-  const [mapExpanded, setMapExpanded] = useState(false);
+  const [attendeesLoading, setAttendeesLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -132,7 +148,6 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || userRole !== "facilitator") return;
-    setAttendeesLoading(true);
     fetch(`/api/events/${eventId}/attendees?limit=5`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -152,6 +167,7 @@ export default function EventDetailPage() {
     );
 
   const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
+  const badgeProps = event ? getBadgeProps(event) : null;
 
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -241,10 +257,6 @@ export default function EventDetailPage() {
   const showCountdown = event.status === "active";
 
   if (isFacilitator) {
-    const badgeStatus: EventStatus =
-      event.status === "active" ? "upcoming" : event.status === "complete" ? "completed" : "draft";
-    const badgeLabel = event.status === "draft" ? "Draft" : event.status === "active" ? "Upcoming" : "Completed";
-
     return (
       <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
         <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
@@ -272,9 +284,12 @@ export default function EventDetailPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.7)] to-[rgba(0,0,0,0)]" />
                   <div className="absolute bottom-8 left-8 right-8 flex flex-col gap-3">
                     <StatusBadge
-                      status={badgeStatus}
-                      label={badgeLabel}
-                      className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
+                      status={badgeProps.status}
+                      label={badgeProps.label}
+                      className={cn(
+                        "w-fit border-0",
+                        badgeProps.status === "live" ? "bg-red-600 text-white" : "bg-[#3db9ee] text-[#00465f]",
+                      )}
                     />
                     <h1 className="text-[36px] font-bold leading-[44px] tracking-[-0.02em] text-white">{event.title}</h1>
                     <div className="flex flex-wrap gap-6 text-sm font-medium text-white/90">
@@ -558,6 +573,7 @@ export default function EventDetailPage() {
                 {/* Right: Event info */}
                 <div className="flex flex-1 flex-col justify-center gap-8 p-12">
                   <div>
+                    {badgeProps && <StatusBadge status={badgeProps.status} label={badgeProps.label} className="mb-3" />}
                     <p className="text-lg font-bold text-[#3db9ee]">
                       {formatHeroDateTime(event.event_date, event.start_time, event.end_time)}
                     </p>

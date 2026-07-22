@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { eventSchema } from "@/modules/event-management";
+import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -84,6 +85,13 @@ export async function POST(req: Request) {
 
   if (error) {
     return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  }
+
+  const { userId } = await auth();
+  if (userId) {
+    await logAuditEvent(supabase, userId, "event.created", "event", event.event_id, {
+      title: event.title,
+    });
   }
 
   return NextResponse.json(event, { status: 201 });

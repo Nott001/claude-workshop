@@ -26,6 +26,7 @@ export function StatusBadge({ status, label, className }: StatusBadgeProps) {
         className,
       )}
     >
+      {status === "live" && <span className="size-1.5 rounded-full bg-current animate-pulse" />}
       {label || status}
     </span>
   );

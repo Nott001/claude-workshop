@@ -5,6 +5,8 @@ export const chatChannelEnum = z.enum(["support", "live_qa"]);
 export const sendMessageSchema = z.object({
   channel: chatChannelEnum,
   message: z.string().min(1).max(1000),
+  reply_to: z.number().int().positive().nullish(),
+  answered_verbally: z.boolean().optional(),
 });
 
 export function isRateLimited(messagesInWindow: number): boolean {

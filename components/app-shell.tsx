@@ -5,9 +5,16 @@ import { Navbar } from "@/components/navbar";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
+const HIDE_NAVBAR_PATTERNS = [/^\/events\/[^/]+\/room/];
+
+function shouldHideNavbar(pathname: string) {
+  if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;
+  return HIDE_NAVBAR_PATTERNS.some((re) => re.test(pathname));
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideNavbar = HIDE_NAVBAR_PATHS.includes(pathname);
+  const hideNavbar = shouldHideNavbar(pathname);
 
   if (hideNavbar) {
     return <>{children}</>;
