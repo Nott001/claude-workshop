@@ -425,7 +425,7 @@ export default function EventDetailPage() {
             <div className="col-span-4 flex flex-col gap-6">
               {/* Analytics */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                <span className="text-sm font-medium text-[#3e484f]">Tickets Issued</span>
+                <span className="text-sm font-medium text-[#3e484f]">Registered</span>
                 <p className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-[#3db9ee]">
                   {event.attendee_count?.toLocaleString() ?? "0"}
                 </p>

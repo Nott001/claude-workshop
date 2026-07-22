@@ -11,7 +11,7 @@ const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 const HIDE_ASSIST_PATTERNS = [/^\/events\/[^/]+\/room/];
 
-const HIDE_NAVBAR_PATTERNS: RegExp[] = [];
+const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/events\/[^/]+\/room/];
 
 function shouldHideNavbar(pathname: string) {
   if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;

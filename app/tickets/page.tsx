@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 
 import { formatEventDate, formatTime } from "@/lib/landing";
@@ -24,6 +25,7 @@ interface PaymentInfo {
 
 interface Ticket {
   payment_id: number;
+  event_id: number;
   qr_token: string;
   status: string;
   issued_at: string;
@@ -33,12 +35,12 @@ interface Ticket {
 
 function ticketStatusStyle(status: string): string {
   switch (status) {
-    case "issued":
-      return "bg-green-900/20 text-green-600";
     case "checked_in":
-      return "bg-blue-900/20 text-blue-600";
+      return "bg-green-50 text-green-700";
+    case "issued":
+      return "bg-blue-50 text-blue-700";
     case "cancelled":
-      return "bg-red-900/20 text-red-500";
+      return "bg-gray-50 text-gray-500";
     default:
       return "bg-surface text-muted-foreground";
   }
@@ -47,7 +49,7 @@ function ticketStatusStyle(status: string): string {
 function ticketStatusLabel(status: string): string {
   switch (status) {
     case "issued":
-      return "Issued";
+      return "Registered";
     case "checked_in":
       return "Checked in";
     case "cancelled":
@@ -105,19 +107,24 @@ export default function TicketsPage() {
   return (
     <div className="flex flex-1 flex-col p-6 sm:p-8">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">My Tickets</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Present the QR code at the event for check-in.</p>
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
+            <span className="material-symbols-rounded text-2xl text-[#3db9ee]">confirmation_number</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#1B1C1C]">My Tickets</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Present the QR code at the event for check-in.</p>
+          </div>
         </div>
 
         {tickets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface p-12 text-center">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#bdc8d0] bg-[#f9fafb] p-12 text-center">
             <span className="material-symbols-rounded text-4xl text-muted-foreground/50">confirmation_number</span>
-            <h3 className="mt-4 text-sm font-semibold text-foreground">No tickets yet</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Register for an event to get your ticket.</p>
+            <h3 className="mt-4 text-sm font-semibold text-[#1B1C1C]">No tickets yet</h3>
+            <p className="mt-1 text-xs text-[#6E7980]">Register for an event to get your ticket.</p>
             <button
               onClick={() => router.push("/events")}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#29B6F6] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#039be5]"
             >
               <span className="material-symbols-rounded text-sm">event</span>
               Browse events
@@ -169,53 +176,59 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
     : null;
 
   return (
-    <div className="flex overflow-hidden rounded-2xl border border-border bg-white shadow-[0_4px_20px_rgba(0,0,0,.06)]">
-      {/* Left: Event details */}
+    <div className="flex overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
       <div className="flex flex-1 flex-col">
-        {/* Gradient header strip */}
-        <div className="relative bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-300 px-8 py-5">
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
-          <div className="relative flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-              <span className="material-symbols-rounded text-[16px]">confirmation_number</span>
+        <div className="bg-gradient-to-r from-[#3db9ee] to-[#29B6F6] px-6 py-4">
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm">
+              <span className="material-symbols-rounded text-[14px]">confirmation_number</span>
               Ticket
             </span>
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${ticketStatusStyle(ticket.status)}`}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ticketStatusStyle(ticket.status)}`}
             >
               <span className="size-1.5 rounded-full bg-current" />
               {ticketStatusLabel(ticket.status)}
             </span>
           </div>
-          <h2 className="relative mt-3 text-2xl font-bold text-white">{ticket.EVENTS.title}</h2>
+          <h2 className="mt-2 text-lg font-bold text-white">{ticket.EVENTS.title}</h2>
         </div>
 
-        {/* Details */}
-        <div className="flex-1 px-8 py-6">
-          <div className="space-y-4">
+        <div className="flex-1 px-6 py-5">
+          <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[22px] text-[#3db9ee]">calendar_today</span>
-              <span className="text-base text-foreground">{formatEventDate(ticket.EVENTS.event_date)}</span>
+              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">calendar_today</span>
+              <span className="text-sm text-[#1B1C1C]">{formatEventDate(ticket.EVENTS.event_date)}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[22px] text-[#3db9ee]">schedule</span>
-              <span className="text-base text-foreground">
-                {formatTime(ticket.EVENTS.start_time)} – {formatTime(ticket.EVENTS.end_time)}
+              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">schedule</span>
+              <span className="text-sm text-[#1B1C1C]">
+                {formatTime(ticket.EVENTS.start_time)} &ndash; {formatTime(ticket.EVENTS.end_time)}
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[22px] text-[#3db9ee]">location_on</span>
-              <span className="text-base text-foreground">{venue}</span>
+              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">location_on</span>
+              <span className="text-sm text-[#1B1C1C]">{venue}</span>
             </div>
             {price && (
               <div className="flex items-center gap-3">
-                <span className="material-symbols-rounded text-[22px] text-[#3db9ee]">payments</span>
-                <span className="text-base font-semibold text-foreground">{price}</span>
+                <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">payments</span>
+                <span className="text-sm font-semibold text-[#1B1C1C]">{price}</span>
               </div>
             )}
           </div>
 
-          <div className="mt-6 border-t border-border pt-4 text-sm text-muted-foreground">
+          <div className="mt-4 flex items-center gap-3">
+            <Link
+              href={`/events/${ticket.event_id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#29B6F6] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#039be5]"
+            >
+              Go to event
+              <span className="material-symbols-rounded text-[14px]">arrow_forward</span>
+            </Link>
+          </div>
+
+          <div className="mt-4 border-t border-[#bdc8d0] pt-3 text-xs text-muted-foreground">
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <span>Payment #{ticket.payment_id}</span>
               <span>Issued {new Date(ticket.issued_at).toLocaleDateString()}</span>
@@ -225,19 +238,17 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         </div>
       </div>
 
-      {/* Dashed separator */}
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
-      {/* Right: QR Code */}
-      <div className="flex w-64 shrink-0 items-center justify-center border-l border-dashed border-[#d0d5dd] bg-[#f9fafb] p-8">
+      <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-[#d0d5dd] bg-[#f9fafb] p-6">
         {qrLoading ? (
-          <div className="grid size-48 place-items-center">
+          <div className="grid size-44 place-items-center">
             <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>
           </div>
         ) : qrUrl ? (
-          <img src={qrUrl} alt="QR Code" className="size-48 rounded-lg" />
+          <img src={qrUrl} alt="QR Code" className="size-44 rounded-lg" />
         ) : (
-          <div className="grid size-48 place-items-center rounded-lg bg-surface">
+          <div className="grid size-44 place-items-center rounded-lg bg-surface">
             <span className="text-sm text-muted-foreground">No QR</span>
           </div>
         )}
