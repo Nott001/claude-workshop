@@ -149,141 +149,141 @@ export default function OrganizationPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-    <div className="mx-auto max-w-4xl flex-1 p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Manage staff</h1>
-        <Button onClick={() => setInviteOpen(true)}>
-          <span className="material-symbols-rounded text-[18px]">person_add</span>
-          Invite member
-        </Button>
-      </div>
+      <div className="mx-auto max-w-4xl flex-1 p-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Manage staff</h1>
+          <Button onClick={() => setInviteOpen(true)}>
+            <span className="material-symbols-rounded text-[18px]">person_add</span>
+            Invite member
+          </Button>
+        </div>
 
-      <div className="mb-4">
-        <Input
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
+        <div className="mb-4">
+          <Input
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading staff...</p>
-      ) : members.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No staff members found.</p>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((member) => (
-                  <tr key={member.user_id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="grid size-8 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                          {getInitials(member.full_name)}
-                        </div>
-                        <span className="font-medium">{member.full_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{member.email}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-                        {ROLE_LABELS[member.role]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <DropdownMenu
-                        trigger={
-                          <Button variant="ghost" size="sm">
-                            Manage
-                          </Button>
-                        }
-                        items={getManageItems(member)}
-                      />
-                    </td>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading staff...</p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No staff members found.</p>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {members.map((member) => (
+                    <tr key={member.user_id} className="border-b border-border last:border-b-0">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="grid size-8 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {getInitials(member.full_name)}
+                          </div>
+                          <span className="font-medium">{member.full_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{member.email}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
+                          {ROLE_LABELS[member.role]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DropdownMenu
+                          trigger={
+                            <Button variant="ghost" size="sm">
+                              Manage
+                            </Button>
+                          }
+                          items={getManageItems(member)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} members
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
+            <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} members
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  Next
+                </Button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invite member</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="invite-name">Full name</Label>
-              <Input
-                id="invite-name"
-                placeholder="Jane Smith"
-                value={inviteName}
-                onChange={(e) => setInviteName(e.target.value)}
-              />
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Invite member</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="invite-name">Full name</Label>
+                <Input
+                  id="invite-name"
+                  placeholder="Jane Smith"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invite-email">Email address</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="jane@startuplab.edu"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as UserRole)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="facilitator">Facilitator</SelectItem>
+                    <SelectItem value="speaker">Speaker</SelectItem>
+                    <SelectItem value="attendee">Attendee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="invite-email">Email address</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="jane@startuplab.edu"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Role</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as UserRole)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="facilitator">Facilitator</SelectItem>
-                  <SelectItem value="speaker">Speaker</SelectItem>
-                  <SelectItem value="attendee">Attendee</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteLoading || !inviteName || !inviteEmail}>
-              {inviteLoading ? "Inviting..." : "Send invite"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-    <Footer role="facilitator" />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInviteOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleInvite} disabled={inviteLoading || !inviteName || !inviteEmail}>
+                {inviteLoading ? "Inviting..." : "Send invite"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <Footer role="facilitator" />
     </div>
   );
 }

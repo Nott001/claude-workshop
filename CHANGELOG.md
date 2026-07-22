@@ -6,6 +6,10 @@
 
 - **app/tickets/page.tsx** — redesign ticket cards to match app design system: brand-blue gradient header, app-standard icon+heading group, standardized status badges (Registered/Checked in/Cancelled), consistent border/shadow/typography tokens; add "Go to event" link on each card using `ticket.event_id`; add `event_id` to Ticket interface
 
+### fix: remove undefined FloatingAssistButton from event detail page
+
+- **app/events/[id]/page.tsx** — remove inline `<FloatingAssistButton />` that was never imported (undefined reference); the AppShell already handles this component
+
 ### feat: add pre-event countdown to session navbar and center timer
 
 - **components/event-session-navbar.tsx** — add `eventDate`/`startTime` props; when event hasn't started, show a live "Starts in" countdown timer instead of Elapsed/Remaining; center the timer section with `flex-1 justify-center`

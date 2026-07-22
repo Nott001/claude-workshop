@@ -95,45 +95,45 @@ export default function EditSpeakerProfilePage() {
 
   return (
     <>
-    <div>
-      <button onClick={() => router.push("/speakers")}>&larr; Back to Speakers</button>
-      <h1>Edit Speaker Profile</h1>
+      <div>
+        <button onClick={() => router.push("/speakers")}>&larr; Back to Speakers</button>
+        <h1>Edit Speaker Profile</h1>
 
-      {error && <p>{error}</p>}
+        {error && <p>{error}</p>}
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Designation</label>
-          <input value={designation} onChange={(e) => setDesignation(e.target.value)} />
-        </div>
-        <div>
-          <label>Bio</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} />
-        </div>
-        <div>
-          <label>Photo</label>
-          {photoUrl && !photoFile && (
-            <div>
-              <img src={photoUrl} alt="Current photo" style={{ maxWidth: "150px" }} />
-            </div>
-          )}
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} />
-          {photoFile && <p>Selected: {photoFile.name}</p>}
-          <input
-            value={photoUrl}
-            onChange={(e) => {
-              setPhotoUrl(e.target.value);
-              setPhotoFile(null);
-            }}
-            placeholder="Or paste image URL"
-          />
-        </div>
-        <button type="submit" disabled={uploading}>
-          {uploading ? "Uploading..." : "Update"}
-        </button>
-      </form>
-    </div>
-    <Footer role="speaker" />
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label>Designation</label>
+            <input value={designation} onChange={(e) => setDesignation(e.target.value)} />
+          </div>
+          <div>
+            <label>Bio</label>
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} />
+          </div>
+          <div>
+            <label>Photo</label>
+            {photoUrl && !photoFile && (
+              <div>
+                <img src={photoUrl} alt="Current photo" style={{ maxWidth: "150px" }} />
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} />
+            {photoFile && <p>Selected: {photoFile.name}</p>}
+            <input
+              value={photoUrl}
+              onChange={(e) => {
+                setPhotoUrl(e.target.value);
+                setPhotoFile(null);
+              }}
+              placeholder="Or paste image URL"
+            />
+          </div>
+          <button type="submit" disabled={uploading}>
+            {uploading ? "Uploading..." : "Update"}
+          </button>
+        </form>
+      </div>
+      <Footer role="speaker" />
     </>
   );
 }

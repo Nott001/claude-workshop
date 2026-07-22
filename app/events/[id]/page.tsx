@@ -910,15 +910,11 @@ export default function EventDetailPage() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
 
       <Footer role="attendee" />
-
-      {/* Floating Assist Button */}
-      <FloatingAssistButton />
     </div>
   );
 }
