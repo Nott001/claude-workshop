@@ -166,6 +166,7 @@ export default function RegisterPage() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col p-6 sm:p-8">
       <div className="mx-auto w-full max-w-lg">
         <button
@@ -253,5 +254,6 @@ export default function RegisterPage() {
       </div>
     </div>
     <Footer role="attendee" />
+    </>
   );
 }
