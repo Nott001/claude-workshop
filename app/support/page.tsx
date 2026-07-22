@@ -16,6 +16,7 @@ interface SupportUser {
   last_message: string;
   last_sent_at: string;
   unread: boolean;
+  session_active: boolean;
 }
 
 export default function SupportPage() {
@@ -28,6 +29,8 @@ export default function SupportPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [endingChat, setEndingChat] = useState(false);
+  const [deletingChat, setDeletingChat] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastSentAtRef = useRef<string | null>(null);
@@ -73,6 +76,35 @@ export default function SupportPage() {
       }
     });
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (!usersVersion) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      const data = await fetchUsers();
+      if (cancelled || !data) return;
+      setUsers((prev) => {
+        const merged = [...data];
+        for (const existing of prev) {
+          if (!merged.some((u) => u.user_id === existing.user_id)) {
+            merged.push(existing);
+          }
+        }
+        merged.sort((a, b) => new Date(b.last_sent_at).getTime() - new Date(a.last_sent_at).getTime());
+        for (const m of merged) {
+          const existing = prev.find((u) => u.user_id === m.user_id);
+          if (existing) {
+            m.unread = existing.unread;
+          }
+        }
+        return merged;
+      });
+    }, POLL_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [fetchUsers, usersVersion]);
 
   useEffect(() => {
     if (selectedUserId == null) return;
@@ -184,6 +216,55 @@ export default function SupportPage() {
     }
   }
 
+  async function handleEndChat(userId: number) {
+    setEndingChat(true);
+    try {
+      const msgRes = await fetch("/api/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "[Chat ended by facilitator]", recipient_user_id: userId }),
+      });
+      if (msgRes.ok) {
+        const msg = await msgRes.json();
+        setMessages((prev) => {
+          if (prev.some((m) => m.message_id === msg.message_id)) return prev;
+          return [...prev, msg as ChatMessageWithUser];
+        });
+      }
+      await fetch("/api/support/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, action: "end" }),
+      });
+      const updatedUsers = await fetchUsers();
+      if (updatedUsers) {
+        setUsers(updatedUsers);
+        setUsersVersion((v) => v + 1);
+      }
+    } finally {
+      setEndingChat(false);
+    }
+  }
+
+  async function handleDeleteChat(userId: number) {
+    setDeletingChat(true);
+    try {
+      const res = await fetch(`/api/support/sessions/${userId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) return;
+      setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+      setUsersVersion((v) => v + 1);
+      if (selectedUserId === userId) {
+        setSelectedUserId(null);
+        setMessages([]);
+        setMessagesVersion(0);
+      }
+    } finally {
+      setDeletingChat(false);
+    }
+  }
+
   function formatTime(sentAt: string) {
     const d = new Date(sentAt);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -198,6 +279,7 @@ export default function SupportPage() {
   }
 
   const selectedUser = users.find((u) => u.user_id === selectedUserId);
+  const sessionActive = selectedUser?.session_active ?? false;
   const usersLoaded = usersVersion > 0;
   const messagesLoaded = messagesVersion > 0 && selectedUserId != null;
 
@@ -225,8 +307,15 @@ export default function SupportPage() {
                   (selectedUserId === user.user_id ? "bg-[#e8f8fe]" : "")
                 }
               >
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-xs font-semibold text-[#1b1c1c]">{user.full_name}</span>
+                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-xs font-semibold text-[#1b1c1c]">{user.full_name}</span>
+                    {user.session_active ? (
+                      <span className="size-1.5 shrink-0 rounded-full bg-[#3db9ee]" title="Active" />
+                    ) : (
+                      <span className="size-1.5 shrink-0 rounded-full bg-[#8B989E]" title="Ended" />
+                    )}
+                  </div>
                   <span className="shrink-0 text-[10px] text-[#8B989E]">{formatUserTime(user.last_sent_at)}</span>
                 </div>
                 <span className="truncate text-[11px] text-[#6E7980]">{user.last_message}</span>
@@ -243,11 +332,45 @@ export default function SupportPage() {
           </div>
         ) : (
           <>
-            <div className="flex shrink-0 items-center gap-2 border-b border-[#E8ECEF] bg-white px-6 py-3">
-              <div className="grid size-8 place-items-center rounded-full bg-[#3db9ee] text-xs font-bold text-white">
-                {selectedUser?.full_name?.charAt(0)?.toUpperCase() ?? "?"}
+            <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] bg-white px-6 py-3">
+              <div className="flex items-center gap-2">
+                <div className="grid size-8 place-items-center rounded-full bg-[#3db9ee] text-xs font-bold text-white">
+                  {selectedUser?.full_name?.charAt(0)?.toUpperCase() ?? "?"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-[#1b1c1c]">{selectedUser?.full_name ?? "Unknown"}</span>
+                  {sessionActive ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#00658d]">
+                      <span className="size-1.5 rounded-full bg-[#3db9ee]" />
+                      Active
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(139,152,158,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#6E7980]">
+                      Ended
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="text-sm font-semibold text-[#1b1c1c]">{selectedUser?.full_name ?? "Unknown"}</span>
+              {sessionActive && (
+                <button
+                  onClick={() => handleEndChat(selectedUserId)}
+                  disabled={endingChat}
+                  className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+                >
+                  <span className="material-symbols-rounded text-xs">call_end</span>
+                  End Chat
+                </button>
+              )}
+              {!sessionActive && selectedUserId != null && (
+                <button
+                  onClick={() => handleDeleteChat(selectedUserId)}
+                  disabled={deletingChat}
+                  className="flex items-center gap-1 rounded-lg border border-[#E8ECEF] px-2.5 py-1.5 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-red-200 hover:text-red-500 disabled:opacity-50"
+                >
+                  <span className="material-symbols-rounded text-xs">delete</span>
+                  Delete
+                </button>
+              )}
             </div>
 
             {!messagesLoaded ? (
@@ -263,6 +386,15 @@ export default function SupportPage() {
                   {messages.length === 0 && <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet.</p>}
 
                   {messages.map((msg) => {
+                    const isChatEnded = msg.message.startsWith("[Chat ended");
+                    if (isChatEnded) {
+                      return (
+                        <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                          <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
+                          <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                        </div>
+                      );
+                    }
                     const isOwn = msg.user_id === currentUserId;
                     const isStaff = msg.USER?.role === "facilitator";
                     return (
@@ -304,13 +436,14 @@ export default function SupportPage() {
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a reply..."
+                  placeholder={sessionActive ? "Type a reply..." : "This conversation has ended."}
                   maxLength={1000}
-                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                  disabled={!sessionActive}
+                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={sending || !newMessage.trim()}
+                  disabled={sending || !newMessage.trim() || !sessionActive}
                   className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {sending ? (

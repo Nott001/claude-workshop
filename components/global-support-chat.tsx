@@ -24,6 +24,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [ignoreChatEnded, setIgnoreChatEnded] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -45,6 +46,10 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return () => {
       ignore = true;
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) setIgnoreChatEnded(false);
   }, [isOpen]);
 
   const fetchMessages = useCallback(async (before?: string) => {
@@ -199,6 +204,15 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+
+  function handleStartNew() {
+    setMessages([]);
+    setNextCursor(null);
+    lastSentAtRef.current = new Date().toISOString();
+    setIgnoreChatEnded(true);
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -242,8 +256,17 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
               )}
 
               {messages.map((msg) => {
+                const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = msg.USER?.role === "facilitator";
+                if (isChatEnded) {
+                  return (
+                    <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                      <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
+                      <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                    </div>
+                  );
+                }
                 return (
                   <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                     <div className="flex items-center gap-1.5 mb-1">
@@ -274,30 +297,42 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                maxLength={1000}
-                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
-              />
+          {chatEnded ? (
+            <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
               <button
-                type="submit"
-                disabled={sending || !newMessage.trim()}
-                className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleStartNew}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#DDE3E7] py-3 text-[11px] text-[#00658d] transition-colors hover:bg-[#F0F2F4]"
               >
-                {sending ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <span className="material-symbols-rounded text-sm">send</span>
-                )}
+                <span className="material-symbols-rounded text-sm">add_comment</span>
+                Start a new conversation
               </button>
             </div>
-            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
-          </form>
+          ) : (
+            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  maxLength={1000}
+                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !newMessage.trim()}
+                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sending ? (
+                    <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <span className="material-symbols-rounded text-sm">send</span>
+                  )}
+                </button>
+              </div>
+              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            </form>
+          )}
         </>
       )}
     </div>
