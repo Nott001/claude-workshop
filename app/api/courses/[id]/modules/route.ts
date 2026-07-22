@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
 import { moduleSchema } from "@/modules/course-content";
+import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
@@ -29,6 +31,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const { userId } = await auth();
+  if (userId) {
+    await logAuditEvent(supabase, userId, "module.created", "module", module.module_id, {
+      course_id: Number(id),
+      name: module.module_name,
+    });
   }
 
   return NextResponse.json(module, { status: 201 });
