@@ -30,6 +30,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Kiosk", href: "/kiosk", icon: "qr_code_scanner" },
     { label: "Surveys", href: "/surveys", icon: "poll" },
     { label: "Emails", href: "/emails", icon: "mail" },
+    { label: "Support", href: "/support", icon: "support_agent" },
   ],
 };
 
