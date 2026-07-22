@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### feat: add support chat sessions with facilitator lifecycle
+
+- **supabase/migrations/00028_create_support_sessions.sql** — new table with user_id, status, timestamps; partial unique index on active sessions
+- **types/index.ts** — add SupportSession and SupportSessionStatus types
+- **app/api/support/sessions/route.ts** — POST start/end session with role-based access
+- **app/api/support/sessions/[userId]/route.ts** — DELETE hard-deletes session + messages
+- **app/support/page.tsx** — End Chat button inserts visible end message before closing; Delete button for ended sessions; session indicator dots on user list; input disabled when session ended
+- **components/global-support-chat.tsx** — remove session lifecycle entirely; detect end-chat message by content prefix; disable input and show ended banner
+- **components/app-shell.tsx** — hide support chat for speaker role too
+- **app/api/support/users/route.ts** — add session_active flag to user list
+
+### feat: add live session highlight for event room
+
+- **supabase/migrations/00027_create_live_session_state.sql** — new table with event_id, highlighted_lesson_id, updated_by, updated_at; realtime enabled
+- **types/index.ts** — add LiveSessionState interface
+- **lib/realtime/index.ts** — add subscribeToLiveHighlight() subscriber
+- **app/api/events/[id]/live/highlight/route.ts** — GET/POST/DELETE highlight state
+- **app/events/[id]/room/page.tsx** — Guide/Guiding button on each lesson, blue left bar, optimistic update, 5s polling fallback; staff exit redirects to speaker dashboard
+- **app/speakers/dashboard/[eventId]/page.tsx** — compute live status from time window instead of DB status enum
+- **app/api/speakers/me/events/[eventId]/route.ts** — fix attendee count: use payment_id instead of ticket_id
+- **test/live-highlight.test.ts** — unit tests for highlight schema and API logic
+
 ### feat: redesign tickets page with app design system and event navigation
 
 - **app/tickets/page.tsx** — redesign ticket cards to match app design system: brand-blue gradient header, app-standard icon+heading group, standardized status badges (Registered/Checked in/Cancelled), consistent border/shadow/typography tokens; add "Go to event" link on each card using `ticket.event_id`; add `event_id` to Ticket interface
