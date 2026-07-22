@@ -5,7 +5,7 @@ import { subscribeToChatMessages } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
 
 interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string; role: UserRole; profile_image_url: string | null };
+  USER: { full_name: string; role: UserRole; profile_image_url?: string | null };
 }
 
 interface QAPanelProps {

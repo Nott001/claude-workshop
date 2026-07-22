@@ -37,7 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
 
   let query = supabase
     .from("CHAT_MESSAGES")
-    .select("*, USER:user_id(full_name, role, profile_image_url)")
+    .select("*, USER:user_id(full_name, role)")
     .eq("event_id", eventId)
     .eq("channel", channel)
     .is("deleted_at", null);
@@ -122,7 +122,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
       reply_to: parsed.data.reply_to ?? null,
       answered_verbally: parsed.data.answered_verbally ?? false,
     })
-    .select("*, USER:user_id(full_name, role, profile_image_url)")
+    .select("*, USER:user_id(full_name, role)")
     .single();
 
   if (error) {
