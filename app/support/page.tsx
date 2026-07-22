@@ -120,10 +120,6 @@ export default function SupportPage() {
         }
       }
     });
-
-    fetch(`/api/support/sessions/${selectedUserId}`, { method: "PATCH" })
-      .catch(() => {})
-      .finally(() => window.dispatchEvent(new CustomEvent("support-read-updated")));
   }, [selectedUserId, fetchMessages]);
 
   useEffect(() => {
@@ -319,13 +315,10 @@ export default function SupportPage() {
                     ) : (
                       <span className="size-1.5 shrink-0 rounded-full bg-[#8B989E]" title="Ended" />
                     )}
-                    {user.unread && (
-                      <span className="size-2 shrink-0 rounded-full bg-[#00658d]" title="Unread" />
-                    )}
                   </div>
                   <span className="shrink-0 text-[10px] text-[#8B989E]">{formatUserTime(user.last_sent_at)}</span>
                 </div>
-                <span className={"truncate text-[11px] " + (user.unread ? "font-semibold text-[#1b1c1c]" : "text-[#6E7980]")}>{user.last_message}</span>
+                <span className="truncate text-[11px] text-[#6E7980]">{user.last_message}</span>
               </button>
             ))
           )}

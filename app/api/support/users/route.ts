@@ -28,34 +28,28 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { data: allSessions } = await supabase.from("SUPPORT_SESSIONS").select("user_id, status, last_read_at");
+  const { data: allSessions } = await supabase.from("SUPPORT_SESSIONS").select("user_id, status");
 
-  const sessionMap = new Map<number, { status: string; last_read_at: string | null }>();
+  const sessionMap = new Map<number, string>();
   for (const s of allSessions ?? []) {
-    sessionMap.set(s.user_id, { status: s.status, last_read_at: s.last_read_at });
+    sessionMap.set(s.user_id, s.status);
   }
 
   const userMap = new Map<
     number,
-    { user_id: number; full_name: string; last_message: string; last_sent_at: string; unread: boolean; session_active: boolean }
+    { user_id: number; full_name: string; last_message: string; last_sent_at: string; session_active: boolean }
   >();
 
   for (const msg of messages ?? []) {
     const user = msg.USER as unknown as { full_name: string; role: string } | null;
     if (user?.role === "facilitator") continue;
     if (!userMap.has(msg.user_id)) {
-      const sessionInfo = sessionMap.get(msg.user_id);
-      const lastReadAt = sessionInfo?.last_read_at ? new Date(sessionInfo.last_read_at).getTime() : 0;
-      const msgTime = new Date(msg.sent_at).getTime();
-      const isUnreadFromUser = msgTime > lastReadAt;
-      const isFromFacilitator = msg.recipient_user_id != null && msgTime > lastReadAt;
       userMap.set(msg.user_id, {
         user_id: msg.user_id,
         full_name: user?.full_name ?? "Unknown",
         last_message: msg.message,
         last_sent_at: msg.sent_at,
-        unread: isUnreadFromUser || isFromFacilitator,
-        session_active: sessionInfo?.status === "active",
+        session_active: sessionMap.get(msg.user_id) === "active",
       });
     }
   }
@@ -67,11 +61,6 @@ export async function GET() {
       if (new Date(msg.sent_at) > new Date(entry.last_sent_at)) {
         entry.last_message = msg.message;
         entry.last_sent_at = msg.sent_at;
-        const sessionInfo = sessionMap.get(recipientId);
-        const lastReadAt = sessionInfo?.last_read_at ? new Date(sessionInfo.last_read_at).getTime() : 0;
-        if (new Date(msg.sent_at).getTime() > lastReadAt) {
-          entry.unread = true;
-        }
       }
     }
   }
