@@ -28,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isSignedIn } = useUser();
   const [role, setRole] = useState<string | null>(null);
   const hideNavbar = shouldHideNavbar(pathname);
+  const showAssist = !shouldHideAssist(pathname) && role !== "facilitator";
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -42,8 +43,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (hideNavbar) {
     return <>{children}</>;
   }
-
-  const showAssist = !shouldHideAssist(pathname) && role !== "facilitator";
 
   return (
     <div className="flex min-h-screen">
