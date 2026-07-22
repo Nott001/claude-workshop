@@ -247,16 +247,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet. How can we help?</p>
               )}
 
-              {chatEnded && (
-                <button
-                  onClick={handleStartNew}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#DDE3E7] py-2 text-[11px] text-[#00658d] transition-colors hover:bg-[#F0F2F4]"
-                >
-                  <span className="material-symbols-rounded text-sm">add_comment</span>
-                  Start a new conversation
-                </button>
-              )}
-
               {messages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
@@ -299,31 +289,42 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={chatEnded ? "This conversation has ended." : "Type a message..."}
-                maxLength={1000}
-                disabled={chatEnded}
-                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20 disabled:cursor-not-allowed disabled:opacity-50"
-              />
+          {chatEnded ? (
+            <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
               <button
-                type="submit"
-                disabled={sending || !newMessage.trim() || chatEnded}
-                className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleStartNew}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#DDE3E7] py-3 text-[11px] text-[#00658d] transition-colors hover:bg-[#F0F2F4]"
               >
-                {sending ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <span className="material-symbols-rounded text-sm">send</span>
-                )}
+                <span className="material-symbols-rounded text-sm">add_comment</span>
+                Start a new conversation
               </button>
             </div>
-            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
-          </form>
+          ) : (
+            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  maxLength={1000}
+                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !newMessage.trim()}
+                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sending ? (
+                    <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <span className="material-symbols-rounded text-sm">send</span>
+                  )}
+                </button>
+              </div>
+              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            </form>
+          )}
         </>
       )}
     </div>
