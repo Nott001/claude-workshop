@@ -154,7 +154,7 @@ export interface LiveSessionState {
   updated_at: string;
 }
 
-export type SupportSessionStatus = "active" | "ended_by_facilitator" | "ended_by_user";
+export type SupportSessionStatus = "active" | "ended_by_facilitator";
 
 export interface SupportSession {
   session_id: number;
