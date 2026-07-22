@@ -199,6 +199,8 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  const chatEnded = messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+
   if (!isOpen) return null;
 
   return (
@@ -242,8 +244,17 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
               )}
 
               {messages.map((msg) => {
+                const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = msg.USER?.role === "facilitator";
+                if (isChatEnded) {
+                  return (
+                    <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                      <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
+                      <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                    </div>
+                  );
+                }
                 return (
                   <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                     <div className="flex items-center gap-1.5 mb-1">
@@ -280,13 +291,14 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
+                placeholder={chatEnded ? "This conversation has ended." : "Type a message..."}
                 maxLength={1000}
-                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                disabled={chatEnded}
+                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={sending || !newMessage.trim()}
+                disabled={sending || !newMessage.trim() || chatEnded}
                 className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {sending ? (

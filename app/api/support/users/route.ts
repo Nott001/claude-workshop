@@ -28,9 +28,13 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const { data: activeSessions } = await supabase.from("SUPPORT_SESSIONS").select("user_id").eq("status", "active");
+
+  const activeUserIds = new Set((activeSessions ?? []).map((s) => s.user_id));
+
   const userMap = new Map<
     number,
-    { user_id: number; full_name: string; last_message: string; last_sent_at: string; unread: boolean }
+    { user_id: number; full_name: string; last_message: string; last_sent_at: string; unread: boolean; session_active: boolean }
   >();
 
   for (const msg of messages ?? []) {
@@ -43,6 +47,7 @@ export async function GET() {
         last_message: msg.message,
         last_sent_at: msg.sent_at,
         unread: true,
+        session_active: activeUserIds.has(msg.user_id),
       });
     }
   }

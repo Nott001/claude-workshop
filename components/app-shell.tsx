@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isSignedIn } = useUser();
   const [role, setRole] = useState<string | null>(null);
   const hideNavbar = shouldHideNavbar(pathname);
-  const showAssist = !shouldHideAssist(pathname) && role !== "facilitator";
+  const showAssist = !shouldHideAssist(pathname) && role !== "facilitator" && role !== "speaker";
 
   useEffect(() => {
     if (!isSignedIn) return;
