@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -136,7 +136,28 @@ export async function POST(req: Request) {
 
   if (existing) {
     sessionId = existing.session_id;
+  } else if (dbUser.role === "facilitator") {
+    const { data: newSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .insert({ user_id: sessionUserId })
+      .select("session_id")
+      .single();
+    sessionId = newSession!.session_id;
   } else {
+    const { data: anySession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .select("session_id")
+      .eq("user_id", sessionUserId)
+      .limit(1)
+      .maybeSingle();
+
+    if (anySession) {
+      return NextResponse.json(
+        { error: "This conversation has ended. Start a new conversation." },
+        { status: 403 },
+      );
+    }
+
     const { data: newSession } = await supabase
       .from("SUPPORT_SESSIONS")
       .insert({ user_id: sessionUserId })
