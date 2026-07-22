@@ -79,34 +79,6 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   }, [eventId]);
 
   useEffect(() => {
-    if (!eventId || !eventStarted) return;
-    const id = setInterval(async () => {
-      const last = messages[messages.length - 1];
-      const params = new URLSearchParams({ channel: "live_qa", limit: "10" });
-      if (last) params.set("after", last.sent_at);
-      try {
-        const res = await fetch(`/api/chat/${eventId}?${params}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.messages?.length) {
-          setMessages((prev) => {
-            const merged = [...prev];
-            let changed = false;
-            for (const m of data.messages) {
-              if (!merged.some((x) => x.message_id === m.message_id)) {
-                merged.push(m as ChatMessageWithUser);
-                changed = true;
-              }
-            }
-            return changed ? merged : prev;
-          });
-        }
-      } catch {}
-    }, 3000);
-    return () => clearInterval(id);
-  }, [eventId, eventStarted]);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
