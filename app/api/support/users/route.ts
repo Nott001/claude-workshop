@@ -12,14 +12,17 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).maybeSingle();
   if (!dbUser || dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data: allSessions } = await supabase
     .from("SUPPORT_SESSIONS")
     .select("session_id, user_id, status")
+    .gte("created_at", since)
     .order("created_at", { ascending: false });
 
   const latestSessionPerUser = new Map<number, { session_id: number; status: string }>();
@@ -33,6 +36,7 @@ export async function GET() {
     .from("CHAT_MESSAGES")
     .select("user_id, recipient_user_id, message, sent_at, session_id, USER:user_id!inner(full_name, role)")
     .eq("channel", CHANNEL)
+    .gte("sent_at", since)
     .is("deleted_at", null)
     .order("sent_at", { ascending: false });
 

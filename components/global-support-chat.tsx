@@ -181,6 +181,13 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       return;
     }
 
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "This conversation has ended.");
+      setSending(false);
+      return;
+    }
+
     if (!res.ok) {
       setError("Failed to send message.");
       setSending(false);
@@ -206,11 +213,19 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
 
   const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
 
-  function handleStartNew() {
+  async function handleStartNew() {
     setMessages([]);
     setNextCursor(null);
+    setError(null);
     lastSentAtRef.current = new Date().toISOString();
-    setIgnoreChatEnded(true);
+    const res = await fetch("/api/support/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start" }),
+    });
+    if (res.ok) {
+      setIgnoreChatEnded(true);
+    }
   }
 
   if (!isOpen) return null;
