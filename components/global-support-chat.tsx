@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { subscribeToChatMessages } from "@/lib/realtime";
+import { useState, useRef, useEffect, useMemo } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { subscribeToSupportSessions } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
-
-const POLL_INTERVAL = 3000;
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };
+}
+
+interface SupportData {
+  messages: ChatMessageWithUser[];
+  session_active: boolean;
 }
 
 interface GlobalSupportChatProps {
@@ -16,235 +22,157 @@ interface GlobalSupportChatProps {
 }
 
 export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
-  const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [sessionActive, setSessionActive] = useState(false);
-
-  const listRef = useRef<HTMLDivElement>(null);
+  const [sessionActive, setSessionActive] = useState(true);
+  const [pendingMessages, setPendingMessages] = useState<ChatMessageWithUser[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const isAtBottomRef = useRef(true);
-  const lastSentAtRef = useRef<string | null>(null);
+
+  const { user: currentUser } = useCurrentUser();
+  const currentUserId = currentUser?.user_id ?? null;
+
+  const pollIntervalRef = useRef(5000);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const prevLastMsgRef = useRef(0);
+
+  function setActive() {
+    pollIntervalRef.current = 2000;
+    clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      pollIntervalRef.current = 5000;
+    }, 30000);
+  }
+
+  const { data, isLoading } = useSWR<SupportData>("/api/support", fetcher, {
+    refreshInterval: () => pollIntervalRef.current,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    keepPreviousData: true,
+  });
+
+  const serverMessages = data?.messages ?? [];
+  const sessionActiveFromServer = data?.session_active ?? true;
 
   useEffect(() => {
-    if (!isOpen) return;
-    let ignore = false;
+    setSessionActive(sessionActiveFromServer);
+  }, [sessionActiveFromServer]);
 
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!ignore && data) {
-          setCurrentUserId(data.user_id);
-        }
-      });
+  useEffect(() => {
+    if (data?.messages?.length) {
+      const last = data.messages[data.messages.length - 1];
+      if (last.message_id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.message_id;
+        setActive();
+      }
+    }
+  }, [data]);
 
-    return () => {
-      ignore = true;
-    };
-  }, [isOpen]);
+  const allMessages = useMemo(() => {
+    const pendingIds = new Set(pendingMessages.map((m) => m.message_id));
+    const merged = [...serverMessages];
+    for (const p of pendingMessages) {
+      if (!merged.some((m) => m.message_id === p.message_id)) {
+        merged.push(p);
+      }
+    }
+    return merged.sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
+  }, [serverMessages, pendingMessages]);
 
-  const fetchMessages = useCallback(async (before?: string) => {
-    const params = new URLSearchParams({ limit: "50" });
-    if (before) params.set("before", before);
-
-    const res = await fetch(`/api/support?${params}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    return data as { messages: ChatMessageWithUser[]; nextCursor: string | null; session_active: boolean };
+  useEffect(() => {
+    const sub = subscribeToSupportSessions((session) => {
+      setSessionActive(session.status === "active");
+    });
+    return () => sub.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
-    let ignore = false;
-
-    fetch("/api/support?limit=50")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!ignore && data) {
-          setMessages(data.messages ?? []);
-          setNextCursor(data.nextCursor);
-          setSessionActive(data.session_active);
-        }
-      })
-      .catch(() => {
-        if (!ignore) setError("Failed to load messages.");
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const sub = subscribeToChatMessages(null, "global_support", (msg) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.message_id === msg.message_id)) return prev;
-        const next = [...prev, msg as ChatMessageWithUser];
-        lastSentAtRef.current = next[next.length - 1].sent_at;
-        return next;
-      });
-    });
-    return () => sub.unsubscribe();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let cancelled = false;
-    const id = setInterval(async () => {
-      const after = lastSentAtRef.current;
-      const params = new URLSearchParams({ limit: "10" });
-      if (after) params.set("after", after);
-      try {
-        const res = await fetch(`/api/support?${params}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        if (data.session_active !== undefined) {
-          setSessionActive(data.session_active);
-        }
-        if (!data.messages?.length) return;
-        setMessages((prev) => {
-          const merged = [...prev];
-          let changed = false;
-          for (const m of data.messages as ChatMessageWithUser[]) {
-            if (!merged.some((x) => x.message_id === m.message_id)) {
-              merged.push(m);
-              changed = true;
-            }
-          }
-          if (changed && merged.length > 0) {
-            lastSentAtRef.current = merged[merged.length - 1].sent_at;
-          }
-          return changed ? merged : prev;
-        });
-      } catch {}
-    }, POLL_INTERVAL);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      lastSentAtRef.current = messages[messages.length - 1].sent_at;
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    if (isAtBottomRef.current) {
+    if (isOpen) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
-
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    const data = await fetchMessages(nextCursor);
-    if (data) {
-      setMessages((prev) => [...data!.messages, ...prev]);
-      setNextCursor(data.nextCursor);
-    }
-    setLoadingMore(false);
-  }, [nextCursor, loadingMore, fetchMessages]);
-
-  const handleScroll = () => {
-    const el = listRef.current;
-    if (!el) return;
-    const threshold = 50;
-    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-  };
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
-
-    setSending(true);
-    setError(null);
-    const res = await fetch("/api/support", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: newMessage.trim() }),
-    });
-
-    if (res.status === 429) {
-      setError("Too many messages. Please wait a moment.");
-      setSending(false);
-      return;
-    }
-
-    if (res.status === 403) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "This conversation has ended.");
-      setSending(false);
-      return;
-    }
-
-    if (!res.ok) {
-      setError("Failed to send message.");
-      setSending(false);
-      return;
-    }
-
-    const sent = await res.json();
-    setMessages((prev) => {
-      if (prev.some((m) => m.message_id === sent.message_id)) return prev;
-      const next = [...prev, sent as ChatMessageWithUser];
-      lastSentAtRef.current = next[next.length - 1].sent_at;
-      return next;
-    });
-
-    setNewMessage("");
-    setSending(false);
-  }
+  }, [allMessages, isOpen]);
 
   function formatTime(sentAt: string) {
     const d = new Date(sentAt);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const chatEnded = !sessionActive && messages.length > 0;
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newMessage.trim() || sending || currentUserId == null) return;
 
-  async function handleStartNew() {
-    setMessages([]);
-    setNextCursor(null);
+    const text = newMessage.trim();
+    const optimisticId = -Date.now();
+    const optimistic: ChatMessageWithUser = {
+      message_id: optimisticId,
+      channel: "global_support",
+      user_id: currentUserId,
+      message: text,
+      sent_at: new Date().toISOString(),
+      session_id: 0,
+      recipient_user_id: null,
+      reply_to: null,
+      answered_verbally: false,
+      deleted_at: null,
+      updated_at: null,
+      USER: { full_name: currentUser?.full_name ?? "You", role: (currentUser?.role ?? "attendee") as UserRole },
+    };
+
+    setPendingMessages((prev) => [...prev, optimistic]);
+    setNewMessage("");
+    setSending(true);
     setError(null);
-    lastSentAtRef.current = new Date().toISOString();
-    await fetch("/api/support/sessions", {
+
+    const res = await fetch("/api/support", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "start" }),
+      body: JSON.stringify({ message: text }),
     });
-    setSessionActive(true);
+
+    if (res.status === 429) {
+      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setError("Too many messages. Please wait a moment.");
+      setSending(false);
+      return;
+    }
+
+    if (!res.ok) {
+      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setError("Failed to send message.");
+      setSending(false);
+      return;
+    }
+
+    const sent = (await res.json()) as ChatMessageWithUser;
+    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+    setSending(false);
+    setActive();
   }
 
-  if (!isOpen) return null;
+  const chatEnded = !sessionActive && serverMessages.length > 0;
 
   return (
     <div
-      className="fixed bottom-24 right-8 z-50 flex w-[350px] flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+      className={
+        "fixed bottom-24 right-8 z-50 flex w-[350px] flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] " +
+        (!isOpen ? "hidden" : "")
+      }
       style={{ height: "500px" }}
     >
       <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-lg text-[#00658d]">support_agent</span>
           <span className="text-sm font-semibold text-[#1b1c1c]">Support</span>
+          {!sessionActive && (
+            <span className="rounded bg-[#F0F2F4] px-1.5 py-0.5 text-[10px] font-medium text-[#6E7980]">Ended</span>
+          )}
         </div>
         <button onClick={onClose} className="text-[#8B989E] transition-colors hover:text-[#1b1c1c]">
           <span className="material-symbols-rounded text-lg">close</span>
         </button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="flex items-center gap-2">
             <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
@@ -253,23 +181,13 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         </div>
       ) : (
         <>
-          <div ref={listRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 min-h-0">
+          <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
-              {nextCursor && (
-                <button
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  className="w-full text-xs text-[#3db9ee] hover:underline disabled:opacity-50"
-                >
-                  {loadingMore ? "Loading..." : "Load older messages"}
-                </button>
-              )}
-
-              {messages.length === 0 && (
+              {allMessages.length === 0 && (
                 <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet. How can we help?</p>
               )}
 
-              {messages.map((msg) => {
+              {allMessages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = msg.USER?.role === "facilitator";
@@ -308,45 +226,40 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 );
               })}
             </div>
-            <div ref={bottomRef} />
           </div>
 
-          {chatEnded ? (
+          {chatEnded && (
             <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+              <p className="text-center text-[11px] text-[#8B989E]">
+                This conversation has ended. Send a message to start a new one.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                maxLength={1000}
+                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+              />
               <button
-                onClick={handleStartNew}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#DDE3E7] py-3 text-[11px] text-[#00658d] transition-colors hover:bg-[#F0F2F4]"
+                type="submit"
+                disabled={sending || !newMessage.trim()}
+                className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="material-symbols-rounded text-sm">add_comment</span>
-                Start a new conversation
+                {sending ? (
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <span className="material-symbols-rounded text-sm">send</span>
+                )}
               </button>
             </div>
-          ) : (
-            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  maxLength={1000}
-                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {sending ? (
-                    <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <span className="material-symbols-rounded text-sm">send</span>
-                  )}
-                </button>
-              </div>
-              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
-            </form>
-          )}
+            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+          </form>
         </>
       )}
     </div>
