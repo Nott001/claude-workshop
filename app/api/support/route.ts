@@ -34,6 +34,18 @@ export async function GET(req: Request) {
     query = query.or(`user_id.eq.${dbUser.user_id},recipient_user_id.eq.${dbUser.user_id}`);
   } else if (filterUserId) {
     query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${dbUser.user_id},recipient_user_id.eq.${filterUserId})`);
+
+    const { data: latestSession } = await supabase
+      .from("SUPPORT_SESSIONS")
+      .select("created_at")
+      .eq("user_id", Number(filterUserId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latestSession) {
+      query = query.gte("sent_at", latestSession.created_at);
+    }
   }
 
   if (after) {
