@@ -5,7 +5,7 @@ import { subscribeToChatMessages } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
 
 interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string; role: UserRole; profile_image_url?: string | null };
+  USER: { full_name: string; role: UserRole };
 }
 
 interface QAPanelProps {
@@ -216,13 +216,9 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-1.5">
-                          {q.USER?.profile_image_url ? (
-                            <img src={q.USER.profile_image_url} alt="" className="size-5 rounded-full object-cover" />
-                          ) : (
-                            <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
-                              <span className="material-symbols-rounded text-[10px] text-[#5f5e5e]">person</span>
-                            </div>
-                          )}
+                          <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#e4e2e1]">
+                            <span className="material-symbols-rounded text-[10px] text-[#5f5e5e]">person</span>
+                          </div>
                           <div className="flex items-center gap-1">
                             <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#1b1c1c]"}`}>
                               {q.USER?.full_name ?? "Unknown"}
@@ -272,13 +268,9 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-1.5">
-                              {a.USER?.profile_image_url ? (
-                                <img src={a.USER.profile_image_url} alt="" className="size-5 rounded-full object-cover" />
-                              ) : (
-                                <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
-                                  <span className="material-symbols-rounded text-[10px] text-white">support_agent</span>
-                                </div>
-                              )}
+                              <div className="flex size-5 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
+                                <span className="material-symbols-rounded text-[10px] text-white">support_agent</span>
+                              </div>
                               <div className="flex items-center gap-1">
                                 <span className={`text-[10px] font-bold ${isSpeaker ? "text-[#e65100]" : "text-[#00658d]"}`}>
                                   {a.USER?.full_name ?? "Unknown"}
