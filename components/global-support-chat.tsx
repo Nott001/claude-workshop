@@ -24,7 +24,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [restarted, setRestarted] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -46,10 +45,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return () => {
       ignore = true;
     };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) setRestarted(false);
   }, [isOpen]);
 
   const fetchMessages = useCallback(async (before?: string) => {
@@ -204,7 +199,11 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const chatEnded = !restarted && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+  const chatEnded = messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+
+  function handleStartNew() {
+    setMessages((prev) => prev.filter((m) => !m.message.startsWith("[Chat ended")));
+  }
 
   if (!isOpen) return null;
 
@@ -250,7 +249,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
 
               {chatEnded && (
                 <button
-                  onClick={() => setRestarted(true)}
+                  onClick={handleStartNew}
                   className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#DDE3E7] py-2 text-[11px] text-[#00658d] transition-colors hover:bg-[#F0F2F4]"
                 >
                   <span className="material-symbols-rounded text-sm">add_comment</span>
