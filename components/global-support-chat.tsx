@@ -24,12 +24,13 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [ignoreChatEnded, setIgnoreChatEnded] = useState(false);
+  const [sessionActive, setSessionActive] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const lastSentAtRef = useRef<string | null>(null);
+  const prevSessionActiveRef = useRef(sessionActive);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -46,10 +47,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return () => {
       ignore = true;
     };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) setIgnoreChatEnded(false);
   }, [isOpen]);
 
   const fetchMessages = useCallback(async (before?: string) => {
@@ -80,6 +77,13 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       .finally(() => {
         if (!ignore) setLoading(false);
       });
+
+    fetch("/api/support/sessions/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!ignore) setSessionActive(data.active);
+      })
+      .catch(() => {});
 
     return () => {
       ignore = true;
@@ -138,6 +142,35 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       lastSentAtRef.current = messages[messages.length - 1].sent_at;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch("/api/support/sessions/status");
+        if (res.ok) {
+          const data = await res.json();
+          setSessionActive(data.active);
+        }
+      } catch {}
+    }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (prevSessionActiveRef.current && !sessionActive) {
+      fetch("/api/support?limit=50")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.messages) {
+            setMessages(data.messages);
+            setNextCursor(data.nextCursor);
+          }
+        })
+        .catch(() => {});
+    }
+    prevSessionActiveRef.current = sessionActive;
+  }, [sessionActive, messages.length]);
 
   useEffect(() => {
     if (isAtBottomRef.current) {
@@ -211,20 +244,22 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+  const chatEnded = !sessionActive && messages.length > 0;
 
   async function handleStartNew() {
     setMessages([]);
     setNextCursor(null);
     setError(null);
     lastSentAtRef.current = new Date().toISOString();
-    const res = await fetch("/api/support/sessions", {
+    await fetch("/api/support/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "start" }),
     });
+    const res = await fetch("/api/support/sessions/status");
     if (res.ok) {
-      setIgnoreChatEnded(true);
+      const data = await res.json();
+      setSessionActive(data.active);
     }
   }
 
