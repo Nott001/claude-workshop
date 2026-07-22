@@ -9,6 +9,7 @@
 - **Comment sparingly**. The code should be able to describe what it's doing and the comment should say why. If the code is not clear and reasoning is non-obvious, then add a comment.
 - If you add or update a dependency, update the appropriate lockfile. Restart the development server so that Next.js reflects changes.
 - Create a new branch when tasked to write changes. Keep branch names short and concise.
+- **Never edit an existing migration script.** Always create a new numbered migration for schema changes.
 
 ## Testing
 

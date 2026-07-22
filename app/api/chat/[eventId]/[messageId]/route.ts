@@ -49,7 +49,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ eventI
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ eventId: string; messageId: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("facilitator", "speaker");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -68,10 +68,25 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ even
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
+  const now = new Date().toISOString();
+  const idsToDelete = [messageId];
+
+  const { data: replies } = await supabase
+    .from("CHAT_MESSAGES")
+    .select("message_id")
+    .eq("reply_to", messageId)
+    .eq("event_id", eventId);
+
+  if (replies) {
+    for (const reply of replies) {
+      idsToDelete.push(reply.message_id);
+    }
+  }
+
   const { error } = await supabase
     .from("CHAT_MESSAGES")
-    .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq("message_id", messageId);
+    .update({ deleted_at: now, updated_at: now })
+    .in("message_id", idsToDelete);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

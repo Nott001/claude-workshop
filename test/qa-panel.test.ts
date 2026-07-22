@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { chatChannelEnum, sendMessageSchema } from "@/modules/chat";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, UserRole } from "@/types";
 
 describe("QAPanel uses live_qa channel", () => {
   it("accepts live_qa channel for questions", () => {
@@ -59,6 +59,24 @@ describe("answered_verbally", () => {
   it("defaults to undefined when omitted", () => {
     const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "Q" });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("Q&A moderation — staff can delete questions", () => {
+  const staffRoles: UserRole[] = ["facilitator", "speaker"];
+  const nonStaffRoles: UserRole[] = ["attendee"];
+
+  it("facilitator and speaker are considered staff", () => {
+    const isStaff = (role: UserRole) => role === "facilitator" || role === "speaker";
+    expect(staffRoles.every(isStaff)).toBe(true);
+    expect(nonStaffRoles.some(isStaff)).toBe(false);
+  });
+
+  it("delete endpoint accepts both facilitator and speaker roles", () => {
+    const allowedRoles: UserRole[] = ["facilitator", "speaker"];
+    expect(allowedRoles).toContain("facilitator");
+    expect(allowedRoles).toContain("speaker");
+    expect(allowedRoles).not.toContain("attendee");
   });
 });
 

@@ -114,6 +114,37 @@ export interface ChatMessage {
   answered_verbally: boolean;
 }
 
+export type AuditAction =
+  | "event.created"
+  | "event.updated"
+  | "event.deleted"
+  | "event.published"
+  | "speaker.assigned"
+  | "speaker.unassigned"
+  | "organization.invited"
+  | "organization.role_changed"
+  | "organization.removed"
+  | "checkin.performed"
+  | "course.created"
+  | "course.updated"
+  | "course.deleted"
+  | "module.created"
+  | "module.updated"
+  | "module.deleted"
+  | "lesson.created"
+  | "lesson.updated"
+  | "lesson.deleted";
+
+export interface AuditLog {
+  log_id: number;
+  actor_id: number;
+  action: AuditAction;
+  entity_type: string;
+  entity_id: number | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export type EmailType = "ticket_issued" | "check_in_confirmed";
 export type EmailStatus = "sent" | "failed";
 

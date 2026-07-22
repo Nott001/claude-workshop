@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { formatEventDate, formatTime, eventStatusLabel, accentClass, getUpcomingEvents } from "@/lib/landing";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { formatEventDate, formatTime, eventStatusLabel, isEventLive, accentClass, getUpcomingEvents } from "@/lib/landing";
 
 let fromMock: ReturnType<typeof vi.fn>;
 
@@ -44,6 +44,40 @@ describe("landing helpers", () => {
   it("accentClass cycles through gradient classes", () => {
     expect(accentClass(0)).toBe("from-sky-500 via-cyan-400 to-teal-300");
     expect(accentClass(4)).toBe(accentClass(0));
+  });
+
+  describe("isEventLive", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns true when now is within the event window", () => {
+      vi.setSystemTime(new Date("2026-06-15T10:30:00"));
+      expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(true);
+    });
+
+    it("returns false when now is before start time", () => {
+      vi.setSystemTime(new Date("2026-06-15T09:00:00"));
+      expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(false);
+    });
+
+    it("returns false when now is after end time", () => {
+      vi.setSystemTime(new Date("2026-06-15T13:00:00"));
+      expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(false);
+    });
+
+    it("returns true at the exact start time boundary", () => {
+      vi.setSystemTime(new Date("2026-06-15T10:00:00"));
+      expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(true);
+    });
+
+    it("returns true at the exact end time boundary", () => {
+      vi.setSystemTime(new Date("2026-06-15T12:00:00"));
+      expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(true);
+    });
   });
 });
 
