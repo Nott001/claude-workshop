@@ -148,8 +148,8 @@ export default function OrganizationPage() {
   if (userRole !== "facilitator") return null;
 
   return (
-    <>
-    <div className="mx-auto max-w-4xl p-8">
+    <div className="flex min-h-screen flex-col">
+    <div className="mx-auto max-w-4xl flex-1 p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold">Manage staff</h1>
         <Button onClick={() => setInviteOpen(true)}>
@@ -284,6 +284,6 @@ export default function OrganizationPage() {
       </Dialog>
     </div>
     <Footer role="facilitator" />
-    </>
+    </div>
   );
 }

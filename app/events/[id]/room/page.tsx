@@ -349,6 +349,5 @@ export default function EventRoomPage() {
         </div>
       )}
     </div>
-    </div>
   );
 }

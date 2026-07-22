@@ -11,6 +11,7 @@ import { CountdownTimer } from "@/components/countdown-timer";
 import { FloatingAssistButton } from "@/components/floating-assist-button";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
+import { AttendeesPanel } from "@/components/attendees-panel";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -97,6 +98,7 @@ export default function EventDetailPage() {
   const [attendeesTotal, setAttendeesTotal] = useState(0);
   const [attendeesLoading, setAttendeesLoading] = useState(true);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -385,7 +387,7 @@ export default function EventDetailPage() {
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Recent Registrations</h2>
                   <button
-                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    onClick={() => setShowAttendeesModal(true)}
                     className="text-sm font-medium text-[#3db9ee] hover:underline"
                   >
                     View all ({attendeesTotal})
@@ -465,7 +467,7 @@ export default function EventDetailPage() {
                     Edit Event
                   </button>
                   <button
-                    onClick={() => router.push(`/kiosk/${eventId}/attendees`)}
+                    onClick={() => setShowAttendeesModal(true)}
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
                   >
                     <span className="material-symbols-rounded text-sm">qr_code_scanner</span>
@@ -532,6 +534,26 @@ export default function EventDetailPage() {
                 >
                   {deleting ? "Deleting..." : "Delete event"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Attendees modal */}
+        {showAttendeesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8">
+            <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#bdc8d0] bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#bdc8d0] px-6 py-4">
+                <h2 className="text-sm font-bold text-[#1b1c1c]">Attendees</h2>
+                <button
+                  onClick={() => setShowAttendeesModal(false)}
+                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-gray-100"
+                >
+                  <span className="material-symbols-rounded text-[20px]">close</span>
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-6">
+                <AttendeesPanel eventId={eventId} />
               </div>
             </div>
           </div>
