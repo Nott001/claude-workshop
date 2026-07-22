@@ -41,8 +41,16 @@ export function EventCard({
     >
       <article>
         <div className="relative h-48 overflow-hidden p-6 text-white">
-          <div className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)} transition-transform duration-300 ease-in-out group-hover:scale-105`} />
-          {coverImageUrl && <img src={coverImageUrl} alt={title} className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-105" />}
+          <div
+            className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)} transition-transform duration-300 ease-in-out group-hover:scale-105`}
+          />
+          {coverImageUrl && (
+            <img
+              src={coverImageUrl}
+              alt={title}
+              className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           {!coverImageUrl && (
             <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />

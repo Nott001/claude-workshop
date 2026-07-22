@@ -30,12 +30,12 @@ export default function SupportPage() {
 
   return (
     <>
-    <div>
-      <h1>Support Chat</h1>
-      <p>Use this channel to ask facilitators for help with event logistics.</p>
-      <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
-    </div>
-    <Footer role="facilitator" />
+      <div>
+        <h1>Support Chat</h1>
+        <p>Use this channel to ask facilitators for help with event logistics.</p>
+        <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
+      </div>
+      <Footer role="facilitator" />
     </>
   );
 }

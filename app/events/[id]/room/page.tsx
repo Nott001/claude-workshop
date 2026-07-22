@@ -238,6 +238,8 @@ export default function EventRoomPage() {
         eventName={eventTitle}
         elapsed={elapsed}
         remaining={remaining}
+        eventDate={eventDate}
+        startTime={startTime}
         onExit={() => router.push(`/events/${eventId}`)}
       />
 

@@ -120,11 +120,7 @@ export function Navbar() {
           <>
             <div className="flex items-center gap-2 rounded-lg bg-[#f4f7f8] px-3 py-2">
               {profilePhoto ? (
-                <img
-                  src={profilePhoto}
-                  alt="Profile"
-                  className="size-7 shrink-0 rounded-full object-cover"
-                />
+                <img src={profilePhoto} alt="Profile" className="size-7 shrink-0 rounded-full object-cover" />
               ) : (
                 <div className="grid size-7 shrink-0 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
                   {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
