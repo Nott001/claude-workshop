@@ -28,7 +28,6 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Create course", href: "/courses/new", icon: "post_add" },
     { label: "Organization", href: "/organization", icon: "groups" },
     { label: "Kiosk", href: "/kiosk", icon: "qr_code_scanner" },
-    { label: "Surveys", href: "/surveys", icon: "poll" },
     { label: "Emails", href: "/emails", icon: "mail" },
   ],
 };
