@@ -15,10 +15,10 @@ export default function SpeakerLiveRedirect() {
 
   return (
     <>
-    <div className="flex min-h-screen items-center justify-center bg-[#fbf9f8]">
-      <div className="text-sm text-[#5f5e5e]">Redirecting to event room...</div>
-    </div>
-    <Footer role="speaker" />
+      <div className="flex min-h-screen items-center justify-center bg-[#fbf9f8]">
+        <div className="text-sm text-[#5f5e5e]">Redirecting to event room...</div>
+      </div>
+      <Footer role="speaker" />
     </>
   );
 }

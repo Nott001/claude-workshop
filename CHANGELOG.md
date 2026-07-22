@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### feat: redesign tickets page with app design system and event navigation
+
+- **app/tickets/page.tsx** — redesign ticket cards to match app design system: brand-blue gradient header, app-standard icon+heading group, standardized status badges (Registered/Checked in/Cancelled), consistent border/shadow/typography tokens; add "Go to event" link on each card using `ticket.event_id`; add `event_id` to Ticket interface
+
+### fix: remove undefined FloatingAssistButton from event detail page
+
+- **app/events/[id]/page.tsx** — remove inline `<FloatingAssistButton />` that was never imported (undefined reference); the AppShell already handles this component
+
+### feat: add pre-event countdown to session navbar and center timer
+
+- **components/event-session-navbar.tsx** — add `eventDate`/`startTime` props; when event hasn't started, show a live "Starts in" countdown timer instead of Elapsed/Remaining; center the timer section with `flex-1 justify-center`
+- **components/app-shell.tsx** — add `/events/*/room` pattern to `HIDE_NAVBAR_PATTERNS` to suppress the sidebar navbar in the event room
+- **app/events/[id]/room/page.tsx** — pass `eventDate` and `startTime` to EventSessionNavbar
+
+### fix: use valid column name for registered-user count query
+
+- **app/api/events/[id]/route.ts** — change `.select("ticket_id", ...)` to `.select("payment_id", ...)` since `TICKETS` has no `ticket_id` column; the non-existent column caused the count to silently return null (displayed as 0)
+
+### fix: rename "Tickets Issued" to "Registered" on facilitator event overview
+
+- **app/events/[id]/page.tsx** — change label from "Tickets Issued" to "Registered" for clarity; the metric already counts non-cancelled tickets (one per registered user)
+
 ### feat: add speaker role field to speaker account settings
 
 - **app/speakers/update-info/[[...rest]]/page.tsx** — new "Professional Role" form card between email and password sections; fetches current `designation` via `GET /api/speakers/me` and saves via `PATCH /api/speakers/me`; includes guidance text that the role appears publicly on event pages
