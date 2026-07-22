@@ -24,6 +24,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  let sessionActive = false;
+
   let query = supabase
     .from("CHAT_MESSAGES")
     .select("*, USER:user_id(full_name, role)")
@@ -35,13 +37,14 @@ export async function GET(req: Request) {
 
     const { data: latestSession } = await supabase
       .from("SUPPORT_SESSIONS")
-      .select("session_id")
+      .select("session_id, status")
       .eq("user_id", dbUser.user_id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (latestSession) {
+      sessionActive = latestSession.status === "active";
       query = query.eq("session_id", latestSession.session_id);
     } else {
       query = query.is("session_id", null);
@@ -86,7 +89,7 @@ export async function GET(req: Request) {
 
   if (!after) result.reverse();
 
-  return NextResponse.json({ messages: result, nextCursor });
+  return NextResponse.json({ messages: result, nextCursor, session_active: sessionActive });
 }
 
 export async function POST(req: Request) {

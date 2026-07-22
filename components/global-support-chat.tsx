@@ -24,7 +24,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [ignoreChatEnded, setIgnoreChatEnded] = useState(false);
+  const [sessionActive, setSessionActive] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -48,10 +48,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen) setIgnoreChatEnded(false);
-  }, [isOpen]);
-
   const fetchMessages = useCallback(async (before?: string) => {
     const params = new URLSearchParams({ limit: "50" });
     if (before) params.set("before", before);
@@ -59,7 +55,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const res = await fetch(`/api/support?${params}`);
     if (!res.ok) return;
     const data = await res.json();
-    return data as { messages: ChatMessageWithUser[]; nextCursor: string | null };
+    return data as { messages: ChatMessageWithUser[]; nextCursor: string | null; session_active: boolean };
   }, []);
 
   useEffect(() => {
@@ -72,6 +68,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         if (!ignore && data) {
           setMessages(data.messages ?? []);
           setNextCursor(data.nextCursor);
+          setSessionActive(data.session_active);
         }
       })
       .catch(() => {
@@ -110,7 +107,11 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         const res = await fetch(`/api/support?${params}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (cancelled || !data.messages?.length) return;
+        if (cancelled) return;
+        if (data.session_active !== undefined) {
+          setSessionActive(data.session_active);
+        }
+        if (!data.messages?.length) return;
         setMessages((prev) => {
           const merged = [...prev];
           let changed = false;
@@ -211,21 +212,19 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+  const chatEnded = !sessionActive && messages.length > 0;
 
   async function handleStartNew() {
     setMessages([]);
     setNextCursor(null);
     setError(null);
     lastSentAtRef.current = new Date().toISOString();
-    const res = await fetch("/api/support/sessions", {
+    await fetch("/api/support/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "start" }),
     });
-    if (res.ok) {
-      setIgnoreChatEnded(true);
-    }
+    setSessionActive(true);
   }
 
   if (!isOpen) return null;
