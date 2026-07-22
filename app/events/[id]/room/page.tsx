@@ -42,11 +42,13 @@ export default function EventRoomPage() {
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [course, setCourse] = useState<CourseData | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
+  const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +74,7 @@ export default function EventRoomPage() {
       setEventTitle(eventData.title || "Event Room");
       setEventDate(eventData.event_date ?? "");
       setStartTime(eventData.start_time ?? "");
+      setEndTime(eventData.end_time ?? "");
       setUserRole(userData.role ?? null);
       setCurrentUserId(userData.user_id ?? null);
 
@@ -259,6 +262,7 @@ export default function EventRoomPage() {
             userRole={userRole as UserRole | null}
             currentUserId={currentUserId}
             eventStarted={eventStarted}
+            eventEnded={eventEnded}
           />
         </div>
       </div>
