@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### refactor: remove ended_by_user status from support sessions
+
+- **supabase/migrations/00029_drop_ended_by_user_status.sql** — migrate enum from `('active', 'ended_by_facilitator', 'ended_by_user')` to `('active', 'ended_by_facilitator')` since only facilitators can end sessions
+- **app/api/support/sessions/route.ts** — remove `isOwn` branching, always use `ended_by_facilitator`
+- **types/index.ts** — remove `ended_by_user` from `SupportSessionStatus`
+
 ### feat: add support chat sessions with facilitator lifecycle
 
 - **supabase/migrations/00028_create_support_sessions.sql** — new table with user_id, status, timestamps; partial unique index on active sessions
