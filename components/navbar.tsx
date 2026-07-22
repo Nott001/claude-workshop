@@ -52,6 +52,7 @@ export function Navbar() {
   const { signOut } = useClerk();
   const [dbRole, setDbRole] = useState<UserRole | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [unreadSupportCount, setUnreadSupportCount] = useState(0);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -75,6 +76,29 @@ export function Navbar() {
     window.addEventListener("profile-photo-updated", handlePhotoUpdate);
     return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
   }, [isSignedIn]);
+
+  useEffect(() => {
+    if (dbRole !== "facilitator") return;
+    let cancelled = false;
+
+    function check() {
+      fetch("/api/support/users")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!cancelled && data?.users) {
+            setUnreadSupportCount(data.users.filter((u: { unread: boolean }) => u.unread).length);
+          }
+        })
+        .catch(() => {});
+    }
+
+    check();
+    const id = setInterval(check, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [dbRole]);
 
   const userRole: UserRole = dbRole ?? "attendee";
   const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
@@ -109,7 +133,12 @@ export function Navbar() {
               )}
             >
               <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.label === "Support" && unreadSupportCount > 0 && (
+                <span className="flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {unreadSupportCount > 9 ? "9+" : unreadSupportCount}
+                </span>
+              )}
             </Link>
           );
         })}

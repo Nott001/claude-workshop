@@ -24,6 +24,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [ignoreChatEnded, setIgnoreChatEnded] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -45,6 +46,10 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return () => {
       ignore = true;
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) setIgnoreChatEnded(false);
   }, [isOpen]);
 
   const fetchMessages = useCallback(async (before?: string) => {
@@ -199,10 +204,13 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const chatEnded = messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
+  const chatEnded = !ignoreChatEnded && messages.length > 0 && messages[messages.length - 1].message.startsWith("[Chat ended");
 
   function handleStartNew() {
-    setMessages((prev) => prev.filter((m) => !m.message.startsWith("[Chat ended")));
+    setMessages([]);
+    setNextCursor(null);
+    lastSentAtRef.current = new Date().toISOString();
+    setIgnoreChatEnded(true);
   }
 
   if (!isOpen) return null;
