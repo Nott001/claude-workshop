@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### feat: add speaker role field to speaker account settings
+
+- **app/speakers/update-info/[[...rest]]/page.tsx** — new "Professional Role" form card between email and password sections; fetches current `designation` via `GET /api/speakers/me` and saves via `PATCH /api/speakers/me`; includes guidance text that the role appears publicly on event pages
+
+### fix: show speaker name in event create/edit SelectValue instead of raw ID
+
+- **app/events/new/page.tsx** — pass render function as `SelectValue` children to resolve the speaker's full name (and designation) from the `speakers` state array instead of falling back to the raw `speaker_profile_id` value
+- **app/events/[id]/edit/page.tsx** — same fix; handles the empty-string "None — no speaker" option
+
+### chore: remove speaker email from attendee event detail page
+
+- **app/events/[id]/page.tsx** — remove email row from the attendee-view speaker card to avoid exposing contact info to event attendees
+
 ### feat: remove side navbar from event session room — use top navbar only
 
 - **components/app-shell.tsx** — wire the existing `shouldHideNavbar()` function into the actual condition (was defined but never called), so the side navbar is hidden on `/events/*/room` pages

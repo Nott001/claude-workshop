@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useReverification, useClerk } from "@clerk/nextjs";
@@ -30,6 +30,51 @@ export default function SpeakerUpdateInfoPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  const [role, setRole] = useState("");
+  const [savingRole, setSavingRole] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/speakers/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setRole(data.designation ?? "");
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleRoleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingRole(true);
+    try {
+      const res = await fetch("/api/speakers/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designation: role || null }),
+      });
+      if (res.ok) {
+        setToast({
+          title: "Role Updated",
+          description: "Your professional role has been saved.",
+          type: "success",
+        });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setToast({
+          title: "Update Failed",
+          description: data.error ?? "Unable to update role.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      setToast({
+        title: "Update Failed",
+        description: err?.message ?? "Unable to update role.",
+        type: "error",
+      });
+    }
+    setSavingRole(false);
+  }
 
   const currentEmail = user?.emailAddresses?.[0]?.emailAddress ?? "";
 
@@ -156,6 +201,37 @@ export default function SpeakerUpdateInfoPage() {
                 className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingEmail ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+
+          <form onSubmit={handleRoleUpdate} className={cardClass}>
+            <div className="flex items-center gap-4">
+              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">badge</span>
+              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Professional Role</h2>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Role / Designation</label>
+              <input
+                type="text"
+                placeholder="e.g. Lead Instructor, Professor, Industry Expert"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className={inputClass}
+              />
+              <p className="text-[12px] leading-[18px] text-[#5f5e5e]">
+                This will be displayed publicly on event pages and speaker cards.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={savingRole}
+                className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingRole ? "Saving..." : "Save Role"}
               </button>
             </div>
           </form>
