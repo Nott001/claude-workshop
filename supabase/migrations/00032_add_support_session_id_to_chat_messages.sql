@@ -1,0 +1,3 @@
+ALTER TABLE "CHAT_MESSAGES" ADD COLUMN session_id INT REFERENCES "SUPPORT_SESSIONS"(session_id) ON DELETE SET NULL;
+
+CREATE INDEX idx_chat_messages_session_id ON "CHAT_MESSAGES"(session_id);
