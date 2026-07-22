@@ -94,9 +94,12 @@ export function Navbar() {
 
     check();
     const id = setInterval(check, 15000);
+
+    window.addEventListener("support-read-updated", check);
     return () => {
       cancelled = true;
       clearInterval(id);
+      window.removeEventListener("support-read-updated", check);
     };
   }, [dbRole]);
 

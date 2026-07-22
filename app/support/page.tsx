@@ -121,7 +121,9 @@ export default function SupportPage() {
       }
     });
 
-    fetch(`/api/support/sessions/${selectedUserId}`, { method: "PATCH" }).catch(() => {});
+    fetch(`/api/support/sessions/${selectedUserId}`, { method: "PATCH" })
+      .catch(() => {})
+      .finally(() => window.dispatchEvent(new CustomEvent("support-read-updated")));
   }, [selectedUserId, fetchMessages]);
 
   useEffect(() => {
