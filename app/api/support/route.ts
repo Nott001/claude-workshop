@@ -24,6 +24,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  let sessionActive = false;
+
   let query = supabase
     .from("CHAT_MESSAGES")
     .select("*, USER:user_id(full_name, role)")
@@ -35,13 +37,14 @@ export async function GET(req: Request) {
 
     const { data: latestSession } = await supabase
       .from("SUPPORT_SESSIONS")
-      .select("session_id")
+      .select("session_id, status")
       .eq("user_id", dbUser.user_id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (latestSession) {
+      sessionActive = latestSession.status === "active";
       query = query.eq("session_id", latestSession.session_id);
     } else {
       query = query.is("session_id", null);
@@ -86,7 +89,7 @@ export async function GET(req: Request) {
 
   if (!after) result.reverse();
 
-  return NextResponse.json({ messages: result, nextCursor });
+  return NextResponse.json({ messages: result, nextCursor, session_active: sessionActive });
 }
 
 export async function POST(req: Request) {
@@ -109,30 +112,29 @@ export async function POST(req: Request) {
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const { count } = await supabase
-    .from("CHAT_MESSAGES")
-    .select("*", { count: "exact", head: true })
-    .eq("channel", CHANNEL)
-    .eq("user_id", dbUser.user_id)
-    .is("event_id", null)
-    .gte("sent_at", windowStart)
-    .is("deleted_at", null);
+  const sessionUserId =
+    dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
+
+  const [rateLimitResult, sessionResult] = await Promise.all([
+    supabase
+      .from("CHAT_MESSAGES")
+      .select("*", { count: "exact", head: true })
+      .eq("channel", CHANNEL)
+      .eq("user_id", dbUser.user_id)
+      .is("event_id", null)
+      .gte("sent_at", windowStart)
+      .is("deleted_at", null),
+    supabase.from("SUPPORT_SESSIONS").select("session_id").eq("user_id", sessionUserId).eq("status", "active").maybeSingle(),
+  ]);
+
+  const count = rateLimitResult.count;
+  const existing = sessionResult.data;
 
   if (count != null && count >= RATE_LIMIT_MAX) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  const sessionUserId =
-    dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
-
   let sessionId: number;
-
-  const { data: existing } = await supabase
-    .from("SUPPORT_SESSIONS")
-    .select("session_id")
-    .eq("user_id", sessionUserId)
-    .eq("status", "active")
-    .maybeSingle();
 
   if (existing) {
     sessionId = existing.session_id;
@@ -144,20 +146,6 @@ export async function POST(req: Request) {
       .single();
     sessionId = newSession!.session_id;
   } else {
-    const { data: anySession } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .select("session_id")
-      .eq("user_id", sessionUserId)
-      .limit(1)
-      .maybeSingle();
-
-    if (anySession) {
-      return NextResponse.json(
-        { error: "This conversation has ended. Start a new conversation." },
-        { status: 403 },
-      );
-    }
-
     const { data: newSession } = await supabase
       .from("SUPPORT_SESSIONS")
       .insert({ user_id: sessionUserId })

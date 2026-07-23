@@ -1,33 +1,28 @@
 import { supabase } from "@/lib/db";
-import type { ChatMessage, Ticket, LiveSessionState } from "@/types";
+import type { Payment, Ticket, SupportSession } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-type ChatCallback = (message: ChatMessage) => void;
 type TicketCallback = (ticket: Ticket) => void;
+type PaymentCallback = (payment: Payment) => void;
+type SupportSessionCallback = (session: SupportSession) => void;
 
-export function subscribeToChatMessages(
-  eventId: number | null,
-  channel: "support" | "live_qa" | "global_support",
-  onMessage: ChatCallback,
-): RealtimeChannel {
-  const channelName = eventId != null ? `chat-${eventId}-${channel}` : `chat-${channel}`;
-  const filter = eventId != null ? `event_id=eq.${eventId}` : `channel=eq.${channel}`;
+let channelCounter = 0;
 
+export function subscribeToPaymentStatus(paymentId: number, onStatusChange: PaymentCallback): RealtimeChannel {
+  const channelName = `payment-${paymentId}-${++channelCounter}`;
   const sub = supabase
     .channel(channelName)
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "UPDATE",
         schema: "public",
-        table: "CHAT_MESSAGES",
-        filter,
+        table: "PAYMENTS",
+        filter: `payment_id=eq.${paymentId}`,
       },
       (payload) => {
-        const msg = payload.new as ChatMessage;
-        if (msg.channel === channel && !msg.deleted_at) {
-          onMessage(msg);
-        }
+        const payment = payload.new as Payment;
+        onStatusChange(payment);
       },
     )
     .subscribe();
@@ -35,32 +30,41 @@ export function subscribeToChatMessages(
   return sub;
 }
 
-type LiveHighlightCallback = (state: LiveSessionState) => void;
+let sessionsCounter = 0;
 
-export function subscribeToLiveHighlight(eventId: number, onHighlight: LiveHighlightCallback): RealtimeChannel {
+export function subscribeToSupportSessions(onChange: SupportSessionCallback): RealtimeChannel {
+  const channelName = `support-sessions-${++sessionsCounter}`;
   const sub = supabase
-    .channel(`live-highlight-${eventId}`)
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
-        table: "LIVE_SESSION_STATE",
-        filter: `event_id=eq.${eventId}`,
+        table: "SUPPORT_SESSIONS",
       },
       (payload) => {
-        const state = payload.new as LiveSessionState;
-        onHighlight(state);
+        const session = payload.new as SupportSession;
+        onChange(session);
       },
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Realtime subscribed: support-sessions");
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.error("Realtime subscription failed (support-sessions):", status);
+      } else if (status === "CLOSED") {
+        console.log("Realtime channel closed: support-sessions");
+      }
+    });
 
   return sub;
 }
 
 export function subscribeToCheckins(eventId: number, onCheckin: TicketCallback): RealtimeChannel {
+  const channelName = `checkins-${eventId}-${++channelCounter}`;
   const sub = supabase
-    .channel(`checkins-${eventId}`)
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
