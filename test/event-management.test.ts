@@ -37,11 +37,19 @@ describe("Event types", () => {
       bio: "Expert speaker",
       photo_url: null,
       designation: "Keynote",
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
     expect(profile.bio).toBe("Expert speaker");
     expect(profile.designation).toBe("Keynote");
+    expect(profile.linkedin_url).toBeNull();
+    expect(profile.twitter_url).toBeNull();
+    expect(profile.github_url).toBeNull();
+    expect(profile.website_url).toBeNull();
   });
 });
 
@@ -183,6 +191,36 @@ describe("speakerProfileSchema", () => {
     const result = speakerProfileSchema.safeParse({ bio: "Expert" });
     expect(result.success).toBe(false);
   });
+
+  it("accepts valid networking link URLs", () => {
+    const result = speakerProfileSchema.safeParse({
+      user_id: 1,
+      linkedin_url: "https://linkedin.com/in/example",
+      twitter_url: "https://x.com/example",
+      github_url: "https://github.com/example",
+      website_url: "https://example.com",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid URL in networking links", () => {
+    const result = speakerProfileSchema.safeParse({
+      user_id: 1,
+      linkedin_url: "not-a-url",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts null networking links", () => {
+    const result = speakerProfileSchema.safeParse({
+      user_id: 1,
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("speakerProfileUpdateSchema", () => {
@@ -194,6 +232,21 @@ describe("speakerProfileUpdateSchema", () => {
   it("accepts empty object", () => {
     const result = speakerProfileUpdateSchema.safeParse({});
     expect(result.success).toBe(true);
+  });
+
+  it("accepts networking link updates", () => {
+    const result = speakerProfileUpdateSchema.safeParse({
+      linkedin_url: "https://linkedin.com/in/updated",
+      github_url: "https://github.com/updated",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid URL in update", () => {
+    const result = speakerProfileUpdateSchema.safeParse({
+      website_url: "invalid",
+    });
+    expect(result.success).toBe(false);
   });
 });
 

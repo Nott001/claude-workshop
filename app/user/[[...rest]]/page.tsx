@@ -21,6 +21,10 @@ interface SpeakerProfile {
   bio: string | null;
   designation: string | null;
   photo_url: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
   full_name: string;
   email: string;
 }
@@ -184,7 +188,14 @@ export default function UserSettingsPage() {
     const res = await fetch("/api/speakers/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ designation: speakerProfile.designation, bio: speakerProfile.bio }),
+      body: JSON.stringify({
+        designation: speakerProfile.designation,
+        bio: speakerProfile.bio,
+        linkedin_url: speakerProfile.linkedin_url,
+        twitter_url: speakerProfile.twitter_url,
+        github_url: speakerProfile.github_url,
+        website_url: speakerProfile.website_url,
+      }),
     });
     if (res.ok) {
       setToast({ title: "Profile Updated", description: "Your speaker profile has been saved.", type: "success" });
@@ -321,6 +332,60 @@ export default function UserSettingsPage() {
                   onChange={(e) => setSpeakerProfile((prev) => (prev ? { ...prev, bio: e.target.value } : prev))}
                   className={`${inputClass} resize-none whitespace-pre-wrap`}
                 />
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <p className={labelClass}>Networking Links</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-medium text-[#6E7980]">LinkedIn</label>
+                    <input
+                      type="url"
+                      placeholder="https://linkedin.com/in/..."
+                      value={speakerProfile.linkedin_url ?? ""}
+                      onChange={(e) =>
+                        setSpeakerProfile((prev) => (prev ? { ...prev, linkedin_url: e.target.value || null } : prev))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-medium text-[#6E7980]">Twitter / X</label>
+                    <input
+                      type="url"
+                      placeholder="https://x.com/..."
+                      value={speakerProfile.twitter_url ?? ""}
+                      onChange={(e) =>
+                        setSpeakerProfile((prev) => (prev ? { ...prev, twitter_url: e.target.value || null } : prev))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-medium text-[#6E7980]">GitHub</label>
+                    <input
+                      type="url"
+                      placeholder="https://github.com/..."
+                      value={speakerProfile.github_url ?? ""}
+                      onChange={(e) =>
+                        setSpeakerProfile((prev) => (prev ? { ...prev, github_url: e.target.value || null } : prev))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-medium text-[#6E7980]">Website</label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={speakerProfile.website_url ?? ""}
+                      onChange={(e) =>
+                        setSpeakerProfile((prev) => (prev ? { ...prev, website_url: e.target.value || null } : prev))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

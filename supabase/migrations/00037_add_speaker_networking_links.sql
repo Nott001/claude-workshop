@@ -1,0 +1,5 @@
+ALTER TABLE "SPEAKER_PROFILES"
+  ADD COLUMN linkedin_url VARCHAR,
+  ADD COLUMN twitter_url VARCHAR,
+  ADD COLUMN github_url VARCHAR,
+  ADD COLUMN website_url VARCHAR;

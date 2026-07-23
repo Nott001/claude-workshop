@@ -26,12 +26,20 @@ export const speakerProfileSchema = z.object({
   bio: z.string().nullable().optional(),
   photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
+  linkedin_url: z.string().url().nullable().optional(),
+  twitter_url: z.string().url().nullable().optional(),
+  github_url: z.string().url().nullable().optional(),
+  website_url: z.string().url().nullable().optional(),
 });
 
 export const speakerProfileUpdateSchema = z.object({
   bio: z.string().nullable().optional(),
   photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
+  linkedin_url: z.string().url().nullable().optional(),
+  twitter_url: z.string().url().nullable().optional(),
+  github_url: z.string().url().nullable().optional(),
+  website_url: z.string().url().nullable().optional(),
 });
 
 export const speakerAssignmentSchema = z.object({

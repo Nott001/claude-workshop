@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from("SPEAKER_PROFILES")
-    .select("speaker_profile_id, bio, designation, photo_url")
+    .select("speaker_profile_id, bio, designation, photo_url, linkedin_url, twitter_url, github_url, website_url")
     .eq("user_id", dbUser.user_id)
     .single();
 
@@ -30,6 +30,10 @@ export async function GET() {
       bio: null,
       designation: null,
       photo_url: null,
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
     });
   }
 
@@ -65,11 +69,18 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json();
-  const { designation, bio } = body;
+  const { designation, bio, linkedin_url, twitter_url, github_url, website_url } = body;
 
   const { error } = await supabase
     .from("SPEAKER_PROFILES")
-    .update({ designation: designation ?? null, bio: bio ?? null })
+    .update({
+      designation: designation ?? null,
+      bio: bio ?? null,
+      linkedin_url: linkedin_url ?? null,
+      twitter_url: twitter_url ?? null,
+      github_url: github_url ?? null,
+      website_url: website_url ?? null,
+    })
     .eq("speaker_profile_id", profile.speaker_profile_id);
 
   if (error) {

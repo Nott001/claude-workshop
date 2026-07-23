@@ -11,12 +11,17 @@ import { CountdownTimer } from "@/components/countdown-timer";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
 import { AttendeesPanel } from "@/components/attendees-panel";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
   bio: string | null;
   photo_url: string | null;
   designation: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
   USERS?: { full_name: string; email: string } | null;
 }
 
@@ -98,6 +103,7 @@ export default function EventDetailPage() {
   const [attendeesLoading, setAttendeesLoading] = useState(true);
   const [mapExpanded, setMapExpanded] = useState(false);
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [selectedSpeaker, setSelectedSpeaker] = useState<SpeakerProfile | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -342,39 +348,49 @@ export default function EventDetailPage() {
                 </div>
               )}
 
-              {/* Speaker */}
+              {/* Speakers */}
               {event.EVENT_SPEAKERS.length > 0 ? (
-                (() => {
-                  const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
-                  const name = sp.USERS?.full_name || "Speaker";
-                  const email = sp.USERS?.email || null;
-                  const initials = name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2);
-                  return (
-                    <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                      <div className="flex items-center gap-5">
-                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                          {sp.photo_url ? (
-                            <img src={sp.photo_url} alt="" className="size-full object-cover" />
-                          ) : (
-                            <span className="text-xl font-bold text-[#3db9ee]">{initials || "SP"}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-lg font-semibold text-[#1b1c1c]">{name}</p>
-                          {sp.designation && (
-                            <p className="text-xs font-medium uppercase tracking-[0.05em] text-[#6E7980]">{sp.designation}</p>
-                          )}
-                          {email && <p className="mt-1 text-sm text-[#5f5e5e]">{email}</p>}
-                          {sp.bio && <p className="mt-2 text-sm leading-[22px] text-[#3E484F]">{sp.bio}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
+                <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
+                  <h2 className="mb-6 text-[20px] font-semibold text-[#1b1c1c]">
+                    {event.EVENT_SPEAKERS.length === 1 ? "Speaker" : "Speakers"}
+                  </h2>
+                  <div className="flex flex-col gap-4">
+                    {event.EVENT_SPEAKERS.map((es) => {
+                      const sp = es.SPEAKER_PROFILES;
+                      const name = sp.USERS?.full_name || "Speaker";
+                      const initials = name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2);
+                      return (
+                        <button
+                          key={sp.speaker_profile_id}
+                          onClick={() => setSelectedSpeaker(sp)}
+                          className="group flex items-center gap-5 rounded-xl border border-transparent p-4 text-left transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[rgba(229,231,235,0.8)] hover:bg-[rgba(255,255,255,0.6)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+                        >
+                          <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                            {sp.photo_url ? (
+                              <img src={sp.photo_url} alt="" className="size-full object-cover" />
+                            ) : (
+                              <span className="text-xl font-bold text-[#3db9ee]">{initials || "SP"}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-lg font-semibold text-[#1b1c1c]">{name}</p>
+                            {sp.designation && (
+                              <p className="text-xs font-medium uppercase tracking-[0.05em] text-[#6E7980]">{sp.designation}</p>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#168cb9] opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                            View Details
+                            <span className="material-symbols-rounded text-[16px]">chevron_right</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-[#d0d5dd] bg-[rgba(255,255,255,0.9)] px-8 py-6 text-center text-sm text-[#5f5e5e] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
                   No speaker assigned yet
@@ -559,6 +575,73 @@ export default function EventDetailPage() {
         )}
 
         <Footer role="facilitator" />
+
+        {/* Speaker profile modal */}
+        <Dialog
+          open={selectedSpeaker !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedSpeaker(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-lg" showCloseButton>
+            {selectedSpeaker &&
+              (() => {
+                const name = selectedSpeaker.USERS?.full_name || "Speaker";
+                const initials = name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2);
+                const networkingLinks = [
+                  { url: selectedSpeaker.linkedin_url, icon: "work", label: "LinkedIn" },
+                  { url: selectedSpeaker.twitter_url, icon: "tag", label: "Twitter" },
+                  { url: selectedSpeaker.github_url, icon: "code", label: "GitHub" },
+                  { url: selectedSpeaker.website_url, icon: "language", label: "Website" },
+                ].filter((l) => l.url);
+                return (
+                  <div className="flex flex-col gap-5 p-2">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-lg">
+                        {selectedSpeaker.photo_url ? (
+                          <img src={selectedSpeaker.photo_url} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="text-3xl font-bold text-[#3db9ee]">{initials}</span>
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <DialogTitle className="text-xl">{name}</DialogTitle>
+                        {selectedSpeaker.designation && (
+                          <p className="mt-1 text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
+                            {selectedSpeaker.designation}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {selectedSpeaker.bio && <p className="text-sm leading-relaxed text-[#3E484F]">{selectedSpeaker.bio}</p>}
+                    {networkingLinks.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[#6E7980]">Connect</p>
+                        <div className="flex flex-wrap gap-2">
+                          {networkingLinks.map((link) => (
+                            <a
+                              key={link.label}
+                              href={link.url!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm font-medium text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                            >
+                              <span className="material-symbols-rounded text-[16px] text-[#3db9ee]">{link.icon}</span>
+                              {link.label}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -623,40 +706,50 @@ export default function EventDetailPage() {
                   </div>
                 )}
 
-                {/* Speaker */}
-                {event.EVENT_SPEAKERS.length > 0 &&
-                  (() => {
-                    const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
-                    const name = sp.USERS?.full_name || "Speaker";
-                    const initials = name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2);
-                    return (
-                      <div className="mt-8">
-                        <h2 className="mb-8 text-[24px] font-semibold text-[#1B1C1C]">Speaker</h2>
-                        <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8">
-                          <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                            {sp.photo_url ? (
-                              <img src={sp.photo_url} alt="" className="size-full object-cover" />
-                            ) : (
-                              <span className="text-2xl font-bold text-[#3db9ee]">{initials}</span>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <div>
+                {/* Speakers */}
+                {event.EVENT_SPEAKERS.length > 0 && (
+                  <div className="mt-8">
+                    <h2 className="mb-8 text-[24px] font-semibold text-[#1B1C1C]">
+                      {event.EVENT_SPEAKERS.length === 1 ? "Speaker" : "Speakers"}
+                    </h2>
+                    <div className="flex flex-col gap-4">
+                      {event.EVENT_SPEAKERS.map((es) => {
+                        const sp = es.SPEAKER_PROFILES;
+                        const name = sp.USERS?.full_name || "Speaker";
+                        const initials = name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2);
+                        return (
+                          <button
+                            key={sp.speaker_profile_id}
+                            onClick={() => setSelectedSpeaker(sp)}
+                            className="group flex items-center gap-8 rounded-xl border border-transparent bg-[#f5f3f3] p-8 text-left transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[rgba(189,200,208,0.4)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+                          >
+                            <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                              {sp.photo_url ? (
+                                <img src={sp.photo_url} alt="" className="size-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-[#3db9ee]">{initials}</span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
                               <h3 className="text-[24px] font-semibold text-[#1B1C1C]">{name}</h3>
                               <p className="text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
                                 {sp.designation || "Speaker"}
                               </p>
                             </div>
-                            {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                            <span className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-[#168cb9] opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                              View Details
+                              <span className="material-symbols-rounded text-[16px]">chevron_right</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Linked Curriculum */}
                 {event.COURSE && (
@@ -915,6 +1008,73 @@ export default function EventDetailPage() {
       </div>
 
       <Footer role="attendee" />
+
+      {/* Speaker profile modal */}
+      <Dialog
+        open={selectedSpeaker !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSpeaker(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" showCloseButton>
+          {selectedSpeaker &&
+            (() => {
+              const name = selectedSpeaker.USERS?.full_name || "Speaker";
+              const initials = name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2);
+              const networkingLinks = [
+                { url: selectedSpeaker.linkedin_url, icon: "work", label: "LinkedIn" },
+                { url: selectedSpeaker.twitter_url, icon: "tag", label: "Twitter" },
+                { url: selectedSpeaker.github_url, icon: "code", label: "GitHub" },
+                { url: selectedSpeaker.website_url, icon: "language", label: "Website" },
+              ].filter((l) => l.url);
+              return (
+                <div className="flex flex-col gap-5 p-2">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-lg">
+                      {selectedSpeaker.photo_url ? (
+                        <img src={selectedSpeaker.photo_url} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-3xl font-bold text-[#3db9ee]">{initials}</span>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <DialogTitle className="text-xl">{name}</DialogTitle>
+                      {selectedSpeaker.designation && (
+                        <p className="mt-1 text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
+                          {selectedSpeaker.designation}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {selectedSpeaker.bio && <p className="text-sm leading-relaxed text-[#3E484F]">{selectedSpeaker.bio}</p>}
+                  {networkingLinks.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#6E7980]">Connect</p>
+                      <div className="flex flex-wrap gap-2">
+                        {networkingLinks.map((link) => (
+                          <a
+                            key={link.label}
+                            href={link.url!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm font-medium text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                          >
+                            <span className="material-symbols-rounded text-[16px] text-[#3db9ee]">{link.icon}</span>
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
