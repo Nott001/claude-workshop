@@ -44,8 +44,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     content_type: parsed.data.content_type,
     sequence_order: parsed.data.sequence_order,
   };
-  if (parsed.data.content_url !== undefined) {
+  if (parsed.data.content_url !== undefined && parsed.data.content_url !== null) {
     updateData.content_url = parsed.data.content_url;
+  }
+  if (parsed.data.module_id !== undefined) {
+    updateData.module_id = parsed.data.module_id;
   }
 
   const { data: lesson, error } = await supabase.from("LESSONS").update(updateData).eq("lesson_id", id).select().single();
@@ -91,6 +94,25 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (lesson) {
+    const { data: remaining } = await supabase
+      .from("LESSONS")
+      .select("lesson_id")
+      .eq("module_id", lesson.module_id)
+      .order("sequence_order", { ascending: true });
+
+    if (remaining && remaining.length > 0) {
+      await Promise.all(
+        remaining.map((l, idx) =>
+          supabase
+            .from("LESSONS")
+            .update({ sequence_order: idx + 1 })
+            .eq("lesson_id", l.lesson_id),
+        ),
+      );
+    }
   }
 
   if (userId) {
