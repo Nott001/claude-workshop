@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### refactor: replace native DnD with @dnd-kit and extract shared CourseBuilder
+
+- **components/course-builder.tsx** — new shared component with @dnd-kit DndContext, SortableContext, collision detection filtering module vs lesson drag targets, DragOverlay, LessonListDropZone (using useDroppable), SortableModuleCard, and SortableLessonRow; all DnD persistence logic centralized
+- **app/courses/[id]/page.tsx** — use shared CourseBuilder (~90% less DnD code)
+- **app/courses/new/page.tsx** — use shared CourseBuilder
+- **app/api/lessons/[id]/route.ts** — persist `module_id` in PATCH handler for cross-module lesson moves
+- **modules/course-content/index.ts** — add optional `module_id` to lessonSchema
+- **package.json** — add @dnd-kit/core@6.3.1, @dnd-kit/sortable@10.0.0, @dnd-kit/utilities@3.2.2
+
 ### refactor: separate email bypass from payment bypass
 
 - **AGENTS.md, DEBUG-PAYMENT-BYPASS.md** — document `NEXT_PUBLIC_DEBUG_BYPASS_EMAIL` env var

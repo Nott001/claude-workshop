@@ -18,6 +18,7 @@ export const lessonSchema = z.object({
   content_type: z.enum(["pdf", "video", "image", "link"]),
   content_url: z.string().nullable().optional(),
   sequence_order: z.coerce.number().int().min(1),
+  module_id: z.coerce.number().int().optional(),
 });
 
 export function getContentTypeIcon(type: ContentType): string {
