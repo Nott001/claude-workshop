@@ -6,6 +6,8 @@ import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
 import { canTransitionTicket } from "@/modules/commerce";
 import { logAuditEvent } from "@/modules/audit";
 
+const DEBUG_BYPASS_EMAIL = process.env.NEXT_PUBLIC_DEBUG_BYPASS_EMAIL === "true";
+
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
@@ -62,22 +64,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
-  const userInfo = ticket.USER as { full_name: string; email: string } | undefined;
-  if (userInfo) {
-    const { data: eventData } = await supabase
-      .from("EVENTS")
-      .select("title, event_date")
-      .eq("event_id", ticket.event_id)
-      .single();
-    fireAndForgetEmailNotification({
-      user_id: ticket.user_id,
-      email: userInfo.email,
-      name: userInfo.full_name,
-      email_type: "check_in_confirmed",
-      eventTitle: eventData?.title ?? "",
-      eventDate: eventData?.event_date ?? "",
-    });
+  if (!DEBUG_BYPASS_EMAIL) {
+    const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+    const userInfo = ticket.USER as { full_name: string; email: string } | undefined;
+    if (userInfo) {
+      const { data: eventData } = await supabase
+        .from("EVENTS")
+        .select("title, event_date")
+        .eq("event_id", ticket.event_id)
+        .single();
+      fireAndForgetEmailNotification({
+        user_id: ticket.user_id,
+        email: userInfo.email,
+        name: userInfo.full_name,
+        email_type: "check_in_confirmed",
+        eventTitle: eventData?.title ?? "",
+        eventDate: eventData?.event_date ?? "",
+      });
+    }
   }
 
   if (userId) {

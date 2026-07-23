@@ -27,8 +27,21 @@ If a pending payment already exists for the user+event, it also bypasses and iss
 ## What it does NOT do
 
 - It does not modify the register API (`POST /api/events/[id]/register`) — the eligibility check (duplicate ticket, duplicate pending payment) still runs.
-- It does not send email notifications.
 - It does not affect the `POST /api/payments/webhook` endpoint (HitPay webhook handler).
+
+## Email notifications during bypass
+
+By default, the payment bypass does **not** send email notifications. To also send emails (e.g., to test the Resend service), set:
+
+```
+NEXT_PUBLIC_DEBUG_BYPASS_EMAIL=false
+```
+
+Or leave it unset. Set the following to suppress email globally across all routes (payments, webhook, check-in):
+
+```
+NEXT_PUBLIC_DEBUG_BYPASS_EMAIL=true
+```
 
 ## Testing the full flow with bypass
 

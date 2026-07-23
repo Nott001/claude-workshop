@@ -8,6 +8,7 @@ import { generateQRDataUrl } from "@/lib/qr";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const DEBUG_BYPASS = process.env.NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT === "true";
+const DEBUG_BYPASS_EMAIL = process.env.NEXT_PUBLIC_DEBUG_BYPASS_EMAIL === "true";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -76,19 +77,25 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: ticketError.message }, { status: 500 });
         }
 
-        const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
-        const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
-        if (eventData) {
-          const qrDataUrl = await generateQRDataUrl(qrToken);
-          fireAndForgetEmailNotification({
-            user_id: dbUser.user_id,
-            email: dbUser.email,
-            name: dbUser.full_name,
-            email_type: "ticket_issued",
-            eventTitle: eventData.title,
-            eventDate: eventData.event_date,
-            qrDataUrl,
-          });
+        if (!DEBUG_BYPASS_EMAIL) {
+          const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+          const { data: eventData } = await supabase
+            .from("EVENTS")
+            .select("title, event_date")
+            .eq("event_id", event_id)
+            .single();
+          if (eventData) {
+            const qrDataUrl = await generateQRDataUrl(qrToken);
+            fireAndForgetEmailNotification({
+              user_id: dbUser.user_id,
+              email: dbUser.email,
+              name: dbUser.full_name,
+              email_type: "ticket_issued",
+              eventTitle: eventData.title,
+              eventDate: eventData.event_date,
+              qrDataUrl,
+            });
+          }
         }
 
         return NextResponse.json({
@@ -146,19 +153,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: ticketError.message }, { status: 500 });
     }
 
-    const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
-    const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
-    if (eventData) {
-      const qrDataUrl = await generateQRDataUrl(qrToken);
-      fireAndForgetEmailNotification({
-        user_id: dbUser.user_id,
-        email: dbUser.email,
-        name: dbUser.full_name,
-        email_type: "ticket_issued",
-        eventTitle: eventData.title,
-        eventDate: eventData.event_date,
-        qrDataUrl,
-      });
+    if (!DEBUG_BYPASS_EMAIL) {
+      const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
+      const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
+      if (eventData) {
+        const qrDataUrl = await generateQRDataUrl(qrToken);
+        fireAndForgetEmailNotification({
+          user_id: dbUser.user_id,
+          email: dbUser.email,
+          name: dbUser.full_name,
+          email_type: "ticket_issued",
+          eventTitle: eventData.title,
+          eventDate: eventData.event_date,
+          qrDataUrl,
+        });
+      }
     }
 
     return NextResponse.json({

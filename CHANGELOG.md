@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### refactor: separate email bypass from payment bypass
+
+- **AGENTS.md, DEBUG-PAYMENT-BYPASS.md** — document `NEXT_PUBLIC_DEBUG_BYPASS_EMAIL` env var
+- **app/api/payments/route.ts** — gate email sending with `NEXT_PUBLIC_DEBUG_BYPASS_EMAIL`; payment bypass no longer sends email by default
+- **app/api/payments/webhook/route.ts** — gate ticket-issued email with `NEXT_PUBLIC_DEBUG_BYPASS_EMAIL`
+- **app/api/checkin/route.ts** — gate check-in confirmation email with `NEXT_PUBLIC_DEBUG_BYPASS_EMAIL`
+
 ### feat: add unread message notifications for support chat
 
 - **supabase/migrations/00030_add_support_sessions_last_read_at.sql** — add `last_read_at` column to SUPPORT_SESSIONS
