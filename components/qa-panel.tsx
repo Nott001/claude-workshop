@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { subscribeToChatMessages } from "@/lib/realtime";
+import { useEffect, useState, useRef, useMemo } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import type { ChatMessage, UserRole } from "@/types";
-
-const POLL_INTERVAL = 3000;
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };
@@ -36,160 +35,136 @@ function groupMessages(messages: ChatMessageWithUser[]) {
 }
 
 export default function QAPanel({ eventId, userRole, currentUserId, eventStarted, eventEnded }: QAPanelProps) {
-  const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<ChatMessageWithUser[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastSentAtRef = useRef<string | null>(null);
+  const pollIntervalRef = useRef(5000);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const prevLastMsgRef = useRef(0);
 
   const isStaff = userRole === "facilitator" || userRole === "speaker";
-  const { questions, answersByParent } = groupMessages(messages);
+
+  function setActive() {
+    pollIntervalRef.current = 2000;
+    clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      pollIntervalRef.current = 5000;
+    }, 30000);
+  }
+
+  const { data, isLoading } = useSWR(`/api/chat/${eventId}?channel=live_qa&limit=50`, fetcher, {
+    refreshInterval: () => pollIntervalRef.current,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    keepPreviousData: true,
+  });
+
+  const serverMessages = data?.messages ?? [];
 
   useEffect(() => {
-    let ignore = false;
-    fetch(`/api/chat/${eventId}?channel=live_qa&limit=50`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (!ignore) setMessages(data.messages ?? []);
-      })
-      .catch(() => {
-        if (!ignore) setError("Failed to load questions.");
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [eventId]);
+    if (data?.messages?.length) {
+      const last = data.messages[data.messages.length - 1];
+      if (last.message_id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.message_id;
+        setActive();
+      }
+    }
+  }, [data]);
 
-  useEffect(() => {
-    if (!eventId) return;
-    const sub = subscribeToChatMessages(Number(eventId), "live_qa", (msg) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.message_id === msg.message_id)) return prev;
-        const next = [...prev, msg as ChatMessageWithUser];
-        lastSentAtRef.current = next[next.length - 1].sent_at;
-        return next;
-      });
-    });
-    return () => sub.unsubscribe();
-  }, [eventId]);
+  const allMessages = useMemo(() => {
+    const merged = [...serverMessages];
+    for (const p of pendingMessages) {
+      if (!merged.some((m) => m.message_id === p.message_id)) {
+        merged.push(p);
+      }
+    }
+    return merged.sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
+  }, [serverMessages, pendingMessages]);
 
-  useEffect(() => {
-    if (!eventStarted) return;
-    let cancelled = false;
-    const id = setInterval(async () => {
-      const after = lastSentAtRef.current;
-      const params = new URLSearchParams({ channel: "live_qa", limit: "10" });
-      if (after) params.set("after", after);
-      try {
-        const res = await fetch(`/api/chat/${eventId}?${params}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled || !data.messages?.length) return;
-        setMessages((prev) => {
-          const merged = [...prev];
-          let changed = false;
-          for (const m of data.messages as ChatMessageWithUser[]) {
-            if (!merged.some((x) => x.message_id === m.message_id)) {
-              merged.push(m);
-              changed = true;
-            }
-          }
-          if (changed && merged.length > 0) {
-            lastSentAtRef.current = merged[merged.length - 1].sent_at;
-          }
-          return changed ? merged : prev;
-        });
-      } catch {}
-    }, POLL_INTERVAL);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [eventId, eventStarted]);
+  const { questions, answersByParent } = groupMessages(allMessages);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [allMessages]);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      lastSentAtRef.current = messages[messages.length - 1].sent_at;
-    }
-  }, [messages]);
-
-  const handleAnswer = useCallback((questionId: number) => {
+  const handleAnswer = useRef((questionId: number) => {
     setReplyTarget(questionId);
     inputRef.current?.focus();
-  }, []);
+  }).current;
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() || sending || !eventStarted) return;
 
+    const text = newMessage.trim();
+    const optimisticId = -Date.now();
+    const optimistic: ChatMessageWithUser = {
+      message_id: optimisticId,
+      channel: "live_qa",
+      user_id: currentUserId ?? 0,
+      message: text,
+      event_id: Number(eventId),
+      sent_at: new Date().toISOString(),
+      session_id: null,
+      recipient_user_id: null,
+      reply_to: replyTarget,
+      answered_verbally: false,
+      deleted_at: null,
+      updated_at: null,
+      USER: { full_name: "You", role: (userRole ?? "attendee") as UserRole },
+    };
+
+    setPendingMessages((prev) => [...prev, optimistic]);
+    setNewMessage("");
     setSending(true);
     setError(null);
+
     const res = await fetch(`/api/chat/${eventId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         channel: "live_qa",
-        message: newMessage.trim(),
+        message: text,
         reply_to: replyTarget ?? undefined,
       }),
     });
 
     if (res.status === 429) {
+      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
       setError("Too many messages. Please wait a moment.");
       setSending(false);
       return;
     }
 
     if (!res.ok) {
+      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
       setError("Failed to send message.");
       setSending(false);
       return;
     }
 
-    const sent = await res.json();
-    setMessages((prev) => {
-      if (prev.some((m) => m.message_id === sent.message_id)) return prev;
-      const next = [...prev, sent as ChatMessageWithUser];
-      lastSentAtRef.current = next[next.length - 1].sent_at;
-      return next;
-    });
-
-    setNewMessage("");
+    const sent = (await res.json()) as ChatMessageWithUser;
+    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
     setReplyTarget(null);
     setSending(false);
+    setActive();
   }
 
   async function handleDelete(messageId: number) {
-    const res = await fetch(`/api/chat/${eventId}/${messageId}`, { method: "DELETE" });
-    if (!res.ok) return;
-    setMessages((prev) => prev.filter((m) => m.message_id !== messageId));
+    await fetch(`/api/chat/${eventId}/${messageId}`, { method: "DELETE" });
   }
 
   async function handleMarkVerbal(questionId: number) {
-    const res = await fetch(`/api/chat/${eventId}/${questionId}`, {
+    await fetch(`/api/chat/${eventId}/${questionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answered_verbally: true }),
     });
-
-    if (res.ok) {
-      setMessages((prev) => prev.map((m) => (m.message_id === questionId ? { ...m, answered_verbally: true } : m)));
-    }
   }
 
   function formatDateTime(sentAt: string) {
@@ -257,7 +232,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="flex items-center gap-2">
             <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
