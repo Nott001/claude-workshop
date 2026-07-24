@@ -27,7 +27,6 @@
 
 ## Debug tools
 
-- **Payment bypass** — Set `NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT=true` to skip HitPay and directly issue tickets. See `DEBUG-PAYMENT-BYPASS.md` for details.
 - **Session bypass** — Add `?debug_bypass_session=true` to the event detail page URL to enter the session room without a ticket.
 
 ## Boundaries

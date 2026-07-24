@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### refactor: gut payment module into plug-and-play gateway with simulated provider
+
+- **src/modules/commerce/index.ts** — add `PaymentGateway` interface and `SimulatedPaymentGateway` implementation that creates payments, issues tickets, and sends email notifications inline; preserves core helpers (state machines, `paymentInitSchema`, `generateQrToken`)
+- **src/lib/hitpay/** — remove HitPay-specific API client entirely
+- **src/app/api/payments/route.ts** — replace HitPay call and debug bypass branching with a single `SimulatedPaymentGateway` call
+- **src/app/api/payments/webhook/route.ts** — remove HitPay webhook handler (no longer needed; gateways add their own webhook later)
+- **src/middleware.ts** — remove `payments/webhook` from unprotected route matcher
+- **src/types/index.ts** — replace `hitpay_reference_id` with `gateway_reference_id` in Payment type
+- **supabase/migrations/00037_rename_hitpay_reference_id.sql** — rename `hitpay_reference_id` column to `gateway_reference_id`
+- **.env.local** — remove `NEXT_PUBLIC_DEBUG_BYPASS_PAYMENT` env var and HitPay sandbox credentials
+- **DEBUG-PAYMENT-BYPASS.md** — remove file (bypass superseded by simulated gateway)
+- **AGENTS.md** — remove payment bypass debug tool entry
+- **vitest.config.ts** — update `@` alias to `./src` to match tsconfig
+- **src/test/commerce.test.ts** — remove `hitpay_reference_id` from type assertions; add gateway interface contract test
+
 ### feat: add unread message notifications for support chat
 
 - **supabase/migrations/00030_add_support_sessions_last_read_at.sql** — add `last_read_at` column to SUPPORT_SESSIONS

@@ -167,93 +167,95 @@ export default function RegisterPage() {
 
   return (
     <>
-    <div className="flex flex-1 flex-col p-6 sm:p-8">
-      <div className="mx-auto w-full max-w-lg">
-        <button
-          onClick={() => router.push(`/events/${eventId}`)}
-          className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <span className="material-symbols-rounded text-sm">arrow_back</span>
-          Back to event
-        </button>
+      <div className="flex flex-1 flex-col p-6 sm:p-8">
+        <div className="mx-auto w-full max-w-lg">
+          <button
+            onClick={() => router.push(`/events/${eventId}`)}
+            className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span className="material-symbols-rounded text-sm">arrow_back</span>
+            Back to event
+          </button>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-          <div className="relative bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300 p-6 text-white">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
-            <div className="relative">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-white/15 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
-                <span className="material-symbols-rounded text-[14px]">how_to_reg</span>
-                Registration
-              </span>
-              <h1 className="mt-3 text-lg font-bold">{data.event.title}</h1>
-            </div>
-          </div>
-          <div className="space-y-6 p-6">
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2">
-                <CalendarDays className="size-4 text-blue-500" />
-                {formatEventDate(data.event.event_date)}
-              </p>
-              <p className="flex items-center gap-2">
-                <Clock3 className="size-4 text-blue-500" />
-                {formatTime(data.event.start_time)} – {formatTime(data.event.end_time)}
-              </p>
-              <p className="flex items-center gap-2">
-                <MapPin className="size-4 text-blue-500" />
-                {data.event.venue_name}
-              </p>
-            </div>
-
-            <div className="border-t border-border pt-6">
-              <h2 className="text-sm font-semibold text-foreground">Your Information</h2>
-              <div className="mt-3 space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-rounded text-sm text-muted-foreground">person</span>
-                  <span className="text-sm text-foreground">{data.user.full_name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-rounded text-sm text-muted-foreground">mail</span>
-                  <span className="text-sm text-foreground">{data.user.email}</span>
-                </div>
+          <div className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
+            <div className="relative bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300 p-6 text-white">
+              <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+              <div className="relative">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-white/15 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
+                  <span className="material-symbols-rounded text-[14px]">how_to_reg</span>
+                  Registration
+                </span>
+                <h1 className="mt-3 text-lg font-bold">{data.event.title}</h1>
               </div>
             </div>
+            <div className="space-y-6 p-6">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-blue-500" />
+                  {formatEventDate(data.event.event_date)}
+                </p>
+                <p className="flex items-center gap-2">
+                  <Clock3 className="size-4 text-blue-500" />
+                  {formatTime(data.event.start_time)} – {formatTime(data.event.end_time)}
+                </p>
+                <p className="flex items-center gap-2">
+                  <MapPin className="size-4 text-blue-500" />
+                  {data.event.venue_name}
+                </p>
+              </div>
 
-            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+              <div className="border-t border-border pt-6">
+                <h2 className="text-sm font-semibold text-foreground">Your Information</h2>
+                <div className="mt-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-rounded text-sm text-muted-foreground">person</span>
+                    <span className="text-sm text-foreground">{data.user.full_name}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-rounded text-sm text-muted-foreground">mail</span>
+                    <span className="text-sm text-foreground">{data.user.email}</span>
+                  </div>
+                </div>
+              </div>
 
-            <div className="border-t border-border pt-6">
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 size-4 rounded border-border text-blue-500 focus:ring-blue-500"
-                />
-                <span className="text-sm text-muted-foreground">
-                  I agree to the{" "}
-                  <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
-                    Terms of Service
-                  </button>{" "}
-                  and{" "}
-                  <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
-                    Privacy Policy
-                  </button>
-                </span>
-              </label>
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+              )}
+
+              <div className="border-t border-border pt-6">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="mt-0.5 size-4 rounded border-border text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    I agree to the{" "}
+                    <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
+                      Terms of Service
+                    </button>{" "}
+                    and{" "}
+                    <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
+                      Privacy Policy
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              <button
+                disabled={!agreed || submitting}
+                onClick={handleRegister}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-rounded text-sm">{submitting ? "progress_activity" : "how_to_reg"}</span>
+                {submitting ? "Processing..." : "Proceed to Payment"}
+              </button>
             </div>
-
-            <button
-              disabled={!agreed || submitting}
-              onClick={handleRegister}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-rounded text-sm">{submitting ? "progress_activity" : "how_to_reg"}</span>
-              {submitting ? "Processing..." : "Proceed to Payment"}
-            </button>
           </div>
         </div>
       </div>
-    </div>
-    <Footer role="attendee" />
+      <Footer role="attendee" />
     </>
   );
 }

@@ -81,7 +81,7 @@ export interface Payment {
   payment_id: number;
   user_id: number;
   event_id: number;
-  hitpay_reference_id: string | null;
+  gateway_reference_id: string | null;
   status: PaymentStatus;
   paid_at: string | null;
   amount: number;
