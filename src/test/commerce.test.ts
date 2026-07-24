@@ -14,14 +14,15 @@ describe("Payment and Ticket types", () => {
       payment_id: 1,
       user_id: 1,
       event_id: 1,
-      hitpay_reference_id: "ref_123",
+      gateway_reference_id: null,
       status: "pending",
       paid_at: null,
+      amount: 0,
+      currency: "SGD",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
     expect(payment.status).toBe("pending");
-    expect(payment.hitpay_reference_id).toBe("ref_123");
   });
 
   it("Ticket interface has correct shape", () => {
@@ -164,5 +165,14 @@ describe("isPaymentTerminal", () => {
 
   it("returns false for pending", () => {
     expect(isPaymentTerminal("pending")).toBe(false);
+  });
+});
+
+describe("PaymentGateway interface", () => {
+  it("SimulatedPaymentGateway implements PaymentGateway", async () => {
+    const { SimulatedPaymentGateway } = await import("@/modules/commerce");
+    const gateway = new SimulatedPaymentGateway();
+    expect(gateway.createPayment).toBeDefined();
+    expect(typeof gateway.createPayment).toBe("function");
   });
 });

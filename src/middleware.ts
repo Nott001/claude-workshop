@@ -4,7 +4,7 @@ const isProtectedRoute = createRouteMatcher([
   "/courses(.*)",
   "/kiosk(.*)",
   "/organization(.*)",
-  "/api/((?!auth|events|speakers|payments/webhook|storage).*)",
+  "/api/((?!auth|events|speakers|storage).*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
