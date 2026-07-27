@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### chore: remove dead code — unused components, exports, routes, and test files
+
+- **src/components/** — delete 7 unused components: `course-card`, `course-syllabus`, `resource-card`, `session-stats`, `qa-live-feed`, `marketing-footer`, `utility-footer`
+- **src/components/ui/card.tsx** — delete entire Card component family (zero imports)
+- **src/lib/realtime/index.ts** — remove dead `subscribeToPaymentStatus` export and its unused `Payment` type import
+- **src/modules/course-content/index.ts** — remove dead `getContentTypeIcon` export
+- **src/modules/notifications/index.ts** — remove unused `emailTypeEnum`, `emailStatusEnum`, `emailLogInsertSchema` exports (keep private enums used by `emailLogFilterSchema`)
+- **src/test/notifications.test.ts** — remove 11 tests covering deleted exports
+- **src/lib/auth/current-user.ts** — delete server-side `currentUser()` helper (only used in tests; production uses the client-side hook instead)
+- **src/test/current-user.test.ts** — delete paired test file
+- **src/app/api/checkin/[eventId]/attendees/route.ts** — delete orphaned API endpoint (no callers)
+- **src/app/api/support/sessions/status/route.ts** — delete orphaned API endpoint (no callers)
+- **src/app/speakers/dashboard/live/[eventId]/page.tsx** — delete orphaned redirect page (never linked)
+
 ### refactor: gut payment module into plug-and-play gateway with simulated provider
 
 - **src/modules/commerce/index.ts** — add `PaymentGateway` interface and `SimulatedPaymentGateway` implementation that creates payments, issues tickets, and sends email notifications inline; preserves core helpers (state machines, `paymentInitSchema`, `generateQrToken`)
