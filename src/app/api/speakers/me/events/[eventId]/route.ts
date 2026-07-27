@@ -39,15 +39,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const attendeeCount = await ticketDao.countByEvent(supabase, Number(eventId));
 
   return NextResponse.json({
-    event_id: (event as { id: number }).id,
-    title: (event as { title: string }).title,
-    event_date: (event as { event_date: string }).event_date,
-    start_time: (event as { start_time: string }).start_time,
-    end_time: (event as { end_time: string }).end_time,
-    venue_name: (event as { venue_name: string }).venue_name,
-    status: (event as { status: string }).status,
-    course_name: (event as { COURSE?: { course_name: string } | null }).COURSE?.course_name ?? null,
-    description: (event as { description?: string | null }).description ?? null,
+    event_id: event.id,
+    title: event.title,
+    event_date: event.event_date,
+    start_time: event.start_time,
+    end_time: event.end_time,
+    venue_name: event.venue_name,
+    status: event.status,
+    course_name: event.COURSE?.course_name ?? null,
+    description: event.description ?? null,
     attendee_count: attendeeCount,
   });
 }

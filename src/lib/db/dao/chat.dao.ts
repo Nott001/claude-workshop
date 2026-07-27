@@ -194,42 +194,31 @@ export async function listSupportMessages(
   const { userId, role, before, after, limit, filterUserId } = options;
 
   let sessionActive = false;
+  let sessionId: number | null = null;
 
   let query = supabase.from("CHAT_MESSAGE").select("*, USER:id(full_name, role)").eq("channel", CHANNEL).is("deleted_at", null);
 
   if (role !== "facilitator" && userId) {
     query = query.or(`user_id.eq.${userId},recipient_user_id.eq.${userId}`);
 
-    const latestSession = await supabase
-      .from("SUPPORT_SESSION")
-      .select("id, status")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestSession.data) {
-      sessionActive = latestSession.data.status === "active";
-      query = query.eq("session_id", latestSession.data.id);
-    } else {
-      query = query.is("session_id", null);
+    const session = await findLatestSession(supabase, userId);
+    if (session) {
+      sessionActive = session.status === "active";
+      sessionId = session.id;
     }
   } else if (filterUserId && userId) {
     query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${userId},recipient_user_id.eq.${filterUserId})`);
 
-    const latestSession = await supabase
-      .from("SUPPORT_SESSION")
-      .select("id")
-      .eq("user_id", Number(filterUserId))
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestSession.data) {
-      query = query.eq("session_id", latestSession.data.id);
-    } else {
-      query = query.is("session_id", null);
+    const session = await findLatestSession(supabase, Number(filterUserId));
+    if (session) {
+      sessionId = session.id;
     }
+  }
+
+  if (sessionId !== null) {
+    query = query.eq("session_id", sessionId);
+  } else {
+    query = query.is("session_id", null);
   }
 
   if (after) {
@@ -244,7 +233,7 @@ export async function listSupportMessages(
 
   const { data } = await query.limit(limit + 1);
 
-  const messages = (data ?? []) as unknown as ChatMessage[];
+  const messages = (data ?? []) as ChatMessage[];
   const hasMore = messages.length > limit;
   const result = hasMore ? messages.slice(0, limit) : messages;
   const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].sent_at : null;

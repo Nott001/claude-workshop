@@ -60,15 +60,15 @@ export async function getUpcomingEvents(): Promise<LandingEvent[]> {
   const supabase = getServiceClient();
   const data = await eventDao.getUpcomingForLanding(supabase);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((e) => ({
-    event_id: (e as { id: number }).id,
-    title: (e as { title: string }).title,
-    event_date: (e as { event_date: string }).event_date,
-    start_time: (e as { start_time: string }).start_time,
-    end_time: (e as { end_time: string }).end_time,
-    venue_name: (e as { venue_name: string }).venue_name,
-    status: (e as { status: string }).status,
-    course_name: (e as { COURSE: { course_name: string } | null }).COURSE?.course_name ?? null,
-    cover_image_url: (e as { cover_image_url: string | null }).cover_image_url ?? null,
+  return data.map((e) => ({
+    event_id: e.id,
+    title: e.title,
+    event_date: e.event_date,
+    start_time: e.start_time,
+    end_time: e.end_time,
+    venue_name: e.venue_name,
+    status: e.status,
+    course_name: e.COURSE?.course_name ?? null,
+    cover_image_url: e.cover_image_url ?? null,
   }));
 }

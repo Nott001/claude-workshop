@@ -31,27 +31,16 @@ export async function GET() {
 
   const events = await eventDao.findByIds(supabase, eventIds);
 
-  const mapped = (events ?? []).map(
-    (e: {
-      id: number;
-      title: string;
-      event_date: string;
-      start_time: string;
-      end_time: string;
-      venue_name: string;
-      status: string;
-      COURSE?: { course_name: string } | null;
-    }) => ({
-      event_id: e.id,
-      title: e.title,
-      event_date: e.event_date,
-      start_time: e.start_time,
-      end_time: e.end_time,
-      venue_name: e.venue_name,
-      status: e.status,
-      course_name: e.COURSE?.course_name ?? null,
-    }),
-  );
+  const mapped = events.map((e) => ({
+    event_id: e.id,
+    title: e.title,
+    event_date: e.event_date,
+    start_time: e.start_time,
+    end_time: e.end_time,
+    venue_name: e.venue_name,
+    status: e.status,
+    course_name: e.COURSE?.course_name ?? null,
+  }));
 
   return NextResponse.json(mapped);
 }

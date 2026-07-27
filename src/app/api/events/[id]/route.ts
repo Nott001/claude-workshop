@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { userId } = await auth();
   const supabase = getServiceClient();
 
-  const event = (await eventDao.findByIdWithCourse(supabase, Number(id))) as Record<string, unknown> | null;
+  const event = await eventDao.findByIdWithCourse(supabase, Number(id));
 
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -84,11 +84,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
   const { userId } = await auth();
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(id), "cover_image_url, course_id, title")) as {
-    cover_image_url: string | null;
-    course_id: number | null;
-    title: string;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(id));
 
   if (event?.cover_image_url) {
     const imagePath = event.cover_image_url.split("/").pop();

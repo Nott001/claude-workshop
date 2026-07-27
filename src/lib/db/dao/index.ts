@@ -7,4 +7,4 @@ export * as chatDao from "./chat.dao";
 export * as speakerDao from "./speaker.dao";
 export * as auditDao from "./audit.dao";
 export * as emailDao from "./email.dao";
-export type { DbClient, Pagination, PaginatedResult } from "./types";
+export type { DbClient, PaginatedResult } from "./types";
