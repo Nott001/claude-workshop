@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { LessonDialog } from "@/modules/course-content/ui/lesson-dialog";
+import { CurriculumBuilder } from "@/modules/course-content/ui/curriculum-builder";
 
 interface Lesson {
   lesson_id: number;
@@ -52,13 +53,7 @@ export default function CourseDetailPage() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
-  const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
-
   const [lessonDialogModuleId, setLessonDialogModuleId] = useState<number | null>(null);
-  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
-  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -75,13 +70,6 @@ export default function CourseDetailPage() {
     }
     load();
   }, [courseId]);
-
-  useEffect(() => {
-    if (renamingModuleId !== null && renameInputRef.current) {
-      renameInputRef.current.focus();
-      renameInputRef.current.select();
-    }
-  }, [renamingModuleId]);
 
   async function reloadCourse() {
     const res = await fetch(`/api/courses/${courseId}`);
@@ -112,7 +100,7 @@ export default function CourseDetailPage() {
     setEditDialogOpen(true);
   }
 
-  async function handleAddModule() {
+  async function handleAddModule(): Promise<number | undefined> {
     const order = (course?.MODULES.length ?? 0) + 1;
     const res = await fetch(`/api/courses/${courseId}/modules`, {
       method: "POST",
@@ -121,20 +109,15 @@ export default function CourseDetailPage() {
     });
     if (!res.ok) return;
     await reloadCourse();
+    return undefined;
   }
 
-  async function handleRenameModule(moduleId: number) {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenamingModuleId(null);
-      return;
-    }
+  async function handleRenameModule(moduleId: number, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
 
     const mod = course?.MODULES.find((m) => m.module_id === moduleId);
-    if (!mod || trimmed === mod.module_name) {
-      setRenamingModuleId(null);
-      return;
-    }
+    if (!mod || trimmed === mod.module_name) return;
 
     const res = await fetch(`/api/modules/${moduleId}`, {
       method: "PATCH",
@@ -145,7 +128,6 @@ export default function CourseDetailPage() {
     if (res.ok) {
       await reloadCourse();
     }
-    setRenamingModuleId(null);
   }
 
   async function handleDeleteModule(moduleId: number) {
@@ -246,27 +228,9 @@ export default function CourseDetailPage() {
     return null;
   }
 
-  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(moduleId));
-  }
-
-  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetModuleId || !course) return;
-
-    const modules = [...course.MODULES];
-    const draggedIdx = modules.findIndex((m) => m.module_id === draggedId);
-    const targetIdx = modules.findIndex((m) => m.module_id === targetModuleId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const [moved] = modules.splice(draggedIdx, 1);
-    modules.splice(targetIdx, 0, moved);
-    const reordered = modules.map((m, i) => ({ ...m, sequence_order: i + 1 }));
+  async function handleReorderModules(reordered: Module[]) {
+    if (!course) return;
     setCourse({ ...course, MODULES: reordered });
-
     await Promise.all(
       reordered.map((m) =>
         fetch(`/api/modules/${m.module_id}`, {
@@ -278,36 +242,14 @@ export default function CourseDetailPage() {
     );
   }
 
-  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(lessonId));
-  }
-
-  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
-    e.preventDefault();
-    setDragOverLessonId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetLessonId || !course) return;
-
-    const mod = course.MODULES.find((m) => m.module_id === moduleId);
-    if (!mod) return;
-
-    const lessons = [...mod.LESSONS];
-    const draggedIdx = lessons.findIndex((l) => l.lesson_id === draggedId);
-    const targetIdx = lessons.findIndex((l) => l.lesson_id === targetLessonId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const [moved] = lessons.splice(draggedIdx, 1);
-    lessons.splice(targetIdx, 0, moved);
-    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
-
+  async function handleReorderLessons(moduleId: number, lessons: Lesson[]) {
+    if (!course) return;
     setCourse({
       ...course,
-      MODULES: course.MODULES.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: reordered } : m)),
+      MODULES: course.MODULES.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: lessons } : m)),
     });
-
     await Promise.all(
-      reordered.map((l) =>
+      lessons.map((l) =>
         fetch(`/api/lessons/${l.lesson_id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -417,145 +359,16 @@ export default function CourseDetailPage() {
           </div>
         )}
 
-        <div className="rounded-xl border border-border bg-surface p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-          <div className="flex items-center gap-3 border-b border-border pb-4">
-            <div className="rounded-lg bg-info/10 p-2">
-              <span className="material-symbols-rounded text-[20px] text-brand">school</span>
-            </div>
-            <span className="text-xs font-bold tracking-[0.1em] text-fg">CURRICULUM</span>
-          </div>
-
-          <div className="mb-6 mt-6 flex items-center justify-between">
-            <p className="text-sm text-muted-fg">Organize your course into modules and lessons.</p>
-            <Button variant="outline" size="sm" onClick={handleAddModule}>
-              <span className="material-symbols-rounded text-[14px]">add_circle</span>
-              Add module
-            </Button>
-          </div>
-
-          {course.MODULES.length === 0 ? (
-            <div className="rounded-lg border-2 border-dashed border-border py-12 text-center">
-              <span className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">post_add</span>
-              <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {course.MODULES.map((mod) => (
-                <div
-                  key={mod.module_id}
-                  draggable
-                  onDragStart={(e) => handleModuleDragStart(e, mod.module_id)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOverModuleId(mod.module_id);
-                  }}
-                  onDragLeave={() => setDragOverModuleId(null)}
-                  onDrop={(e) => handleModuleDrop(e, mod.module_id)}
-                  onDragEnd={() => setDragOverModuleId(null)}
-                  className={`rounded-lg border bg-muted p-5 transition-shadow ${
-                    dragOverModuleId === mod.module_id
-                      ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                      : "border-border"
-                  }`}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    {renamingModuleId === mod.module_id ? (
-                      <input
-                        ref={renameInputRef}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleRenameModule(mod.module_id);
-                          if (e.key === "Escape") setRenamingModuleId(null);
-                        }}
-                        onBlur={() => handleRenameModule(mod.module_id)}
-                        className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setRenamingModuleId(mod.module_id);
-                        setRenameValue(mod.module_name);
-                      }}
-                      className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                      title="Rename module"
-                    >
-                      <span className="material-symbols-rounded text-[14px]">edit</span>
-                    </button>
-
-                    <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
-                      {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
-                    </span>
-
-                    <button
-                      onClick={() => handleDeleteModule(mod.module_id)}
-                      className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                      title="Delete module"
-                    >
-                      <span className="material-symbols-rounded text-[14px]">delete</span>
-                    </button>
-                  </div>
-
-                  {mod.LESSONS.length > 0 && (
-                    <div className="mb-3 space-y-1.5">
-                      {mod.LESSONS.map((lesson) => (
-                        <div
-                          key={lesson.lesson_id}
-                          draggable
-                          onDragStart={(e) => handleLessonDragStart(e, lesson.lesson_id)}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            setDragOverLessonId(lesson.lesson_id);
-                          }}
-                          onDragLeave={() => setDragOverLessonId(null)}
-                          onDrop={(e) => handleLessonDrop(e, lesson.lesson_id, mod.module_id)}
-                          onDragEnd={() => setDragOverLessonId(null)}
-                          className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
-                            dragOverLessonId === lesson.lesson_id
-                              ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                              : "border-border bg-surface"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xs font-medium text-muted-fg">
-                              {mod.sequence_order}.{lesson.sequence_order}
-                            </span>
-                            <span className="text-sm text-fg">{lesson.description}</span>
-                            <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                              {lesson.content_type}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {lesson.content_url && (
-                              <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url, "_blank")}>
-                                View
-                              </Button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteLesson(lesson.lesson_id)}
-                              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                              title="Delete lesson"
-                            >
-                              <span className="material-symbols-rounded text-[14px]">delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Button variant="ghost" size="sm" onClick={() => openLessonDialog(mod.module_id)}>
-                    <span className="material-symbols-rounded text-[14px]">add_circle</span>
-                    Add lesson to topic
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <CurriculumBuilder
+          modules={course.MODULES}
+          onAddModule={handleAddModule}
+          onRenameModule={handleRenameModule}
+          onDeleteModule={handleDeleteModule}
+          onDeleteLesson={handleDeleteLesson}
+          onAddLessonClick={openLessonDialog}
+          onReorderModules={handleReorderModules}
+          onReorderLessons={handleReorderLessons}
+        />
 
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
