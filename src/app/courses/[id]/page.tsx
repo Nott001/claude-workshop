@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
+import { LessonDialog } from "@/modules/course-content/ui/lesson-dialog";
 
 interface Lesson {
   lesson_id: number;
@@ -55,12 +56,7 @@ export default function CourseDetailPage() {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
-  const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
-  const [lessonDescription, setLessonDescription] = useState("");
-  const [lessonContentUrl, setLessonContentUrl] = useState("");
-  const [lessonContentFile, setLessonContentFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [lessonDialogModuleId, setLessonDialogModuleId] = useState<number | null>(null);
   const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
   const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
 
@@ -167,22 +163,18 @@ export default function CourseDetailPage() {
   }
 
   function openLessonDialog(moduleId: number) {
-    setActiveModuleId(moduleId);
-    setLessonDescription("");
-    setLessonContentUrl("");
-    setLessonContentFile(null);
-    setLessonDialogOpen(true);
+    setLessonDialogModuleId(moduleId);
   }
 
-  function detectContentType(): string {
-    if (lessonContentFile) {
-      if (lessonContentFile.type === "application/pdf") return "pdf";
-      if (lessonContentFile.type.startsWith("video/")) return "video";
-      if (lessonContentFile.type.startsWith("image/")) return "image";
+  function detectContentType(file: File | null, url: string): string {
+    if (file) {
+      if (file.type === "application/pdf") return "pdf";
+      if (file.type.startsWith("video/")) return "video";
+      if (file.type.startsWith("image/")) return "image";
     }
-    if (lessonContentUrl) {
-      const url = normalizeUrl(lessonContentUrl);
-      const ext = url.split(".").pop()?.toLowerCase() || "";
+    if (url) {
+      const normalized = normalizeUrl(url);
+      const ext = normalized.split(".").pop()?.toLowerCase() || "";
       if (ext === "pdf") return "pdf";
       if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
       if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
@@ -201,6 +193,56 @@ export default function CourseDetailPage() {
   function getUploadEndpoint(type: string): string | null {
     if (type === "video") return "/api/upload/course-video";
     if (type === "pdf" || type === "image") return "/api/upload/course-asset";
+    return null;
+  }
+
+  async function handleAddLesson(data: { description: string; file: File | null; url: string }): Promise<string | null> {
+    const moduleId = lessonDialogModuleId;
+    if (!moduleId) return "No module selected";
+
+    const mod = course?.MODULES.find((m) => m.module_id === moduleId);
+    if (!mod) return "Module not found";
+
+    const sequenceOrder = mod.LESSONS.length + 1;
+    const contentType = detectContentType(data.file, data.url);
+
+    const res = await fetch(`/api/modules/${moduleId}/lessons`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: data.description,
+        content_type: contentType,
+        content_url: data.file ? undefined : data.url ? normalizeUrl(data.url) : undefined,
+        sequence_order: sequenceOrder,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      return err?.error?.message ?? "Failed to create lesson";
+    }
+    const lesson = await res.json();
+
+    if (data.file) {
+      const endpoint = getUploadEndpoint(contentType);
+      if (endpoint) {
+        const formData = new FormData();
+        formData.append("file", data.file);
+        formData.append("lesson_id", String(lesson.lesson_id));
+        formData.append("course_id", courseId);
+        formData.append("module_id", String(moduleId));
+
+        const uploadRes = await fetch(endpoint, { method: "POST", body: formData });
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json().catch(() => null);
+          await reloadCourse();
+          return uploadData?.error ?? "Lesson saved but file upload failed.";
+        }
+      }
+    }
+
+    setLessonDialogModuleId(null);
+    await reloadCourse();
     return null;
   }
 
@@ -278,67 +320,6 @@ export default function CourseDetailPage() {
         }),
       ),
     );
-  }
-
-  async function handleAddLesson() {
-    if (!activeModuleId) return;
-
-    const mod = course?.MODULES.find((m) => m.module_id === activeModuleId);
-    if (!mod) return;
-
-    const sequenceOrder = mod.LESSONS.length + 1;
-    setError(null);
-
-    const contentType = detectContentType();
-
-    const res = await fetch(`/api/modules/${activeModuleId}/lessons`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: lessonDescription,
-        content_type: contentType,
-        content_url: lessonContentFile ? undefined : lessonContentUrl ? normalizeUrl(lessonContentUrl) : undefined,
-        sequence_order: sequenceOrder,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Failed to create lesson");
-      return;
-    }
-    const lesson = await res.json();
-
-    if (lessonContentFile) {
-      setUploading(true);
-      const endpoint = getUploadEndpoint(contentType);
-      if (endpoint) {
-        const formData = new FormData();
-        formData.append("file", lessonContentFile);
-        formData.append("lesson_id", String(lesson.lesson_id));
-        formData.append("course_id", courseId);
-        formData.append("module_id", String(activeModuleId));
-
-        const uploadRes = await fetch(endpoint, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadRes.ok) {
-          const uploadData = await uploadRes.json().catch(() => null);
-          setError(uploadData?.error ?? "Lesson saved but file upload failed.");
-          setUploading(false);
-          await reloadCourse();
-          return;
-        }
-        setUploading(false);
-      }
-    }
-
-    setLessonDialogOpen(false);
-    setActiveModuleId(null);
-    setLessonContentFile(null);
-    await reloadCourse();
   }
 
   if (loading) {
@@ -597,80 +578,13 @@ export default function CourseDetailPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog
-          open={lessonDialogOpen}
+        <LessonDialog
+          open={lessonDialogModuleId !== null}
           onOpenChange={(open) => {
-            setLessonDialogOpen(open);
-            if (!open) setActiveModuleId(null);
+            if (!open) setLessonDialogModuleId(null);
           }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add lesson</DialogTitle>
-            </DialogHeader>
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleAddLesson();
-              }}
-            >
-              <FormField>
-                <FormLabel>Lesson name</FormLabel>
-                <Input
-                  value={lessonDescription}
-                  onChange={(e) => setLessonDescription(e.target.value)}
-                  placeholder="e.g. Introduction to the topic"
-                  required
-                />
-              </FormField>
-
-              <FormField className="mt-3">
-                <FormLabel>Upload file</FormLabel>
-                <input
-                  type="file"
-                  accept="application/pdf,video/mp4,video/webm,video/quicktime,image/jpeg,image/png"
-                  onChange={(e) => {
-                    setLessonContentFile(e.target.files?.[0] ?? null);
-                    if (e.target.files?.[0]) setLessonContentUrl("");
-                  }}
-                  className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg file:mr-3 file:rounded-md file:border-0 file:bg-info/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-info hover:file:bg-blue-100"
-                />
-                {lessonContentFile && <p className="mt-1 text-xs text-muted-fg">Selected: {lessonContentFile.name}</p>}
-              </FormField>
-
-              <FormField className="mt-3">
-                <FormLabel>Or paste a URL</FormLabel>
-                <Input
-                  value={lessonContentUrl}
-                  onChange={(e) => {
-                    setLessonContentUrl(e.target.value);
-                    if (e.target.value) setLessonContentFile(null);
-                  }}
-                  placeholder="https://..."
-                />
-              </FormField>
-
-              <div className="mt-4 flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={!lessonDescription.trim() || uploading || (!lessonContentFile && !lessonContentUrl.trim())}
-                >
-                  {uploading ? (
-                    <>Uploading...</>
-                  ) : (
-                    <>
-                      <span className="material-symbols-rounded text-[16px]">add_circle</span>
-                      Add lesson
-                    </>
-                  )}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setLessonDialogOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </Form>
-          </DialogContent>
-        </Dialog>
+          onAddLesson={handleAddLesson}
+        />
       </div>
     </div>
   );

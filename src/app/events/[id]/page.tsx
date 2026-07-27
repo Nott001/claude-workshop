@@ -9,7 +9,11 @@ import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { Footer } from "@/components/footer";
-import { AttendeesPanel } from "@/components/attendees-panel";
+
+import { DeleteConfirmModal } from "@/modules/event-management/ui/delete-confirm-modal";
+import { AttendeesModal } from "@/modules/event-management/ui/attendees-modal";
+import { SpeakerSection } from "@/modules/event-management/ui/speaker-section";
+import { CurriculumSection } from "@/modules/event-management/ui/curriculum-section";
 
 interface SpeakerProfile {
   id: number;
@@ -187,7 +191,6 @@ export default function EventDetailPage() {
       router.push(`/sign-in?redirect_url=/events/${eventId}`);
       return;
     }
-
     router.push(`/events/${eventId}/register`);
   }
 
@@ -263,9 +266,7 @@ export default function EventDetailPage() {
           </button>
 
           <div className="grid grid-cols-12 gap-6">
-            {/* Main content */}
             <div className="col-span-8 flex flex-col gap-6">
-              {/* Hero with cover image */}
               <div className="relative overflow-hidden rounded-xl border border-[rgba(229,231,235,0.5)] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
                 <div className="relative h-[320px]">
                   {event.cover_image_url ? (
@@ -309,67 +310,9 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              {/* Linked Curriculum */}
-              {event.COURSE && (
-                <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                      <span className="material-symbols-rounded text-lg text-brand">school</span>
-                    </div>
-                    <div>
-                      <h2 className="text-[20px] font-semibold text-fg">Linked Curriculum</h2>
-                    </div>
-                  </div>
-                  <h3 className="mb-2 text-[24px] font-bold text-fg">{event.COURSE.course_name}</h3>
-                  {event.COURSE.course_description && (
-                    <p className="mb-4 text-base leading-[26px] text-muted-fg">{event.COURSE.course_description}</p>
-                  )}
-                  <button
-                    onClick={() => router.push(`/courses/${event.COURSE!.id}`)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
-                  >
-                    <span className="material-symbols-rounded text-sm">open_in_new</span>
-                    View Curriculum
-                  </button>
-                </div>
-              )}
+              {event.COURSE && <CurriculumSection course={event.COURSE} variant="facilitator" />}
+              <SpeakerSection speakers={event.EVENT_SPEAKERS} variant="facilitator" />
 
-              {/* Speaker */}
-              {event.EVENT_SPEAKERS.length > 0 ? (
-                (() => {
-                  const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
-                  const name = sp.USERS?.full_name || "Speaker";
-                  const email = sp.USERS?.email || null;
-                  const initials = name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2);
-                  return (
-                    <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                      <div className="flex items-center gap-5">
-                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                          <span className="text-xl font-bold text-brand">{initials || "SP"}</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-lg font-semibold text-fg">{name}</p>
-                          {sp.designation && (
-                            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-fg">{sp.designation}</p>
-                          )}
-                          {email && <p className="mt-1 text-sm text-muted-fg">{email}</p>}
-                          {sp.bio && <p className="mt-2 text-sm leading-[22px] text-muted-fg">{sp.bio}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-[rgba(255,255,255,0.9)] px-8 py-6 text-center text-sm text-muted-fg shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
-                  No speaker assigned yet
-                </div>
-              )}
-
-              {/* Recent Registrations */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-[20px] font-semibold text-fg">Recent Registrations</h2>
@@ -425,9 +368,7 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Sidebar */}
             <div className="col-span-4 flex flex-col gap-6">
-              {/* Analytics */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                 <span className="text-sm font-medium text-muted-fg">Registered</span>
                 <p className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-brand">
@@ -435,7 +376,6 @@ export default function EventDetailPage() {
                 </p>
               </div>
 
-              {/* Actions */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                 <h2 className="mb-4 text-[16px] font-semibold text-fg">Actions</h2>
                 <div className="flex flex-col gap-3">
@@ -485,66 +425,16 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Delete confirmation modal */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
-            <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
-              <div className="mb-4 flex items-center gap-3">
-                <span className="material-symbols-rounded text-2xl text-error">warning</span>
-                <h3 className="text-sm font-semibold text-fg">Delete event</h3>
-              </div>
-              <p className="mb-2 text-sm text-muted-fg">
-                This event has existing payments. Deleting it will also remove all associated data, including payments, tickets,
-                and chat messages. This action <strong>cannot be undone</strong>.
-              </p>
-              <p className="mb-4 text-sm text-muted-fg">
-                Type <strong>understood</strong> to confirm.
-              </p>
-              <input
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder='type "understood"'
-                className="mb-4 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-red-400"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-fg transition-colors hover:bg-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  disabled={deleteConfirmText !== "understood" || deleting}
-                  className="rounded-lg bg-error/100 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-error disabled:opacity-50"
-                >
-                  {deleting ? "Deleting..." : "Delete event"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <DeleteConfirmModal
+          show={showDeleteModal}
+          deleteConfirmText={deleteConfirmText}
+          onConfirmTextChange={setDeleteConfirmText}
+          onConfirm={confirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+          deleting={deleting}
+        />
 
-        {/* Attendees modal */}
-        {showAttendeesModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-8">
-            <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
-              <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                <h2 className="text-sm font-bold text-fg">Attendees</h2>
-                <button
-                  onClick={() => setShowAttendeesModal(false)}
-                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-muted"
-                >
-                  <span className="material-symbols-rounded text-[20px]">close</span>
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto p-6">
-                <AttendeesPanel eventId={eventId} />
-              </div>
-            </div>
-          </div>
-        )}
+        <AttendeesModal show={showAttendeesModal} eventId={eventId} onClose={() => setShowAttendeesModal(false)} />
 
         <Footer role="facilitator" />
       </div>
@@ -556,10 +446,8 @@ export default function EventDetailPage() {
       <div className="mx-auto w-full max-w-[1238px] px-0 py-[70px]">
         <div className="flex flex-col gap-[10px] px-0">
           <div className="flex flex-col gap-12 px-[48px]">
-            {/* Hero Section */}
             <div className="overflow-hidden rounded-2xl border border-[rgba(189,200,208,0.3)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <div className="flex">
-                {/* Left: Cover image */}
                 <div className="relative w-[567px] shrink-0">
                   {event.cover_image_url ? (
                     <img src={event.cover_image_url} alt={event.title} className="size-full object-cover" />
@@ -580,7 +468,6 @@ export default function EventDetailPage() {
                   )}
                 </div>
 
-                {/* Right: Event info */}
                 <div className="flex flex-1 flex-col justify-center gap-8 p-12">
                   <div>
                     {badgeProps && <StatusBadge status={badgeProps.status} label={badgeProps.label} className="mb-3" />}
@@ -600,82 +487,22 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Details Layout: 3-column grid */}
             <div className="grid grid-cols-3 gap-12">
-              {/* Article: 2 columns */}
               <div className="col-span-2 flex flex-col gap-6">
-                {/* Description */}
                 {event.description && (
                   <div>
                     <p className="text-lg leading-[29.25px] text-muted-fg">{event.description}</p>
                   </div>
                 )}
 
-                {/* Speaker */}
-                {event.EVENT_SPEAKERS.length > 0 &&
-                  (() => {
-                    const sp = event.EVENT_SPEAKERS[0].SPEAKER_PROFILES;
-                    const name = sp.USERS?.full_name || "Speaker";
-                    const initials = name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2);
-                    return (
-                      <div className="mt-8">
-                        <h2 className="mb-8 text-[24px] font-semibold text-fg">Speaker</h2>
-                        <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-muted p-8">
-                          <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                            <span className="text-2xl font-bold text-brand">{initials}</span>
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <div>
-                              <h3 className="text-[24px] font-semibold text-fg">{name}</h3>
-                              <p className="text-sm font-medium uppercase tracking-[0.05em] text-muted-fg">
-                                {sp.designation || "Speaker"}
-                              </p>
-                            </div>
-                            {sp.bio && <p className="text-base text-muted-fg">{sp.bio}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                <SpeakerSection speakers={event.EVENT_SPEAKERS} />
 
-                {/* Linked Curriculum */}
-                {event.COURSE && (
-                  <div className="mt-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-muted p-8">
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                        <span className="material-symbols-rounded text-lg text-brand">school</span>
-                      </div>
-                      <div>
-                        <h2 className="text-[20px] font-semibold text-fg">Linked Curriculum</h2>
-                      </div>
-                    </div>
-                    <h3 className="mb-2 text-[24px] font-bold text-fg">{event.COURSE.course_name}</h3>
-                    {event.COURSE.course_description && (
-                      <p className="mb-4 text-base leading-[26px] text-muted-fg">{event.COURSE.course_description}</p>
-                    )}
-                    {userRole === "facilitator" && (
-                      <button
-                        onClick={() => router.push(`/courses/${event.COURSE!.id}`)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
-                      >
-                        <span className="material-symbols-rounded text-sm">open_in_new</span>
-                        View Curriculum
-                      </button>
-                    )}
-                  </div>
-                )}
+                {event.COURSE && <CurriculumSection course={event.COURSE} />}
               </div>
 
-              {/* Sidebar: 1 column */}
               <div className="col-span-1">
                 <div className="sticky top-[70px] flex flex-col gap-6">
-                  {/* Registration card */}
                   <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    {/* Event Price */}
                     {event.price > 0 && !hasTicket && (
                       <div className="flex items-center gap-4">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
@@ -690,7 +517,6 @@ export default function EventDetailPage() {
                       </div>
                     )}
 
-                    {/* Buttons */}
                     <div className="flex flex-col gap-3">
                       {event.status === "active" && !isFacilitator && userRole !== "speaker" && (
                         <>
@@ -730,9 +556,7 @@ export default function EventDetailPage() {
                     </div>
                   </div>
 
-                  {/* Venue card */}
                   <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    {/* Venue Location */}
                     <div className="flex items-center gap-4">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
                         <span className="material-symbols-rounded text-lg text-brand">location_on</span>
@@ -746,7 +570,6 @@ export default function EventDetailPage() {
                       </div>
                     </div>
 
-                    {/* Map */}
                     <div
                       onClick={() => setMapExpanded(true)}
                       className="relative h-[250px] cursor-pointer overflow-hidden rounded-xl border border-border"
@@ -765,7 +588,6 @@ export default function EventDetailPage() {
                       </div>
                     </div>
 
-                    {/* Map Overlay */}
                     {mapExpanded && (
                       <div
                         className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-8"
@@ -805,7 +627,6 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Facilitator controls */}
             {isSignedIn && canManage && (
               <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted p-6">
                 <h3 className="mb-2 text-sm font-semibold text-fg">Event Management</h3>
@@ -854,46 +675,14 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            {/* Delete confirmation modal */}
-            {showDeleteModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
-                <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="material-symbols-rounded text-2xl text-error">warning</span>
-                    <h3 className="text-sm font-semibold text-fg">Delete event</h3>
-                  </div>
-                  <p className="mb-2 text-sm text-muted-fg">
-                    This event has existing payments. Deleting it will also remove all associated data, including payments,
-                    tickets, and chat messages. This action <strong>cannot be undone</strong>.
-                  </p>
-                  <p className="mb-4 text-sm text-muted-fg">
-                    Type <strong>understood</strong> to confirm.
-                  </p>
-                  <input
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder='type "understood"'
-                    className="mb-4 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-red-400"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setShowDeleteModal(false)}
-                      className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-fg transition-colors hover:bg-muted"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={confirmDelete}
-                      disabled={deleteConfirmText !== "understood" || deleting}
-                      className="rounded-lg bg-error/100 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-error disabled:opacity-50"
-                    >
-                      {deleting ? "Deleting..." : "Delete event"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <DeleteConfirmModal
+              show={showDeleteModal}
+              deleteConfirmText={deleteConfirmText}
+              onConfirmTextChange={setDeleteConfirmText}
+              onConfirm={confirmDelete}
+              onCancel={() => setShowDeleteModal(false)}
+              deleting={deleting}
+            />
           </div>
         </div>
       </div>
