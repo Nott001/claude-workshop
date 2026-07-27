@@ -12,7 +12,7 @@ describe("ChatChannel type", () => {
 describe("ChatMessage type", () => {
   it("has correct shape", () => {
     const msg: ChatMessage = {
-      message_id: 1,
+      id: 1,
       event_id: 1,
       channel: "live_qa",
       user_id: 5,
@@ -25,14 +25,14 @@ describe("ChatMessage type", () => {
       reply_to: null,
       answered_verbally: false,
     };
-    expect(msg.message_id).toBe(1);
+    expect(msg.id).toBe(1);
     expect(msg.channel).toBe("live_qa");
     expect(msg.message).toBe("Hello, world!");
   });
 
   it("accepts deleted_at with a value", () => {
     const msg: ChatMessage = {
-      message_id: 2,
+      id: 2,
       event_id: 1,
       channel: "support",
       user_id: 3,
@@ -50,7 +50,7 @@ describe("ChatMessage type", () => {
 
   it("accepts null event_id for global support", () => {
     const msg: ChatMessage = {
-      message_id: 3,
+      id: 3,
       event_id: null,
       channel: "global_support",
       user_id: 1,

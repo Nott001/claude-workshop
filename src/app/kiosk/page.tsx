@@ -152,7 +152,7 @@ export default function KioskPage() {
               <div className="space-y-3">
                 {events.map((event) => (
                   <button
-                    key={event.event_id}
+                    key={event.id}
                     onClick={() => setSelectedEvent(event)}
                     className="flex w-full items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4 text-left transition hover:border-brand hover:shadow-sm"
                   >
@@ -330,7 +330,7 @@ export default function KioskPage() {
 
           {/* Right: Attendees List */}
           <div className="flex flex-1 flex-col overflow-hidden p-6">
-            <AttendeesPanel eventId={selectedEvent.event_id} />
+            <AttendeesPanel eventId={String(selectedEvent.id)} />
           </div>
         </div>
       </div>

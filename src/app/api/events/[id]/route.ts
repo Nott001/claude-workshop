@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { eventDao, userDao, courseDao, paymentDao, ticketDao } from "@/lib/db/dao";
 import { eventPartialSchema } from "@/modules/event-management";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 import { logAuditEvent } from "@/modules/audit";
@@ -11,19 +12,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { userId } = await auth();
   const supabase = getServiceClient();
 
-  const { data: event, error } = await supabase
-    .from("EVENTS")
-    .select("*, COURSE(*), EVENT_SPEAKERS(SPEAKER_PROFILES(*, USERS(full_name, email)))")
-    .eq("event_id", id)
-    .single();
+  const event = (await eventDao.findByIdWithCourse(supabase, Number(id))) as Record<string, unknown> | null;
 
-  if (error || !event) {
+  if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   let userRole: string | null = null;
   if (userId) {
-    const { data: user } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+    const user = await userDao.findByAuthIdWithRole(supabase, userId);
     userRole = user?.role ?? null;
   }
 
@@ -32,12 +29,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (userRole === "facilitator") {
-    const { count: attendeeCount } = await supabase
-      .from("TICKETS")
-      .select("payment_id", { count: "exact", head: true })
-      .eq("event_id", id)
-      .neq("status", "cancelled");
-    return NextResponse.json({ ...event, attendee_count: attendeeCount ?? 0 });
+    const attendeeCount = await eventDao.getAttendeeCount(supabase, Number(id));
+    return NextResponse.json({ ...event, attendee_count: attendeeCount });
   }
 
   return NextResponse.json(event);
@@ -59,21 +52,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const supabase = getServiceClient();
 
   if (parsed.data.course_id !== undefined && parsed.data.course_id !== null) {
-    const { data: courseExists } = await supabase
-      .from("COURSE")
-      .select("course_id")
-      .eq("course_id", parsed.data.course_id)
-      .single();
-
+    const courseExists = await courseDao.findCourseById(supabase, parsed.data.course_id);
     if (!courseExists) {
       return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
     }
   }
 
-  const { data: event, error } = await supabase.from("EVENTS").update(parsed.data).eq("event_id", id).select().single();
+  const event = await eventDao.update(supabase, Number(id), parsed.data);
 
-  if (error) {
-    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  if (!event) {
+    return NextResponse.json({ error: { message: "Failed to update event" } }, { status: 500 });
   }
 
   const { userId } = await auth();
@@ -96,7 +84,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
   const { userId } = await auth();
 
-  const { data: event } = await supabase.from("EVENTS").select("cover_image_url, course_id, title").eq("event_id", id).single();
+  const event = (await eventDao.findByIdSelect(supabase, Number(id), "cover_image_url, course_id, title")) as {
+    cover_image_url: string | null;
+    course_id: number | null;
+    title: string;
+  } | null;
 
   if (event?.cover_image_url) {
     const imagePath = event.cover_image_url.split("/").pop();
@@ -108,11 +100,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   if (event?.course_id) {
-    const modules = await supabase.from("MODULES").select("module_id").eq("course_id", event.course_id);
-    for (const mod of modules.data ?? []) {
-      const lessons = await supabase.from("LESSONS").select("lesson_id").eq("module_id", mod.module_id);
-      for (const lesson of lessons.data ?? []) {
-        const folder = `courses/${event.course_id}/modules/${mod.module_id}/lessons/${lesson.lesson_id}`;
+    const modules = await courseDao.findModulesByCourse(supabase, event.course_id);
+    for (const mod of modules) {
+      const lessons = await courseDao.findLessonsByModule(supabase, mod.id);
+      for (const lesson of lessons) {
+        const folder = `courses/${event.course_id}/modules/${mod.id}/lessons/${lesson.id}`;
         const [assetPaths, videoPaths] = await Promise.all([
           listStorageFolder("course_assets", folder),
           listStorageFolder("course_videos", folder),
@@ -122,25 +114,19 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  const { data: payments } = await supabase.from("PAYMENTS").select("payment_id").eq("event_id", id);
-  const paymentIds = (payments ?? []).map((p) => p.payment_id);
+  const paymentIds = await paymentDao.deleteByEvent(supabase, Number(id));
 
   if (paymentIds.length > 0) {
-    const { error: ticketErr } = await supabase.from("TICKETS").delete().in("payment_id", paymentIds);
-    if (ticketErr) {
-      return NextResponse.json({ error: { message: ticketErr.message } }, { status: 500 });
-    }
-
-    const { error: paymentErr } = await supabase.from("PAYMENTS").delete().in("payment_id", paymentIds);
-    if (paymentErr) {
-      return NextResponse.json({ error: { message: paymentErr.message } }, { status: 500 });
+    const ok = await ticketDao.deleteByPaymentIds(supabase, paymentIds);
+    if (!ok) {
+      return NextResponse.json({ error: { message: "Failed to delete tickets" } }, { status: 500 });
     }
   }
 
-  const { error } = await supabase.from("EVENTS").delete().eq("event_id", id);
+  const removed = await eventDao.remove(supabase, Number(id));
 
-  if (error) {
-    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  if (!removed) {
+    return NextResponse.json({ error: { message: "Failed to delete event" } }, { status: 500 });
   }
 
   if (userId) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { courseDao } from "@/lib/db/dao";
 import { courseSchema } from "@/modules/course-content";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -12,11 +13,7 @@ export async function GET() {
   }
 
   const supabase = getServiceClient();
-  const { data: courses, error } = await supabase.from("COURSE").select("*").order("course_id", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const courses = await courseDao.listCourses(supabase);
 
   return NextResponse.json(courses);
 }
@@ -34,19 +31,18 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
-  const { data: course, error } = await supabase
-    .from("COURSE")
-    .insert({ course_name: parsed.data.course_name, course_description: parsed.data.course_description ?? null })
-    .select()
-    .single();
+  const course = await courseDao.createCourse(supabase, {
+    course_name: parsed.data.course_name,
+    course_description: parsed.data.course_description ?? null,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!course) {
+    return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
 
   const { userId } = await auth();
   if (userId) {
-    await logAuditEvent(supabase, userId, "course.created", "course", course.course_id, {
+    await logAuditEvent(supabase, userId, "course.created", "course", course.id, {
       name: course.course_name,
     });
   }

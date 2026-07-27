@@ -12,9 +12,8 @@ import { Footer } from "@/components/footer";
 import { AttendeesPanel } from "@/components/attendees-panel";
 
 interface SpeakerProfile {
-  speaker_profile_id: number;
+  id: number;
   bio: string | null;
-  photo_url: string | null;
   designation: string | null;
   USERS?: { full_name: string; email: string } | null;
 }
@@ -24,13 +23,13 @@ interface EventSpeaker {
 }
 
 interface Course {
-  course_id: number;
+  id: number;
   course_name: string;
   course_description: string | null;
 }
 
 interface Event {
-  event_id: number;
+  id: number;
   title: string;
   event_date: string;
   start_time: string;
@@ -142,7 +141,7 @@ export default function EventDetailPage() {
     fetch("/api/speakers/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.speaker_profile_id) setSpeakerProfileId(data.speaker_profile_id);
+        if (data?.id) setSpeakerProfileId(data.id);
       })
       .catch(() => {});
   }, [isLoaded, isSignedIn, userRole]);
@@ -163,9 +162,7 @@ export default function EventDetailPage() {
 
   const isSpeakerAssigned =
     speakerProfileId &&
-    event?.EVENT_SPEAKERS?.some(
-      (es: { SPEAKER_PROFILES: { speaker_profile_id: number } }) => es.SPEAKER_PROFILES.speaker_profile_id === speakerProfileId,
-    );
+    event?.EVENT_SPEAKERS?.some((es: { SPEAKER_PROFILES: { id: number } }) => es.SPEAKER_PROFILES.id === speakerProfileId);
 
   const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
   const badgeProps = event ? getBadgeProps(event) : null;
@@ -178,15 +175,11 @@ export default function EventDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   function getMapUrl(format: "embed" | "search") {
-    const hasCoords = event?.lat != null && event?.lng != null;
+    const q = encodeURIComponent(event!.venue_name + (event!.venue_address ? `, ${event!.venue_address}` : ""));
     if (format === "embed") {
-      return hasCoords
-        ? `https://www.google.com/maps?q=${event.lat},${event.lng}&z=15&output=embed`
-        : `https://www.google.com/maps?q=${encodeURIComponent(event!.venue_name + (event!.venue_address ? `, ${event!.venue_address}` : ""))}&output=embed`;
+      return `https://www.google.com/maps?q=${q}&output=embed`;
     }
-    return hasCoords
-      ? `https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event!.venue_name + (event!.venue_address ? `, ${event!.venue_address}` : ""))}`;
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
   }
 
   async function handleRegister() {
@@ -332,7 +325,7 @@ export default function EventDetailPage() {
                     <p className="mb-4 text-base leading-[26px] text-muted-fg">{event.COURSE.course_description}</p>
                   )}
                   <button
-                    onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
+                    onClick={() => router.push(`/courses/${event.COURSE!.id}`)}
                     className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
                   >
                     <span className="material-symbols-rounded text-sm">open_in_new</span>
@@ -356,11 +349,7 @@ export default function EventDetailPage() {
                     <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                       <div className="flex items-center gap-5">
                         <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                          {sp.photo_url ? (
-                            <img src={sp.photo_url} alt="" className="size-full object-cover" />
-                          ) : (
-                            <span className="text-xl font-bold text-brand">{initials || "SP"}</span>
-                          )}
+                          <span className="text-xl font-bold text-brand">{initials || "SP"}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-lg font-semibold text-fg">{name}</p>
@@ -637,11 +626,7 @@ export default function EventDetailPage() {
                         <h2 className="mb-8 text-[24px] font-semibold text-fg">Speaker</h2>
                         <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-muted p-8">
                           <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                            {sp.photo_url ? (
-                              <img src={sp.photo_url} alt="" className="size-full object-cover" />
-                            ) : (
-                              <span className="text-2xl font-bold text-brand">{initials}</span>
-                            )}
+                            <span className="text-2xl font-bold text-brand">{initials}</span>
                           </div>
                           <div className="flex flex-col gap-3">
                             <div>
@@ -674,7 +659,7 @@ export default function EventDetailPage() {
                     )}
                     {userRole === "facilitator" && (
                       <button
-                        onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
+                        onClick={() => router.push(`/courses/${event.COURSE!.id}`)}
                         className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
                       >
                         <span className="material-symbols-rounded text-sm">open_in_new</span>

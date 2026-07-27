@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { courseDao } from "@/lib/db/dao";
 import { moduleSchema } from "@/modules/course-content";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -19,27 +20,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const supabase = getServiceClient();
-  const { data: module, error } = await supabase
-    .from("MODULES")
-    .insert({
-      course_id: Number(id),
-      module_name: parsed.data.module_name,
-      sequence_order: parsed.data.sequence_order,
-    })
-    .select()
-    .single();
+  const mod = await courseDao.createModule(supabase, {
+    course_id: Number(id),
+    module_name: parsed.data.module_name,
+    sequence_order: parsed.data.sequence_order,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!mod) {
+    return NextResponse.json({ error: "Failed to create module" }, { status: 500 });
   }
 
   const { userId } = await auth();
   if (userId) {
-    await logAuditEvent(supabase, userId, "module.created", "module", module.module_id, {
+    await logAuditEvent(supabase, userId, "module.created", "module", mod.id, {
       course_id: Number(id),
-      name: module.module_name,
+      name: mod.module_name,
     });
   }
 
-  return NextResponse.json(module, { status: 201 });
+  return NextResponse.json(mod, { status: 201 });
 }

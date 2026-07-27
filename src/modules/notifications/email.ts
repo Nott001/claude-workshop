@@ -1,6 +1,7 @@
 import { getServiceClient } from "@/lib/db";
+import { emailDao } from "@/lib/db/dao";
 import { sendEmail, emailTemplates } from "@/lib/email";
-import type { EmailType } from ".";
+import type { EmailType } from "@/types";
 
 export function fireAndForgetEmailNotification(params: {
   user_id: number;
@@ -31,15 +32,12 @@ export function fireAndForgetEmailNotification(params: {
 
       const supabase = getServiceClient();
       const sentAt = new Date().toISOString();
-      const { error: logError } = await supabase.from("EMAIL_LOGS").insert({
+      await emailDao.insert(supabase, {
         user_id: params.user_id,
         email_type: params.email_type,
         status: result.success ? "sent" : "failed",
         sent_at: sentAt,
       });
-      if (logError) {
-        console.warn("EMAIL_LOGS insert failed:", logError.message);
-      }
     })(),
   ]);
 }

@@ -11,7 +11,7 @@ import { EventSessionNavbar } from "@/components/event-session-navbar";
 import type { UserRole } from "@/types";
 
 interface Lesson {
-  lesson_id: number;
+  id: number;
   module_id: number;
   description: string;
   content_type: string;
@@ -20,14 +20,14 @@ interface Lesson {
 }
 
 interface Module {
-  module_id: number;
+  id: number;
   module_name: string;
   sequence_order: number;
   LESSONS: Lesson[];
 }
 
 interface CourseData {
-  course_id: number;
+  id: number;
   course_name: string;
   course_description: string | null;
   MODULES: Module[];
@@ -293,16 +293,16 @@ export default function EventRoomPage() {
               </div>
 
               {course.MODULES.map((mod, modIdx) => (
-                <div key={mod.module_id}>
+                <div key={mod.id}>
                   <h2 className="mb-3 text-sm font-semibold text-fg">
                     {modIdx + 1}. {mod.module_name}
                   </h2>
                   <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
                     {mod.LESSONS.map((lesson, lessonIdx) => {
-                      const isHighlighted = highlightedLessonId === lesson.lesson_id;
+                      const isHighlighted = highlightedLessonId === lesson.id;
                       return (
                         <div
-                          key={lesson.lesson_id}
+                          key={lesson.id}
                           className={"relative transition-colors " + (isHighlighted ? "bg-[rgba(0,150,199,0.06)]" : "")}
                         >
                           {isHighlighted && <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" />}
@@ -360,7 +360,7 @@ export default function EventRoomPage() {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => handleSetHighlight(lesson.lesson_id)}
+                                  onClick={() => handleSetHighlight(lesson.id)}
                                   disabled={settingHighlight}
                                   className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-bold text-muted-fg transition-colors hover:border-brand hover:text-brand disabled:opacity-50"
                                 >
@@ -421,14 +421,18 @@ export default function EventRoomPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-6">
-              {selectedLesson.content_url ? (
-                <LessonViewer lesson={selectedLesson} />
-              ) : (
-                <div className="flex items-center justify-center py-16 text-center">
-                  <span className="material-symbols-rounded text-3xl text-muted-foreground/50">link_off</span>
-                  <p className="mt-2 text-sm text-muted-foreground">No content available for this resource.</p>
-                </div>
-              )}
+              {(() => {
+                const content_url = selectedLesson.content_url;
+                if (!content_url) {
+                  return (
+                    <div className="flex items-center justify-center py-16 text-center">
+                      <span className="material-symbols-rounded text-3xl text-muted-foreground/50">link_off</span>
+                      <p className="mt-2 text-sm text-muted-foreground">No content available for this resource.</p>
+                    </div>
+                  );
+                }
+                return <LessonViewer lesson={{ ...selectedLesson, content_url }} />;
+              })()}
             </div>
           </div>
         </div>

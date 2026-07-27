@@ -2,6 +2,7 @@ import { SignIn } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getServiceClient } from "@/lib/db";
+import { userDao } from "@/lib/db/dao";
 import type { UserRole } from "@/types";
 
 const STAFF_ROLES: UserRole[] = ["facilitator", "speaker"];
@@ -11,7 +12,7 @@ export default async function StaffLoginPage() {
 
   if (userId) {
     const supabase = getServiceClient();
-    const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).single();
+    const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
 
     if (!dbUser || !STAFF_ROLES.includes(dbUser.role as UserRole)) {
       redirect("/events");

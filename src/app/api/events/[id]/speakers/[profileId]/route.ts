@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { speakerDao } from "@/lib/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; profileId: string }> }) {
@@ -13,10 +14,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id, profileId } = await params;
   const supabase = getServiceClient();
 
-  const { error } = await supabase.from("EVENT_SPEAKERS").delete().eq("event_id", id).eq("speaker_profile_id", profileId);
+  const ok = await speakerDao.unassignFromEvent(supabase, Number(id), Number(profileId));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to unassign speaker" }, { status: 500 });
   }
 
   const { userId } = await auth();

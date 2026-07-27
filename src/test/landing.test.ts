@@ -89,22 +89,24 @@ describe("getUpcomingEvents", () => {
   it("returns mapped events from Supabase", async () => {
     const rawEvents = [
       {
-        event_id: 1,
+        id: 1,
         title: "AI Workshop",
         event_date: "2026-09-15",
         start_time: "10:00",
         end_time: "12:00",
         venue_name: "Main Hall",
+        cover_image_url: null,
         status: "active",
         COURSE: { course_name: "AI 101" },
       },
       {
-        event_id: 2,
+        id: 2,
         title: "Founders Night",
         event_date: "2026-09-22",
         start_time: "18:30",
         end_time: "21:00",
         venue_name: "Rooftop",
+        cover_image_url: null,
         status: "draft",
         COURSE: null,
       },
@@ -141,7 +143,7 @@ describe("getUpcomingEvents", () => {
 
     await getUpcomingEvents();
 
-    expect(fromMock).toHaveBeenCalledWith("EVENTS");
+    expect(fromMock).toHaveBeenCalledWith("EVENT");
     expect(chain.eq).toHaveBeenCalledWith("status", "active");
     expect(chain.limit).toHaveBeenCalledWith(2);
   });

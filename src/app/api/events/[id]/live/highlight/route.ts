@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
+import { eventDao, userDao, courseDao } from "@/lib/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: event } = await supabase.from("EVENTS").select("event_id").eq("event_id", id).single();
+  const event = (await eventDao.findByIdSelect(supabase, Number(id), "id")) as { id: number } | null;
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   const { data: state } = await supabase
     .from("LIVE_SESSION_STATE")
-    .select("*, LESSONS(description, content_type)")
+    .select("*, LESSON(id, description, content_type)")
     .eq("event_id", id)
     .single();
 
@@ -25,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     highlighted_lesson_id: state.highlighted_lesson_id,
     updated_by: state.updated_by,
     updated_at: state.updated_at,
-    lesson: state.LESSONS ?? null,
+    lesson: state.LESSON ?? null,
   });
 }
 
@@ -38,12 +39,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: user } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const user = await userDao.findByAuthIdWithRole(supabase, userId);
   if (!user || (user.role !== "speaker" && user.role !== "facilitator")) {
     return NextResponse.json({ error: "Only speakers and facilitators can update the live highlight" }, { status: 403 });
   }
 
-  const { data: event } = await supabase.from("EVENTS").select("event_id, course_id").eq("event_id", id).single();
+  const event = (await eventDao.findByIdSelect(supabase, Number(id), "id, course_id")) as {
+    id: number;
+    course_id: number;
+  } | null;
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -52,15 +56,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const lessonId = body.lesson_id ?? null;
 
   if (lessonId !== null) {
-    const { data: lesson } = await supabase.from("LESSONS").select("lesson_id, module_id").eq("lesson_id", lessonId).single();
+    const lesson = await courseDao.findLessonById(supabase, lessonId);
 
     if (!lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
 
-    const { data: module } = await supabase.from("MODULES").select("course_id").eq("module_id", lesson.module_id).single();
+    const mod = await courseDao.findModuleById(supabase, lesson.module_id);
 
-    if (!module || module.course_id !== event.course_id) {
+    if (!mod || mod.course_id !== event.course_id) {
       return NextResponse.json({ error: "Lesson does not belong to this event's course" }, { status: 400 });
     }
   }
@@ -71,7 +75,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       {
         event_id: Number(id),
         highlighted_lesson_id: lessonId,
-        updated_by: user.user_id,
+        updated_by: user.id,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "event_id" },
@@ -95,7 +99,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: user } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
+  const user = await userDao.findByAuthIdWithRole(supabase, userId);
   if (!user || (user.role !== "speaker" && user.role !== "facilitator")) {
     return NextResponse.json({ error: "Only speakers and facilitators can clear the live highlight" }, { status: 403 });
   }
@@ -106,7 +110,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       {
         event_id: Number(id),
         highlighted_lesson_id: null,
-        updated_by: user.user_id,
+        updated_by: user.id,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "event_id" },

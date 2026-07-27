@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { userDao } from "@/lib/db/dao";
 import type { UserRole } from "@/types";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -25,15 +26,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
 
   const supabase = getServiceClient();
 
-  const { data: user, error } = await supabase
-    .from("USERS")
-    .update({ role: parsed.data.role as UserRole, updated_at: new Date().toISOString() })
-    .eq("user_id", Number(userId))
-    .select("user_id, full_name, email, role")
-    .single();
+  const user = await userDao.updateRole(supabase, Number(userId), parsed.data.role as UserRole);
 
-  if (error) {
-    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  if (!user) {
+    return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
   }
 
   const { userId: clerkId } = await auth();
@@ -56,16 +52,16 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   const { userId: clerkId } = await auth();
   const supabase = getServiceClient();
 
-  const { data: currentUser } = await supabase.from("USERS").select("user_id").eq("clerk_id", clerkId).maybeSingle();
+  const currentUser = await userDao.findByAuthId(supabase, clerkId!);
 
-  if (currentUser?.user_id === Number(userId)) {
+  if (currentUser?.id === Number(userId)) {
     return NextResponse.json({ error: { message: "Cannot remove yourself" } }, { status: 400 });
   }
 
-  const { error } = await supabase.from("USERS").delete().eq("user_id", Number(userId));
+  const ok = await userDao.removeById(supabase, Number(userId));
 
-  if (error) {
-    return NextResponse.json({ error: { message: error.message } }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
   }
 
   if (clerkId) {

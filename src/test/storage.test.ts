@@ -113,7 +113,7 @@ describe("Storage path builders", () => {
 describe("Type shapes", () => {
   it("Event has cover_image_url field", () => {
     const event: Event = {
-      event_id: 1,
+      id: 1,
       course_id: null,
       title: "Test",
       event_date: "2026-01-01",
@@ -134,10 +134,10 @@ describe("Type shapes", () => {
 
   it("User has profile_image_url field", () => {
     const user: User = {
-      user_id: 1,
+      id: 1,
       full_name: "Test User",
       email: "test@example.com",
-      clerk_id: "clerk_123",
+      auth_user_id: "clerk_123",
       role: "attendee",
       profile_image_url: null,
       created_at: "2026-01-01T00:00:00Z",

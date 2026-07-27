@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
+import { userDao, speakerDao } from "@/lib/db/dao";
 
 export async function GET() {
   const { userId } = await auth();
@@ -10,17 +11,13 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, full_name, email").eq("clerk_id", userId).single();
+  const dbUser = await userDao.findByAuthId(supabase, userId);
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const { data: profile } = await supabase
-    .from("SPEAKER_PROFILES")
-    .select("speaker_profile_id, bio, designation, photo_url")
-    .eq("user_id", dbUser.user_id)
-    .single();
+  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
 
   if (!profile) {
     return NextResponse.json({
@@ -48,17 +45,13 @@ export async function PATCH(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
+  const dbUser = await userDao.findByAuthId(supabase, userId);
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const { data: profile } = await supabase
-    .from("SPEAKER_PROFILES")
-    .select("speaker_profile_id")
-    .eq("user_id", dbUser.user_id)
-    .single();
+  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
 
   if (!profile) {
     return NextResponse.json({ error: "No speaker profile" }, { status: 404 });
@@ -67,13 +60,10 @@ export async function PATCH(req: Request) {
   const body = await req.json();
   const { designation, bio } = body;
 
-  const { error } = await supabase
-    .from("SPEAKER_PROFILES")
-    .update({ designation: designation ?? null, bio: bio ?? null })
-    .eq("speaker_profile_id", profile.speaker_profile_id);
+  const updated = await speakerDao.update(supabase, profile.id, { designation: designation ?? null, bio: bio ?? null });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated) {
+    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

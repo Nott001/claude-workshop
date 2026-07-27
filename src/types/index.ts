@@ -2,10 +2,10 @@ export type UserRole = "attendee" | "speaker" | "facilitator";
 export type ChatChannel = "support" | "live_qa" | "global_support";
 
 export interface User {
-  user_id: number;
+  id: number;
   full_name: string;
   email: string;
-  clerk_id: string;
+  auth_user_id: string;
   role: UserRole;
   profile_image_url: string | null;
   created_at: string;
@@ -15,7 +15,7 @@ export interface User {
 export type ContentType = "pdf" | "video" | "image" | "link";
 
 export interface Course {
-  course_id: number;
+  id: number;
   course_name: string;
   course_description: string | null;
   created_at: string;
@@ -23,7 +23,7 @@ export interface Course {
 }
 
 export interface Module {
-  module_id: number;
+  id: number;
   course_id: number;
   module_name: string;
   sequence_order: number;
@@ -32,11 +32,11 @@ export interface Module {
 }
 
 export interface Lesson {
-  lesson_id: number;
+  id: number;
   module_id: number;
   description: string;
   content_type: ContentType;
-  content_url: string;
+  content_url: string | null;
   sequence_order: number;
   created_at: string;
   updated_at: string;
@@ -45,7 +45,7 @@ export interface Lesson {
 export type EventStatus = "draft" | "active" | "complete";
 
 export interface Event {
-  event_id: number;
+  id: number;
   course_id: number | null;
   title: string;
   event_date: string;
@@ -53,8 +53,6 @@ export interface Event {
   end_time: string;
   venue_address: string | null;
   venue_name: string;
-  lat: number | null;
-  lng: number | null;
   description: string | null;
   price: number;
   currency: string;
@@ -65,11 +63,14 @@ export interface Event {
 }
 
 export interface SpeakerProfile {
-  speaker_profile_id: number;
+  id: number;
   user_id: number;
   bio: string | null;
-  photo_url: string | null;
   designation: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,7 +79,7 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type TicketStatus = "issued" | "checked_in" | "cancelled";
 
 export interface Payment {
-  payment_id: number;
+  id: number;
   user_id: number;
   event_id: number;
   gateway_reference_id: string | null;
@@ -91,6 +92,7 @@ export interface Payment {
 }
 
 export interface Ticket {
+  id: number;
   payment_id: number;
   user_id: number;
   event_id: number;
@@ -98,11 +100,13 @@ export interface Ticket {
   status: TicketStatus;
   issued_at: string;
   checked_in_by: number | null;
+  checked_in_at: string | null;
+  created_at: string;
   updated_at: string;
 }
 
 export interface ChatMessage {
-  message_id: number;
+  id: number;
   event_id: number | null;
   channel: ChatChannel;
   user_id: number;
@@ -138,7 +142,7 @@ export type AuditAction =
   | "lesson.deleted";
 
 export interface AuditLog {
-  log_id: number;
+  id: number;
   actor_id: number;
   action: AuditAction;
   entity_type: string;
@@ -157,7 +161,7 @@ export interface LiveSessionState {
 export type SupportSessionStatus = "active" | "ended_by_facilitator";
 
 export interface SupportSession {
-  session_id: number;
+  id: number;
   user_id: number;
   status: SupportSessionStatus;
   created_at: string;
@@ -168,7 +172,7 @@ export type EmailType = "ticket_issued" | "check_in_confirmed";
 export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
-  log_id: number;
+  id: number;
   user_id: number;
   email_type: EmailType;
   status: EmailStatus;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { courseDao } from "@/lib/db/dao";
 import { lessonSchema } from "@/modules/course-content";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -19,25 +20,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const supabase = getServiceClient();
-  const { data: lesson, error } = await supabase
-    .from("LESSONS")
-    .insert({
-      module_id: Number(id),
-      description: parsed.data.description,
-      content_type: parsed.data.content_type,
-      content_url: parsed.data.content_url,
-      sequence_order: parsed.data.sequence_order,
-    })
-    .select()
-    .single();
+  const lesson = await courseDao.createLesson(supabase, {
+    module_id: Number(id),
+    description: parsed.data.description,
+    content_type: parsed.data.content_type,
+    content_url: parsed.data.content_url ?? undefined,
+    sequence_order: parsed.data.sequence_order,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!lesson) {
+    return NextResponse.json({ error: "Failed to create lesson" }, { status: 500 });
   }
 
   const { userId } = await auth();
   if (userId) {
-    await logAuditEvent(supabase, userId, "lesson.created", "lesson", lesson.lesson_id, {
+    await logAuditEvent(supabase, userId, "lesson.created", "lesson", lesson.id, {
       module_id: Number(id),
       description: lesson.description,
     });

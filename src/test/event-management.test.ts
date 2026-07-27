@@ -10,7 +10,7 @@ import type { Event, SpeakerProfile } from "@/types";
 describe("Event types", () => {
   it("Event interface has correct shape", () => {
     const event: Event = {
-      event_id: 1,
+      id: 1,
       course_id: null,
       title: "Test Event",
       event_date: "2026-06-15",
@@ -32,11 +32,14 @@ describe("Event types", () => {
 
   it("SpeakerProfile interface has correct shape", () => {
     const profile: SpeakerProfile = {
-      speaker_profile_id: 1,
+      id: 1,
       user_id: 1,
       bio: "Expert speaker",
-      photo_url: null,
       designation: "Keynote",
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };

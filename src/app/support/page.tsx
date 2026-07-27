@@ -12,7 +12,7 @@ interface ChatMessageWithUser extends ChatMessage {
 }
 
 interface SupportUser {
-  user_id: number;
+  id: number;
   full_name: string;
   last_message: string;
   last_sent_at: string;
@@ -37,7 +37,7 @@ export default function SupportPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { user: currentUser } = useCurrentUser();
-  const currentUserId = currentUser?.user_id ?? null;
+  const currentUserId = currentUser?.id ?? null;
 
   const {
     data: usersData,
@@ -75,8 +75,8 @@ export default function SupportPage() {
   useEffect(() => {
     if (messagesData?.messages?.length) {
       const last = messagesData.messages[messagesData.messages.length - 1];
-      if (last.message_id !== prevLastMsgRef.current) {
-        prevLastMsgRef.current = last.message_id;
+      if (last.id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.id;
         setActive();
       }
     }
@@ -85,7 +85,7 @@ export default function SupportPage() {
   const allMessages = useMemo(() => {
     const merged = [...serverMessages];
     for (const p of pendingMessages) {
-      if (!merged.some((m) => m.message_id === p.message_id)) {
+      if (!merged.some((m) => m.id === p.id)) {
         merged.push(p);
       }
     }
@@ -110,7 +110,7 @@ export default function SupportPage() {
     const text = newMessage.trim();
     const optimisticId = -Date.now();
     const optimistic: ChatMessageWithUser = {
-      message_id: optimisticId,
+      id: optimisticId,
       channel: "global_support",
       user_id: currentUserId,
       message: text,
@@ -135,21 +135,21 @@ export default function SupportPage() {
     });
 
     if (res.status === 429) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Too many messages. Please wait a moment.");
       setSending(false);
       return;
     }
 
     if (!res.ok) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Failed to send message.");
       setSending(false);
       return;
     }
 
     const sent = (await res.json()) as ChatMessageWithUser;
-    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+    setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     setSending(false);
     mutateUsers();
     setActive();
@@ -203,7 +203,7 @@ export default function SupportPage() {
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
-  const selectedUser = users.find((u) => u.user_id === selectedUserId);
+  const selectedUser = users.find((u) => u.id === selectedUserId);
   const sessionActive = selectedUser?.session_active ?? false;
   const usersLoaded = !usersLoading;
 
@@ -224,11 +224,11 @@ export default function SupportPage() {
           ) : (
             users.map((user) => (
               <button
-                key={user.user_id}
-                onClick={() => setSelectedUserId(user.user_id)}
+                key={user.id}
+                onClick={() => setSelectedUserId(user.id)}
                 className={
                   "flex w-full flex-col gap-1 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted " +
-                  (selectedUserId === user.user_id ? "bg-brand/10" : "")
+                  (selectedUserId === user.id ? "bg-brand/10" : "")
                 }
               >
                 <div className="flex items-center justify-between">
@@ -313,7 +313,7 @@ export default function SupportPage() {
                     const isChatEnded = msg.message.startsWith("[Chat ended");
                     if (isChatEnded) {
                       return (
-                        <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                        <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
                           <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
                           <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
                         </div>
@@ -322,7 +322,7 @@ export default function SupportPage() {
                     const isOwn = msg.user_id === currentUserId;
                     const isStaff = msg.USER?.role === "facilitator";
                     return (
-                      <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
+                      <div key={msg.id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                         <div className="flex items-center gap-1.5 mb-1">
                           {!isOwn && (
                             <span className="text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { speakerDao } from "@/lib/db/dao";
 import { speakerAssignmentSchema } from "@/modules/event-management";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -14,14 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: assignments, error } = await supabase
-    .from("EVENT_SPEAKERS")
-    .select("*, SPEAKER_PROFILES(*)")
-    .eq("event_id", id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const assignments = await speakerDao.listEventAssignments(supabase, Number(id));
 
   return NextResponse.json(assignments);
 }
@@ -40,17 +34,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const supabase = getServiceClient();
-  const { data: assignment, error } = await supabase
-    .from("EVENT_SPEAKERS")
-    .insert({
-      event_id: Number(id),
-      speaker_profile_id: parsed.data.speaker_profile_id,
-    })
-    .select()
-    .single();
+  const ok = await speakerDao.assignToEvent(supabase, Number(id), parsed.data.speaker_profile_id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to assign speaker" }, { status: 500 });
   }
 
   const { userId } = await auth();
@@ -60,5 +47,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
   }
 
-  return NextResponse.json(assignment, { status: 201 });
+  return NextResponse.json({ success: true }, { status: 201 });
 }

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
 interface CurrentUser {
-  user_id: number;
+  id: number;
   role: string;
+  full_name?: string;
 }
 
 export function useCurrentUser() {
