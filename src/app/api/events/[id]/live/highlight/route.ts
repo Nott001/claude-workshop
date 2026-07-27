@@ -7,7 +7,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(id), "id")) as { id: number } | null;
+  const event = await eventDao.findById(supabase, Number(id));
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -44,10 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Only speakers and facilitators can update the live highlight" }, { status: 403 });
   }
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(id), "id, course_id")) as {
-    id: number;
-    course_id: number;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(id));
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }

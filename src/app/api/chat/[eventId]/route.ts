@@ -23,10 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
 
   const supabase = getServiceClient();
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(eventId), "id, status")) as {
-    id: number;
-    status: string;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(eventId));
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -63,10 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
 
   const supabase = getServiceClient();
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(eventId), "id, status")) as {
-    id: number;
-    status: string;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(eventId));
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }

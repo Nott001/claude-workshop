@@ -62,10 +62,7 @@ export async function POST(req: Request) {
   const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
   const userInfo = ticket.USER as { full_name: string; email: string } | undefined;
   if (userInfo) {
-    const eventData = (await eventDao.findByIdSelect(supabase, ticket.event_id, "title, event_date")) as {
-      title: string;
-      event_date: string;
-    } | null;
+    const eventData = await eventDao.findById(supabase, ticket.event_id);
     fireAndForgetEmailNotification({
       user_id: ticket.user_id,
       email: userInfo.email,

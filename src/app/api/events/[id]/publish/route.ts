@@ -14,7 +14,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(id), "status")) as { status: string } | null;
+  const event = await eventDao.findById(supabase, Number(id));
 
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });

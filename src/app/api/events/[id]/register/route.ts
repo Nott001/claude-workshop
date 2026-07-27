@@ -20,21 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const event = (await eventDao.findByIdSelect(
-    supabase,
-    Number(id),
-    "id, title, event_date, start_time, end_time, venue_name, price, currency, status",
-  )) as {
-    id: number;
-    title: string;
-    event_date: string;
-    start_time: string;
-    end_time: string;
-    venue_name: string;
-    price: number;
-    currency: string;
-    status: string;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(id));
 
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -73,10 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const event = (await eventDao.findByIdSelect(supabase, Number(id), "title, status")) as {
-    title: string;
-    status: string;
-  } | null;
+  const event = await eventDao.findById(supabase, Number(id));
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
