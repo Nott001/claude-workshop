@@ -1,14 +1,29 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { Footer } from "@/components/footer";
+import { HeroImageUploader } from "@/modules/event-management/ui/hero-image-uploader";
+import { CourseSelect } from "@/modules/event-management/ui/course-select";
+import { SpeakerSelect } from "@/modules/event-management/ui/speaker-select";
+
+interface SpeakerProfile {
+  speaker_profile_id: number;
+  USERS: { full_name: string; email: string } | null;
+  bio: string | null;
+  designation: string | null;
+}
+
+interface Course {
+  course_id: number;
+  course_name: string;
+  course_description: string | null;
+}
 
 interface EventData {
   event_id: number;
@@ -24,19 +39,6 @@ interface EventData {
   currency: string;
   cover_image_url: string | null;
   status: "draft" | "active" | "complete";
-}
-
-interface Course {
-  course_id: number;
-  course_name: string;
-  course_description: string | null;
-}
-
-interface SpeakerProfile {
-  speaker_profile_id: number;
-  USERS: { full_name: string; email: string } | null;
-  bio: string | null;
-  designation: string | null;
 }
 
 export default function EditEventPage() {
@@ -65,8 +67,6 @@ export default function EditEventPage() {
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerProfile[]>([]);
   const [speakerId, setSpeakerId] = useState("");
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -116,24 +116,6 @@ export default function EditEventPage() {
     }
     load();
   }, [eventId]);
-
-  function handleFileDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setCoverImageFile(file);
-      setCoverImagePreview(URL.createObjectURL(file));
-    }
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCoverImageFile(file);
-      setCoverImagePreview(URL.createObjectURL(file));
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -209,6 +191,17 @@ export default function EditEventPage() {
     router.push(`/events/${eventId}`);
   }
 
+  function handleCoverFileSelect(file: File) {
+    setCoverImageFile(file);
+    setCoverImagePreview(URL.createObjectURL(file));
+  }
+
+  function handleCoverRemove() {
+    setCoverImageFile(null);
+    setCoverImagePreview(null);
+    setExistingCoverUrl(null);
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center bg-bg">
@@ -259,61 +252,7 @@ export default function EditEventPage() {
 
               <FormField>
                 <FormLabel className="text-sm font-semibold text-fg">Event Hero Image</FormLabel>
-                <div
-                  onDrop={handleFileDrop}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors",
-                    dragOver ? "border-accent bg-accent/5" : "border-border",
-                  )}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/gif"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {previewSrc ? (
-                    <div className="relative w-full max-w-md">
-                      <img src={previewSrc} alt="Hero preview" className="max-h-48 w-full rounded-lg object-cover" />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCoverImageFile(null);
-                          setCoverImagePreview(null);
-                          setExistingCoverUrl(null);
-                        }}
-                        className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
-                      >
-                        <span className="material-symbols-rounded text-[16px]">close</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-2">
-                        <path
-                          d="M24 16v12m-6-6h12m10-6v16a4 4 0 01-4 4H12a4 4 0 01-4-4V22a4 4 0 014-4h3l3-4h6m12 0v6"
-                          stroke="#29B6F6"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-medium text-brand">Upload a hero image</span>
-                        <span className="text-sm text-muted-fg">or drag and drop</span>
-                      </div>
-                      <span className="mt-1 text-xs text-muted-fg">PNG, JPG, GIF up to 10MB</span>
-                    </>
-                  )}
-                </div>
+                <HeroImageUploader preview={previewSrc} onFileSelect={handleCoverFileSelect} onRemove={handleCoverRemove} />
               </FormField>
 
               <FormField>
@@ -329,45 +268,13 @@ export default function EditEventPage() {
 
               <FormField>
                 <FormLabel className="text-sm font-semibold text-fg">Link to Curriculum Library (Optional)</FormLabel>
-                <p className="mb-1 text-xs font-medium text-info">
-                  Connect this event to an existing curriculum for automatic resource sharing.
-                </p>
-                {coursesError && <p className="mb-2 text-xs text-error">{coursesError}</p>}
-                <Select value={courseId} onValueChange={setCourseId}>
-                  <SelectTrigger className="mt-3 w-full rounded-lg border-border bg-surface px-4 py-3 text-base text-fg">
-                    <SelectValue placeholder="No curriculum linked">
-                      {(value: string) => {
-                        if (!value || value === "__none__") return "No curriculum linked";
-                        return courses.find((c) => String(c.course_id) === value)?.course_name ?? "No curriculum linked";
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None — no curriculum</SelectItem>
-                    {courses.map((c) => (
-                      <SelectItem key={c.course_id} value={String(c.course_id)}>
-                        {c.course_name}
-                      </SelectItem>
-                    ))}
-                    {courses.length === 0 && !coursesError && (
-                      <SelectItem value="__create__" disabled>
-                        No courses available — create one first
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {courses.length === 0 && !coursesError && (
-                  <p className="mt-2 text-xs text-muted-fg">
-                    No courses available.{" "}
-                    <button
-                      type="button"
-                      onClick={() => router.push("/courses/new")}
-                      className="font-medium text-info underline underline-offset-2 hover:text-info"
-                    >
-                      Create a course
-                    </button>
-                  </p>
-                )}
+                <CourseSelect
+                  value={courseId}
+                  onValueChange={setCourseId}
+                  courses={courses}
+                  error={coursesError}
+                  onNoCoursesAction={() => router.push("/courses/new")}
+                />
               </FormField>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -459,37 +366,7 @@ export default function EditEventPage() {
 
               <FormField>
                 <FormLabel className="text-sm font-semibold text-fg">Speaker Assignment</FormLabel>
-                {speakers.length > 0 ? (
-                  <Select value={speakerId} onValueChange={setSpeakerId}>
-                    <SelectTrigger className="w-full rounded-lg border-border bg-muted px-4 py-3 text-base text-fg">
-                      <SelectValue placeholder="Select a speaker">
-                        {(value) => {
-                          if (!value) return "None \u2014 no speaker";
-                          const s = speakers.find((sp) => String(sp.speaker_profile_id) === value);
-                          return s
-                            ? `${s.USERS?.full_name ?? `Speaker #${s.speaker_profile_id}`}${s.designation ? ` (${s.designation})` : ""}`
-                            : "Select a speaker";
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None — no speaker</SelectItem>
-                      {speakers.map((s) => (
-                        <SelectItem key={s.speaker_profile_id} value={String(s.speaker_profile_id)}>
-                          {s.USERS?.full_name ?? `Speaker #${s.speaker_profile_id}`}
-                          {s.designation ? ` (${s.designation})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={speakerId}
-                    onChange={(e) => setSpeakerId(e.target.value)}
-                    placeholder="Speaker profile ID (optional)"
-                    className="rounded-lg border-border bg-muted px-4 py-3 text-base text-fg"
-                  />
-                )}
+                <SpeakerSelect value={speakerId} onValueChange={setSpeakerId} speakers={speakers} includeNone />
               </FormField>
 
               <FormField>
