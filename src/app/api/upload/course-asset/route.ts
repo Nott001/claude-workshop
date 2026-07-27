@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { courseDao } from "@/lib/db/dao";
 import { uploadToStorage, buildCourseAssetPath, validateFileType, validateFileSize } from "@/lib/storage";
 
 export async function POST(req: Request) {
@@ -34,10 +35,10 @@ export async function POST(req: Request) {
     const result = await uploadToStorage("course_assets", path, file);
 
     const supabase = getServiceClient();
-    const { error } = await supabase.from("LESSONS").update({ content_url: result.url }).eq("lesson_id", lessonId);
+    const updated = await courseDao.updateLesson(supabase, Number(lessonId), { content_url: result.url });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!updated) {
+      return NextResponse.json({ error: "Failed to update lesson" }, { status: 500 });
     }
 
     return NextResponse.json({ url: result.url, path: result.path });

@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { userDao, ticketDao, eventDao } from "@/lib/db/dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
 import { canTransitionTicket } from "@/modules/commerce";
+import type { TicketStatus } from "@/types";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(req: Request) {
@@ -21,19 +23,21 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
   const { userId } = await auth();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
+  const dbUser = await userDao.findByAuthId(supabase, userId!);
 
   if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const { data: ticket, error: lookupError } = await supabase
-    .from("TICKETS")
-    .select("*, USER:user_id(full_name, email)")
-    .eq("qr_token", parsed.data.qr_token)
-    .single();
+  const ticket = (await ticketDao.findByQrToken(supabase, parsed.data.qr_token)) as {
+    status: TicketStatus;
+    payment_id: number;
+    user_id: number;
+    event_id: number;
+    USER: { full_name: string; email: string } | null;
+  } | null;
 
-  if (lookupError || !ticket) {
+  if (!ticket) {
     return NextResponse.json({ error: "Invalid QR token" }, { status: 404 });
   }
 
@@ -49,27 +53,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "rejected", reason: "invalid_status" });
   }
 
-  const { error: updateError } = await supabase
-    .from("TICKETS")
-    .update({
-      status: "checked_in",
-      checked_in_by: dbUser.user_id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("payment_id", ticket.payment_id);
+  const ok = await ticketDao.updateStatus(supabase, ticket.payment_id, "checked_in", dbUser.id);
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to update ticket status" }, { status: 500 });
   }
 
   const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");
   const userInfo = ticket.USER as { full_name: string; email: string } | undefined;
   if (userInfo) {
-    const { data: eventData } = await supabase
-      .from("EVENTS")
-      .select("title, event_date")
-      .eq("event_id", ticket.event_id)
-      .single();
+    const eventData = (await eventDao.findByIdSelect(supabase, ticket.event_id, "title, event_date")) as {
+      title: string;
+      event_date: string;
+    } | null;
     fireAndForgetEmailNotification({
       user_id: ticket.user_id,
       email: userInfo.email,

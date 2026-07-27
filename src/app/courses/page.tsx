@@ -114,10 +114,10 @@ export default function CoursesPage() {
               <div className="divide-y divide-border">
                 {courses.map((course) => (
                   <div
-                    key={course.course_id}
+                    key={course.id}
                     className="group flex items-center justify-between px-8 py-4 transition-colors hover:bg-muted"
                   >
-                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.course_id}`)}>
+                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.id}`)}>
                       <h3 className="text-sm font-semibold text-fg group-hover:text-brand">{course.course_name}</h3>
                       {course.course_description && (
                         <p className="mt-0.5 text-sm text-muted-fg line-clamp-1">{course.course_description}</p>
@@ -125,14 +125,14 @@ export default function CoursesPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => router.push(`/courses/${course.course_id}`)}
+                        onClick={() => router.push(`/courses/${course.id}`)}
                         className="rounded-md p-1.5 text-muted-fg hover:bg-muted hover:text-fg"
                         title="Edit"
                       >
                         <span className="material-symbols-rounded text-[16px]">edit</span>
                       </button>
                       <button
-                        onClick={() => handleDelete(course.course_id)}
+                        onClick={() => handleDelete(course.id)}
                         className="rounded-md p-1.5 text-muted-fg hover:bg-error/10 hover:text-error"
                         title="Delete"
                       >

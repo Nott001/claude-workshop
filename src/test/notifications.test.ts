@@ -6,7 +6,7 @@ import { emailTemplates } from "@/lib/email";
 describe("Email types", () => {
   it("EmailLog interface has correct shape", () => {
     const log: EmailLog = {
-      log_id: 1,
+      id: 1,
       user_id: 1,
       email_type: "ticket_issued",
       status: "sent",

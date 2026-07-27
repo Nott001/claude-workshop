@@ -69,8 +69,8 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   useEffect(() => {
     if (data?.messages?.length) {
       const last = data.messages[data.messages.length - 1];
-      if (last.message_id !== prevLastMsgRef.current) {
-        prevLastMsgRef.current = last.message_id;
+      if (last.id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.id;
         setActive();
       }
     }
@@ -79,7 +79,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   const allMessages = useMemo(() => {
     const merged = [...serverMessages];
     for (const p of pendingMessages) {
-      if (!merged.some((m) => m.message_id === p.message_id)) {
+      if (!merged.some((m) => m.id === p.id)) {
         merged.push(p);
       }
     }
@@ -104,7 +104,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
     const text = newMessage.trim();
     const optimisticId = -Date.now();
     const optimistic: ChatMessageWithUser = {
-      message_id: optimisticId,
+      id: optimisticId,
       channel: "live_qa",
       user_id: currentUserId ?? 0,
       message: text,
@@ -135,21 +135,21 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
     });
 
     if (res.status === 429) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Too many messages. Please wait a moment.");
       setSending(false);
       return;
     }
 
     if (!res.ok) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Failed to send message.");
       setSending(false);
       return;
     }
 
     const sent = (await res.json()) as ChatMessageWithUser;
-    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+    setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     setReplyTarget(null);
     setSending(false);
     setActive();
@@ -247,12 +247,12 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                 <p className="py-12 text-center text-sm text-muted-fg">No questions yet. Be the first to ask!</p>
               )}
               {questions.map((q) => {
-                const answers = answersByParent.get(q.message_id) ?? [];
+                const answers = answersByParent.get(q.id) ?? [];
                 const isAnswered = answers.length > 0 || q.answered_verbally;
                 const isSpeaker = q.USER?.role === "speaker";
 
                 return (
-                  <div key={q.message_id}>
+                  <div key={q.id}>
                     <div
                       className={
                         "flex flex-col gap-2 rounded-xl border bg-surface p-4 shadow-sm " +
@@ -290,7 +290,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         )}
                         {interactive && isStaff && currentUserId !== q.user_id && (
                           <button
-                            onClick={() => handleAnswer(q.message_id)}
+                            onClick={() => handleAnswer(q.id)}
                             className="rounded-lg border border-brand px-2.5 py-1 text-[10px] font-bold text-brand transition-colors hover:bg-brand hover:text-white"
                           >
                             Answer
@@ -298,7 +298,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         )}
                         {interactive && isStaff && !q.answered_verbally && currentUserId !== q.user_id && (
                           <button
-                            onClick={() => handleMarkVerbal(q.message_id)}
+                            onClick={() => handleMarkVerbal(q.id)}
                             className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[10px] font-bold text-muted-fg transition-colors hover:border-muted-fg hover:bg-muted-fg hover:text-white"
                           >
                             <span className="material-symbols-rounded text-xs">record_voice_over</span>
@@ -307,7 +307,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         )}
                         {interactive && isStaff && (
                           <button
-                            onClick={() => handleDelete(q.message_id)}
+                            onClick={() => handleDelete(q.id)}
                             className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-2.5 py-1 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
                           >
                             <span className="material-symbols-rounded text-xs">delete</span>
@@ -320,7 +320,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                       const isSpeaker = a.USER?.role === "speaker";
                       return (
                         <div
-                          key={a.message_id}
+                          key={a.id}
                           className={
                             "ml-4 mt-2 flex flex-col gap-2 rounded-xl border bg-muted p-3 shadow-sm " +
                             (isSpeaker
@@ -345,7 +345,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                             <div className="flex items-center gap-2">
                               {interactive && isStaff && (
                                 <button
-                                  onClick={() => handleDelete(a.message_id)}
+                                  onClick={() => handleDelete(a.id)}
                                   className="flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
                                 >
                                   <span className="material-symbols-rounded text-xs">delete</span>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { courseDao } from "@/lib/db/dao";
 import { moduleSchema } from "@/modules/course-content";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 import { logAuditEvent } from "@/modules/audit";
@@ -20,18 +21,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
-  const { data: module, error } = await supabase
-    .from("MODULES")
-    .update({
-      module_name: parsed.data.module_name,
-      sequence_order: parsed.data.sequence_order,
-    })
-    .eq("module_id", id)
-    .select()
-    .single();
+  const mod = await courseDao.updateModule(supabase, Number(id), {
+    module_name: parsed.data.module_name,
+    sequence_order: parsed.data.sequence_order,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!mod) {
+    return NextResponse.json({ error: "Failed to update module" }, { status: 500 });
   }
 
   const { userId } = await auth();
@@ -41,7 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
-  return NextResponse.json(module);
+  return NextResponse.json(mod);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -54,11 +50,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
   const { userId } = await auth();
 
-  const { data: mod } = await supabase.from("MODULES").select("course_id").eq("module_id", id).single();
+  const mod = await courseDao.findModuleById(supabase, Number(id));
   if (mod) {
-    const { data: lessons } = await supabase.from("LESSONS").select("lesson_id").eq("module_id", id);
-    for (const lesson of lessons ?? []) {
-      const folder = `courses/${mod.course_id}/modules/${id}/lessons/${lesson.lesson_id}`;
+    const lessons = await courseDao.findLessonsByModule(supabase, Number(id));
+    for (const lesson of lessons) {
+      const folder = `courses/${mod.course_id}/modules/${id}/lessons/${lesson.id}`;
       const [assetPaths, videoPaths] = await Promise.all([
         listStorageFolder("course_assets", folder),
         listStorageFolder("course_videos", folder),
@@ -67,10 +63,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  const { error } = await supabase.from("MODULES").delete().eq("module_id", id);
+  const ok = await courseDao.deleteModule(supabase, Number(id));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete module" }, { status: 500 });
   }
 
   if (userId) {

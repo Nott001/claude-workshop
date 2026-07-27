@@ -30,7 +30,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { user: currentUser } = useCurrentUser();
-  const currentUserId = currentUser?.user_id ?? null;
+  const currentUserId = currentUser?.id ?? null;
 
   const pollIntervalRef = useRef(5000);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -61,18 +61,18 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   useEffect(() => {
     if (data?.messages?.length) {
       const last = data.messages[data.messages.length - 1];
-      if (last.message_id !== prevLastMsgRef.current) {
-        prevLastMsgRef.current = last.message_id;
+      if (last.id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.id;
         setActive();
       }
     }
   }, [data]);
 
   const allMessages = useMemo(() => {
-    const pendingIds = new Set(pendingMessages.map((m) => m.message_id));
+    const pendingIds = new Set(pendingMessages.map((m) => m.id));
     const merged = [...serverMessages];
     for (const p of pendingMessages) {
-      if (!merged.some((m) => m.message_id === p.message_id)) {
+      if (!merged.some((m) => m.id === p.id)) {
         merged.push(p);
       }
     }
@@ -104,7 +104,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const text = newMessage.trim();
     const optimisticId = -Date.now();
     const optimistic: ChatMessageWithUser = {
-      message_id: optimisticId,
+      id: optimisticId,
       channel: "global_support",
       user_id: currentUserId,
       message: text,
@@ -130,21 +130,21 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     });
 
     if (res.status === 429) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Too many messages. Please wait a moment.");
       setSending(false);
       return;
     }
 
     if (!res.ok) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Failed to send message.");
       setSending(false);
       return;
     }
 
     const sent = (await res.json()) as ChatMessageWithUser;
-    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+    setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     setSending(false);
     setActive();
   }
@@ -193,14 +193,14 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 const isStaff = msg.USER?.role === "facilitator";
                 if (isChatEnded) {
                   return (
-                    <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
+                    <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
                       <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
                       <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
                     </div>
                   );
                 }
                 return (
-                  <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
+                  <div key={msg.id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                     <div className="flex items-center gap-1.5 mb-1">
                       {isStaff && (
                         <span className="inline-flex items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">

@@ -68,29 +68,26 @@ export class SimulatedPaymentGateway implements PaymentGateway {
   }: CreatePaymentOptions): Promise<CreatePaymentResult> {
     const { getServiceClient } = await import("@/lib/db");
     const supabase = getServiceClient();
+    const { paymentDao, ticketDao } = await import("@/lib/db/dao");
 
-    const { error: updateError } = await supabase
-      .from("PAYMENTS")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("payment_id", payment_id);
-
-    if (updateError) {
-      throw new Error(`Failed to mark payment as paid: ${updateError.message}`);
+    const updated = await paymentDao.updateStatus(supabase, payment_id, "paid");
+    if (!updated) {
+      throw new Error(`Failed to mark payment as paid`);
     }
 
     const qrToken = generateQrToken();
-    const { error: ticketError } = await supabase.from("TICKETS").insert({
+    const ticket = await ticketDao.create(supabase, {
       payment_id,
       user_id,
       event_id,
       qr_token: qrToken,
     });
 
-    if (ticketError) {
-      throw new Error(`Failed to issue ticket: ${ticketError.message}`);
+    if (!ticket) {
+      throw new Error(`Failed to issue ticket`);
     }
 
-    const { data: eventData } = await supabase.from("EVENTS").select("title, event_date").eq("event_id", event_id).single();
+    const eventData = await paymentDao.findEventForPayment(supabase, event_id);
 
     if (eventData) {
       const { fireAndForgetEmailNotification } = await import("@/modules/notifications/email");

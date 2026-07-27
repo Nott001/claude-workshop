@@ -15,19 +15,19 @@ describe("Course content types", () => {
 
   it("Course interface has correct shape", () => {
     const course: Course = {
-      course_id: 1,
+      id: 1,
       course_name: "Test Course",
       course_description: "A description",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
-    expect(course.course_id).toBe(1);
+    expect(course.id).toBe(1);
     expect(course.course_name).toBe("Test Course");
   });
 
   it("Module interface has correct shape", () => {
     const mod: Module = {
-      module_id: 1,
+      id: 1,
       course_id: 1,
       module_name: "Test Module",
       sequence_order: 1,
@@ -40,7 +40,7 @@ describe("Course content types", () => {
 
   it("Lesson interface has correct shape", () => {
     const lesson: Lesson = {
-      lesson_id: 1,
+      id: 1,
       module_id: 1,
       description: "Test Lesson",
       content_type: "pdf",

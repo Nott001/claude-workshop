@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/role-guard";
 import { getServiceClient } from "@/lib/db";
+import { emailDao } from "@/lib/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
@@ -11,13 +12,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: log, error } = await supabase
-    .from("EMAIL_LOGS")
-    .select("*, USER:user_id(full_name, email)")
-    .eq("log_id", id)
-    .single();
+  const log = await emailDao.findById(supabase, Number(id));
 
-  if (error || !log) {
+  if (!log) {
     return NextResponse.json({ error: "Log not found" }, { status: 404 });
   }
 

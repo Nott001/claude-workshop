@@ -50,8 +50,8 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   useEffect(() => {
     if (data?.messages?.length) {
       const last = data.messages[data.messages.length - 1];
-      if (last.message_id !== prevLastMsgRef.current) {
-        prevLastMsgRef.current = last.message_id;
+      if (last.id !== prevLastMsgRef.current) {
+        prevLastMsgRef.current = last.id;
         setActive();
       }
     }
@@ -60,7 +60,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   const allMessages = useMemo(() => {
     const merged = [...serverMessages];
     for (const p of pendingMessages) {
-      if (!merged.some((m) => m.message_id === p.message_id)) {
+      if (!merged.some((m) => m.id === p.id)) {
         merged.push(p);
       }
     }
@@ -87,7 +87,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
     const text = newMessage.trim();
     const optimisticId = -Date.now();
     const optimistic: ChatMessageWithUser = {
-      message_id: optimisticId,
+      id: optimisticId,
       channel,
       user_id: currentUserId ?? 0,
       message: text,
@@ -114,21 +114,21 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
     });
 
     if (res.status === 429) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Too many messages. Please wait a moment.");
       setSending(false);
       return;
     }
 
     if (!res.ok) {
-      setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError("Failed to send message.");
       setSending(false);
       return;
     }
 
     const sent = (await res.json()) as ChatMessageWithUser;
-    setPendingMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+    setPendingMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     setSending(false);
     setActive();
   }
@@ -151,13 +151,13 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
         {allMessages.length === 0 && <p>No messages yet.</p>}
 
         {allMessages.map((msg) => (
-          <div key={msg.message_id} data-own={msg.user_id === currentUserId || undefined}>
+          <div key={msg.id} data-own={msg.user_id === currentUserId || undefined}>
             <div>
               <strong>{msg.USER?.full_name ?? "Unknown"}</strong>
               <span>{formatTime(msg.sent_at)}</span>
             </div>
             <p>{msg.message}</p>
-            {isStaff && <button onClick={() => handleDelete(msg.message_id)}>Delete</button>}
+            {isStaff && <button onClick={() => handleDelete(msg.id)}>Delete</button>}
           </div>
         ))}
 

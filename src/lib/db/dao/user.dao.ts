@@ -1,0 +1,104 @@
+import type { DbClient, PaginatedResult } from "./types";
+import type { User } from "@/types";
+
+export async function findByAuthId(supabase: DbClient, authUserId: string): Promise<User | null> {
+  const { data } = await supabase.from("USER").select("*").eq("auth_user_id", authUserId).single();
+  return data;
+}
+
+export async function findById(supabase: DbClient, id: number): Promise<User | null> {
+  const { data } = await supabase.from("USER").select("*").eq("id", id).single();
+  return data;
+}
+
+export async function findStaffByEmail(supabase: DbClient, email: string): Promise<{ id: number } | null> {
+  const { data } = await supabase.from("USER").select("id").eq("email", email).maybeSingle();
+  return data;
+}
+
+export async function listStaff(
+  supabase: DbClient,
+  page: number,
+  search: string,
+  pageSize: number = 10,
+): Promise<PaginatedResult<Pick<User, "id" | "full_name" | "email" | "role">>> {
+  let query = supabase
+    .from("USER")
+    .select("id, full_name, email, role", { count: "exact" })
+    .in("role", ["facilitator", "speaker"])
+    .order("full_name", { ascending: true });
+
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, count } = await query;
+
+  return {
+    data: (data ?? []) as Pick<User, "id" | "full_name" | "email" | "role">[],
+    total: count ?? 0,
+    page,
+    limit: pageSize,
+  };
+}
+
+export async function upsertFromClerk(
+  supabase: DbClient,
+  data: {
+    auth_user_id: string;
+    email: string;
+    full_name: string;
+    role?: string;
+  },
+): Promise<User | null> {
+  const upsertPayload: Record<string, unknown> = {
+    auth_user_id: data.auth_user_id,
+    email: data.email,
+    full_name: data.full_name,
+  };
+  if (data.role) {
+    upsertPayload.role = data.role;
+  }
+
+  const { data: result, error } = await supabase
+    .from("USER")
+    .upsert(upsertPayload, { onConflict: "auth_user_id" })
+    .select("*")
+    .single();
+
+  if (error || !result) return null;
+  return result;
+}
+
+export async function updateRole(
+  supabase: DbClient,
+  id: number,
+  role: User["role"],
+): Promise<Pick<User, "id" | "full_name" | "email" | "role"> | null> {
+  const { data } = await supabase
+    .from("USER")
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id, full_name, email, role")
+    .single();
+  return data;
+}
+
+export async function removeById(supabase: DbClient, id: number): Promise<boolean> {
+  const { error } = await supabase.from("USER").delete().eq("id", id);
+  return !error;
+}
+
+export async function deleteByAuthId(supabase: DbClient, authUserId: string): Promise<boolean> {
+  const { error } = await supabase.from("USER").delete().eq("auth_user_id", authUserId);
+  return !error;
+}
+
+export async function findByAuthIdWithRole(supabase: DbClient, authUserId: string): Promise<Pick<User, "id" | "role"> | null> {
+  const { data } = await supabase.from("USER").select("id, role").eq("auth_user_id", authUserId).single();
+  return data;
+}

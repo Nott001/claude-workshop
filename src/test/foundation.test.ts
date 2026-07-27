@@ -17,16 +17,17 @@ vi.mock("@/lib/auth/sync-user", () => ({
 describe("User types", () => {
   it("has the correct shape", () => {
     const user: User = {
-      user_id: 1,
+      id: 1,
       full_name: "Test User",
       email: "test@example.com",
-      clerk_id: "clerk_123",
+      auth_user_id: "clerk_123",
       role: "attendee",
+      profile_image_url: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
 
-    expect(user.user_id).toBe(1);
+    expect(user.id).toBe(1);
     expect(user.role).toBe("attendee");
   });
 
@@ -81,7 +82,7 @@ describe("requireRole", () => {
     });
 
     const { syncUser } = await import("@/lib/auth/sync-user");
-    vi.mocked(syncUser).mockResolvedValue({ user_id: 1, role: "attendee", full_name: "Test", email: "test@test.com" });
+    vi.mocked(syncUser).mockResolvedValue({ id: 1, role: "attendee", full_name: "Test", email: "test@test.com" });
 
     const { requireRole } = await import("@/lib/auth/role-guard");
     const result = await requireRole("facilitator");

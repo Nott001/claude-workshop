@@ -83,7 +83,7 @@ describe("Q&A moderation — staff can delete questions", () => {
 describe("ChatMessage type includes threading", () => {
   it("accepts reply_to and answered_verbally", () => {
     const msg: ChatMessage = {
-      message_id: 1,
+      id: 1,
       event_id: 99,
       channel: "live_qa",
       user_id: 5,
@@ -102,7 +102,7 @@ describe("ChatMessage type includes threading", () => {
 
   it("accepts a reply with reply_to set", () => {
     const msg: ChatMessage = {
-      message_id: 2,
+      id: 2,
       event_id: 99,
       channel: "live_qa",
       user_id: 3,

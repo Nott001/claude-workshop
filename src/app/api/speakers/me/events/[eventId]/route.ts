@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
+import { userDao, speakerDao, eventDao, ticketDao } from "@/lib/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -11,63 +12,42 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
 
   const supabase = getServiceClient();
 
-  const { data: dbUser, error: userErr } = await supabase.from("USERS").select("user_id").eq("clerk_id", userId).single();
+  const dbUser = await userDao.findByAuthId(supabase, userId);
 
-  if (userErr || !dbUser) {
-    console.error("[speaker-event-detail] user lookup failed:", userErr?.message, userId);
+  if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const { data: profile, error: profileErr } = await supabase
-    .from("SPEAKER_PROFILES")
-    .select("speaker_profile_id")
-    .eq("user_id", dbUser.user_id)
-    .single();
+  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
 
-  if (profileErr || !profile) {
-    console.error("[speaker-event-detail] no speaker profile:", dbUser.user_id);
+  if (!profile) {
     return NextResponse.json({ error: "Not a speaker" }, { status: 403 });
   }
 
-  const { data: assignment } = await supabase
-    .from("EVENT_SPEAKERS")
-    .select("event_id")
-    .eq("speaker_profile_id", profile.speaker_profile_id)
-    .eq("event_id", Number(eventId))
-    .single();
+  const isAssigned = await speakerDao.checkSpeakerAssignment(supabase, profile.id, Number(eventId));
 
-  if (!assignment) {
-    console.error("[speaker-event-detail] not assigned:", profile.speaker_profile_id, eventId);
+  if (!isAssigned) {
     return NextResponse.json({ error: "Not assigned to this event" }, { status: 403 });
   }
 
-  const { data: event, error: eventErr } = await supabase
-    .from("EVENTS")
-    .select("*, COURSE(course_name)")
-    .eq("event_id", Number(eventId))
-    .single();
+  const event = await eventDao.findByIdWithCourseName(supabase, Number(eventId));
 
-  if (eventErr || !event) {
-    console.error("[speaker-event-detail] event not found:", eventId, eventErr?.message);
+  if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const { count: attendeeCount } = await supabase
-    .from("TICKETS")
-    .select("payment_id", { count: "exact", head: true })
-    .eq("event_id", Number(eventId))
-    .neq("status", "cancelled");
+  const attendeeCount = await ticketDao.countByEvent(supabase, Number(eventId));
 
   return NextResponse.json({
-    event_id: event.event_id,
-    title: event.title,
-    event_date: event.event_date,
-    start_time: event.start_time,
-    end_time: event.end_time,
-    venue_name: event.venue_name,
-    status: event.status,
-    course_name: event.COURSE?.course_name ?? null,
-    description: event.description ?? null,
-    attendee_count: attendeeCount ?? 0,
+    event_id: (event as { id: number }).id,
+    title: (event as { title: string }).title,
+    event_date: (event as { event_date: string }).event_date,
+    start_time: (event as { start_time: string }).start_time,
+    end_time: (event as { end_time: string }).end_time,
+    venue_name: (event as { venue_name: string }).venue_name,
+    status: (event as { status: string }).status,
+    course_name: (event as { COURSE?: { course_name: string } | null }).COURSE?.course_name ?? null,
+    description: (event as { description?: string | null }).description ?? null,
+    attendee_count: attendeeCount,
   });
 }

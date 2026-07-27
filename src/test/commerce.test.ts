@@ -11,7 +11,7 @@ import type { Payment, Ticket, PaymentStatus, TicketStatus } from "@/types";
 describe("Payment and Ticket types", () => {
   it("Payment interface has correct shape", () => {
     const payment: Payment = {
-      payment_id: 1,
+      id: 1,
       user_id: 1,
       event_id: 1,
       gateway_reference_id: null,
@@ -27,6 +27,7 @@ describe("Payment and Ticket types", () => {
 
   it("Ticket interface has correct shape", () => {
     const ticket: Ticket = {
+      id: 1,
       payment_id: 1,
       user_id: 1,
       event_id: 1,
@@ -34,6 +35,8 @@ describe("Payment and Ticket types", () => {
       status: "issued",
       issued_at: "2026-01-01T00:00:00Z",
       checked_in_by: null,
+      checked_in_at: null,
+      created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
     expect(ticket.qr_token).toBe("abc123");

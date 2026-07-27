@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/db";
+import { userDao, chatDao } from "@/lib/db/dao";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
   const { userId } = await auth();
@@ -11,19 +12,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
   const { messageId } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).maybeSingle();
+  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
   if (!dbUser || dbUser.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { error } = await supabase
-    .from("CHAT_MESSAGES")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("message_id", Number(messageId))
-    .is("deleted_at", null);
+  const ok = await chatDao.updateMessage(supabase, Number(messageId), {
+    deleted_at: new Date().toISOString(),
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
