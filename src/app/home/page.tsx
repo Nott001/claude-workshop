@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Play, ArrowRight } from "lucide-react";
+
 import { useUser } from "@clerk/nextjs";
 
 import { Footer } from "@/components/footer";
@@ -25,8 +25,8 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#fbf9f8] text-[#1b1c1c]">
-        <section className="relative overflow-hidden rounded-b-[40px] bg-[#3db9ee] px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
+      <div className="min-h-screen bg-bg text-fg">
+        <section className="relative overflow-hidden rounded-b-[40px] bg-brand px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="relative mx-auto grid max-w-[1110px] items-center gap-10 lg:min-h-[427px] lg:grid-cols-[1.1fr_.8fr] lg:gap-12">
             <div>
@@ -49,8 +49,8 @@ export default function HomePage() {
                   </div>
                   {featured && (
                     <div className="mt-3 flex items-center gap-3">
-                      <span className="grid size-10 place-items-center rounded-full bg-white text-[#269fcf]">
-                        <Play className="ml-0.5 size-4 fill-current" />
+                      <span className="grid size-10 place-items-center rounded-full bg-surface text-brand">
+                        <span className="material-symbols-rounded ml-0.5 text-base">play_arrow</span>
                       </span>
                       <span className="text-sm font-semibold">
                         {formatEventDate(featured.event_date)} at {formatTime(featured.start_time)}
@@ -58,19 +58,19 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#3db9ee] shadow-lg">
-                  <Play className="ml-0.5 size-5 fill-current" />
+                <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-brand shadow-lg">
+                  <span className="material-symbols-rounded ml-0.5 text-lg">play_arrow</span>
                 </span>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="upcoming-events" className="bg-white px-6 py-20 sm:px-12 lg:px-16">
+        <section id="upcoming-events" className="bg-surface px-6 py-20 sm:px-12 lg:px-16">
           <div className="mx-auto max-w-[1110px]">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-[32px]">Upcoming Events</h2>
-              <p className="mt-4 text-base leading-6 text-[#3e484f]">
+              <p className="mt-4 text-base leading-6 text-muted-fg">
                 Live workshops and networking events designed to keep you at the forefront of business innovation.
               </p>
             </div>
@@ -110,14 +110,14 @@ export default function HomePage() {
               <div className="mt-12 text-center">
                 <Link
                   href="/events"
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#3db9ee] px-8 py-3 text-sm font-semibold text-[#168cb9] transition hover:bg-[#effaff]"
+                  className="inline-flex items-center gap-2 rounded-xl border border-brand px-8 py-3 text-sm font-semibold text-brand transition hover:bg-brand/5"
                 >
-                  See All Upcoming Events <ArrowRight className="size-4" />
+                  See All Upcoming Events <span className="material-symbols-rounded text-base">arrow_forward</span>
                 </Link>
               </div>
             )}
             {events.length === 0 && (
-              <div className="mt-12 text-center text-sm text-[#526069]">No upcoming events at the moment. Check back soon!</div>
+              <div className="mt-12 text-center text-sm text-muted-fg">No upcoming events at the moment. Check back soon!</div>
             )}
           </div>
         </section>

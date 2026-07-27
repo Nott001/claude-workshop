@@ -19,7 +19,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 const TYPE_COLORS: Record<string, string> = {
   success: "text-green-500",
-  error: "text-red-500",
+  error: "text-error",
   info: "text-blue-400",
 };
 

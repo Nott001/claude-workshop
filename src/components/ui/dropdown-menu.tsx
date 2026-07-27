@@ -40,7 +40,7 @@ function DropdownMenu({ trigger, items, align = "end" }: DropdownMenuProps) {
       {open && (
         <div
           className={cn(
-            "absolute top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-md",
+            "absolute top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded-lg border border-border bg-elevated py-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",
           )}
         >
@@ -52,8 +52,8 @@ function DropdownMenu({ trigger, items, align = "end" }: DropdownMenuProps) {
                 setOpen(false);
               }}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors outline-none",
-                item.danger ? "text-destructive hover:bg-destructive/10" : "text-popover-foreground hover:bg-muted",
+                "flex w-full items-center gap-2 px-3 py-2 text-sm text-surface-fg transition-colors outline-none hover:bg-muted",
+                item.danger && "text-error hover:bg-error/10",
               )}
             >
               {item.icon && <span className="material-symbols-rounded text-[18px]">{item.icon}</span>}

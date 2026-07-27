@@ -209,67 +209,67 @@ export default function SupportPage() {
 
   return (
     <div className="flex h-full">
-      <div className="flex w-[280px] flex-col border-r border-[#E8ECEF] bg-white">
-        <div className="flex shrink-0 items-center border-b border-[#E8ECEF] px-4 py-3">
-          <span className="text-sm font-semibold text-[#1b1c1c]">Support Inbox</span>
+      <div className="flex w-[280px] flex-col border-r border-border bg-surface">
+        <div className="flex shrink-0 items-center border-b border-border px-4 py-3">
+          <span className="text-sm font-semibold text-fg">Support Inbox</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {!usersLoaded ? (
             <div className="flex items-center justify-center p-4">
-              <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
+              <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
             </div>
           ) : users.length === 0 ? (
-            <p className="p-4 text-center text-xs text-[#8B989E]">No support requests yet.</p>
+            <p className="p-4 text-center text-xs text-muted-fg">No support requests yet.</p>
           ) : (
             users.map((user) => (
               <button
                 key={user.user_id}
                 onClick={() => setSelectedUserId(user.user_id)}
                 className={
-                  "flex w-full flex-col gap-1 border-b border-[#F0F2F4] px-4 py-3 text-left transition-colors hover:bg-[#F8FAFB] " +
-                  (selectedUserId === user.user_id ? "bg-[#e8f8fe]" : "")
+                  "flex w-full flex-col gap-1 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted " +
+                  (selectedUserId === user.user_id ? "bg-brand/10" : "")
                 }
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-xs font-semibold text-[#1b1c1c]">{user.full_name}</span>
+                    <span className="truncate text-xs font-semibold text-fg">{user.full_name}</span>
                     {user.session_active ? (
-                      <span className="size-1.5 shrink-0 rounded-full bg-[#3db9ee]" title="Active" />
+                      <span className="size-1.5 shrink-0 rounded-full bg-brand" title="Active" />
                     ) : (
-                      <span className="size-1.5 shrink-0 rounded-full bg-[#8B989E]" title="Ended" />
+                      <span className="size-1.5 shrink-0 rounded-full bg-muted-fg" title="Ended" />
                     )}
                   </div>
-                  <span className="shrink-0 text-[10px] text-[#8B989E]">{formatUserTime(user.last_sent_at)}</span>
+                  <span className="shrink-0 text-[10px] text-muted-fg">{formatUserTime(user.last_sent_at)}</span>
                 </div>
-                <span className="truncate text-[11px] text-[#6E7980]">{user.last_message}</span>
+                <span className="truncate text-[11px] text-muted-fg">{user.last_message}</span>
               </button>
             ))
           )}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col bg-[#F8FAFB]">
+      <div className="flex flex-1 flex-col bg-muted">
         {selectedUserId == null ? (
           <div className="flex flex-1 items-center justify-center p-4">
-            <p className="text-sm text-[#8B989E]">Select a conversation to view messages.</p>
+            <p className="text-sm text-muted-fg">Select a conversation to view messages.</p>
           </div>
         ) : (
           <>
-            <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] bg-white px-6 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-6 py-3">
               <div className="flex items-center gap-2">
-                <div className="grid size-8 place-items-center rounded-full bg-[#3db9ee] text-xs font-bold text-white">
+                <div className="grid size-8 place-items-center rounded-full bg-brand text-xs font-bold text-white">
                   {selectedUser?.full_name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-[#1b1c1c]">{selectedUser?.full_name ?? "Unknown"}</span>
+                  <span className="text-sm font-semibold text-fg">{selectedUser?.full_name ?? "Unknown"}</span>
                   {sessionActive ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#00658d]">
-                      <span className="size-1.5 rounded-full bg-[#3db9ee]" />
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-brand">
+                      <span className="size-1.5 rounded-full bg-brand" />
                       Active
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(139,152,158,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#6E7980]">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(139,152,158,0.1)] px-2 py-0.5 text-[10px] font-semibold text-muted-fg">
                       Ended
                     </span>
                   )}
@@ -279,7 +279,7 @@ export default function SupportPage() {
                 <button
                   onClick={() => handleEndChat(selectedUserId)}
                   disabled={endingChat}
-                  className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg border border-error/30 px-2.5 py-1.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
                 >
                   <span className="material-symbols-rounded text-xs">call_end</span>
                   End Chat
@@ -289,7 +289,7 @@ export default function SupportPage() {
                 <button
                   onClick={() => handleDeleteChat(selectedUserId)}
                   disabled={deletingChat}
-                  className="flex items-center gap-1 rounded-lg border border-[#E8ECEF] px-2.5 py-1.5 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-red-200 hover:text-red-500 disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-fg transition-colors hover:border-error/30 hover:text-error disabled:opacity-50"
                 >
                   <span className="material-symbols-rounded text-xs">delete</span>
                   Delete
@@ -300,22 +300,22 @@ export default function SupportPage() {
             {messagesLoading && serverMessages.length === 0 ? (
               <div className="flex flex-1 items-center justify-center p-4">
                 <div className="flex items-center gap-2">
-                  <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
-                  <p className="text-sm text-[#6E7980]">Loading messages...</p>
+                  <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                  <p className="text-sm text-muted-fg">Loading messages...</p>
                 </div>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-6 min-h-0">
                 <div className="mx-auto max-w-2xl space-y-3">
-                  {allMessages.length === 0 && <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet.</p>}
+                  {allMessages.length === 0 && <p className="py-12 text-center text-sm text-muted-fg">No messages yet.</p>}
 
                   {allMessages.map((msg) => {
                     const isChatEnded = msg.message.startsWith("[Chat ended");
                     if (isChatEnded) {
                       return (
                         <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
-                          <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
-                          <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                          <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
+                          <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
                         </div>
                       );
                     }
@@ -325,23 +325,19 @@ export default function SupportPage() {
                       <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                         <div className="flex items-center gap-1.5 mb-1">
                           {!isOwn && (
-                            <span className="text-[10px] font-semibold text-[#1b1c1c]">{msg.USER?.full_name ?? "Unknown"}</span>
+                            <span className="text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>
                           )}
                           {isStaff && (
-                            <span className="inline-flex items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
+                            <span className="inline-flex items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
                               Staff
                             </span>
                           )}
-                          <span className="text-[10px] text-[#8B989E]">{formatTime(msg.sent_at)}</span>
+                          <span className="text-[10px] text-muted-fg">{formatTime(msg.sent_at)}</span>
                         </div>
                         <div
                           className={
                             "max-w-[80%] rounded-xl px-3 py-2 text-sm " +
-                            (isOwn
-                              ? "bg-[#3db9ee] text-white"
-                              : isStaff
-                                ? "bg-[#e3f2fd] text-[#1b1c1c]"
-                                : "bg-white text-[#1b1c1c] shadow-sm")
+                            (isOwn ? "bg-brand text-white" : isStaff ? "bg-info/10 text-fg" : "bg-surface text-fg shadow-sm")
                           }
                         >
                           {msg.message}
@@ -354,7 +350,7 @@ export default function SupportPage() {
               </div>
             )}
 
-            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] bg-white px-6 py-4">
+            <form onSubmit={handleSend} className="shrink-0 border-t border-border bg-surface px-6 py-4">
               <div className="mx-auto flex max-w-2xl gap-2">
                 <input
                   type="text"
@@ -363,12 +359,12 @@ export default function SupportPage() {
                   placeholder={sessionActive ? "Type a reply..." : "This conversation has ended."}
                   maxLength={1000}
                   disabled={!sessionActive}
-                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <button
                   type="submit"
                   disabled={sending || !newMessage.trim() || !sessionActive}
-                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {sending ? (
                     <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -380,7 +376,7 @@ export default function SupportPage() {
                   )}
                 </button>
               </div>
-              {error && <p className="mx-auto mt-1.5 max-w-2xl text-xs text-red-500">{error}</p>}
+              {error && <p className="mx-auto mt-1.5 max-w-2xl text-xs text-error">{error}</p>}
             </form>
           </>
         )}

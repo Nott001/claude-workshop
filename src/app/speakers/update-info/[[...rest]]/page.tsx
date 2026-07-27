@@ -8,12 +8,11 @@ import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import { Footer } from "@/components/footer";
 import { Toast } from "@/components/toast";
 
-const cardClass = "rounded-xl border border-[#bdc8d1] bg-white p-[33px] flex flex-col gap-6";
-const labelClass = "text-[14px] font-semibold text-[#3e4850] tracking-[0.7px] leading-4";
+const cardClass = "rounded-xl border border-border bg-surface p-[33px] flex flex-col gap-6";
+const labelClass = "text-[14px] font-semibold text-muted-fg tracking-[0.7px] leading-4";
 const inputClass =
-  "w-full rounded-xl border border-[#bdc8d1] bg-white px-[17px] py-[15px] text-base text-[#0f172a] outline-none transition-colors placeholder:text-[#6b7280] focus:border-[#29b6f6] focus:ring-1 focus:ring-[#29b6f6]";
-const readOnlyInputClass =
-  "w-full rounded-xl border border-[#bdc8d1] bg-[#edeef0] px-[17px] py-[13px] text-base text-[#5f5e5e]";
+  "w-full rounded-xl border border-border bg-surface px-[17px] py-[15px] text-base text-fg outline-none transition-colors placeholder:text-muted-fg focus:border-ring focus:ring-1 focus:ring-ring";
+const readOnlyInputClass = "w-full rounded-xl border border-border bg-muted px-[17px] py-[13px] text-base text-muted-fg";
 
 type ToastData = { title: string; description: string; type: "success" | "error" };
 
@@ -154,25 +153,25 @@ export default function SpeakerUpdateInfoPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
+    <div className="flex min-h-screen flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-16 pb-12">
         <div className="mb-12 max-w-[896px] w-full">
           <Link
             href="/speakers/settings"
-            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[#00658d] transition-colors hover:text-[#004460]"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand"
           >
             <span className="material-symbols-rounded text-[18px]">arrow_back</span>
             Back to Settings
           </Link>
-          <h1 className="text-[32px] font-bold tracking-[-0.32px] text-[#0f172a] leading-[40px]">Account Settings</h1>
-          <p className="mt-1 text-base text-[#5f5e5e] leading-6">Manage your security credentials and professional identity.</p>
+          <h1 className="text-[32px] font-bold tracking-[-0.32px] text-fg leading-[40px]">Account Settings</h1>
+          <p className="mt-1 text-base text-muted-fg leading-6">Manage your security credentials and professional identity.</p>
         </div>
 
         <div className="flex max-w-[800px] w-full flex-col gap-8">
           <form onSubmit={handleEmailUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">mail</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Email Address</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">mail</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Update Email Address</h2>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -198,7 +197,7 @@ export default function SpeakerUpdateInfoPage() {
               <button
                 type="submit"
                 disabled={savingEmail || !newEmail || newEmail === currentEmail}
-                className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingEmail ? "Saving..." : "Save Changes"}
               </button>
@@ -207,8 +206,8 @@ export default function SpeakerUpdateInfoPage() {
 
           <form onSubmit={handleRoleUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">badge</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Professional Role</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">badge</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Professional Role</h2>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -220,7 +219,7 @@ export default function SpeakerUpdateInfoPage() {
                 onChange={(e) => setRole(e.target.value)}
                 className={inputClass}
               />
-              <p className="text-[12px] leading-[18px] text-[#5f5e5e]">
+              <p className="text-[12px] leading-[18px] text-muted-fg">
                 This will be displayed publicly on event pages and speaker cards.
               </p>
             </div>
@@ -229,7 +228,7 @@ export default function SpeakerUpdateInfoPage() {
               <button
                 type="submit"
                 disabled={savingRole}
-                className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingRole ? "Saving..." : "Save Role"}
               </button>
@@ -238,8 +237,8 @@ export default function SpeakerUpdateInfoPage() {
 
           <form onSubmit={handlePasswordUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">lock</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Password</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">lock</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Update Password</h2>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -280,9 +279,9 @@ export default function SpeakerUpdateInfoPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 rounded-xl bg-[#f2f4f6] p-4">
-                <span className="material-symbols-rounded mt-0.5 text-[14px] text-[#5f5e5e]">info</span>
-                <p className="text-[12px] leading-[18px] text-[#5f5e5e]">
+              <div className="flex gap-3 rounded-xl bg-muted p-4">
+                <span className="material-symbols-rounded mt-0.5 text-[14px] text-muted-fg">info</span>
+                <p className="text-[12px] leading-[18px] text-muted-fg">
                   Security Tip: Use a combination of uppercase letters, numbers, and symbols to create a robust password.
                 </p>
               </div>
@@ -292,14 +291,14 @@ export default function SpeakerUpdateInfoPage() {
               <button
                 type="submit"
                 disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-                className="rounded-xl bg-[#29b6f6] px-8 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-8 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-[14px] font-semibold text-[#00658d] tracking-[0.7px] transition-colors hover:text-[#004460]"
+                className="text-[14px] font-semibold text-brand tracking-[0.7px] transition-colors hover:text-brand"
               >
                 Forgot current password?
               </button>

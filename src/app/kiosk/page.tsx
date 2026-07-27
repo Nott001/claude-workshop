@@ -115,7 +115,7 @@ export default function KioskPage() {
   if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <span className="material-symbols-rounded animate-spin text-4xl text-[#3db9ee]">progress_activity</span>
+        <span className="material-symbols-rounded animate-spin text-4xl text-brand">progress_activity</span>
       </div>
     );
   }
@@ -125,28 +125,28 @@ export default function KioskPage() {
   if (!selectedEvent) {
     return (
       <div className="flex min-h-screen flex-col">
-        <div className="flex items-center gap-2 border-b border-[#bdc8d0] bg-white px-6 py-4">
-          <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">bolt</span>
-          <span className="text-sm font-bold tracking-tight text-[#1b1c1c]">StartupLab — Kiosk mode</span>
+        <div className="flex items-center gap-2 border-b border-border bg-surface px-6 py-4">
+          <span className="material-symbols-rounded text-[20px] text-brand">bolt</span>
+          <span className="text-sm font-bold tracking-tight text-fg">StartupLab — Kiosk mode</span>
         </div>
 
         <div className="flex flex-1 flex-col items-center px-6 py-10">
           <div className="w-full max-w-lg">
             <div className="mb-8 text-center">
-              <span className="material-symbols-rounded mb-3 text-[48px] text-[#3db9ee]">qr_code_scanner</span>
-              <h1 className="text-xl font-bold tracking-tight text-[#1b1c1c]">Select Event</h1>
-              <p className="mt-1 text-sm text-[#647078]">Choose an event to start scanning attendee QR codes.</p>
+              <span className="material-symbols-rounded mb-3 text-[48px] text-brand">qr_code_scanner</span>
+              <h1 className="text-xl font-bold tracking-tight text-fg">Select Event</h1>
+              <p className="mt-1 text-sm text-muted-fg">Choose an event to start scanning attendee QR codes.</p>
             </div>
 
             {eventsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <span className="material-symbols-rounded animate-spin text-3xl text-[#3db9ee]">progress_activity</span>
+                <span className="material-symbols-rounded animate-spin text-3xl text-brand">progress_activity</span>
               </div>
             ) : events.length === 0 ? (
-              <div className="rounded-xl border border-[#bdc8d0] bg-[#f4f7f8] px-6 py-12 text-center">
-                <span className="material-symbols-rounded mb-2 text-3xl text-[#8a959e]">event_busy</span>
-                <p className="text-sm font-medium text-[#1b1c1c]">No upcoming events</p>
-                <p className="mt-1 text-xs text-[#8a959e]">Create an event first, then return to the kiosk.</p>
+              <div className="rounded-xl border border-border bg-muted px-6 py-12 text-center">
+                <span className="material-symbols-rounded mb-2 text-3xl text-muted-fg">event_busy</span>
+                <p className="text-sm font-medium text-fg">No upcoming events</p>
+                <p className="mt-1 text-xs text-muted-fg">Create an event first, then return to the kiosk.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -154,24 +154,24 @@ export default function KioskPage() {
                   <button
                     key={event.event_id}
                     onClick={() => setSelectedEvent(event)}
-                    className="flex w-full items-center gap-4 rounded-xl border border-[#bdc8d0] bg-white px-5 py-4 text-left transition hover:border-[#3db9ee] hover:shadow-sm"
+                    className="flex w-full items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4 text-left transition hover:border-brand hover:shadow-sm"
                   >
-                    <span className="material-symbols-rounded text-[28px] text-[#3db9ee]">event</span>
+                    <span className="material-symbols-rounded text-[28px] text-brand">event</span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[#1b1c1c]">{event.title}</p>
-                      <p className="mt-0.5 text-xs text-[#647078]">
+                      <p className="truncate text-sm font-semibold text-fg">{event.title}</p>
+                      <p className="mt-0.5 text-xs text-muted-fg">
                         {formatDate(event.event_date)} · {formatTime(event.start_time)} – {formatTime(event.end_time)}
                       </p>
-                      <p className="mt-0.5 text-xs text-[#8a959e]">{event.venue_name}</p>
+                      <p className="mt-0.5 text-xs text-muted-fg">{event.venue_name}</p>
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                        event.status === "active" ? "bg-[#2ea86e]/10 text-[#2ea86e]" : "bg-[#8a959e]/10 text-[#8a959e]"
+                        event.status === "active" ? "bg-success/10 text-success" : "bg-muted-fg/10 text-muted-fg"
                       }`}
                     >
                       {event.status}
                     </span>
-                    <span className="material-symbols-rounded text-[18px] text-[#8a959e]">chevron_right</span>
+                    <span className="material-symbols-rounded text-[18px] text-muted-fg">chevron_right</span>
                   </button>
                 ))}
               </div>
@@ -185,19 +185,19 @@ export default function KioskPage() {
   return (
     <>
       <div className="flex min-h-screen flex-col">
-        <div className="flex items-center justify-between border-b border-[#bdc8d0] bg-white px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">bolt</span>
-            <span className="text-sm font-bold tracking-tight text-[#1b1c1c]">StartupLab — Kiosk mode</span>
+            <span className="material-symbols-rounded text-[20px] text-brand">bolt</span>
+            <span className="text-sm font-bold tracking-tight text-fg">StartupLab — Kiosk mode</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="truncate max-w-[200px] text-sm font-medium text-[#1b1c1c]">{selectedEvent.title}</span>
+            <span className="truncate max-w-[200px] text-sm font-medium text-fg">{selectedEvent.title}</span>
             <button
               onClick={() => {
                 setSelectedEvent(null);
                 setCameraActive(false);
               }}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-[#bdc8d0] bg-white px-3 text-xs font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-muted-fg transition hover:border-brand hover:text-brand"
             >
               <span className="material-symbols-rounded text-[14px]">swap_horiz</span>
               Change
@@ -207,11 +207,11 @@ export default function KioskPage() {
 
         <div className="flex flex-1 flex-col lg:flex-row">
           {/* Left: QR Scanner */}
-          <div className="flex flex-1 flex-col items-center px-6 py-8 lg:border-r lg:border-[#bdc8d0]">
+          <div className="flex flex-1 flex-col items-center px-6 py-8 lg:border-r lg:border-border">
             <div className="flex w-full max-w-lg flex-col items-center">
-              <span className="material-symbols-rounded mb-3 text-[40px] text-[#3db9ee]">qr_code_scanner</span>
-              <p className="mb-1 text-sm font-semibold text-[#1b1c1c]">Align the participant&apos;s QR code within the frame</p>
-              <p className="mb-6 text-center text-xs text-[#8a959e]">
+              <span className="material-symbols-rounded mb-3 text-[40px] text-brand">qr_code_scanner</span>
+              <p className="mb-1 text-sm font-semibold text-fg">Align the participant&apos;s QR code within the frame</p>
+              <p className="mb-6 text-center text-xs text-muted-fg">
                 To automatically verify attendance and record check-in time.
               </p>
 
@@ -221,7 +221,7 @@ export default function KioskPage() {
                     setCameraActive(true);
                     setCameraError(null);
                   }}
-                  className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#bdc8d0] bg-[#f4f7f8] text-sm font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
+                  className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted text-sm font-semibold text-muted-fg transition hover:border-brand hover:text-brand"
                 >
                   <span className="material-symbols-rounded text-[22px]">photo_camera</span>
                   Start Camera Scanner
@@ -229,7 +229,7 @@ export default function KioskPage() {
               )}
 
               {cameraError && (
-                <div className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#e5484d]/30 bg-[#e5484d]/5 text-sm text-[#e5484d]">
+                <div className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-error/30 bg-error/10 text-sm text-error">
                   <span className="material-symbols-rounded text-[18px]">videocam_off</span>
                   {cameraError}
                 </div>
@@ -247,7 +247,7 @@ export default function KioskPage() {
               )}
 
               <form onSubmit={handleManualSubmit} className="w-full">
-                <label htmlFor="qr-input" className="mb-1.5 block text-sm font-medium text-[#1b1c1c]">
+                <label htmlFor="qr-input" className="mb-1.5 block text-sm font-medium text-fg">
                   Manual check-in
                 </label>
                 <div className="flex gap-3">
@@ -258,12 +258,12 @@ export default function KioskPage() {
                     onChange={(e) => setQrInput(e.target.value)}
                     placeholder="Scan or type QR token..."
                     disabled={processing}
-                    className="h-12 flex-1 rounded-xl border border-[#bdc8d0] bg-white px-4 text-sm text-[#1b1c1c] placeholder-[#8a959e] outline-none transition focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20 disabled:opacity-40"
+                    className="h-12 flex-1 rounded-xl border border-border bg-surface px-4 text-sm text-fg placeholder-muted-fg outline-none transition focus:border-brand focus:ring-2 focus:ring-ring/20 disabled:opacity-40"
                   />
                   <button
                     type="submit"
                     disabled={processing || !qrInput.trim()}
-                    className="flex h-12 items-center gap-2 rounded-xl bg-[#3db9ee] px-6 text-sm font-semibold text-white transition hover:bg-[#239dce] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-12 items-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {processing ? (
                       <span className="material-symbols-rounded animate-spin text-[18px]">progress_activity</span>
@@ -279,15 +279,15 @@ export default function KioskPage() {
                 <div
                   className={`mt-6 flex w-full items-start gap-3 rounded-xl border px-4 py-3 ${
                     result === "success"
-                      ? "border-[#2ea86e]/20 bg-[#2ea86e]/5"
+                      ? "border-success/20 bg-success/10"
                       : result === "duplicate"
-                        ? "border-[#e0a930]/20 bg-[#e0a930]/5"
-                        : "border-[#e5484d]/20 bg-[#e5484d]/5"
+                        ? "border-warning/20 bg-warning/10"
+                        : "border-error/20 bg-error/10"
                   }`}
                 >
                   <span
                     className={`material-symbols-rounded mt-0.5 text-[20px] ${
-                      result === "success" ? "text-[#2ea86e]" : result === "duplicate" ? "text-[#e0a930]" : "text-[#e5484d]"
+                      result === "success" ? "text-success" : result === "duplicate" ? "text-warning" : "text-error"
                     }`}
                   >
                     {result === "success" ? "check_circle" : result === "duplicate" ? "warning" : "cancel"}
@@ -295,18 +295,18 @@ export default function KioskPage() {
                   <div>
                     {result === "success" && (
                       <>
-                        <p className="text-sm font-semibold text-[#1b1c1c]">Checked in</p>
-                        <p className="text-sm text-[#647078]">{resultData.attendee?.full_name}</p>
-                        <p className="text-xs text-[#8a959e]">{resultData.attendee?.email}</p>
+                        <p className="text-sm font-semibold text-fg">Checked in</p>
+                        <p className="text-sm text-muted-fg">{resultData.attendee?.full_name}</p>
+                        <p className="text-xs text-muted-fg">{resultData.attendee?.email}</p>
                       </>
                     )}
-                    {result === "duplicate" && <p className="text-sm font-semibold text-[#1b1c1c]">Already checked in</p>}
+                    {result === "duplicate" && <p className="text-sm font-semibold text-fg">Already checked in</p>}
                     {result === "rejected" && (
                       <>
-                        <p className="text-sm font-semibold text-[#1b1c1c]">
+                        <p className="text-sm font-semibold text-fg">
                           {resultData.reason === "cancelled" ? "Ticket cancelled" : "Invalid ticket"}
                         </p>
-                        <p className="text-xs text-[#8a959e]">This QR code could not be validated for this event.</p>
+                        <p className="text-xs text-muted-fg">This QR code could not be validated for this event.</p>
                       </>
                     )}
                   </div>
@@ -319,7 +319,7 @@ export default function KioskPage() {
                     setSelectedEvent(null);
                     setCameraActive(false);
                   }}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#bdc8d0] bg-white text-sm font-semibold text-[#647078] transition hover:border-[#3db9ee] hover:text-[#3db9ee]"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-semibold text-muted-fg transition hover:border-brand hover:text-brand"
                 >
                   <span className="material-symbols-rounded text-[18px]">swap_horiz</span>
                   Change Event

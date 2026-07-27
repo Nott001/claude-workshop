@@ -100,7 +100,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
   return (
     <div className="flex h-full flex-col">
       <div className="mb-3">
-        <h2 className="text-sm font-bold text-[#1b1c1c]">Attendees</h2>
+        <h2 className="text-sm font-bold text-fg">Attendees</h2>
       </div>
 
       <div className="mb-3 flex flex-col gap-3">
@@ -110,7 +110,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
               key={filter}
               onClick={() => handleStatusFilter(filter)}
               className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                statusFilter === filter ? "bg-[#3db9ee]/10 text-[#3db9ee]" : "bg-[#f4f7f8] text-[#647078] hover:bg-[#e8edf0]"
+                statusFilter === filter ? "bg-brand/10 text-brand" : "bg-muted text-muted-fg hover:bg-muted"
               }`}
             >
               {STATUS_LABELS[filter]}
@@ -127,22 +127,22 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <span className="material-symbols-rounded animate-spin text-2xl text-[#3db9ee]">progress_activity</span>
+          <span className="material-symbols-rounded animate-spin text-2xl text-brand">progress_activity</span>
         </div>
       ) : attendees.length === 0 ? (
-        <div className="rounded-lg border border-[#bdc8d0] bg-[#f4f7f8] px-4 py-8 text-center">
-          <span className="material-symbols-rounded mb-1 text-2xl text-[#8a959e]">group</span>
-          <p className="text-xs font-medium text-[#1b1c1c]">No attendees found</p>
-          <p className="mt-0.5 text-[10px] text-[#8a959e]">
+        <div className="rounded-lg border border-border bg-muted px-4 py-8 text-center">
+          <span className="material-symbols-rounded mb-1 text-2xl text-muted-fg">group</span>
+          <p className="text-xs font-medium text-fg">No attendees found</p>
+          <p className="mt-0.5 text-[10px] text-muted-fg">
             {search ? "Try a different search term." : "No attendees match the current filter."}
           </p>
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-auto rounded-lg border border-[#bdc8d0]">
+          <div className="flex-1 overflow-auto rounded-lg border border-border">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#bdc8d0] bg-[#f4f7f8] text-left text-[10px] font-semibold uppercase tracking-wider text-[#647078]">
+                <tr className="border-b border-border bg-muted text-left text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Checked In</th>
@@ -150,15 +150,15 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
               </thead>
               <tbody>
                 {attendees.map((attendee) => (
-                  <tr key={attendee.user_id} className="border-b border-[#bdc8d0] last:border-b-0">
+                  <tr key={attendee.user_id} className="border-b border-border last:border-b-0">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <div className="grid size-6 place-items-center rounded-full bg-[#3db9ee]/10 text-[10px] font-bold text-[#3db9ee]">
+                        <div className="grid size-6 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
                           {getInitials(attendee.full_name)}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-[#1b1c1c]">{attendee.full_name}</p>
-                          <p className="truncate text-[10px] text-[#8a959e]">{attendee.email}</p>
+                          <p className="truncate font-medium text-fg">{attendee.full_name}</p>
+                          <p className="truncate text-[10px] text-muted-fg">{attendee.email}</p>
                         </div>
                       </div>
                     </td>
@@ -166,10 +166,10 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
                           attendee.ticket_status === "checked_in"
-                            ? "bg-[#2ea86e]/10 text-[#2ea86e]"
+                            ? "bg-success/10 text-success"
                             : attendee.ticket_status === "cancelled"
-                              ? "bg-[#e5484d]/10 text-[#e5484d]"
-                              : "bg-[#f4f7f8] text-[#647078]"
+                              ? "bg-error/10 text-error"
+                              : "bg-muted text-muted-fg"
                         }`}
                       >
                         {attendee.ticket_status === "checked_in"
@@ -179,7 +179,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
                             : "Registered"}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-[#647078]">
+                    <td className="px-3 py-2 text-muted-fg">
                       {attendee.checked_in_at ? formatTime(attendee.checked_in_at) : "\u2014"}
                     </td>
                   </tr>
@@ -188,7 +188,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
             </table>
           </div>
 
-          <div className="mt-2 flex items-center justify-between text-[10px] text-[#647078]">
+          <div className="mt-2 flex items-center justify-between text-[10px] text-muted-fg">
             <span>
               {(page - 1) * pageSize + 1}\u2013{Math.min(page * pageSize, total)} of {total}
             </span>

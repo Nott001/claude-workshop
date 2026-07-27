@@ -139,10 +139,10 @@ export default function EmailsPage() {
             <div className="text-sm text-muted-foreground">No email logs found.</div>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-[#bdc8d0]">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-[#bdc8d0] bg-[#f4f7f8] text-xs font-semibold uppercase tracking-[0.04em] text-[#647078]">
+                <tr className="border-b border-border bg-muted text-xs font-semibold uppercase tracking-[0.04em] text-muted-fg">
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Email Type</th>
                   <th className="px-4 py-3">Status</th>
@@ -151,7 +151,7 @@ export default function EmailsPage() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.log_id} className="border-b border-[#bdc8d0] last:border-0 hover:bg-[#f4f7f8]">
+                  <tr key={log.log_id} className="border-b border-border last:border-0 hover:bg-muted">
                     <td className="px-4 py-3 text-foreground">
                       <div className="font-medium">{log.USER?.full_name ?? "Unknown"}</div>
                       <div className="text-xs text-muted-foreground">{log.USER?.email ?? ""}</div>
@@ -160,7 +160,7 @@ export default function EmailsPage() {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          log.status === "sent" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          log.status === "sent" ? "bg-success/20 text-success" : "bg-error/20 text-red-800"
                         }`}
                       >
                         {log.status === "sent" ? "Sent" : "Failed"}
