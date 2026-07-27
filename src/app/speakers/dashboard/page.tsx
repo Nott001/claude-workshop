@@ -63,7 +63,7 @@ export default function SpeakerDashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
+    <div className="flex min-h-screen flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Upcoming Engagements</h1>

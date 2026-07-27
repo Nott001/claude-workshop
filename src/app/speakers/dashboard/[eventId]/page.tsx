@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, Clock3, MapPin, Users, ArrowLeft } from "lucide-react";
+
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Footer } from "@/components/footer";
@@ -87,19 +87,19 @@ export default function SpeakerEventDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fbf9f8]">
-        <div className="text-sm text-[#5f5e5e]">Loading event details...</div>
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="text-sm text-muted-fg">Loading event details...</div>
       </div>
     );
   }
 
   if (error || !event) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#fbf9f8]">
-        <div className="text-sm text-red-500">{error ?? "Event not found"}</div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-bg">
+        <div className="text-sm text-error">{error ?? "Event not found"}</div>
         <button
           onClick={() => router.push("/speakers/dashboard")}
-          className="mt-4 text-sm font-semibold text-[#168cb9] hover:underline"
+          className="mt-4 text-sm font-semibold text-brand hover:underline"
         >
           Back to Dashboard
         </button>
@@ -112,13 +112,13 @@ export default function SpeakerEventDetailsPage() {
   const isComplete = event.status === "complete";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
+    <div className="flex min-h-screen flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <button
           onClick={() => router.push("/speakers/dashboard")}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-[#5f5e5e] transition-colors hover:text-[#1b1c1c]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
         >
-          <ArrowLeft className="size-4" />
+          <span className="material-symbols-rounded text-base">arrow_back</span>
           Back to Dashboard
         </button>
 
@@ -134,20 +134,20 @@ export default function SpeakerEventDetailsPage() {
                 <StatusBadge
                   status={eventStatusBadge(event.status, event.event_date, event.start_time, event.end_time)}
                   label={statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
-                  className="w-fit bg-[#3db9ee] text-[#00465f] border-0"
+                  className="w-fit bg-brand text-brand border-0"
                 />
                 <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
                 <div className="flex items-center gap-6 pt-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <CalendarDays className="size-4" />
+                    <span className="material-symbols-rounded text-base">calendar_today</span>
                     {formatEventDate(event.event_date)}
                   </span>
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <Clock3 className="size-4" />
+                    <span className="material-symbols-rounded text-base">schedule</span>
                     {formatTime(event.start_time)} – {formatTime(event.end_time)}
                   </span>
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <MapPin className="size-4" />
+                    <span className="material-symbols-rounded text-base">location_on</span>
                     {event.venue_name}
                   </span>
                 </div>
@@ -158,19 +158,19 @@ export default function SpeakerEventDetailsPage() {
           {/* Quick Stats */}
           <div className="col-span-4 flex flex-col gap-6">
             <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">Total Registered Attendees</span>
-              <span className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-[#3db9ee]">
+              <span className="text-sm font-medium tracking-[0.7px] text-muted-fg">Total Registered Attendees</span>
+              <span className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-brand">
                 {event.attendee_count.toLocaleString()}
               </span>
             </div>
 
             <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] px-8 py-12 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-[#3e484f]">Status</span>
+              <span className="text-sm font-medium tracking-[0.7px] text-muted-fg">Status</span>
               <div className="mt-2 flex items-center gap-4">
-                {isLive && <span className="size-3 animate-pulse rounded-full bg-[#3db9ee]" />}
-                {isUpcoming && <span className="size-3 rounded-full bg-[#3db9ee]" />}
-                {isComplete && <span className="size-3 rounded-full bg-[#5f5e5e]" />}
-                <span className="text-[24px] font-semibold leading-[32px] text-[#1b1c1c]">
+                {isLive && <span className="size-3 animate-pulse rounded-full bg-brand" />}
+                {isUpcoming && <span className="size-3 rounded-full bg-brand" />}
+                {isComplete && <span className="size-3 rounded-full bg-muted-fg" />}
+                <span className="text-[24px] font-semibold leading-[32px] text-fg">
                   {statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
                 </span>
               </div>
@@ -179,23 +179,23 @@ export default function SpeakerEventDetailsPage() {
                   <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />
                 </div>
               )}
-              {!isUpcoming && <span className="mt-2 text-base text-[#3e484f]">{event.venue_name}</span>}
+              {!isUpcoming && <span className="mt-2 text-base text-muted-fg">{event.venue_name}</span>}
             </div>
           </div>
 
           {/* Detailed Info Grid */}
           <div className="col-span-7">
             <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <h2 className="text-[24px] font-semibold text-[#1b1c1c]">Full Event Description</h2>
+              <h2 className="text-[24px] font-semibold text-fg">Full Event Description</h2>
               <div className="mt-6 flex flex-col gap-4">
                 {event.description ? (
                   event.description.split("\n").map((para, i) => (
-                    <p key={i} className="text-base leading-[26px] text-[#3e484f]">
+                    <p key={i} className="text-base leading-[26px] text-muted-fg">
                       {para}
                     </p>
                   ))
                 ) : (
-                  <p className="text-base leading-[26px] text-[#5f5e5e]">No description available for this event.</p>
+                  <p className="text-base leading-[26px] text-muted-fg">No description available for this event.</p>
                 )}
               </div>
             </div>
@@ -204,12 +204,12 @@ export default function SpeakerEventDetailsPage() {
           {/* Speaker Actions */}
           <div className="col-span-5">
             <div className="rounded-xl border border-[rgba(0,102,136,0.2)] bg-[rgba(0,102,136,0.05)] p-8">
-              <h2 className="text-[24px] font-semibold text-[#1b1c1c]">Speaker Actions</h2>
+              <h2 className="text-[24px] font-semibold text-fg">Speaker Actions</h2>
 
               <div className="mt-6">
                 <Link
                   href={`/events/${eventId}/room`}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#3db9ee] py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#2da3d9]"
+                  className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
                 >
                   <span className="material-symbols-rounded text-[19px]">play_arrow</span>
                   Enter Event Room

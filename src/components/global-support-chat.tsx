@@ -154,20 +154,20 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   return (
     <div
       className={
-        "fixed bottom-24 right-8 z-50 flex w-[350px] flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] " +
+        "fixed bottom-24 right-8 z-50 flex w-[350px] flex-col rounded-xl border border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.12)] " +
         (!isOpen ? "hidden" : "")
       }
       style={{ height: "500px" }}
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-rounded text-lg text-[#00658d]">support_agent</span>
-          <span className="text-sm font-semibold text-[#1b1c1c]">Support</span>
+          <span className="material-symbols-rounded text-lg text-brand">support_agent</span>
+          <span className="text-sm font-semibold text-fg">Support</span>
           {!sessionActive && (
-            <span className="rounded bg-[#F0F2F4] px-1.5 py-0.5 text-[10px] font-medium text-[#6E7980]">Ended</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-fg">Ended</span>
           )}
         </div>
-        <button onClick={onClose} className="text-[#8B989E] transition-colors hover:text-[#1b1c1c]">
+        <button onClick={onClose} className="text-muted-fg transition-colors hover:text-fg">
           <span className="material-symbols-rounded text-lg">close</span>
         </button>
       </div>
@@ -175,8 +175,8 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="flex items-center gap-2">
-            <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
-            <p className="text-sm text-[#6E7980]">Loading messages...</p>
+            <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+            <p className="text-sm text-muted-fg">Loading messages...</p>
           </div>
         </div>
       ) : (
@@ -184,7 +184,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
           <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               {allMessages.length === 0 && (
-                <p className="py-12 text-center text-sm text-[#8B989E]">No messages yet. How can we help?</p>
+                <p className="py-12 text-center text-sm text-muted-fg">No messages yet. How can we help?</p>
               )}
 
               {allMessages.map((msg) => {
@@ -194,8 +194,8 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 if (isChatEnded) {
                   return (
                     <div key={msg.message_id} className="flex items-center justify-center gap-1.5 py-3">
-                      <span className="material-symbols-rounded text-sm text-[#8B989E]">call_end</span>
-                      <span className="text-[11px] text-[#8B989E]">This conversation has ended.</span>
+                      <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
+                      <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
                     </div>
                   );
                 }
@@ -203,21 +203,17 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                   <div key={msg.message_id} className={"flex flex-col " + (isOwn ? "items-end" : "items-start")}>
                     <div className="flex items-center gap-1.5 mb-1">
                       {isStaff && (
-                        <span className="inline-flex items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
+                        <span className="inline-flex items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
                           <span className="material-symbols-rounded text-[10px]">support_agent</span>
                           Staff
                         </span>
                       )}
-                      <span className="text-[10px] text-[#8B989E]">{formatTime(msg.sent_at)}</span>
+                      <span className="text-[10px] text-muted-fg">{formatTime(msg.sent_at)}</span>
                     </div>
                     <div
                       className={
                         "max-w-[80%] rounded-xl px-3 py-2 text-sm " +
-                        (isOwn
-                          ? "bg-[#3db9ee] text-white"
-                          : isStaff
-                            ? "bg-[#e3f2fd] text-[#1b1c1c]"
-                            : "bg-[#F0F2F4] text-[#1b1c1c]")
+                        (isOwn ? "bg-brand text-white" : isStaff ? "bg-info/10 text-fg" : "bg-muted text-fg")
                       }
                     >
                       {msg.message}
@@ -229,14 +225,14 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
           </div>
 
           {chatEnded && (
-            <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
-              <p className="text-center text-[11px] text-[#8B989E]">
+            <div className="shrink-0 border-t border-border px-4 py-3">
+              <p className="text-center text-[11px] text-muted-fg">
                 This conversation has ended. Send a message to start a new one.
               </p>
             </div>
           )}
 
-          <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+          <form onSubmit={handleSend} className="shrink-0 border-t border-border px-4 py-3">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -244,12 +240,12 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 maxLength={1000}
-                className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20"
               />
               <button
                 type="submit"
                 disabled={sending || !newMessage.trim()}
-                className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-1 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {sending ? (
                   <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -258,7 +254,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 )}
               </button>
             </div>
-            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
           </form>
         </>
       )}

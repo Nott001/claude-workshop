@@ -20,16 +20,6 @@ export const lessonSchema = z.object({
   sequence_order: z.coerce.number().int().min(1),
 });
 
-export function getContentTypeIcon(type: ContentType): string {
-  const icons: Record<ContentType, string> = {
-    pdf: "FileText",
-    video: "Video",
-    image: "Image",
-    link: "Link",
-  };
-  return icons[type];
-}
-
 export function getContentTypeLabel(type: ContentType): string {
   return type.toUpperCase();
 }

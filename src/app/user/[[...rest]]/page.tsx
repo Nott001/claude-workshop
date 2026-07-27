@@ -7,12 +7,11 @@ import { useUser, useReverification, useClerk } from "@clerk/nextjs";
 import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import { Toast } from "@/components/toast";
 
-const cardClass = "rounded-xl border border-[#bdc8d1] bg-white p-[33px] flex flex-col gap-6";
-const labelClass = "text-[14px] font-semibold text-[#3e4850] tracking-[0.7px] leading-4";
+const cardClass = "rounded-xl border border-border bg-surface p-[33px] flex flex-col gap-6";
+const labelClass = "text-[14px] font-semibold text-muted-fg tracking-[0.7px] leading-4";
 const inputClass =
-  "w-full rounded-xl border border-[#bdc8d1] bg-white px-[17px] py-[15px] text-base text-[#0f172a] outline-none transition-colors placeholder:text-[#6b7280] focus:border-[#29b6f6] focus:ring-1 focus:ring-[#29b6f6]";
-const readOnlyInputClass =
-  "w-full rounded-xl border border-[#bdc8d1] bg-[#edeef0] px-[17px] py-[13px] text-base text-[#5f5e5e]";
+  "w-full rounded-xl border border-border bg-surface px-[17px] py-[15px] text-base text-fg outline-none transition-colors placeholder:text-muted-fg focus:border-ring focus:ring-1 focus:ring-ring";
+const readOnlyInputClass = "w-full rounded-xl border border-border bg-muted px-[17px] py-[13px] text-base text-muted-fg";
 
 type ToastData = { title: string; description: string; type: "success" | "error" };
 
@@ -226,37 +225,37 @@ export default function UserSettingsPage() {
     .slice(0, 2);
 
   return (
-    <div className="flex flex-1 flex-col bg-[#fbf9f8]">
+    <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[896px] px-4 py-8 sm:px-6">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[#00658d] transition-colors hover:text-[#004460]"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand"
         >
           <span className="material-symbols-rounded text-[18px]">arrow_back</span>
           Back
         </Link>
-        <h1 className="text-[32px] font-bold tracking-[-0.32px] text-[#0f172a] leading-[40px]">Account Settings</h1>
-        <p className="mt-1 text-base text-[#5f5e5e] leading-6">Manage your account, security, and profile.</p>
+        <h1 className="text-[32px] font-bold tracking-[-0.32px] text-fg leading-[40px]">Account Settings</h1>
+        <p className="mt-1 text-base text-muted-fg leading-6">Manage your account, security, and profile.</p>
 
         <div className="mt-8 flex w-full flex-col gap-8">
           {isSpeaker && !speakerLoading && speakerProfile && (
             <div className={cardClass}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">badge</span>
-                  <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Speaker Profile</h2>
+                  <span className="material-symbols-rounded text-[28px] text-brand">badge</span>
+                  <h2 className="text-[24px] font-semibold text-fg leading-8">Speaker Profile</h2>
                 </div>
                 <button
                   onClick={handleSpeakerSave}
                   disabled={savingSpeaker}
-                  className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingSpeaker ? "Saving..." : "Save Profile"}
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="flex flex-col items-center justify-center rounded-xl bg-[#efeded] p-6">
+                <div className="flex flex-col items-center justify-center rounded-xl bg-muted p-6">
                   <button
                     onClick={() => {
                       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -276,7 +275,7 @@ export default function UserSettingsPage() {
                         }}
                       />
                     ) : (
-                      <div className="grid size-full place-items-center rounded-full bg-[#c2e8ff] text-3xl font-bold text-[#29b6f6]">
+                      <div className="grid size-full place-items-center rounded-full bg-brand/20 text-3xl font-bold text-brand">
                         {speakerInitials}
                       </div>
                     )}
@@ -327,8 +326,8 @@ export default function UserSettingsPage() {
 
           <form onSubmit={handleNameUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">person</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Profile Name</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">person</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Profile Name</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
@@ -360,7 +359,7 @@ export default function UserSettingsPage() {
               <button
                 type="submit"
                 disabled={savingName || (!firstName && !lastName)}
-                className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingName ? "Saving..." : "Save Changes"}
               </button>
@@ -369,8 +368,8 @@ export default function UserSettingsPage() {
 
           <form onSubmit={handleEmailUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">mail</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Email Address</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">mail</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Update Email Address</h2>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -396,7 +395,7 @@ export default function UserSettingsPage() {
               <button
                 type="submit"
                 disabled={savingEmail || !newEmail || newEmail === currentEmail}
-                className="rounded-xl bg-[#29b6f6] px-6 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingEmail ? "Saving..." : "Save Changes"}
               </button>
@@ -405,8 +404,8 @@ export default function UserSettingsPage() {
 
           <form onSubmit={handlePasswordUpdate} className={cardClass}>
             <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-[#29b6f6]">lock</span>
-              <h2 className="text-[24px] font-semibold text-[#0f172a] leading-8">Update Password</h2>
+              <span className="material-symbols-rounded text-[28px] text-brand">lock</span>
+              <h2 className="text-[24px] font-semibold text-fg leading-8">Update Password</h2>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -447,9 +446,9 @@ export default function UserSettingsPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 rounded-xl bg-[#f2f4f6] p-4">
-                <span className="material-symbols-rounded mt-0.5 text-[14px] text-[#5f5e5e]">info</span>
-                <p className="text-[12px] leading-[18px] text-[#5f5e5e]">
+              <div className="flex gap-3 rounded-xl bg-muted p-4">
+                <span className="material-symbols-rounded mt-0.5 text-[14px] text-muted-fg">info</span>
+                <p className="text-[12px] leading-[18px] text-muted-fg">
                   Security Tip: Use a combination of uppercase letters, numbers, and symbols to create a robust password.
                 </p>
               </div>
@@ -459,14 +458,14 @@ export default function UserSettingsPage() {
               <button
                 type="submit"
                 disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-                className="rounded-xl bg-[#29b6f6] px-8 py-3 text-[14px] font-semibold text-[#004460] tracking-[0.7px] transition-colors hover:bg-[#2196f3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-brand px-8 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-[14px] font-semibold text-[#00658d] tracking-[0.7px] transition-colors hover:text-[#004460]"
+                className="text-[14px] font-semibold text-brand tracking-[0.7px] transition-colors hover:text-brand"
               >
                 Forgot current password?
               </button>

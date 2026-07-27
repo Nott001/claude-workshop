@@ -179,7 +179,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   function userBadge(msg: ChatMessageWithUser) {
     if (msg.USER?.role === "speaker") {
       return (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-[#fff3e0] px-1.5 py-0.5 text-[9px] font-bold text-[#e65100]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-error">
           <span className="material-symbols-rounded text-[10px]">mic</span>
           Speaker
         </span>
@@ -188,7 +188,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
 
     if (msg.USER?.role === "facilitator") {
       return (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-[#e3f2fd] px-1.5 py-0.5 text-[9px] font-bold text-[#00658d]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
           <span className="material-symbols-rounded text-[10px]">support_agent</span>
           Staff
         </span>
@@ -200,17 +200,17 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
 
   if (!eventStarted) {
     return (
-      <div className="flex h-full flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[#E8ECEF] px-4 py-3 shrink-0">
+      <div className="flex h-full flex-col rounded-xl border border-border bg-surface shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-rounded text-lg text-[#00658d]">forum</span>
-            <span className="text-sm font-semibold text-[#1b1c1c]">Q&A</span>
-            <span className="material-symbols-rounded text-sm text-[#8B989E]">lock</span>
+            <span className="material-symbols-rounded text-lg text-brand">forum</span>
+            <span className="text-sm font-semibold text-fg">Q&A</span>
+            <span className="material-symbols-rounded text-sm text-muted-fg">lock</span>
           </div>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <span className="material-symbols-rounded text-3xl text-[#8B989E]">lock</span>
-          <p className="text-sm text-[#6E7980]">Q&A opens when the event starts.</p>
+          <span className="material-symbols-rounded text-3xl text-muted-fg">lock</span>
+          <p className="text-sm text-muted-fg">Q&A opens when the event starts.</p>
         </div>
       </div>
     );
@@ -219,13 +219,13 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   const interactive = !eventEnded;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#E8ECEF] bg-white shadow-sm overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between border-b border-[#E8ECEF] px-4 py-3">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-surface shadow-sm overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-rounded text-lg text-[#00658d]">forum</span>
-          <span className="text-sm font-semibold text-[#1b1c1c]">Q&A</span>
+          <span className="material-symbols-rounded text-lg text-brand">forum</span>
+          <span className="text-sm font-semibold text-fg">Q&A</span>
           {questions.length > 0 && (
-            <span className="rounded-full bg-[#E8ECEF] px-1.5 py-0.5 text-[10px] font-medium text-[#6E7980]">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-fg">
               {questions.length}
             </span>
           )}
@@ -235,8 +235,8 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="flex items-center gap-2">
-            <div className="size-3 animate-spin rounded-full border-2 border-[#3db9ee] border-t-transparent" />
-            <p className="text-sm text-[#6E7980]">Loading questions...</p>
+            <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+            <p className="text-sm text-muted-fg">Loading questions...</p>
           </div>
         </div>
       ) : (
@@ -244,7 +244,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
           <div className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               {questions.length === 0 && (
-                <p className="py-12 text-center text-sm text-[#8B989E]">No questions yet. Be the first to ask!</p>
+                <p className="py-12 text-center text-sm text-muted-fg">No questions yet. Be the first to ask!</p>
               )}
               {questions.map((q) => {
                 const answers = answersByParent.get(q.message_id) ?? [];
@@ -255,37 +255,35 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                   <div key={q.message_id}>
                     <div
                       className={
-                        "flex flex-col gap-2 rounded-xl border bg-white p-4 shadow-sm " +
+                        "flex flex-col gap-2 rounded-xl border bg-surface p-4 shadow-sm " +
                         (isAnswered
-                          ? "border-l-4 border-l-[#3db9ee] border-[#E8ECEF]"
+                          ? "border-l-4 border-l-brand border-border"
                           : isSpeaker
-                            ? "border-l-4 border-l-[#e65100] border-[#E8ECEF]"
-                            : "border-[#E8ECEF]")
+                            ? "border-l-4 border-l-warning border-border"
+                            : "border-border")
                       }
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
-                          <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E8ECEF]">
-                            <span className="material-symbols-rounded text-xs text-[#6E7980]">person</span>
+                          <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                            <span className="material-symbols-rounded text-xs text-muted-fg">person</span>
                           </div>
                           <div className="flex min-w-0 flex-col">
-                            <span
-                              className={"truncate text-xs font-semibold " + (isSpeaker ? "text-[#e65100]" : "text-[#1b1c1c]")}
-                            >
+                            <span className={"truncate text-xs font-semibold " + (isSpeaker ? "text-error" : "text-fg")}>
                               {q.USER?.full_name ?? "Unknown"}
                             </span>
                             {userBadge(q)}
                           </div>
                         </div>
-                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
+                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
                           {formatDateTime(q.sent_at)}
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed text-[#1b1c1c]">{q.message}</p>
+                      <p className="text-sm leading-relaxed text-fg">{q.message}</p>
 
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         {q.answered_verbally && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f5e9] px-2 py-0.5 text-[10px] font-semibold text-[#2e7d32]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
                             <span className="material-symbols-rounded text-xs">record_voice_over</span>
                             Answered verbally
                           </span>
@@ -293,7 +291,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         {interactive && isStaff && currentUserId !== q.user_id && (
                           <button
                             onClick={() => handleAnswer(q.message_id)}
-                            className="rounded-lg border border-[#3db9ee] px-2.5 py-1 text-[10px] font-bold text-[#3db9ee] transition-colors hover:bg-[#3db9ee] hover:text-white"
+                            className="rounded-lg border border-brand px-2.5 py-1 text-[10px] font-bold text-brand transition-colors hover:bg-brand hover:text-white"
                           >
                             Answer
                           </button>
@@ -301,7 +299,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         {interactive && isStaff && !q.answered_verbally && currentUserId !== q.user_id && (
                           <button
                             onClick={() => handleMarkVerbal(q.message_id)}
-                            className="flex items-center gap-1 rounded-lg border border-[#8B989E] px-2.5 py-1 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#6E7980] hover:bg-[#6E7980] hover:text-white"
+                            className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[10px] font-bold text-muted-fg transition-colors hover:border-muted-fg hover:bg-muted-fg hover:text-white"
                           >
                             <span className="material-symbols-rounded text-xs">record_voice_over</span>
                             Spoken
@@ -310,7 +308,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         {interactive && isStaff && (
                           <button
                             onClick={() => handleDelete(q.message_id)}
-                            className="ml-auto flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                            className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-2.5 py-1 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
                           >
                             <span className="material-symbols-rounded text-xs">delete</span>
                           </button>
@@ -324,22 +322,20 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                         <div
                           key={a.message_id}
                           className={
-                            "ml-4 mt-2 flex flex-col gap-2 rounded-xl border bg-[#F8FAFB] p-3 shadow-sm " +
+                            "ml-4 mt-2 flex flex-col gap-2 rounded-xl border bg-muted p-3 shadow-sm " +
                             (isSpeaker
-                              ? "border-l-2 border-l-[#e65100] border-[#E8ECEF]"
-                              : "border-l-2 border-l-[#3db9ee] border-[#E8ECEF]")
+                              ? "border-l-2 border-l-warning border-border"
+                              : "border-l-2 border-l-brand border-border")
                           }
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5">
-                              <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#00658d]">
+                              <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand/80">
                                 <span className="material-symbols-rounded text-[8px] text-white">support_agent</span>
                               </div>
                               <div className="flex min-w-0 flex-col">
                                 <span
-                                  className={
-                                    "truncate text-[10px] font-semibold " + (isSpeaker ? "text-[#e65100]" : "text-[#00658d]")
-                                  }
+                                  className={"truncate text-[10px] font-semibold " + (isSpeaker ? "text-error" : "text-brand")}
                                 >
                                   {a.USER?.full_name ?? "Unknown"}
                                 </span>
@@ -350,17 +346,17 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                               {interactive && isStaff && (
                                 <button
                                   onClick={() => handleDelete(a.message_id)}
-                                  className="flex items-center gap-1 rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                                  className="flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
                                 >
                                   <span className="material-symbols-rounded text-xs">delete</span>
                                 </button>
                               )}
-                              <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-[#8B989E]">
+                              <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
                                 {formatDateTime(a.sent_at)}
                               </span>
                             </div>
                           </div>
-                          <p className="text-sm leading-relaxed text-[#1b1c1c]">{a.message}</p>
+                          <p className="text-sm leading-relaxed text-fg">{a.message}</p>
                         </div>
                       );
                     })}
@@ -372,17 +368,17 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
           </div>
 
           {interactive ? (
-            <form onSubmit={handleSend} className="shrink-0 border-t border-[#E8ECEF] px-4 py-3">
+            <form onSubmit={handleSend} className="shrink-0 border-t border-border px-4 py-3">
               {replyTarget && (
-                <div className="mb-2 flex items-center justify-between rounded-lg bg-[#3db9ee]/10 px-3 py-1.5">
+                <div className="mb-2 flex items-center justify-between rounded-lg bg-brand/10 px-3 py-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-rounded text-xs text-[#3db9ee]">reply</span>
-                    <span className="text-[10px] font-medium text-[#3db9ee]">Replying to a question</span>
+                    <span className="material-symbols-rounded text-xs text-brand">reply</span>
+                    <span className="text-[10px] font-medium text-brand">Replying to a question</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setReplyTarget(null)}
-                    className="text-[#3db9ee] transition-colors hover:text-[#039be5]"
+                    className="text-brand transition-colors hover:text-brand/80"
                   >
                     <span className="material-symbols-rounded text-sm">close</span>
                   </button>
@@ -396,12 +392,12 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder={isStaff ? "Type your answer..." : "Ask a question..."}
                   maxLength={1000}
-                  className="min-w-0 flex-1 rounded-lg border border-[#DDE3E7] px-3 py-2 text-sm text-[#1b1c1c] outline-none placeholder:text-[#8B989E] focus:border-[#3db9ee] focus:ring-2 focus:ring-[#3db9ee]/20"
+                  className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20"
                 />
                 <button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
-                  className="flex items-center gap-1 rounded-lg bg-[#3db9ee] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {sending ? (
                     <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -413,11 +409,11 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
                   )}
                 </button>
               </div>
-              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+              {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
             </form>
           ) : (
-            <div className="shrink-0 border-t border-[#E8ECEF] px-4 py-3 text-center">
-              <p className="flex items-center justify-center gap-1.5 text-[10px] text-[#8B989E]">
+            <div className="shrink-0 border-t border-border px-4 py-3 text-center">
+              <p className="flex items-center justify-center gap-1.5 text-[10px] text-muted-fg">
                 <span className="material-symbols-rounded text-xs">info</span>
                 This event has ended. Q&A is in view-only mode.
               </p>

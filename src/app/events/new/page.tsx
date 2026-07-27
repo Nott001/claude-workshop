@@ -177,7 +177,7 @@ export default function NewEventPage() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
+      <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
             onClick={() => router.push("/events")}
@@ -188,7 +188,7 @@ export default function NewEventPage() {
           </button>
 
           <div className="mb-12">
-            <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-[#0F172A]">Create New Event</h1>
+            <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-fg">Create New Event</h1>
           </div>
 
           {error && (
@@ -197,10 +197,10 @@ export default function NewEventPage() {
             </div>
           )}
 
-          <div className="rounded-xl border border-[#F3F4F6] bg-white p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+          <div className="rounded-xl border border-border bg-surface p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
             <Form onSubmit={handleSubmit} className="space-y-8">
-              <div className="flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
-                <div className="rounded-lg bg-blue-50 p-2">
+              <div className="flex items-center gap-3 border-b border-border pb-4">
+                <div className="rounded-lg bg-info/10 p-2">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                       fillRule="evenodd"
@@ -210,11 +210,11 @@ export default function NewEventPage() {
                     />
                   </svg>
                 </div>
-                <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">EVENT FOUNDATIONS</span>
+                <span className="text-xs font-bold tracking-[0.1em] text-fg">EVENT FOUNDATIONS</span>
               </div>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Event Hero Image</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Event Hero Image</FormLabel>
                 <div
                   onDrop={handleFileDrop}
                   onDragOver={(e) => {
@@ -225,7 +225,7 @@ export default function NewEventPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
                     "flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors",
-                    dragOver ? "border-accent bg-accent/5" : "border-[#D1D5DB]",
+                    dragOver ? "border-accent bg-accent/5" : "border-border",
                   )}
                 >
                   <input
@@ -262,34 +262,34 @@ export default function NewEventPage() {
                         />
                       </svg>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-medium text-[#29B6F6]">Upload a hero image</span>
-                        <span className="text-sm text-[#4B5563]">or drag and drop</span>
+                        <span className="text-sm font-medium text-brand">Upload a hero image</span>
+                        <span className="text-sm text-muted-fg">or drag and drop</span>
                       </div>
-                      <span className="mt-1 text-xs text-[#6B7280]">PNG, JPG, GIF up to 10MB</span>
+                      <span className="mt-1 text-xs text-muted-fg">PNG, JPG, GIF up to 10MB</span>
                     </>
                   )}
                 </div>
               </FormField>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Event Name</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Event Name</FormLabel>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Startup Fundraising Masterclass"
-                  className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                  className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                   required
                 />
               </FormField>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Link to Curriculum Library (Optional)</FormLabel>
-                <p className="mb-1 text-xs font-medium text-[#2563EB]">
+                <FormLabel className="text-sm font-semibold text-fg">Link to Curriculum Library (Optional)</FormLabel>
+                <p className="mb-1 text-xs font-medium text-info">
                   Connect this event to an existing curriculum for automatic resource sharing.
                 </p>
-                {coursesError && <p className="mb-2 text-xs text-red-600">{coursesError}</p>}
+                {coursesError && <p className="mb-2 text-xs text-error">{coursesError}</p>}
                 <Select value={courseId} onValueChange={setCourseId}>
-                  <SelectTrigger className="mt-3 w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
+                  <SelectTrigger className="mt-3 w-full rounded-lg border-border bg-surface px-4 py-3 text-base text-fg">
                     <SelectValue placeholder="No curriculum linked">
                       {(value: string) => {
                         if (!value || value === "__none__") return "No curriculum linked";
@@ -312,12 +312,12 @@ export default function NewEventPage() {
                   </SelectContent>
                 </Select>
                 {courses.length === 0 && !coursesError && (
-                  <p className="mt-2 text-xs text-[#6B7280]">
+                  <p className="mt-2 text-xs text-muted-fg">
                     No courses available.{" "}
                     <button
                       type="button"
                       onClick={() => router.push("/courses/new")}
-                      className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1d4ed8]"
+                      className="font-medium text-info underline underline-offset-2 hover:text-info"
                     >
                       Create a course
                     </button>
@@ -327,34 +327,34 @@ export default function NewEventPage() {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Date</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Date</FormLabel>
                   <Input
                     type="date"
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                     required
                   />
                 </FormField>
 
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Start Time</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Start Time</FormLabel>
                   <Input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                     required
                   />
                 </FormField>
 
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">End Time</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">End Time</FormLabel>
                   <Input
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                     required
                   />
                 </FormField>
@@ -362,30 +362,30 @@ export default function NewEventPage() {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Venue Name</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Venue Name</FormLabel>
                   <Input
                     value={venueName}
                     onChange={(e) => setVenueName(e.target.value)}
                     placeholder="e.g. StartupLab Main Hall"
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                     required
                   />
                 </FormField>
 
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Venue Address</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Venue Address</FormLabel>
                   <Input
                     value={venueAddress}
                     onChange={(e) => setVenueAddress(e.target.value)}
                     placeholder="Optional"
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                   />
                 </FormField>
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Price</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Price</FormLabel>
                   <Input
                     type="number"
                     min="0"
@@ -393,14 +393,14 @@ export default function NewEventPage() {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="0 for free"
-                    className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                   />
                 </FormField>
 
                 <FormField>
-                  <FormLabel className="text-sm font-semibold text-[#334155]">Currency</FormLabel>
+                  <FormLabel className="text-sm font-semibold text-fg">Currency</FormLabel>
                   <Select value={currency} onValueChange={setCurrency}>
-                    <SelectTrigger className="w-full rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]">
+                    <SelectTrigger className="w-full rounded-lg border-border bg-surface px-4 py-3 text-base text-fg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -413,10 +413,10 @@ export default function NewEventPage() {
               </div>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Speaker Assignment</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Speaker Assignment</FormLabel>
                 {speakers.length > 0 ? (
                   <Select value={speakerId} onValueChange={setSpeakerId}>
-                    <SelectTrigger className="w-full rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]">
+                    <SelectTrigger className="w-full rounded-lg border-border bg-muted px-4 py-3 text-base text-fg">
                       <SelectValue placeholder="Select a speaker">
                         {(value) => {
                           const s = speakers.find((sp) => String(sp.speaker_profile_id) === value);
@@ -440,28 +440,28 @@ export default function NewEventPage() {
                     value={speakerId}
                     onChange={(e) => setSpeakerId(e.target.value)}
                     placeholder="Speaker profile ID (optional)"
-                    className="rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
+                    className="rounded-lg border-border bg-muted px-4 py-3 text-base text-fg"
                   />
                 )}
               </FormField>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Description</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Description</FormLabel>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Briefly describe the purpose of this event..."
-                  className="min-h-[88px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
+                  className="min-h-[88px] rounded-lg border-border bg-muted px-4 py-3 text-base text-fg"
                 />
               </FormField>
 
-              <div className="flex items-center justify-end gap-6 border-t border-[#F9FAFB] pt-4">
+              <div className="flex items-center justify-end gap-6 border-t border-border pt-4">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={handleSaveDraft}
                   disabled={submitting}
-                  className="text-sm font-semibold text-[#6B7280]"
+                  className="text-sm font-semibold text-muted-fg"
                 >
                   Save Draft
                 </Button>
@@ -472,7 +472,7 @@ export default function NewEventPage() {
                     backgroundColor: "#29B6F6",
                     boxShadow: "0 4px 6px -4px rgba(191, 219, 254, 1), 0 10px 15px -3px rgba(191, 219, 254, 1)",
                   }}
-                  className="rounded-lg px-8 py-3 text-base font-bold leading-6 text-white transition-colors hover:bg-[#239dce]"
+                  className="rounded-lg px-8 py-3 text-base font-bold leading-6 text-white transition-colors hover:bg-brand/90"
                 >
                   {submitting ? "Publishing..." : "Publish"}
                 </Button>

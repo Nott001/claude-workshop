@@ -9,7 +9,7 @@ interface StatusBadgeProps {
 }
 
 const STATUS_STYLES: Record<EventStatus, string> = {
-  live: "bg-red-900/20 text-red-500",
+  live: "bg-red-900/20 text-error",
   active: "bg-green-900/20 text-green-500",
   upcoming: "bg-blue-900/20 text-blue-400",
   completed: "bg-green-900/20 text-green-500",

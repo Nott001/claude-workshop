@@ -69,7 +69,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
   }, [active, onScan, onError, stopScanner]);
 
   return (
-    <div className="relative mb-6 overflow-hidden rounded-xl border border-[#bdc8d0]">
+    <div className="relative mb-6 overflow-hidden rounded-xl border border-border">
       <style>{`
         #qr-reader-container video {
           width: 100% !important;

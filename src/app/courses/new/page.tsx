@@ -335,7 +335,7 @@ export default function NewCoursePage() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
+      <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
             onClick={() => router.push("/courses")}
@@ -346,7 +346,7 @@ export default function NewCoursePage() {
           </button>
 
           <div className="mb-12">
-            <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-[#0F172A]">Create New Course</h1>
+            <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-fg">Create New Course</h1>
           </div>
 
           {error && (
@@ -355,43 +355,43 @@ export default function NewCoursePage() {
             </div>
           )}
 
-          <div className="rounded-xl border border-[#F3F4F6] bg-white p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+          <div className="rounded-xl border border-border bg-surface p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
             <Form onSubmit={handleCreateCourse} className="space-y-8">
-              <div className="flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
-                <div className="rounded-lg bg-blue-50 p-2">
-                  <span className="material-symbols-rounded text-[20px] text-[#29B6F6]">menu_book</span>
+              <div className="flex items-center gap-3 border-b border-border pb-4">
+                <div className="rounded-lg bg-info/10 p-2">
+                  <span className="material-symbols-rounded text-[20px] text-brand">menu_book</span>
                 </div>
-                <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">COURSE DETAILS</span>
+                <span className="text-xs font-bold tracking-[0.1em] text-fg">COURSE DETAILS</span>
               </div>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Course Title</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Course Title</FormLabel>
                 <Input
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
                   placeholder="e.g. Digital Strategy 101"
-                  className="rounded-lg border-[#E5E7EB] bg-white px-4 py-3 text-base text-[#374151]"
+                  className="rounded-lg border-border bg-surface px-4 py-3 text-base text-fg"
                   required
                 />
               </FormField>
 
               <FormField>
-                <FormLabel className="text-sm font-semibold text-[#334155]">Description</FormLabel>
+                <FormLabel className="text-sm font-semibold text-fg">Description</FormLabel>
                 <Textarea
                   value={courseDescription}
                   onChange={(e) => setCourseDescription(e.target.value)}
                   placeholder="What will attendees learn in this course?"
-                  className="min-h-[88px] rounded-lg border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-base text-[#374151]"
+                  className="min-h-[88px] rounded-lg border-border bg-muted px-4 py-3 text-base text-fg"
                 />
               </FormField>
 
-              <div className="flex items-center justify-end gap-6 border-t border-[#F9FAFB] pt-4">
+              <div className="flex items-center justify-end gap-6 border-t border-border pt-4">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => router.push("/courses")}
                   disabled={submitting}
-                  className="text-sm font-semibold text-[#6B7280]"
+                  className="text-sm font-semibold text-muted-fg"
                 >
                   Cancel
                 </Button>
@@ -402,7 +402,7 @@ export default function NewCoursePage() {
                     backgroundColor: "#29B6F6",
                     boxShadow: "0 4px 6px -4px rgba(191, 219, 254, 1), 0 10px 15px -3px rgba(191, 219, 254, 1)",
                   }}
-                  className="rounded-lg px-8 py-3 text-base font-bold leading-6 text-white transition-colors hover:bg-[#239dce]"
+                  className="rounded-lg px-8 py-3 text-base font-bold leading-6 text-white transition-colors hover:bg-brand/90"
                 >
                   {submitting ? "Creating..." : "Create Course"}
                 </Button>
@@ -410,16 +410,16 @@ export default function NewCoursePage() {
             </Form>
           </div>
 
-          <div className="mt-8 rounded-xl border border-[#F3F4F6] bg-white p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-            <div className="mb-8 flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
-              <div className="rounded-lg bg-blue-50 p-2">
-                <span className="material-symbols-rounded text-[20px] text-[#29B6F6]">school</span>
+          <div className="mt-8 rounded-xl border border-border bg-surface p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+            <div className="mb-8 flex items-center gap-3 border-b border-border pb-4">
+              <div className="rounded-lg bg-info/10 p-2">
+                <span className="material-symbols-rounded text-[20px] text-brand">school</span>
               </div>
-              <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">CURRICULUM BUILDER</span>
+              <span className="text-xs font-bold tracking-[0.1em] text-fg">CURRICULUM BUILDER</span>
             </div>
 
             <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-[#6B7280]">Organize your course into modules and lessons.</p>
+              <p className="text-sm text-muted-fg">Organize your course into modules and lessons.</p>
               <Button variant="outline" size="sm" onClick={handleAddModule}>
                 <span className="material-symbols-rounded text-[14px]">add_circle</span>
                 Add module
@@ -427,11 +427,9 @@ export default function NewCoursePage() {
             </div>
 
             {modules.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed border-[#D1D5DB] py-12 text-center">
-                <span className="material-symbols-rounded mb-2 block text-[32px] text-[#D1D5DB]">post_add</span>
-                <p className="text-sm text-[#6B7280]">
-                  No modules yet. Add your first module to start building the curriculum.
-                </p>
+              <div className="rounded-lg border-2 border-dashed border-border py-12 text-center">
+                <span className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">post_add</span>
+                <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -447,10 +445,10 @@ export default function NewCoursePage() {
                     onDragLeave={() => setDragOverModuleId(null)}
                     onDrop={(e) => handleModuleDrop(e, mod.module_id)}
                     onDragEnd={() => setDragOverModuleId(null)}
-                    className={`rounded-lg border bg-[#FAFBFC] p-5 transition-shadow ${
+                    className={`rounded-lg border bg-muted p-5 transition-shadow ${
                       dragOverModuleId === mod.module_id
-                        ? "border-[#29B6F6] shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                        : "border-[#F3F4F6]"
+                        ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                        : "border-border"
                     }`}
                   >
                     <div className="mb-3 flex items-center gap-2">
@@ -464,10 +462,10 @@ export default function NewCoursePage() {
                             if (e.key === "Escape") setRenamingModuleId(null);
                           }}
                           onBlur={() => handleRenameModule(mod.module_id)}
-                          className="rounded-lg border border-[#29B6F6] bg-white px-3 py-1.5 text-sm font-semibold text-[#374151] outline-none ring-2 ring-[#29B6F6]/20"
+                          className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
                         />
                       ) : (
-                        <span className="text-sm font-semibold text-[#334155]">{mod.module_name}</span>
+                        <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
                       )}
 
                       <button
@@ -475,19 +473,19 @@ export default function NewCoursePage() {
                           setRenamingModuleId(mod.module_id);
                           setRenameValue(mod.module_name);
                         }}
-                        className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#334155]"
+                        className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
                         title="Rename module"
                       >
                         <span className="material-symbols-rounded text-[14px]">edit</span>
                       </button>
 
-                      <span className="rounded-full bg-[#EFF6FF] px-2.5 py-0.5 text-xs font-medium text-[#2563EB]">
+                      <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
                         {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
                       </span>
 
                       <button
                         onClick={() => handleDeleteModule(mod.module_id)}
-                        className="ml-auto rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                        className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                         title="Delete module"
                       >
                         <span className="material-symbols-rounded text-[14px]">delete</span>
@@ -510,22 +508,22 @@ export default function NewCoursePage() {
                             onDragEnd={() => setDragOverLessonId(null)}
                             className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
                               dragOverLessonId === lesson.lesson_id
-                                ? "border-[#29B6F6] bg-white shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                                : "border-[#F3F4F6] bg-white"
+                                ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                                : "border-border bg-surface"
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
-                              <span className="text-xs font-medium text-[#9CA3AF]">
+                              <span className="text-xs font-medium text-muted-fg">
                                 {mod.sequence_order}.{lesson.sequence_order}
                               </span>
-                              <span className="text-sm text-[#374151]">{lesson.description}</span>
-                              <span className="rounded-md bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                              <span className="text-sm text-fg">{lesson.description}</span>
+                              <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
                                 {lesson.content_type}
                               </span>
                             </div>
                             <button
                               onClick={() => handleDeleteLesson(lesson.lesson_id, mod.module_id)}
-                              className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                               title="Delete lesson"
                             >
                               <span className="material-symbols-rounded text-[14px]">delete</span>
@@ -582,9 +580,9 @@ export default function NewCoursePage() {
                     setLessonContentFile(e.target.files?.[0] ?? null);
                     if (e.target.files?.[0]) setLessonContentUrl("");
                   }}
-                  className="block w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#374151] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#2563EB] hover:file:bg-blue-100"
+                  className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg file:mr-3 file:rounded-md file:border-0 file:bg-info/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-info hover:file:bg-blue-100"
                 />
-                {lessonContentFile && <p className="mt-1 text-xs text-[#6B7280]">Selected: {lessonContentFile.name}</p>}
+                {lessonContentFile && <p className="mt-1 text-xs text-muted-fg">Selected: {lessonContentFile.name}</p>}
               </FormField>
 
               <FormField className="mt-3">

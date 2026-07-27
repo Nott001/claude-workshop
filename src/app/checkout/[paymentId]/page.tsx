@@ -65,7 +65,7 @@ export default function CheckoutPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="mx-auto max-w-sm text-center">
-          <span className="material-symbols-rounded text-4xl text-red-500">error</span>
+          <span className="material-symbols-rounded text-4xl text-error">error</span>
           <h1 className="mt-4 text-lg font-bold text-foreground">Payment Status</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
           <div className="mt-6 flex justify-center gap-3">
@@ -91,7 +91,7 @@ export default function CheckoutPage() {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div className="mx-auto max-w-sm text-center">
-        <span className="material-symbols-rounded text-4xl text-blue-500">
+        <span className="material-symbols-rounded text-4xl text-info">
           {status === "loading" ? "hourglass_top" : "progress_activity"}
         </span>
         <h1 className="mt-4 text-lg font-bold text-foreground">

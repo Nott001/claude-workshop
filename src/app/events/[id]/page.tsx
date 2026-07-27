@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
@@ -241,7 +240,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-[#6E7980]">Loading event...</div>
+        <div className="text-sm text-muted-fg">Loading event...</div>
       </div>
     );
   }
@@ -249,7 +248,7 @@ export default function EventDetailPage() {
   if (error || !event) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-red-500">{error ?? "Event not found"}</div>
+        <div className="text-sm text-error">{error ?? "Event not found"}</div>
       </div>
     );
   }
@@ -260,13 +259,13 @@ export default function EventDetailPage() {
 
   if (isFacilitator) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#fbf9f8]">
+      <div className="flex min-h-screen flex-col bg-bg">
         <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
           <button
             onClick={() => router.push("/events")}
-            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-[#5f5e5e] transition-colors hover:text-[#1b1c1c]"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
           >
-            <ArrowLeft className="size-4" />
+            <span className="material-symbols-rounded text-base">arrow_back</span>
             Back to Events
           </button>
 
@@ -290,7 +289,7 @@ export default function EventDetailPage() {
                       label={badgeProps.label}
                       className={cn(
                         "w-fit border-0",
-                        badgeProps.status === "live" ? "bg-red-600 text-white" : "bg-[#3db9ee] text-[#00465f]",
+                        badgeProps.status === "live" ? "bg-error text-white" : "bg-brand text-brand",
                       )}
                     />
                     <h1 className="text-[36px] font-bold leading-[44px] tracking-[-0.02em] text-white">{event.title}</h1>
@@ -322,19 +321,19 @@ export default function EventDetailPage() {
                 <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                   <div className="mb-4 flex items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                      <span className="material-symbols-rounded text-lg text-[#3db9ee]">school</span>
+                      <span className="material-symbols-rounded text-lg text-brand">school</span>
                     </div>
                     <div>
-                      <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Linked Curriculum</h2>
+                      <h2 className="text-[20px] font-semibold text-fg">Linked Curriculum</h2>
                     </div>
                   </div>
-                  <h3 className="mb-2 text-[24px] font-bold text-[#1b1c1c]">{event.COURSE.course_name}</h3>
+                  <h3 className="mb-2 text-[24px] font-bold text-fg">{event.COURSE.course_name}</h3>
                   {event.COURSE.course_description && (
-                    <p className="mb-4 text-base leading-[26px] text-[#3E484F]">{event.COURSE.course_description}</p>
+                    <p className="mb-4 text-base leading-[26px] text-muted-fg">{event.COURSE.course_description}</p>
                   )}
                   <button
                     onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                    className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
                   >
                     <span className="material-symbols-rounded text-sm">open_in_new</span>
                     View Curriculum
@@ -356,27 +355,27 @@ export default function EventDetailPage() {
                   return (
                     <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                       <div className="flex items-center gap-5">
-                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                           {sp.photo_url ? (
                             <img src={sp.photo_url} alt="" className="size-full object-cover" />
                           ) : (
-                            <span className="text-xl font-bold text-[#3db9ee]">{initials || "SP"}</span>
+                            <span className="text-xl font-bold text-brand">{initials || "SP"}</span>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-lg font-semibold text-[#1b1c1c]">{name}</p>
+                          <p className="text-lg font-semibold text-fg">{name}</p>
                           {sp.designation && (
-                            <p className="text-xs font-medium uppercase tracking-[0.05em] text-[#6E7980]">{sp.designation}</p>
+                            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-fg">{sp.designation}</p>
                           )}
-                          {email && <p className="mt-1 text-sm text-[#5f5e5e]">{email}</p>}
-                          {sp.bio && <p className="mt-2 text-sm leading-[22px] text-[#3E484F]">{sp.bio}</p>}
+                          {email && <p className="mt-1 text-sm text-muted-fg">{email}</p>}
+                          {sp.bio && <p className="mt-2 text-sm leading-[22px] text-muted-fg">{sp.bio}</p>}
                         </div>
                       </div>
                     </div>
                   );
                 })()
               ) : (
-                <div className="rounded-xl border border-dashed border-[#d0d5dd] bg-[rgba(255,255,255,0.9)] px-8 py-6 text-center text-sm text-[#5f5e5e] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+                <div className="rounded-xl border border-dashed border-border bg-[rgba(255,255,255,0.9)] px-8 py-6 text-center text-sm text-muted-fg shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
                   No speaker assigned yet
                 </div>
               )}
@@ -384,22 +383,22 @@ export default function EventDetailPage() {
               {/* Recent Registrations */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-[20px] font-semibold text-[#1b1c1c]">Recent Registrations</h2>
+                  <h2 className="text-[20px] font-semibold text-fg">Recent Registrations</h2>
                   <button
                     onClick={() => setShowAttendeesModal(true)}
-                    className="text-sm font-medium text-[#3db9ee] hover:underline"
+                    className="text-sm font-medium text-brand hover:underline"
                   >
                     View all ({attendeesTotal})
                   </button>
                 </div>
                 {attendeesLoading ? (
-                  <div className="py-8 text-center text-sm text-[#5f5e5e]">Loading...</div>
+                  <div className="py-8 text-center text-sm text-muted-fg">Loading...</div>
                 ) : recentAttendees.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-[#5f5e5e]">No registrations yet</div>
+                  <div className="py-8 text-center text-sm text-muted-fg">No registrations yet</div>
                 ) : (
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-[rgba(229,231,235,0.5)] text-[#6E7980]">
+                      <tr className="border-b border-[rgba(229,231,235,0.5)] text-muted-fg">
                         <th className="pb-3 pr-4 font-medium">Name</th>
                         <th className="pb-3 pr-4 font-medium">Email</th>
                         <th className="pb-3 pr-4 font-medium">Status</th>
@@ -409,16 +408,16 @@ export default function EventDetailPage() {
                     <tbody>
                       {recentAttendees.map((a) => (
                         <tr key={a.user_id} className="border-b border-[rgba(229,231,235,0.2)]">
-                          <td className="py-3 pr-4 text-[#1b1c1c]">{a.full_name}</td>
-                          <td className="py-3 pr-4 text-[#5f5e5e]">{a.email}</td>
+                          <td className="py-3 pr-4 text-fg">{a.full_name}</td>
+                          <td className="py-3 pr-4 text-muted-fg">{a.email}</td>
                           <td className="py-3 pr-4">
                             <span
                               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                 a.ticket_status === "checked_in"
-                                  ? "bg-green-50 text-green-700"
+                                  ? "bg-success/10 text-success"
                                   : a.ticket_status === "issued"
-                                    ? "bg-blue-50 text-blue-700"
-                                    : "bg-gray-50 text-gray-500"
+                                    ? "bg-info/10 text-info"
+                                    : "bg-muted text-muted-fg"
                               }`}
                             >
                               {a.ticket_status === "checked_in"
@@ -428,7 +427,7 @@ export default function EventDetailPage() {
                                   : "Cancelled"}
                             </span>
                           </td>
-                          <td className="py-3 text-[#5f5e5e]">{new Date(a.issued_at).toLocaleString()}</td>
+                          <td className="py-3 text-muted-fg">{new Date(a.issued_at).toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -441,33 +440,33 @@ export default function EventDetailPage() {
             <div className="col-span-4 flex flex-col gap-6">
               {/* Analytics */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                <span className="text-sm font-medium text-[#3e484f]">Registered</span>
-                <p className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-[#3db9ee]">
+                <span className="text-sm font-medium text-muted-fg">Registered</span>
+                <p className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-brand">
                   {event.attendee_count?.toLocaleString() ?? "0"}
                 </p>
               </div>
 
               {/* Actions */}
               <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-                <h2 className="mb-4 text-[16px] font-semibold text-[#1b1c1c]">Actions</h2>
+                <h2 className="mb-4 text-[16px] font-semibold text-fg">Actions</h2>
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => router.push(`/events/${eventId}/room`)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3db9ee] py-3 text-sm font-bold text-white transition-colors hover:bg-[#2da3d9]"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand/90"
                   >
                     <span className="material-symbols-rounded text-sm">play_circle</span>
                     Enter Event Room
                   </button>
                   <button
                     onClick={() => router.push(`/events/${eventId}/edit`)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-3 text-sm font-semibold text-fg transition-colors hover:bg-muted"
                   >
                     <span className="material-symbols-rounded text-sm">edit</span>
                     Edit Event
                   </button>
                   <button
                     onClick={() => setShowAttendeesModal(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-3 text-sm font-semibold text-[#1b1c1c] transition-colors hover:bg-gray-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-3 text-sm font-semibold text-fg transition-colors hover:bg-muted"
                   >
                     <span className="material-symbols-rounded text-sm">qr_code_scanner</span>
                     View All Attendees
@@ -476,7 +475,7 @@ export default function EventDetailPage() {
                     <button
                       onClick={handlePublish}
                       disabled={publishing}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 py-3 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-success py-3 text-sm font-bold text-white transition-colors hover:bg-success/80 disabled:opacity-50"
                     >
                       <span className="material-symbols-rounded text-sm">publish</span>
                       {publishing ? "Publishing..." : "Publish Event"}
@@ -484,14 +483,14 @@ export default function EventDetailPage() {
                   )}
                   <button
                     onClick={handleDelete}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/10 py-3 text-sm font-semibold text-error transition-colors hover:bg-error/20"
                   >
                     <span className="material-symbols-rounded text-sm">delete</span>
                     Delete Event
                   </button>
                 </div>
-                {publishError && <p className="mt-2 text-xs text-red-500">{publishError}</p>}
-                {deleteError && <p className="mt-2 text-xs text-red-500">{deleteError}</p>}
+                {publishError && <p className="mt-2 text-xs text-error">{publishError}</p>}
+                {deleteError && <p className="mt-2 text-xs text-error">{deleteError}</p>}
               </div>
             </div>
           </div>
@@ -499,17 +498,17 @@ export default function EventDetailPage() {
 
         {/* Delete confirmation modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="mx-4 w-full max-w-md rounded-xl border border-[#bdc8d0] bg-white p-6 shadow-lg">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
+            <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
               <div className="mb-4 flex items-center gap-3">
-                <span className="material-symbols-rounded text-2xl text-red-500">warning</span>
-                <h3 className="text-sm font-semibold text-[#1B1C1C]">Delete event</h3>
+                <span className="material-symbols-rounded text-2xl text-error">warning</span>
+                <h3 className="text-sm font-semibold text-fg">Delete event</h3>
               </div>
-              <p className="mb-2 text-sm text-[#3E484F]">
+              <p className="mb-2 text-sm text-muted-fg">
                 This event has existing payments. Deleting it will also remove all associated data, including payments, tickets,
                 and chat messages. This action <strong>cannot be undone</strong>.
               </p>
-              <p className="mb-4 text-sm text-[#3E484F]">
+              <p className="mb-4 text-sm text-muted-fg">
                 Type <strong>understood</strong> to confirm.
               </p>
               <input
@@ -517,19 +516,19 @@ export default function EventDetailPage() {
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder='type "understood"'
-                className="mb-4 w-full rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm text-[#1B1C1C] outline-none focus:border-red-400"
+                className="mb-4 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-red-400"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="rounded-lg border border-[#bdc8d0] bg-white px-4 py-2 text-xs font-medium text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                  className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-fg transition-colors hover:bg-muted"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDelete}
                   disabled={deleteConfirmText !== "understood" || deleting}
-                  className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                  className="rounded-lg bg-error/100 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-error disabled:opacity-50"
                 >
                   {deleting ? "Deleting..." : "Delete event"}
                 </button>
@@ -540,13 +539,13 @@ export default function EventDetailPage() {
 
         {/* Attendees modal */}
         {showAttendeesModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8">
-            <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#bdc8d0] bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-[#bdc8d0] px-6 py-4">
-                <h2 className="text-sm font-bold text-[#1b1c1c]">Attendees</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-8">
+            <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <h2 className="text-sm font-bold text-fg">Attendees</h2>
                 <button
                   onClick={() => setShowAttendeesModal(false)}
-                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-gray-100"
+                  className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-muted"
                 >
                   <span className="material-symbols-rounded text-[20px]">close</span>
                 </button>
@@ -564,7 +563,7 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-surface">
       <div className="mx-auto w-full max-w-[1238px] px-0 py-[70px]">
         <div className="flex flex-col gap-[10px] px-0">
           <div className="flex flex-col gap-12 px-[48px]">
@@ -581,12 +580,12 @@ export default function EventDetailPage() {
                     </div>
                   )}
                   {event.COURSE && (
-                    <div className="absolute inset-x-0 bottom-0 bg-white px-[20px] pb-4 pt-0 rounded-tr-[50px]">
+                    <div className="absolute inset-x-0 bottom-0 bg-surface px-[20px] pb-4 pt-0 rounded-tr-[50px]">
                       <div className="pt-4">
-                        <h2 className="text-[32px] font-bold leading-[60px] tracking-[-0.03em] text-[#1B1C1C]">
+                        <h2 className="text-[32px] font-bold leading-[60px] tracking-[-0.03em] text-fg">
                           {event.COURSE.course_name}
                         </h2>
-                        <p className="text-base text-[#1B1C1C]">{event.COURSE.course_description || "Course Description"}</p>
+                        <p className="text-base text-fg">{event.COURSE.course_description || "Course Description"}</p>
                       </div>
                     </div>
                   )}
@@ -596,13 +595,13 @@ export default function EventDetailPage() {
                 <div className="flex flex-1 flex-col justify-center gap-8 p-12">
                   <div>
                     {badgeProps && <StatusBadge status={badgeProps.status} label={badgeProps.label} className="mb-3" />}
-                    <p className="text-lg font-bold text-[#3db9ee]">
+                    <p className="text-lg font-bold text-brand">
                       {formatHeroDateTime(event.event_date, event.start_time, event.end_time)}
                     </p>
                   </div>
 
                   <div>
-                    <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-[#1B1C1C]">{event.title}</h1>
+                    <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.02em] text-fg">{event.title}</h1>
                   </div>
 
                   <div className="flex flex-col gap-8">
@@ -619,7 +618,7 @@ export default function EventDetailPage() {
                 {/* Description */}
                 {event.description && (
                   <div>
-                    <p className="text-lg leading-[29.25px] text-[#3E484F]">{event.description}</p>
+                    <p className="text-lg leading-[29.25px] text-muted-fg">{event.description}</p>
                   </div>
                 )}
 
@@ -635,23 +634,23 @@ export default function EventDetailPage() {
                       .slice(0, 2);
                     return (
                       <div className="mt-8">
-                        <h2 className="mb-8 text-[24px] font-semibold text-[#1B1C1C]">Speaker</h2>
-                        <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8">
-                          <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#C2E8FF] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                        <h2 className="mb-8 text-[24px] font-semibold text-fg">Speaker</h2>
+                        <div className="flex items-center gap-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-muted p-8">
+                          <div className="grid size-[100px] shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white bg-brand/20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                             {sp.photo_url ? (
                               <img src={sp.photo_url} alt="" className="size-full object-cover" />
                             ) : (
-                              <span className="text-2xl font-bold text-[#3db9ee]">{initials}</span>
+                              <span className="text-2xl font-bold text-brand">{initials}</span>
                             )}
                           </div>
                           <div className="flex flex-col gap-3">
                             <div>
-                              <h3 className="text-[24px] font-semibold text-[#1B1C1C]">{name}</h3>
-                              <p className="text-sm font-medium uppercase tracking-[0.05em] text-[#6E7980]">
+                              <h3 className="text-[24px] font-semibold text-fg">{name}</h3>
+                              <p className="text-sm font-medium uppercase tracking-[0.05em] text-muted-fg">
                                 {sp.designation || "Speaker"}
                               </p>
                             </div>
-                            {sp.bio && <p className="text-base text-[#3E484F]">{sp.bio}</p>}
+                            {sp.bio && <p className="text-base text-muted-fg">{sp.bio}</p>}
                           </div>
                         </div>
                       </div>
@@ -660,23 +659,23 @@ export default function EventDetailPage() {
 
                 {/* Linked Curriculum */}
                 {event.COURSE && (
-                  <div className="mt-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-[#f5f3f3] p-8">
+                  <div className="mt-8 rounded-xl border border-[rgba(189,200,208,0.2)] bg-muted p-8">
                     <div className="mb-4 flex items-center gap-3">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                        <span className="material-symbols-rounded text-lg text-[#3db9ee]">school</span>
+                        <span className="material-symbols-rounded text-lg text-brand">school</span>
                       </div>
                       <div>
-                        <h2 className="text-[20px] font-semibold text-[#1B1C1C]">Linked Curriculum</h2>
+                        <h2 className="text-[20px] font-semibold text-fg">Linked Curriculum</h2>
                       </div>
                     </div>
-                    <h3 className="mb-2 text-[24px] font-bold text-[#1B1C1C]">{event.COURSE.course_name}</h3>
+                    <h3 className="mb-2 text-[24px] font-bold text-fg">{event.COURSE.course_name}</h3>
                     {event.COURSE.course_description && (
-                      <p className="mb-4 text-base leading-[26px] text-[#3E484F]">{event.COURSE.course_description}</p>
+                      <p className="mb-4 text-base leading-[26px] text-muted-fg">{event.COURSE.course_description}</p>
                     )}
                     {userRole === "facilitator" && (
                       <button
                         onClick={() => router.push(`/courses/${event.COURSE!.course_id}`)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#3db9ee] bg-[#e8f8fe] px-4 py-2.5 text-sm font-semibold text-[#1789b8] transition-colors hover:bg-[#d0f1fd]"
+                        className="inline-flex items-center gap-2 rounded-lg border border-brand bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
                       >
                         <span className="material-symbols-rounded text-sm">open_in_new</span>
                         View Curriculum
@@ -690,16 +689,16 @@ export default function EventDetailPage() {
               <div className="col-span-1">
                 <div className="sticky top-[70px] flex flex-col gap-6">
                   {/* Registration card */}
-                  <div className="flex flex-col gap-4 rounded-2xl border border-[#BDC8D1] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     {/* Event Price */}
                     {event.price > 0 && !hasTicket && (
                       <div className="flex items-center gap-4">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                          <span className="material-symbols-rounded text-lg text-[#3db9ee]">payments</span>
+                          <span className="material-symbols-rounded text-lg text-brand">payments</span>
                         </div>
                         <div>
-                          <p className="text-base text-[#191C1E]">Event Price</p>
-                          <p className="text-[24px] font-semibold text-[#3db9ee]">
+                          <p className="text-base text-fg">Event Price</p>
+                          <p className="text-[24px] font-semibold text-brand">
                             {event.currency} {event.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </p>
                         </div>
@@ -713,13 +712,13 @@ export default function EventDetailPage() {
                           {hasTicket ? (
                             <div className="flex flex-col gap-2">
                               {!eventStarted && (
-                                <p className="text-xs text-[#6E7980] leading-relaxed">
+                                <p className="text-xs text-muted-fg leading-relaxed">
                                   The event hasn&apos;t started yet. Feel free to explore the available resources ahead of time.
                                 </p>
                               )}
                               <button
                                 onClick={() => router.push(`/events/${eventId}/room`)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-base font-bold text-white transition-colors hover:bg-brand/80"
                               >
                                 Access event room
                               </button>
@@ -727,7 +726,7 @@ export default function EventDetailPage() {
                           ) : (
                             <button
                               onClick={handleRegister}
-                              className="flex w-full items-center justify-center rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                              className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-3 text-base font-bold text-white transition-colors hover:bg-brand/80"
                             >
                               Register
                             </button>
@@ -738,7 +737,7 @@ export default function EventDetailPage() {
                       {userRole === "speaker" && isSpeakerAssigned && (
                         <button
                           onClick={() => router.push(`/events/${eventId}/room`)}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[#039be5]"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-base font-bold text-white transition-colors hover:bg-brand/80"
                         >
                           Access event room
                         </button>
@@ -747,15 +746,15 @@ export default function EventDetailPage() {
                   </div>
 
                   {/* Venue card */}
-                  <div className="flex flex-col gap-4 rounded-2xl border border-[#BDC8D1] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     {/* Venue Location */}
                     <div className="flex items-center gap-4">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-                        <span className="material-symbols-rounded text-lg text-[#3db9ee]">location_on</span>
+                        <span className="material-symbols-rounded text-lg text-brand">location_on</span>
                       </div>
                       <div>
-                        <p className="text-base text-[#191C1E]">Venue Location</p>
-                        <p className="text-base text-[#3E4850]">
+                        <p className="text-base text-fg">Venue Location</p>
+                        <p className="text-base text-muted-fg">
                           {event.venue_name}
                           {event.venue_address && <>, {event.venue_address}</>}
                         </p>
@@ -765,7 +764,7 @@ export default function EventDetailPage() {
                     {/* Map */}
                     <div
                       onClick={() => setMapExpanded(true)}
-                      className="relative h-[250px] cursor-pointer overflow-hidden rounded-xl border border-[#BDC8D1]"
+                      className="relative h-[250px] cursor-pointer overflow-hidden rounded-xl border border-border"
                     >
                       <iframe
                         title="Venue map"
@@ -775,7 +774,7 @@ export default function EventDetailPage() {
                         referrerPolicy="no-referrer-when-downgrade"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-white/30">
-                        <span className="rounded-lg bg-white/90 px-3 py-1.5 text-sm font-medium text-[#3E4850] shadow-sm">
+                        <span className="rounded-lg bg-white/90 px-3 py-1.5 text-sm font-medium text-muted-fg shadow-sm">
                           Click to view map
                         </span>
                       </div>
@@ -784,16 +783,16 @@ export default function EventDetailPage() {
                     {/* Map Overlay */}
                     {mapExpanded && (
                       <div
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-8"
                         onClick={() => setMapExpanded(false)}
                       >
                         <div
-                          className="relative h-[80vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[#BDC8D1] bg-white shadow-2xl"
+                          className="relative h-[80vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             onClick={() => setMapExpanded(false)}
-                            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full bg-white shadow-md transition-colors hover:bg-gray-100"
+                            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full bg-surface shadow-md transition-colors hover:bg-muted"
                           >
                             <span className="material-symbols-rounded text-[20px]">close</span>
                           </button>
@@ -808,7 +807,7 @@ export default function EventDetailPage() {
                             href={getMapUrl("search")}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 bg-white/90 px-4 py-3 text-sm font-medium text-[#168cb9] shadow-[0_-2px_10px_rgba(0,0,0,.08)] transition-colors hover:bg-white"
+                            className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 bg-white/90 px-4 py-3 text-sm font-medium text-brand shadow-[0_-2px_10px_rgba(0,0,0,.08)] transition-colors hover:bg-surface"
                           >
                             <span className="material-symbols-rounded text-[16px]">open_in_new</span>
                             Open in Google Maps
@@ -823,14 +822,14 @@ export default function EventDetailPage() {
 
             {/* Facilitator controls */}
             {isSignedIn && canManage && (
-              <div className="flex flex-col gap-3 rounded-xl border border-[#bdc8d0] bg-[#f9fafb] p-6">
-                <h3 className="mb-2 text-sm font-semibold text-[#1B1C1C]">Event Management</h3>
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted p-6">
+                <h3 className="mb-2 text-sm font-semibold text-fg">Event Management</h3>
                 <div className="flex flex-wrap gap-3">
                   {event.status === "draft" && (
                     <button
                       onClick={handlePublish}
                       disabled={publishing}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#3db9ee] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#239dce] disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90 disabled:opacity-50"
                     >
                       <span className="material-symbols-rounded text-sm">publish</span>
                       {publishing ? "Publishing..." : "Publish Event"}
@@ -838,51 +837,51 @@ export default function EventDetailPage() {
                   )}
                   <button
                     onClick={() => router.push(`/events/${eventId}/room`)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-green-500 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition-colors hover:bg-green-100"
+                    className="inline-flex items-center gap-2 rounded-lg border border-success bg-success/10 px-4 py-2.5 text-sm font-semibold text-success transition-colors hover:bg-success/20"
                   >
                     <span className="material-symbols-rounded text-sm">play_circle</span>
                     Access event room
                   </button>
                   <button
                     onClick={() => router.push(`/events/${eventId}/edit`)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-muted"
                   >
                     <span className="material-symbols-rounded text-sm">edit</span>
                     Edit event
                   </button>
                   <button
                     onClick={() => router.push(`/events/${eventId}/speakers`)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#bdc8d0] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-muted"
                   >
                     <span className="material-symbols-rounded text-sm">groups</span>
                     Manage speakers
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                    className="inline-flex items-center gap-2 rounded-lg border border-error/30 bg-error/10 px-4 py-2.5 text-sm font-semibold text-error transition-colors hover:bg-error/20"
                   >
                     <span className="material-symbols-rounded text-sm">delete</span>
                     Delete event
                   </button>
                 </div>
-                {publishError && <p className="text-xs text-red-500">{publishError}</p>}
-                {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
+                {publishError && <p className="text-xs text-error">{publishError}</p>}
+                {deleteError && <p className="text-xs text-error">{deleteError}</p>}
               </div>
             )}
 
             {/* Delete confirmation modal */}
             {showDeleteModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="mx-4 w-full max-w-md rounded-xl border border-[#bdc8d0] bg-white p-6 shadow-lg">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
+                <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
                   <div className="mb-4 flex items-center gap-3">
-                    <span className="material-symbols-rounded text-2xl text-red-500">warning</span>
-                    <h3 className="text-sm font-semibold text-[#1B1C1C]">Delete event</h3>
+                    <span className="material-symbols-rounded text-2xl text-error">warning</span>
+                    <h3 className="text-sm font-semibold text-fg">Delete event</h3>
                   </div>
-                  <p className="mb-2 text-sm text-[#3E484F]">
+                  <p className="mb-2 text-sm text-muted-fg">
                     This event has existing payments. Deleting it will also remove all associated data, including payments,
                     tickets, and chat messages. This action <strong>cannot be undone</strong>.
                   </p>
-                  <p className="mb-4 text-sm text-[#3E484F]">
+                  <p className="mb-4 text-sm text-muted-fg">
                     Type <strong>understood</strong> to confirm.
                   </p>
                   <input
@@ -890,19 +889,19 @@ export default function EventDetailPage() {
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder='type "understood"'
-                    className="mb-4 w-full rounded-lg border border-[#bdc8d0] bg-white px-3 py-2 text-sm text-[#1B1C1C] outline-none focus:border-red-400"
+                    className="mb-4 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-red-400"
                   />
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setShowDeleteModal(false)}
-                      className="rounded-lg border border-[#bdc8d0] bg-white px-4 py-2 text-xs font-medium text-[#1B1C1C] transition-colors hover:bg-gray-50"
+                      className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-fg transition-colors hover:bg-muted"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmDelete}
                       disabled={deleteConfirmText !== "understood" || deleting}
-                      className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                      className="rounded-lg bg-error/100 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-error disabled:opacity-50"
                     >
                       {deleting ? "Deleting..." : "Delete event"}
                     </button>
