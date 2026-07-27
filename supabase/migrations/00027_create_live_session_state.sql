@@ -1,9 +1,0 @@
-CREATE TABLE "LIVE_SESSION_STATE" (
-  event_id INT NOT NULL REFERENCES "EVENTS" (event_id) ON DELETE CASCADE,
-  highlighted_lesson_id INT REFERENCES "LESSONS" (lesson_id) ON DELETE SET NULL,
-  updated_by INT NOT NULL REFERENCES "USERS" (user_id),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (event_id)
-);
-
-ALTER PUBLICATION supabase_realtime ADD TABLE "LIVE_SESSION_STATE";
