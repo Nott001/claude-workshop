@@ -22,8 +22,8 @@
 - Use the **imperative mood**. Use conventional commit prefixes (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, etc.).
 - The commit body should explain why the change was made, never what it is.
 - Always run `pnpm format`, `pnpm lint` and `pnpm test` before committing.
-- Update the `CHANGELOG.md` for every commit. If one does not exist, create one.
-- If the changes are huge enough, separate them out depending on the scope.
+- Update `CHANELOG.md` only for meaningful commits. Filter for commits that affect user-facing features, bug fixes, or breaking changes. Skip internal refactors, documentation tweaks, or minor code cleanup unless they're significant.
+- If the changes are huge enough on different commits.
 
 ## Debug tools
 
