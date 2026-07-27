@@ -2,58 +2,19 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import { StatusBadge } from "@/components/status-badge";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Footer } from "@/components/footer";
-import { formatEventDate, formatTime, isEventLive } from "@/lib/date-utils";
-import { getBadgeProps } from "@/modules/event-management";
-
-interface EventData {
-  event_id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  status: string;
-  course_name: string | null;
-  description: string | null;
-  attendee_count: number;
-}
+import { formatEventDate, formatTime } from "@/lib/date-utils";
+import { useSpeakerEvent } from "@/modules/event-management/lib/use-speaker-event";
 
 export default function SpeakerEventDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
 
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchEvent() {
-      const res = await fetch(`/api/speakers/me/events/${eventId}`);
-      const data = await res.json();
-      if (!res.ok) {
-        if (!cancelled) setError(data.error ?? "Failed to load event details");
-        setLoading(false);
-        return;
-      }
-      if (!cancelled) {
-        setEvent(data);
-        setLoading(false);
-      }
-    }
-
-    fetchEvent();
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId]);
+  const { event, loading, error, badge, isLive, isUpcoming, isComplete } = useSpeakerEvent(eventId);
 
   if (loading) {
     return (
@@ -77,10 +38,6 @@ export default function SpeakerEventDetailsPage() {
     );
   }
 
-  const isLive = isEventLive(event.event_date, event.start_time, event.end_time);
-  const isUpcoming = !isLive && event.status === "active";
-  const isComplete = event.status === "complete";
-
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
@@ -101,11 +58,7 @@ export default function SpeakerEventDetailsPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.6)] to-[rgba(0,0,0,0)]" />
 
               <div className="absolute bottom-8 left-8 flex flex-col gap-3">
-                <StatusBadge
-                  status={getBadgeProps(event).status}
-                  label={getBadgeProps(event).label}
-                  className="w-fit bg-brand text-brand border-0"
-                />
+                <StatusBadge status={badge.status} label={badge.label} className="w-fit bg-brand text-brand border-0" />
                 <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
                 <div className="flex items-center gap-6 pt-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">
@@ -140,7 +93,7 @@ export default function SpeakerEventDetailsPage() {
                 {isLive && <span className="size-3 animate-pulse rounded-full bg-brand" />}
                 {isUpcoming && <span className="size-3 rounded-full bg-brand" />}
                 {isComplete && <span className="size-3 rounded-full bg-muted-fg" />}
-                <span className="text-[24px] font-semibold leading-[32px] text-fg">{getBadgeProps(event).label}</span>
+                <span className="text-[24px] font-semibold leading-[32px] text-fg">{badge.label}</span>
               </div>
               {isUpcoming && (
                 <div className="mt-4">

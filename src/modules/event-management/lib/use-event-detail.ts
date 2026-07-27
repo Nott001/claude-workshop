@@ -53,15 +53,16 @@ export interface AttendeeRow {
 
 export function useEventDetail(eventId: string) {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
+  const { loading: isLoaded, isSignedIn, user } = useSession();
+  const userRole = user?.role ?? null;
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [hasTicket, setHasTicket] = useState(false);
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
-  const [attendeesLoading, setAttendeesLoading] = useState(true);
+  const [attendeesLoaded, setAttendeesLoaded] = useState(false);
+  const attendeesLoading = userRole === "facilitator" ? !attendeesLoaded : false;
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -84,15 +85,9 @@ export function useEventDetail(eventId: string) {
   }, [eventId]);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => setUserRole(data.role ?? null))
-      .catch(() => {});
-  }, [isLoaded, isSignedIn]);
+    if (!isLoaded || !isSignedIn || !user) return;
+    const role = user.role;
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
     fetch("/api/tickets")
       .then((r) => (r.ok ? r.json() : []))
       .then((tickets) => {
@@ -102,31 +97,29 @@ export function useEventDetail(eventId: string) {
         setHasTicket(hasTicketForEvent);
       })
       .catch(() => {});
-  }, [eventId, isLoaded, isSignedIn]);
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || userRole !== "speaker") return;
-    fetch("/api/speakers/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.id) setSpeakerProfileId(data.id);
-      })
-      .catch(() => {});
-  }, [isLoaded, isSignedIn, userRole]);
+    if (role === "speaker") {
+      fetch("/api/speakers/me")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.id) setSpeakerProfileId(data.id);
+        })
+        .catch(() => {});
+    }
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || userRole !== "facilitator") return;
-    fetch(`/api/events/${eventId}/attendees?limit=5`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setRecentAttendees(data.attendees);
-          setAttendeesTotal(data.total);
-        }
-        setAttendeesLoading(false);
-      })
-      .catch(() => setAttendeesLoading(false));
-  }, [eventId, isLoaded, isSignedIn, userRole]);
+    if (role === "facilitator") {
+      fetch(`/api/events/${eventId}/attendees?limit=5`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) {
+            setRecentAttendees(data.attendees);
+            setAttendeesTotal(data.total);
+          }
+          setAttendeesLoaded(true);
+        })
+        .catch(() => setAttendeesLoaded(true));
+    }
+  }, [eventId, isLoaded, isSignedIn, user]);
 
   const isSpeakerAssigned =
     speakerProfileId && event?.EVENT_SPEAKERS?.some((es) => es.SPEAKER_PROFILES.id === speakerProfileId);

@@ -1,44 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
-import type { Event } from "@/types";
 import { Footer } from "@/components/footer";
 import { KioskEventSelector } from "@/modules/kiosk/ui/kiosk-event-selector";
 import { KioskScannerView } from "@/modules/kiosk/ui/kiosk-scanner-view";
+import { useKiosk } from "@/modules/kiosk/lib/use-kiosk";
 
 export default function KioskPage() {
-  const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => {
-        setUserRole(data.role);
-        if (data.role !== "facilitator") {
-          router.push("/");
-        }
-      });
-  }, [isLoaded, isSignedIn, router]);
-
-  useEffect(() => {
-    if (userRole !== "facilitator") return;
-    fetch("/api/events?filter=upcoming")
-      .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load events")))
-      .then((data) => {
-        if (Array.isArray(data)) setEvents(data);
-      })
-      .catch((err) => setEventsError(typeof err === "string" ? err : "Failed to load events"))
-      .finally(() => setEventsLoading(false));
-  }, [userRole]);
+  const { isLoaded, userRole, events, eventsLoading, eventsError, selectedEvent, setSelectedEvent } = useKiosk();
 
   if (!isLoaded) {
     return (
