@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatTime } from "@/lib/landing";
+import { formatTime } from "@/lib/date-utils";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { SpeakerSection } from "@/modules/event-management/ui/speaker-section";

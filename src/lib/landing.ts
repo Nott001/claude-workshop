@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/db";
 import { eventDao } from "@/lib/db/dao";
+import { formatEventDate, formatTime, isEventLive } from "@/lib/date-utils";
 
 export interface LandingEvent {
   event_id: number;
@@ -20,29 +21,10 @@ const ACCENT_CLASSES = [
   "from-sky-600 via-cyan-500 to-emerald-400",
 ];
 
+export { formatEventDate, formatTime, isEventLive };
+
 export function accentClass(index: number): string {
   return ACCENT_CLASSES[index % ACCENT_CLASSES.length];
-}
-
-// force local-timezone parsing — bare "2024-01-15" is parsed as UTC midnight,
-// which shifts to the previous day in negative UTC offset timezones
-export function formatEventDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-export function formatTime(timeStr: string): string {
-  const [h, m] = timeStr.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 || 12;
-  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
-}
-
-export function isEventLive(eventDate: string, startTime: string, endTime: string): boolean {
-  const now = new Date();
-  const start = new Date(`${eventDate}T${startTime}`);
-  const end = new Date(`${eventDate}T${endTime}`);
-  return now >= start && now <= end;
 }
 
 export function eventStatusLabel(status: string): string {

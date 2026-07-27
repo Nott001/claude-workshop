@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { Footer } from "@/components/footer";
 import { EventCard } from "@/components/event-card";
-import { getUpcomingEvents, formatEventDate, formatTime, eventStatusLabel } from "@/lib/landing";
+import { formatEventDate, formatTime } from "@/lib/date-utils";
+import { getUpcomingEvents, eventStatusLabel } from "@/lib/landing";
 import { PostLoginRedirect } from "@/components/post-login-redirect";
 
 export default async function HomePage() {
