@@ -1,37 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useSession } from "@/modules/auth";
 
 import { formatEventDate, formatTime } from "@/lib/date-utils";
-
-interface TicketEvent {
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  venue_address: string | null;
-  price: number;
-  currency: string;
-}
-
-interface PaymentInfo {
-  status: string;
-  paid_at: string | null;
-}
-
-interface Ticket {
-  payment_id: number;
-  event_id: number;
-  qr_token: string;
-  status: string;
-  issued_at: string;
-  PAYMENTS: PaymentInfo | PaymentInfo[];
-  EVENTS: TicketEvent;
-}
+import { useTickets } from "@/modules/commerce/lib/use-tickets";
+import { useTicketCard } from "@/modules/commerce/lib/use-ticket-card";
+import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 
 function ticketStatusStyle(status: string): string {
   switch (status) {
@@ -61,32 +36,7 @@ function ticketStatusLabel(status: string): string {
 
 export default function TicketsPage() {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) {
-      router.push("/sign-in");
-      return;
-    }
-
-    async function load() {
-      setLoading(true);
-      const res = await fetch("/api/tickets");
-      if (!res.ok) {
-        setError("Failed to load tickets");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setTickets(data);
-      setLoading(false);
-    }
-    load();
-  }, [isLoaded, isSignedIn, router]);
+  const { tickets, loading, error } = useTickets();
 
   if (loading) {
     return (
@@ -143,24 +93,7 @@ export default function TicketsPage() {
 }
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(true);
-  const [payment, setPayment] = useState<PaymentInfo | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setQrLoading(true);
-      const res = await fetch(`/api/tickets/${ticket.payment_id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrUrl(data.qr_data_url);
-        const p = data.PAYMENTS;
-        setPayment(Array.isArray(p) ? (p[0] ?? null) : p);
-      }
-      setQrLoading(false);
-    }
-    load();
-  }, [ticket.payment_id]);
+  const { qrUrl, qrLoading, payment } = useTicketCard(ticket.payment_id);
 
   const venue = ticket.EVENTS.venue_address
     ? `${ticket.EVENTS.venue_name}, ${ticket.EVENTS.venue_address}`

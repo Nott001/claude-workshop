@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Toast } from "@/components/toast";
 import { SpeakerProfileSection } from "@/modules/auth/ui/speaker-profile-section";
@@ -12,28 +11,11 @@ import { PasswordUpdateForm } from "@/modules/auth/ui/password-update-form";
 type ToastData = { title: string; description: string; type: "success" | "error" };
 
 export default function UserSettingsPage() {
-  const { user: currentUser, isSignedIn } = useSession();
-  const router = useRouter();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [fullName, setFullName] = useState("");
+  const { user: currentUser } = useSession();
+  const userRole = currentUser?.role ?? null;
+  const fullName = currentUser?.full_name ?? "";
   const [toast, setToast] = useState<ToastData | null>(null);
   const isSpeaker = userRole === "speaker";
-
-  useEffect(() => {
-    if (!isSignedIn) {
-      router.push("/sign-in");
-      return;
-    }
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setUserRole(data.role);
-          setFullName(data.full_name ?? "");
-        }
-      })
-      .catch(() => {});
-  }, [isSignedIn]);
 
   return (
     <div className="flex flex-1 flex-col bg-bg">

@@ -8,8 +8,8 @@ import type { StaffMember } from "@/modules/organization";
 
 export function useStaff() {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { loading: isLoaded, isSignedIn, user } = useSession();
+  const userRole = user?.role ?? null;
   const [members, setMembers] = useState<StaffMember[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -21,16 +21,11 @@ export function useStaff() {
   const pageSize = 10;
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => {
-        setUserRole(data.role);
-        if (data.role !== "facilitator") {
-          router.push("/");
-        }
-      });
-  }, [isLoaded, isSignedIn, router]);
+    if (!isLoaded) return;
+    if (!isSignedIn || userRole !== "facilitator") {
+      router.push("/");
+    }
+  }, [isLoaded, isSignedIn, userRole, router]);
 
   useEffect(() => {
     if (userRole !== "facilitator") return;

@@ -1,54 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import type { Course } from "@/types";
 import { Footer } from "@/components/footer";
+import { useCourseList } from "@/modules/course-content/lib/use-course-list";
 
 export default function CoursesPage() {
   const router = useRouter();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/courses");
-      if (!res.ok) {
-        setError("Failed to load courses");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setCourses(data);
-      setLoading(false);
-    }
-    load();
-  }, []);
-
-  async function fetchCourses() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/courses");
-    if (!res.ok) {
-      setError("Failed to load courses");
-      setLoading(false);
-      return;
-    }
-    const data = await res.json();
-    setCourses(data);
-    setLoading(false);
-  }
-
-  async function handleDelete(id: number) {
-    if (!confirm("Delete this course? This will remove all modules and lessons.")) return;
-    const res = await fetch(`/api/courses/${id}`, { method: "DELETE" });
-    if (!res.ok) return;
-    await fetchCourses();
-  }
+  const { courses, loading, error, handleDelete } = useCourseList();
 
   if (loading) {
     return (

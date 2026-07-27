@@ -1,29 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession } from "@/modules/auth";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
 import { Footer } from "@/components/footer";
-
-interface Course {
-  course_name: string;
-}
-
-interface Event {
-  event_id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  venue_address: string | null;
-  status: "draft" | "active" | "complete";
-  cover_image_url: string | null;
-  COURSE: Course | null;
-}
-
-type FilterTab = "upcoming" | "completed" | "drafts";
+import { useEventList } from "@/modules/event-management/lib/use-event-list";
+import type { FilterTab } from "@/modules/event-management/lib/use-event-list";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -37,67 +18,9 @@ const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function EventsPage() {
-  const { loading: isLoaded, isSignedIn } = useSession();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<FilterTab>("upcoming");
-  const [dbRole, setDbRole] = useState<string | null>(null);
+  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, isLoaded, tabCounts } = useEventList();
 
-  const isFacilitator = dbRole === "facilitator";
-
-  useEffect(() => {
-    if (!isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.role) setDbRole(data.role);
-      })
-      .catch(() => {});
-  }, [isSignedIn]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchEvents() {
-      setLoading(true);
-      const res = await fetch("/api/events");
-      if (!res.ok) {
-        if (!cancelled) setError("Failed to load events");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      if (!cancelled) setEvents(data);
-      setLoading(false);
-    }
-
-    fetchEvents();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filteredEvents = events.filter((event) => {
-    switch (activeTab) {
-      case "upcoming":
-        return event.status === "active";
-      case "completed":
-        return event.status === "complete";
-      case "drafts":
-        return event.status === "draft";
-      default:
-        return true;
-    }
-  });
-
-  const tabCounts = {
-    upcoming: events.filter((e) => e.status === "active").length,
-    completed: events.filter((e) => e.status === "complete").length,
-    drafts: events.filter((e) => e.status === "draft").length,
-  };
-
-  if (!isLoaded || loading) {
+  if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-foreground">Loading events...</div>
