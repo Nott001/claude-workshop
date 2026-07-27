@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { accentClass, formatEventDate, formatTime, eventStatusLabel, isEventLive } from "@/lib/landing";
+import { formatEventDate, formatTime, isEventLive } from "@/lib/date-utils";
+import { accentClass, eventStatusLabel } from "@/lib/landing";
 
 interface EventCardProps {
   eventId: number;

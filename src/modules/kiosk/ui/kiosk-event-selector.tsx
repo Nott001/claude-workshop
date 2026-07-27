@@ -1,7 +1,7 @@
 "use client";
 
 import type { Event } from "@/types";
-import { formatEventDate, formatTime } from "@/lib/landing";
+import { formatEventDate, formatTime } from "@/lib/date-utils";
 
 interface Props {
   events: Event[];

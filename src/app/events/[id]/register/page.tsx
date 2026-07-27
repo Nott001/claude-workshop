@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 
-import { formatEventDate, formatTime } from "@/lib/landing";
+import { formatEventDate, formatTime } from "@/lib/date-utils";
 import { Footer } from "@/components/footer";
 
 interface EventData {

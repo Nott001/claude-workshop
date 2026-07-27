@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isEventLive } from "@/lib/date-utils";
 
 const eventBaseSchema = z.object({
   title: z.string().min(1).max(255),
@@ -44,10 +45,7 @@ export function getBadgeProps(event: { event_date: string; start_time: string; e
   status: BadgeStatus;
   label: string;
 } {
-  const now = new Date();
-  const start = new Date(`${event.event_date}T${event.start_time}`);
-  const end = new Date(`${event.event_date}T${event.end_time}`);
-  if (now >= start && now <= end) {
+  if (isEventLive(event.event_date, event.start_time, event.end_time)) {
     return { status: "live", label: "Live" };
   }
   switch (event.status) {

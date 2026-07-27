@@ -7,7 +7,8 @@ import { useSession } from "@/modules/auth";
 
 import { Footer } from "@/components/footer";
 import { EventCard } from "@/components/event-card";
-import { formatEventDate, formatTime, eventStatusLabel, type LandingEvent } from "@/lib/landing";
+import { formatEventDate, formatTime } from "@/lib/date-utils";
+import { eventStatusLabel, type LandingEvent } from "@/lib/landing";
 
 export default function HomePage() {
   const { user } = useSession();

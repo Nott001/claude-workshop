@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { formatTime, formatEventDate } from "@/lib/landing";
+import { formatTime, formatEventDate } from "@/lib/date-utils";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { DeleteConfirmModal } from "@/modules/event-management/ui/delete-confirm-modal";

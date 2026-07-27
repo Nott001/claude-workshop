@@ -4,10 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { StatusBadge, type EventStatus } from "@/components/status-badge";
+import { StatusBadge } from "@/components/status-badge";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Footer } from "@/components/footer";
-import { formatEventDate, formatTime, isEventLive } from "@/lib/landing";
+import { formatEventDate, formatTime, isEventLive } from "@/lib/date-utils";
+import { getBadgeProps } from "@/modules/event-management";
 
 interface EventData {
   event_id: number;
@@ -20,30 +21,6 @@ interface EventData {
   course_name: string | null;
   description: string | null;
   attendee_count: number;
-}
-
-function eventStatusBadge(status: string, eventDate: string, startTime: string, endTime: string): EventStatus {
-  if (isEventLive(eventDate, startTime, endTime)) return "live";
-  switch (status) {
-    case "active":
-      return "upcoming";
-    case "complete":
-      return "completed";
-    default:
-      return status as EventStatus;
-  }
-}
-
-function statusLabel(status: string, eventDate: string, startTime: string, endTime: string): string {
-  if (isEventLive(eventDate, startTime, endTime)) return "Live Now";
-  switch (status) {
-    case "active":
-      return "Upcoming Event";
-    case "complete":
-      return "Past Event";
-    default:
-      return status;
-  }
 }
 
 export default function SpeakerEventDetailsPage() {
@@ -125,8 +102,8 @@ export default function SpeakerEventDetailsPage() {
 
               <div className="absolute bottom-8 left-8 flex flex-col gap-3">
                 <StatusBadge
-                  status={eventStatusBadge(event.status, event.event_date, event.start_time, event.end_time)}
-                  label={statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
+                  status={getBadgeProps(event).status}
+                  label={getBadgeProps(event).label}
                   className="w-fit bg-brand text-brand border-0"
                 />
                 <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
@@ -163,9 +140,7 @@ export default function SpeakerEventDetailsPage() {
                 {isLive && <span className="size-3 animate-pulse rounded-full bg-brand" />}
                 {isUpcoming && <span className="size-3 rounded-full bg-brand" />}
                 {isComplete && <span className="size-3 rounded-full bg-muted-fg" />}
-                <span className="text-[24px] font-semibold leading-[32px] text-fg">
-                  {statusLabel(event.status, event.event_date, event.start_time, event.end_time)}
-                </span>
+                <span className="text-[24px] font-semibold leading-[32px] text-fg">{getBadgeProps(event).label}</span>
               </div>
               {isUpcoming && (
                 <div className="mt-4">

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/modules/auth";
 
-import { formatEventDate, formatTime } from "@/lib/landing";
+import { formatEventDate, formatTime } from "@/lib/date-utils";
 
 interface TicketEvent {
   title: string;
