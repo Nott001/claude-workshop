@@ -36,11 +36,11 @@ interface Ticket {
 function ticketStatusStyle(status: string): string {
   switch (status) {
     case "checked_in":
-      return "bg-green-50 text-green-700";
+      return "bg-success/10 text-success";
     case "issued":
-      return "bg-blue-50 text-blue-700";
+      return "bg-info/10 text-info";
     case "cancelled":
-      return "bg-gray-50 text-gray-500";
+      return "bg-muted text-muted-fg";
     default:
       return "bg-surface text-muted-foreground";
   }
@@ -109,22 +109,22 @@ export default function TicketsPage() {
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-8 flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(0,101,141,0.1)]">
-            <span className="material-symbols-rounded text-2xl text-[#3db9ee]">confirmation_number</span>
+            <span className="material-symbols-rounded text-2xl text-brand">confirmation_number</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[#1B1C1C]">My Tickets</h1>
+            <h1 className="text-xl font-bold text-fg">My Tickets</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">Present the QR code at the event for check-in.</p>
           </div>
         </div>
 
         {tickets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#bdc8d0] bg-[#f9fafb] p-12 text-center">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted p-12 text-center">
             <span className="material-symbols-rounded text-4xl text-muted-foreground/50">confirmation_number</span>
-            <h3 className="mt-4 text-sm font-semibold text-[#1B1C1C]">No tickets yet</h3>
-            <p className="mt-1 text-xs text-[#6E7980]">Register for an event to get your ticket.</p>
+            <h3 className="mt-4 text-sm font-semibold text-fg">No tickets yet</h3>
+            <p className="mt-1 text-xs text-muted-fg">Register for an event to get your ticket.</p>
             <button
               onClick={() => router.push("/events")}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#29B6F6] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#039be5]"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand/80"
             >
               <span className="material-symbols-rounded text-sm">event</span>
               Browse events
@@ -176,7 +176,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
     : null;
 
   return (
-    <div className="flex overflow-hidden rounded-xl border border-[#bdc8d0] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+    <div className="flex overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
       <div className="flex flex-1 flex-col">
         <div className="bg-gradient-to-r from-[#3db9ee] to-[#29B6F6] px-6 py-4">
           <div className="flex items-center justify-between">
@@ -197,23 +197,23 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         <div className="flex-1 px-6 py-5">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">calendar_today</span>
-              <span className="text-sm text-[#1B1C1C]">{formatEventDate(ticket.EVENTS.event_date)}</span>
+              <span className="material-symbols-rounded text-[20px] text-brand">calendar_today</span>
+              <span className="text-sm text-fg">{formatEventDate(ticket.EVENTS.event_date)}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">schedule</span>
-              <span className="text-sm text-[#1B1C1C]">
+              <span className="material-symbols-rounded text-[20px] text-brand">schedule</span>
+              <span className="text-sm text-fg">
                 {formatTime(ticket.EVENTS.start_time)} &ndash; {formatTime(ticket.EVENTS.end_time)}
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">location_on</span>
-              <span className="text-sm text-[#1B1C1C]">{venue}</span>
+              <span className="material-symbols-rounded text-[20px] text-brand">location_on</span>
+              <span className="text-sm text-fg">{venue}</span>
             </div>
             {price && (
               <div className="flex items-center gap-3">
-                <span className="material-symbols-rounded text-[20px] text-[#3db9ee]">payments</span>
-                <span className="text-sm font-semibold text-[#1B1C1C]">{price}</span>
+                <span className="material-symbols-rounded text-[20px] text-brand">payments</span>
+                <span className="text-sm font-semibold text-fg">{price}</span>
               </div>
             )}
           </div>
@@ -221,14 +221,14 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
           <div className="mt-4 flex items-center gap-3">
             <Link
               href={`/events/${ticket.event_id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#29B6F6] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#039be5]"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand/80"
             >
               Go to event
               <span className="material-symbols-rounded text-[14px]">arrow_forward</span>
             </Link>
           </div>
 
-          <div className="mt-4 border-t border-[#bdc8d0] pt-3 text-xs text-muted-foreground">
+          <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <span>Payment #{ticket.payment_id}</span>
               <span>Issued {new Date(ticket.issued_at).toLocaleDateString()}</span>
@@ -240,7 +240,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
-      <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-[#d0d5dd] bg-[#f9fafb] p-6">
+      <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-border bg-muted p-6">
         {qrLoading ? (
           <div className="grid size-44 place-items-center">
             <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>

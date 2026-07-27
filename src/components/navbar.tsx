@@ -85,9 +85,9 @@ export function Navbar() {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 hidden w-[202px] flex-col border-r border-[#bdc8d0] bg-white px-5 py-7 lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-20 hidden w-[202px] flex-col border-r border-border bg-surface px-5 py-7 lg:flex">
       <Link href="/" className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]">
-        <span className="grid size-8 place-items-center rounded-lg bg-[#3db9ee] text-white">
+        <span className="grid size-8 place-items-center rounded-lg bg-brand text-white">
           <svg className="size-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
@@ -104,8 +104,8 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 -mx-5 px-5 py-3.5 rounded-none text-sm font-medium [transition:color_400ms_cubic-bezier(0.25,0.1,0.25,1)_150ms,background-color_400ms_cubic-bezier(0.25,0.1,0.25,1)_150ms] hover:[transition:color_0ms] hover:bg-[#f4f7f8] hover:text-[#1b1c1c]",
-                isActive ? "-mx-5 px-5 py-3.5 rounded-none bg-[#e8f8fe] text-[#1789b8]" : "text-[#647078]",
+                "flex items-center gap-3 -mx-5 px-5 py-3.5 rounded-none text-sm font-medium [transition:color_400ms_cubic-bezier(0.25,0.1,0.25,1)_150ms,background-color_400ms_cubic-bezier(0.25,0.1,0.25,1)_150ms] hover:[transition:color_0ms] hover:bg-muted hover:text-fg",
+                isActive ? "-mx-5 px-5 py-3.5 rounded-none bg-brand/10 text-brand" : "text-muted-fg",
               )}
             >
               <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
@@ -118,16 +118,16 @@ export function Navbar() {
       <div className="mt-auto space-y-3">
         {isSignedIn ? (
           <>
-            <div className="flex items-center gap-2 rounded-lg bg-[#f4f7f8] px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
               {profilePhoto ? (
                 <img src={profilePhoto} alt="Profile" className="size-7 shrink-0 rounded-full object-cover" />
               ) : (
-                <div className="grid size-7 shrink-0 place-items-center rounded-full bg-[#3db9ee] text-[10px] font-bold text-white">
+                <div className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
                   {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
                     (user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ?? "?").toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-sm font-medium text-[#1b1c1c]">
+              <span className="truncate text-sm font-medium text-fg">
                 {user?.firstName
                   ? `${user.firstName} ${user.lastName ?? ""}`
                   : (user?.emailAddresses?.[0]?.emailAddress ?? "User")}
@@ -135,14 +135,14 @@ export function Navbar() {
             </div>
             <Link
               href="/user"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-2.5 text-xs font-semibold tracking-[0.04em] text-[#647078] transition hover:border-[#3db9ee] hover:text-[#1789b8]"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-xs font-semibold tracking-[0.04em] text-muted-fg transition hover:border-brand hover:text-brand"
             >
               <span className="material-symbols-rounded text-[16px]">settings</span>
               Settings
             </Link>
             <button
               onClick={handleSignOut}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#bdc8d0] py-2.5 text-xs font-semibold tracking-[0.04em] text-[#647078] transition hover:border-[#e5484d] hover:text-[#e5484d]"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-xs font-semibold tracking-[0.04em] text-muted-fg transition hover:border-error hover:text-error"
             >
               <span className="material-symbols-rounded text-[16px]">logout</span>
               Sign out
@@ -152,13 +152,13 @@ export function Navbar() {
           <>
             <Link
               href="/sign-in"
-              className="block rounded-lg border border-[#bdc8d0] py-2.5 text-center text-xs font-semibold tracking-[0.04em] transition hover:border-[#3db9ee] hover:text-[#1789b8]"
+              className="block rounded-lg border border-border py-2.5 text-center text-xs font-semibold tracking-[0.04em] transition hover:border-brand hover:text-brand"
             >
               SIGN IN
             </Link>
             <Link
               href="/sign-up"
-              className="block rounded-lg bg-[#3db9ee] py-2.5 text-center text-xs font-semibold tracking-[0.04em] text-white transition hover:bg-[#239dce]"
+              className="block rounded-lg bg-brand py-2.5 text-center text-xs font-semibold tracking-[0.04em] text-white transition hover:bg-brand/90"
             >
               SIGN UP
             </Link>

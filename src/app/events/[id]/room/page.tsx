@@ -256,7 +256,7 @@ export default function EventRoomPage() {
           <p className="mt-3 text-sm text-muted-foreground">You need a ticket to access this room.</p>
           <button
             onClick={() => router.push(`/events/${eventId}/register`)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#29B6F6] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#039be5]"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
           >
             Register
           </button>
@@ -266,7 +266,7 @@ export default function EventRoomPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#FBF9F8]">
+    <div className="flex h-screen flex-col bg-bg">
       <EventSessionNavbar
         eventName={eventTitle}
         elapsed={elapsed}
@@ -288,16 +288,16 @@ export default function EventRoomPage() {
           {course && (
             <div className="space-y-8">
               <div>
-                <h1 className="text-xl font-bold text-[#1B1C1C]">{course.course_name}</h1>
+                <h1 className="text-xl font-bold text-fg">{course.course_name}</h1>
                 {course.course_description && <p className="mt-1 text-sm text-muted-foreground">{course.course_description}</p>}
               </div>
 
               {course.MODULES.map((mod, modIdx) => (
                 <div key={mod.module_id}>
-                  <h2 className="mb-3 text-sm font-semibold text-[#1B1C1C]">
+                  <h2 className="mb-3 text-sm font-semibold text-fg">
                     {modIdx + 1}. {mod.module_name}
                   </h2>
-                  <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+                  <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
                     {mod.LESSONS.map((lesson, lessonIdx) => {
                       const isHighlighted = highlightedLessonId === lesson.lesson_id;
                       return (
@@ -305,11 +305,11 @@ export default function EventRoomPage() {
                           key={lesson.lesson_id}
                           className={"relative transition-colors " + (isHighlighted ? "bg-[rgba(0,150,199,0.06)]" : "")}
                         >
-                          {isHighlighted && <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#3db9ee]" />}
+                          {isHighlighted && <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" />}
                           <button
                             onClick={() => setSelectedLesson(lesson)}
                             className={
-                              "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[#F5F8FA] " +
+                              "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted " +
                               (isHighlighted ? "pr-20" : "")
                             }
                           >
@@ -320,9 +320,7 @@ export default function EventRoomPage() {
                               }
                             >
                               <span
-                                className={
-                                  "material-symbols-rounded text-lg " + (isHighlighted ? "text-[#00658d]" : "text-[#3db9ee]")
-                                }
+                                className={"material-symbols-rounded text-lg " + (isHighlighted ? "text-brand" : "text-brand")}
                               >
                                 {isHighlighted
                                   ? "radio_button_checked"
@@ -330,7 +328,7 @@ export default function EventRoomPage() {
                               </span>
                             </span>
                             <div className="flex min-w-0 flex-1 flex-col">
-                              <span className="text-sm font-medium text-[#1B1C1C]">
+                              <span className="text-sm font-medium text-fg">
                                 <span className="text-muted-foreground">
                                   {modIdx + 1}.{lessonIdx + 1}
                                 </span>
@@ -341,7 +339,7 @@ export default function EventRoomPage() {
                                   {lesson.content_type}
                                 </span>
                                 {isHighlighted && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-[#00658d]">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,150,199,0.1)] px-2 py-0.5 text-[10px] font-semibold text-brand">
                                     <span className="material-symbols-rounded text-[10px]">visibility</span>
                                     Guiding
                                   </span>
@@ -355,7 +353,7 @@ export default function EventRoomPage() {
                                 <button
                                   onClick={handleClearHighlight}
                                   disabled={settingHighlight}
-                                  className="flex items-center gap-1 rounded-lg border border-[rgba(0,150,199,0.3)] bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#00658d] transition-colors hover:bg-[rgba(0,150,199,0.06)] disabled:opacity-50"
+                                  className="flex items-center gap-1 rounded-lg border border-[rgba(0,150,199,0.3)] bg-surface px-2.5 py-1.5 text-[10px] font-bold text-brand transition-colors hover:bg-[rgba(0,150,199,0.06)] disabled:opacity-50"
                                 >
                                   <span className="material-symbols-rounded text-xs">close</span>
                                   Clear
@@ -364,7 +362,7 @@ export default function EventRoomPage() {
                                 <button
                                   onClick={() => handleSetHighlight(lesson.lesson_id)}
                                   disabled={settingHighlight}
-                                  className="flex items-center gap-1 rounded-lg border border-[#E8ECEF] bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#6E7980] transition-colors hover:border-[#3db9ee] hover:text-[#3db9ee] disabled:opacity-50"
+                                  className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-bold text-muted-fg transition-colors hover:border-brand hover:text-brand disabled:opacity-50"
                                 >
                                   <span className="material-symbols-rounded text-xs">arrow_right_alt</span>
                                   Guide
@@ -395,11 +393,11 @@ export default function EventRoomPage() {
 
       {selectedLesson && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-2"
           onClick={() => setSelectedLesson(null)}
         >
           <div
-            className="flex h-full w-full max-h-[98vh] max-w-[98vw] flex-col rounded-xl border border-border bg-white shadow-lg"
+            className="flex h-full w-full max-h-[98vh] max-w-[98vw] flex-col rounded-xl border border-border bg-surface shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-6 py-4">

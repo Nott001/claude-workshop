@@ -46,40 +46,40 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
 
   return (
-    <div className="flex h-16 shrink-0 items-center border-b border-[#bdc8d0] bg-white px-6">
+    <div className="flex h-16 shrink-0 items-center border-b border-border bg-surface px-6">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <img src={imgLogo} alt="" className="size-8" />
           <img src={imgName} alt="StartupLab" className="h-8 w-[56.88px]" />
         </div>
         <div className="flex items-center pl-4">
-          <span className="text-sm font-bold tracking-[0.7px] text-[#3db9ee]">{eventName}</span>
+          <span className="text-sm font-bold tracking-[0.7px] text-brand">{eventName}</span>
         </div>
       </div>
 
       <div className="flex flex-1 items-center justify-center gap-4">
         {eventStarted ? (
           <div className="flex items-center gap-4">
-            <div className="flex flex-col items-center border-r border-[#bdc8d0] pr-4">
-              <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-[#5f5e5e]">Elapsed</span>
-              <span className="font-mono text-base font-bold leading-6 text-[#068]">{elapsed}</span>
+            <div className="flex flex-col items-center border-r border-border pr-4">
+              <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-muted-fg">Elapsed</span>
+              <span className="font-mono text-base font-bold leading-6 text-brand">{elapsed}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-[#5f5e5e]">Remaining</span>
-              <span className="font-mono text-base font-bold leading-6 text-[#1b1c1c]">{remaining}</span>
+              <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-muted-fg">Remaining</span>
+              <span className="font-mono text-base font-bold leading-6 text-fg">{remaining}</span>
             </div>
           </div>
         ) : startsIn ? (
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-[#5f5e5e]">Starts in</span>
-            <span className="font-mono text-base font-bold leading-6 text-[#1b1c1c]">{startsIn}</span>
+            <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-muted-fg">Starts in</span>
+            <span className="font-mono text-base font-bold leading-6 text-fg">{startsIn}</span>
           </div>
         ) : null}
       </div>
 
       <button
         onClick={onExit}
-        className="flex items-center gap-2 text-sm font-medium tracking-[0.7px] text-[#3e484f] transition-colors hover:text-[#1b1c1c]"
+        className="flex items-center gap-2 text-sm font-medium tracking-[0.7px] text-muted-fg transition-colors hover:text-fg"
       >
         <img src={imgExit} alt="" className="size-3.5" />
         EXIT EVENT ROOM

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { CalendarDays, Clock3, MapPin } from "lucide-react";
 
 import { formatEventDate, formatTime } from "@/lib/landing";
 import { Footer } from "@/components/footer";
@@ -140,7 +139,7 @@ export default function RegisterPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="mx-auto max-w-sm text-center">
-          <span className="material-symbols-rounded text-4xl text-blue-500">confirmation_number</span>
+          <span className="material-symbols-rounded text-4xl text-info">confirmation_number</span>
           <h1 className="mt-4 text-lg font-bold text-foreground">Already Registered</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             You already have a ticket for <strong className="text-foreground">{data.event.title}</strong>.
@@ -177,7 +176,7 @@ export default function RegisterPage() {
             Back to event
           </button>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)]">
+          <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
             <div className="relative bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300 p-6 text-white">
               <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
               <div className="relative">
@@ -191,15 +190,15 @@ export default function RegisterPage() {
             <div className="space-y-6 p-6">
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p className="flex items-center gap-2">
-                  <CalendarDays className="size-4 text-blue-500" />
+                  <span className="material-symbols-rounded text-base text-info">calendar_today</span>
                   {formatEventDate(data.event.event_date)}
                 </p>
                 <p className="flex items-center gap-2">
-                  <Clock3 className="size-4 text-blue-500" />
+                  <span className="material-symbols-rounded text-base text-info">schedule</span>
                   {formatTime(data.event.start_time)} – {formatTime(data.event.end_time)}
                 </p>
                 <p className="flex items-center gap-2">
-                  <MapPin className="size-4 text-blue-500" />
+                  <span className="material-symbols-rounded text-base text-info">location_on</span>
                   {data.event.venue_name}
                 </p>
               </div>
@@ -219,7 +218,7 @@ export default function RegisterPage() {
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+                <div className="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{error}</div>
               )}
 
               <div className="border-t border-border pt-6">
@@ -228,15 +227,15 @@ export default function RegisterPage() {
                     type="checkbox"
                     checked={agreed}
                     onChange={(e) => setAgreed(e.target.checked)}
-                    className="mt-0.5 size-4 rounded border-border text-blue-500 focus:ring-blue-500"
+                    className="mt-0.5 size-4 rounded border-border text-info focus:ring-info"
                   />
                   <span className="text-sm text-muted-foreground">
                     I agree to the{" "}
-                    <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
+                    <button className="font-medium text-info underline underline-offset-2 hover:text-info">
                       Terms of Service
                     </button>{" "}
                     and{" "}
-                    <button className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600">
+                    <button className="font-medium text-info underline underline-offset-2 hover:text-info">
                       Privacy Policy
                     </button>
                   </span>
@@ -246,7 +245,7 @@ export default function RegisterPage() {
               <button
                 disabled={!agreed || submitting}
                 onClick={handleRegister}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-info/100 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-rounded text-sm">{submitting ? "progress_activity" : "how_to_reg"}</span>
                 {submitting ? "Processing..." : "Proceed to Payment"}

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### design: unify design system — 16-color palette, Material Symbols only, drop shadcn
+
+- **src/app/globals.css** — replace 27 oklch CSS variables + shadcn/tailwind.css + tw-animate-css with 16-color palette (bg, fg, surface, muted, border, ring, brand, success, warning, error, info, elevated, overlay); add 4 radius tokens
+- **src/components/ui/** — rewrite all 8 components (button, dialog, input, select, textarea, label, form, dropdown) to remove CVA, data-slot attributes, shadcn patterns, and tw-animate-css animation classes; use new theme tokens and Material Symbols
+- **Dependencies** — remove `lucide-react`, `class-variance-authority`, `shadcn`, `tw-animate-css`
+- **components.json** — delete (shadcn scaffolding config, no longer needed)
+- **src/components/event-card.tsx**, **src/app/page.tsx**, **src/app/home/page.tsx** — replace lucide-react icons with Material Symbols equivalents
+- **src/app/events/[id]/register/page.tsx**, **src/app/events/[id]/page.tsx** — replace lucide-react icons with Material Symbols
+- **src/app/speakers/dashboard/[eventId]/page.tsx** — replace lucide-react icons with Material Symbols
+- **All page components** — replace ~80 hardcoded arbitrary hex color values with the new 16 theme tokens (bg-surface, text-fg, text-muted-fg, text-brand, border-border, bg-error, text-success, etc.); remove `bg-white` usages in favor of `bg-surface`
+
 ### chore: remove dead code — unused components, exports, routes, and test files
 
 - **src/components/** — delete 7 unused components: `course-card`, `course-syllabus`, `resource-card`, `session-stats`, `qa-live-feed`, `marketing-footer`, `utility-footer`

@@ -31,7 +31,7 @@ export default function LessonViewer({ lesson }: { lesson: Lesson }) {
               href={lesson.content_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#29B6F6] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#039be5]"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
             >
               <span className="material-symbols-rounded text-sm">open_in_new</span>
               Open link
