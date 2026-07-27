@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { LessonDialog } from "@/modules/course-content/ui/lesson-dialog";
 import { CurriculumBuilder } from "@/modules/course-content/ui/curriculum-builder";
+import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/course-content/lib/lesson-utils";
 
 interface Lesson {
   lesson_id: number;
@@ -146,36 +147,6 @@ export default function CourseDetailPage() {
 
   function openLessonDialog(moduleId: number) {
     setLessonDialogModuleId(moduleId);
-  }
-
-  function detectContentType(file: File | null, url: string): string {
-    if (file) {
-      if (file.type === "application/pdf") return "pdf";
-      if (file.type.startsWith("video/")) return "video";
-      if (file.type.startsWith("image/")) return "image";
-    }
-    if (url) {
-      const normalized = normalizeUrl(url);
-      const ext = normalized.split(".").pop()?.toLowerCase() || "";
-      if (ext === "pdf") return "pdf";
-      if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
-      if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
-      return "link";
-    }
-    return "pdf";
-  }
-
-  function normalizeUrl(url: string): string {
-    const trimmed = url.trim();
-    if (!trimmed) return trimmed;
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
-    return `https://${trimmed}`;
-  }
-
-  function getUploadEndpoint(type: string): string | null {
-    if (type === "video") return "/api/upload/course-video";
-    if (type === "pdf" || type === "image") return "/api/upload/course-asset";
-    return null;
   }
 
   async function handleAddLesson(data: { description: string; file: File | null; url: string }): Promise<string | null> {

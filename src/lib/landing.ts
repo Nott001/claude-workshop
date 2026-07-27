@@ -24,6 +24,8 @@ export function accentClass(index: number): string {
   return ACCENT_CLASSES[index % ACCENT_CLASSES.length];
 }
 
+// force local-timezone parsing — bare "2024-01-15" is parsed as UTC midnight,
+// which shifts to the previous day in negative UTC offset timezones
 export function formatEventDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

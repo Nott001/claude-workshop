@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "@/modules/auth";
-import { isEventLive } from "@/lib/landing";
 import { Footer } from "@/components/footer";
 import { FacilitatorEventDetail } from "@/modules/event-management/ui/event-detail-facilitator";
 import { AttendeeEventDetail } from "@/modules/event-management/ui/event-detail-attendee";
-import type { EventStatus } from "@/components/status-badge";
+import { getBadgeProps } from "@/modules/event-management";
 
 interface SpeakerProfile {
   id: number;
@@ -44,22 +43,6 @@ interface Event {
   EVENT_SPEAKERS: EventSpeaker[];
   attendee_count?: number;
   payment_count?: number;
-}
-
-function getBadgeProps(event: Event): { status: EventStatus; label: string } {
-  if (isEventLive(event.event_date, event.start_time, event.end_time)) {
-    return { status: "live", label: "Live" };
-  }
-  switch (event.status) {
-    case "active":
-      return { status: "upcoming", label: "Upcoming" };
-    case "complete":
-      return { status: "completed", label: "Completed" };
-    case "draft":
-      return { status: "draft", label: "Draft" };
-    default:
-      return { status: "draft", label: "Draft" };
-  }
 }
 
 interface AttendeeRow {
