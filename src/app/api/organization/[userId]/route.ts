@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { userDao } from "@/lib/db/dao";
 import type { UserRole } from "@/types";
@@ -32,9 +31,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
   }
 
-  const { userId: clerkId } = await auth();
-  if (clerkId) {
-    await logAuditEvent(supabase, clerkId, "organization.role_changed", "user", Number(userId), {
+  const currentUser = await requireAuth(supabase);
+  if (currentUser) {
+    await logAuditEvent(supabase, currentUser.id, "organization.role_changed", "user", Number(userId), {
       new_role: parsed.data.role,
     });
   }
@@ -49,12 +48,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   }
 
   const { userId } = await params;
-  const { userId: clerkId } = await auth();
   const supabase = getServiceClient();
 
-  const currentUser = await userDao.findByAuthId(supabase, clerkId!);
+  const currentUser = await requireAuth(supabase);
+  if (!currentUser) {
+    return NextResponse.json({ error: { message: "Unauthorized" } }, { status: 401 });
+  }
 
-  if (currentUser?.id === Number(userId)) {
+  if (currentUser.id === Number(userId)) {
     return NextResponse.json({ error: { message: "Cannot remove yourself" } }, { status: 400 });
   }
 
@@ -64,8 +65,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
     return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
   }
 
-  if (clerkId) {
-    await logAuditEvent(supabase, clerkId, "organization.removed", "user", Number(userId));
+  if (currentUser) {
+    await logAuditEvent(supabase, currentUser.id, "organization.removed", "user", Number(userId));
   }
 
   return NextResponse.json({ success: true });

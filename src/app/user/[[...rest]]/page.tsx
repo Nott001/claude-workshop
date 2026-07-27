@@ -2,9 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useUser, useReverification, useClerk } from "@clerk/nextjs";
-import { isReverificationCancelledError } from "@clerk/nextjs/errors";
+import { useSession } from "@/modules/auth";
+import { createBrowserClient } from "@supabase/ssr";
 import { Toast } from "@/components/toast";
 
 const cardClass = "rounded-xl border border-border bg-surface p-[33px] flex flex-col gap-6";
@@ -25,41 +24,45 @@ interface SpeakerProfile {
 }
 
 export default function UserSettingsPage() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user: currentUser, isSignedIn, signOut } = useSession();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
   const [userRole, setUserRole] = useState<string | null>(null);
   const [speakerProfile, setSpeakerProfile] = useState<SpeakerProfile | null>(null);
   const [speakerLoading, setSpeakerLoading] = useState(true);
 
-  const [firstName, setFirstName] = useState(user?.firstName ?? "");
-  const [lastName, setLastName] = useState(user?.lastName ?? "");
-  const [newEmail, setNewEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [savingName, setSavingName] = useState(false);
-  const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingSpeaker, setSavingSpeaker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const currentEmail = user?.emailAddresses?.[0]?.emailAddress ?? "";
   const isSpeaker = userRole === "speaker";
 
   useEffect(() => {
+    if (!isSignedIn) {
+      router.push("/sign-in");
+      return;
+    }
     fetch("/api/auth/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.role) setUserRole(data.role as string);
+        if (data) {
+          setUserRole(data.role);
+          setFullName(data.full_name ?? "");
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isSpeaker) {
@@ -69,80 +72,32 @@ export default function UserSettingsPage() {
     fetch("/api/speakers/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) {
-          setSpeakerProfile(data);
-        }
+        if (data) setSpeakerProfile(data);
         setSpeakerLoading(false);
       })
       .catch(() => setSpeakerLoading(false));
   }, [isSpeaker]);
 
-  const updateName = useReverification(({ firstName, lastName }: { firstName: string; lastName: string }) =>
-    user!.update({ firstName, lastName }),
-  );
-
-  const addEmail = useReverification((email: string) =>
-    user!.createEmailAddress({ email }).then(async (ea) => {
-      await ea.prepareVerification({ strategy: "email_code" });
-      return ea;
-    }),
-  );
-
-  const updatePassword = useReverification(
-    ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
-      user!.updatePassword({ currentPassword, newPassword, signOutOfOtherSessions: false }),
-  );
-
   async function handleNameUpdate(e: React.FormEvent) {
     e.preventDefault();
-    if (!firstName && !lastName) return;
+    if (!fullName) return;
     setSavingName(true);
     try {
-      await updateName({ firstName: firstName || user!.firstName || "", lastName: lastName || user!.lastName || "" });
-      setToast({ title: "Name Updated", description: "Your name has been updated.", type: "success" });
-    } catch (err: any) {
-      if (isReverificationCancelledError(err)) {
-        setToast({ title: "Verification Cancelled", description: "You cancelled the verification step.", type: "error" });
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: fullName }),
+      });
+      if (res.ok) {
+        setToast({ title: "Name Updated", description: "Your name has been updated.", type: "success" });
       } else {
-        setToast({
-          title: "Update Failed",
-          description: err?.errors?.[0]?.message ?? err?.message ?? "Unable to update name.",
-          type: "error",
-        });
+        const data = await res.json().catch(() => ({}));
+        setToast({ title: "Update Failed", description: data.error ?? "Unable to update name.", type: "error" });
       }
+    } catch {
+      setToast({ title: "Update Failed", description: "Unable to update name.", type: "error" });
     }
     setSavingName(false);
-  }
-
-  async function handleEmailUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newEmail || newEmail === currentEmail || !user) return;
-    setSavingEmail(true);
-    try {
-      await addEmail(newEmail);
-      setToast({
-        title: "Verification Sent",
-        description: "Check your new email inbox for a verification code.",
-        type: "success",
-      });
-      setNewEmail("");
-    } catch (err: any) {
-      if (isReverificationCancelledError(err)) {
-        setToast({ title: "Verification Cancelled", description: "You cancelled the verification step.", type: "error" });
-      } else {
-        setToast({
-          title: "Update Failed",
-          description: err?.errors?.[0]?.message ?? err?.message ?? "Unable to update email.",
-          type: "error",
-        });
-      }
-    }
-    setSavingEmail(false);
-  }
-
-  async function handleForgotPassword() {
-    await signOut();
-    router.push("/sign-in");
   }
 
   async function handlePasswordUpdate(e: React.FormEvent) {
@@ -158,21 +113,17 @@ export default function UserSettingsPage() {
     }
     setSavingPassword(true);
     try {
-      await updatePassword({ currentPassword, newPassword });
-      setToast({ title: "Password Updated", description: "Your password has been changed successfully.", type: "success" });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err: any) {
-      if (isReverificationCancelledError(err)) {
-        setToast({ title: "Verification Cancelled", description: "You cancelled the verification step.", type: "error" });
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setToast({ title: "Update Failed", description: error.message, type: "error" });
       } else {
-        setToast({
-          title: "Update Failed",
-          description: err?.errors?.[0]?.message ?? err?.message ?? "Unable to update password.",
-          type: "error",
-        });
+        setToast({ title: "Password Updated", description: "Your password has been changed successfully.", type: "success" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
       }
+    } catch {
+      setToast({ title: "Update Failed", description: "Unable to update password.", type: "error" });
     }
     setSavingPassword(false);
   }
@@ -330,74 +281,25 @@ export default function UserSettingsPage() {
               <h2 className="text-[24px] font-semibold text-fg leading-8">Profile Name</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className={labelClass}>First Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="First name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className={labelClass}>Last Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Last name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Full Name</label>
+              <input
+                type="text"
+                required
+                placeholder="Your full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={inputClass}
+              />
             </div>
 
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={savingName || (!firstName && !lastName)}
+                disabled={savingName || !fullName}
                 className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingName ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </form>
-
-          <form onSubmit={handleEmailUpdate} className={cardClass}>
-            <div className="flex items-center gap-4">
-              <span className="material-symbols-rounded text-[28px] text-brand">mail</span>
-              <h2 className="text-[24px] font-semibold text-fg leading-8">Update Email Address</h2>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <label className={labelClass}>Current Email Address</label>
-                <div className={readOnlyInputClass}>{currentEmail}</div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className={labelClass}>New Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your new email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={savingEmail || !newEmail || newEmail === currentEmail}
-                className="rounded-xl bg-brand px-6 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {savingEmail ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </form>
@@ -410,40 +312,26 @@ export default function UserSettingsPage() {
 
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <label className={labelClass}>Current Password</label>
+                <label className={labelClass}>New Password</label>
                 <input
                   type="password"
                   required
-                  placeholder="Enter current password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   className={inputClass}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className={labelClass}>New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Min. 8 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className={labelClass}>Confirm New Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Repeat new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+              <div className="flex flex-col gap-2">
+                <label className={labelClass}>Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={inputClass}
+                />
               </div>
 
               <div className="flex gap-3 rounded-xl bg-muted p-4">
@@ -457,17 +345,10 @@ export default function UserSettingsPage() {
             <div className="flex items-center justify-between pt-2">
               <button
                 type="submit"
-                disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
+                disabled={savingPassword || !newPassword || !confirmPassword}
                 className="rounded-xl bg-brand px-8 py-3 text-[14px] font-semibold text-brand-fg tracking-[0.7px] transition-colors hover:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
-              </button>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="text-[14px] font-semibold text-brand tracking-[0.7px] transition-colors hover:text-brand"
-              >
-                Forgot current password?
               </button>
             </div>
           </form>

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { speakerDao, userDao } from "@/lib/db/dao";
+import { speakerDao } from "@/lib/db/dao";
 import { speakerProfileUpdateSchema } from "@/modules/event-management";
 import { deleteFromStorage } from "@/lib/storage";
 
@@ -27,10 +26,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const { userId: clerkId } = await auth();
-  const caller = await userDao.findByAuthIdWithRole(supabase, clerkId!);
-
-  if (caller && caller.role !== "facilitator" && caller.id !== profile.user_id) {
+  const user = await requireAuth(supabase);
+  if (!user || (user.role !== "facilitator" && user.id !== (profile as { user_id: number }).user_id)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

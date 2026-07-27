@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { courseDao } from "@/lib/db/dao";
 import { moduleSchema } from "@/modules/course-content";
@@ -30,9 +29,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to create module" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "module.created", "module", mod.id, {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "module.created", "module", mod.id, {
       course_id: Number(id),
       name: mod.module_name,
     });

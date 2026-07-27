@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, chatDao } from "@/lib/db/dao";
+import { chatDao } from "@/lib/db/dao";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ eventId: string; messageId: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { eventId, messageId } = await params;
   const body = await req.json();
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (dbUser.role !== "facilitator" && dbUser.role !== "speaker") {
+  if (user.role !== "facilitator" && user.role !== "speaker") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

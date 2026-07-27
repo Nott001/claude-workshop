@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import dynamic from "next/dynamic";
 import type { Event } from "@/types";
 import { AttendeesPanel } from "@/components/attendees-panel";
@@ -33,7 +33,7 @@ function formatTime(timeStr: string): string {
 
 export default function KioskPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const [qrInput, setQrInput] = useState("");
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<ResultKind>(null);

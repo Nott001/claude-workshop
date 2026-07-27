@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, paymentDao } from "@/lib/db/dao";
+import { paymentDao } from "@/lib/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
@@ -13,9 +12,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, (await auth()).userId!);
-
-  if (!dbUser) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
@@ -25,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  if (dbUser.role === "attendee" && payment.user_id !== dbUser.id) {
+  if (user.role === "attendee" && payment.user_id !== user.id) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 

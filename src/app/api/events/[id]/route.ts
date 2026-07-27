@@ -1,27 +1,22 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { eventDao, userDao, courseDao, paymentDao, ticketDao } from "@/lib/db/dao";
+import { eventDao, courseDao, paymentDao, ticketDao } from "@/lib/db/dao";
 import { eventPartialSchema } from "@/modules/event-management";
 import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { userId } = await auth();
   const supabase = getServiceClient();
+
+  const user = await requireAuth(supabase);
+  const userRole = user?.role ?? null;
 
   const event = await eventDao.findByIdWithCourse(supabase, Number(id));
 
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
-
-  let userRole: string | null = null;
-  if (userId) {
-    const user = await userDao.findByAuthIdWithRole(supabase, userId);
-    userRole = user?.role ?? null;
   }
 
   if (event.status === "draft" && userRole !== "facilitator") {
@@ -64,9 +59,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: { message: "Failed to update event" } }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "event.updated", "event", Number(id), {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "event.updated", "event", Number(id), {
       changes: Object.keys(parsed.data),
     });
   }
@@ -82,7 +77,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const { userId } = await auth();
+  const user = await requireAuth(supabase);
 
   const event = await eventDao.findById(supabase, Number(id));
 
@@ -125,8 +120,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: { message: "Failed to delete event" } }, { status: 500 });
   }
 
-  if (userId) {
-    await logAuditEvent(supabase, userId, "event.deleted", "event", Number(id), {
+  if (user) {
+    await logAuditEvent(supabase, user.id, "event.deleted", "event", Number(id), {
       title: event?.title,
     });
   }

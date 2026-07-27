@@ -1,4 +1,4 @@
-import { ClerkProvider } from "@clerk/nextjs";
+import { SessionProvider } from "@/modules/auth";
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import "./fonts.css";
@@ -15,12 +15,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <SessionProvider>
       <html lang="en" className="h-full antialiased">
         <body className="flex min-h-full flex-col font-sans">
           <AppShell>{children}</AppShell>
         </body>
       </html>
-    </ClerkProvider>
+    </SessionProvider>
   );
 }

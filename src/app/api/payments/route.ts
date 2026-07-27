@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, paymentDao, ticketDao } from "@/lib/db/dao";
+import { paymentDao, ticketDao } from "@/lib/db/dao";
 import { paymentInitSchema, SimulatedPaymentGateway } from "@/modules/commerce";
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
-  const dbUser = await userDao.findByAuthId(supabase, userId);
+  const user = await requireAuth(supabase);
 
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const body = await req.json();
@@ -35,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const existing = await paymentDao.findLatestByUserAndEvent(supabase, dbUser.id, event_id);
+  const existing = await paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id);
 
   if (existing) {
     if (existing.status === "pending") {
@@ -44,10 +38,10 @@ export async function POST(req: Request) {
         amount: event.price,
         currency: event.currency,
         payment_id: existing.id,
-        user_id: dbUser.id,
+        user_id: user.id,
         event_id,
-        user_email: dbUser.email,
-        user_name: dbUser.full_name,
+        user_email: user.email,
+        user_name: user.full_name,
       });
 
       return NextResponse.json({
@@ -57,14 +51,14 @@ export async function POST(req: Request) {
     }
   }
 
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, dbUser.id, event_id);
+  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, event_id);
 
   if (activeTickets.length > 0) {
     return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
   }
 
   const payment = await paymentDao.create(supabase, {
-    user_id: dbUser.id,
+    user_id: user.id,
     event_id,
     amount: event.price,
     currency: event.currency,
@@ -79,10 +73,10 @@ export async function POST(req: Request) {
     amount: event.price,
     currency: event.currency,
     payment_id: payment.id,
-    user_id: dbUser.id,
+    user_id: user.id,
     event_id,
-    user_email: dbUser.email,
-    user_name: dbUser.full_name,
+    user_email: user.email,
+    user_name: user.full_name,
   });
 
   return NextResponse.json({
@@ -98,15 +92,14 @@ export async function GET() {
   }
 
   const supabase = getServiceClient();
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, (await auth()).userId!);
-
-  if (!dbUser) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   let payments;
-  if (dbUser.role === "attendee") {
-    payments = await paymentDao.listByUser(supabase, dbUser.id);
+  if (user.role === "attendee") {
+    payments = await paymentDao.listByUser(supabase, user.id);
   } else {
     payments = await paymentDao.listAll(supabase);
   }

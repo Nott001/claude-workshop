@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 import { formatEventDate, formatTime } from "@/lib/landing";
 import { Footer } from "@/components/footer";
@@ -25,7 +25,7 @@ interface RegisterPageData {
 export default function RegisterPage() {
   const params = useParams();
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const eventId = params.id as string;
   const [data, setData] = useState<RegisterPageData | null>(null);
   const [loading, setLoading] = useState(true);

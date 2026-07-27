@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, ticketDao, eventDao } from "@/lib/db/dao";
+import { ticketDao, eventDao } from "@/lib/db/dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
 import { canTransitionTicket } from "@/modules/commerce";
 import type { TicketStatus } from "@/types";
@@ -21,11 +20,8 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
-  const { userId } = await auth();
-
-  const dbUser = await userDao.findByAuthId(supabase, userId!);
-
-  if (!dbUser) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
@@ -53,7 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "rejected", reason: "invalid_status" });
   }
 
-  const ok = await ticketDao.updateStatus(supabase, ticket.payment_id, "checked_in", dbUser.id);
+  const ok = await ticketDao.updateStatus(supabase, ticket.payment_id, "checked_in", user.id);
 
   if (!ok) {
     return NextResponse.json({ error: "Failed to update ticket status" }, { status: 500 });
@@ -73,8 +69,8 @@ export async function POST(req: Request) {
     });
   }
 
-  if (userId) {
-    await logAuditEvent(supabase, userId, "checkin.performed", "ticket", ticket.payment_id, {
+  if (user) {
+    await logAuditEvent(supabase, user.id, "checkin.performed", "ticket", ticket.payment_id, {
       event_id: ticket.event_id,
       attendee_name: (ticket.USER as { full_name?: string } | undefined)?.full_name,
     });

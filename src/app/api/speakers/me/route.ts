@@ -1,29 +1,23 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, speakerDao } from "@/lib/db/dao";
+import { speakerDao } from "@/lib/db/dao";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
+  const supabase = getServiceClient();
+
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const supabase = getServiceClient();
-
-  const dbUser = await userDao.findByAuthId(supabase, userId);
-
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
+  const profile = await speakerDao.findByUserId(supabase, user.id);
 
   if (!profile) {
     return NextResponse.json({
       speaker_profile_id: null,
-      full_name: dbUser.full_name,
-      email: dbUser.email,
+      full_name: user.full_name,
+      email: user.email,
       bio: null,
       designation: null,
       photo_url: null,
@@ -32,26 +26,20 @@ export async function GET() {
 
   return NextResponse.json({
     ...profile,
-    full_name: dbUser.full_name,
-    email: dbUser.email,
+    full_name: user.full_name,
+    email: user.email,
   });
 }
 
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
+  const supabase = getServiceClient();
+
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const supabase = getServiceClient();
-
-  const dbUser = await userDao.findByAuthId(supabase, userId);
-
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
+  const profile = await speakerDao.findByUserId(supabase, user.id);
 
   if (!profile) {
     return NextResponse.json({ error: "No speaker profile" }, { status: 404 });

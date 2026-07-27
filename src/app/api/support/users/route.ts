@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, chatDao } from "@/lib/db/dao";
+import { chatDao } from "@/lib/db/dao";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser || dbUser.role !== "facilitator") {
+  const user = await requireAuth(supabase);
+  if (!user || user.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -42,8 +37,8 @@ export async function GET() {
     session_id: number;
     USER: { full_name: string; role: string } | null;
   }>) {
-    const user = msg.USER;
-    if (user?.role === "facilitator") continue;
+    const u = msg.USER;
+    if (u?.role === "facilitator") continue;
 
     const latest = latestSessionPerUser.get(msg.user_id);
     if (latest && msg.session_id !== latest.session_id) continue;
@@ -51,7 +46,7 @@ export async function GET() {
     if (!userMap.has(msg.user_id)) {
       userMap.set(msg.user_id, {
         user_id: msg.user_id,
-        full_name: user?.full_name ?? "Unknown",
+        full_name: u?.full_name ?? "Unknown",
         last_message: msg.message,
         last_sent_at: msg.sent_at,
         session_active: latest?.status === "active",

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 import { cn } from "@/lib/utils";
 import { formatTime, formatEventDate, isEventLive } from "@/lib/landing";
@@ -85,7 +85,7 @@ export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

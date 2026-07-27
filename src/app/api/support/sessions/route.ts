@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, chatDao } from "@/lib/db/dao";
+import { chatDao } from "@/lib/db/dao";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser || dbUser.role !== "facilitator") {
+  const user = await requireAuth(supabase);
+  if (!user || user.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -22,24 +17,19 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const body = await req.json();
   const action = body.action ?? "end";
-  const targetUserId = body.user_id ? Number(body.user_id) : dbUser.id;
+  const targetUserId = body.user_id ? Number(body.user_id) : user.id;
 
-  const isOwn = targetUserId === dbUser.id;
-  const isFacilitator = dbUser.role === "facilitator";
+  const isOwn = targetUserId === user.id;
+  const isFacilitator = user.role === "facilitator";
 
   if (!isOwn && !isFacilitator) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import ChatPanel from "@/components/chat-panel";
 import type { UserRole } from "@/types";
 import { Footer } from "@/components/footer";
@@ -10,7 +10,7 @@ import { Footer } from "@/components/footer";
 export default function SupportPage() {
   const params = useParams();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);

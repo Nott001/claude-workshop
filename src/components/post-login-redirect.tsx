@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 const ROLE_HOME: Record<string, string> = {
   speaker: "/speakers/dashboard",
@@ -12,7 +12,7 @@ const ROLE_HOME: Record<string, string> = {
 
 export function PostLoginRedirect() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

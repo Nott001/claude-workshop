@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/event-card";
 import { Footer } from "@/components/footer";
@@ -37,7 +37,7 @@ const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function EventsPage() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

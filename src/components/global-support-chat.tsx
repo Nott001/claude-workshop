@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/lib/realtime";
 import type { ChatMessage, UserRole } from "@/types";
 
@@ -29,7 +29,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const [pendingMessages, setPendingMessages] = useState<ChatMessageWithUser[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { user: currentUser } = useCurrentUser();
+  const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
   const pollIntervalRef = useRef(5000);

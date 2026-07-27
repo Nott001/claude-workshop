@@ -1,18 +1,13 @@
+"use client";
+
+import { useSession } from "@/modules/auth";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
-interface AuthLayoutProps {
-  children: React.ReactNode;
-  alternateAction?: {
-    label: string;
-    href: string;
-  };
-  className?: string;
-}
+export function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { isSignedIn } = useSession();
 
-export function AuthLayout({ children, alternateAction, className }: AuthLayoutProps) {
   return (
-    <div className={cn("flex min-h-screen flex-col", className)}>
+    <div className="flex min-h-screen flex-col">
       <nav className="flex items-center justify-between border-b border-border bg-elevated px-6 py-3">
         <div className="flex items-center gap-2">
           <svg className="size-5 text-accent" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -20,11 +15,6 @@ export function AuthLayout({ children, alternateAction, className }: AuthLayoutP
           </svg>
           <span className="text-foreground text-sm font-bold">StartupLab Business Center</span>
         </div>
-        {alternateAction && (
-          <Link href={alternateAction.href} className="text-foreground text-sm font-semibold hover:underline">
-            {alternateAction.label}
-          </Link>
-        )}
       </nav>
 
       <div className="grid flex-1 grid-cols-2">

@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, chatDao } from "@/lib/db/dao";
+import { chatDao } from "@/lib/db/dao";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { messageId } = await params;
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser || dbUser.role !== "facilitator") {
+  const user = await requireAuth(supabase);
+  if (!user || user.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 interface SpeakerProfile {
   speaker_profile_id: number;
@@ -15,7 +15,7 @@ interface SpeakerProfile {
 
 export default function SpeakersPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const [profiles, setProfiles] = useState<SpeakerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { speakerDao } from "@/lib/db/dao";
 import { speakerProfileSchema } from "@/modules/event-management";

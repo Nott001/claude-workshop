@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, speakerDao } from "@/lib/db/dao";
+import { speakerDao } from "@/lib/db/dao";
 import {
   uploadToStorage,
   buildProfileImagePath,
@@ -34,10 +33,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
   }
 
-  const { userId: clerkId } = await auth();
   const supabase = getServiceClient();
 
-  const user = await userDao.findByAuthId(supabase, clerkId!);
+  const user = await requireAuth(supabase);
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
