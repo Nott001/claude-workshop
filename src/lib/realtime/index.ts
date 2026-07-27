@@ -1,34 +1,9 @@
 import { supabase } from "@/lib/db";
-import type { Payment, Ticket, SupportSession } from "@/types";
+import type { Ticket, SupportSession } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type TicketCallback = (ticket: Ticket) => void;
-type PaymentCallback = (payment: Payment) => void;
 type SupportSessionCallback = (session: SupportSession) => void;
-
-let channelCounter = 0;
-
-export function subscribeToPaymentStatus(paymentId: number, onStatusChange: PaymentCallback): RealtimeChannel {
-  const channelName = `payment-${paymentId}-${++channelCounter}`;
-  const sub = supabase
-    .channel(channelName)
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "PAYMENTS",
-        filter: `payment_id=eq.${paymentId}`,
-      },
-      (payload) => {
-        const payment = payload.new as Payment;
-        onStatusChange(payment);
-      },
-    )
-    .subscribe();
-
-  return sub;
-}
 
 let sessionsCounter = 0;
 

@@ -59,14 +59,12 @@ export function CountdownTimer({ eventDate, startTime, light }: CountdownTimerPr
       {units.map((unit, i) => (
         <div key={unit.label} className="flex items-center gap-4">
           <div className="text-center">
-            <div className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-[#1B1C1C]"}`}>{unit.value}</div>
-            <div className={`text-[10px] font-bold uppercase tracking-[0.05em] ${light ? "text-white/70" : "text-[#6E7980]"}`}>
+            <div className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-fg"}`}>{unit.value}</div>
+            <div className={`text-[10px] font-bold uppercase tracking-[0.05em] ${light ? "text-white/70" : "text-muted-fg"}`}>
               {unit.label}
             </div>
           </div>
-          {i < units.length - 1 && (
-            <div className={`pb-4 text-2xl font-bold ${light ? "text-white" : "text-[#1B1C1C]"}`}>:</div>
-          )}
+          {i < units.length - 1 && <div className={`pb-4 text-2xl font-bold ${light ? "text-white" : "text-fg"}`}>:</div>}
         </div>
       ))}
     </div>

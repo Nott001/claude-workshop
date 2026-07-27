@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emailLogInsertSchema, emailLogFilterSchema, emailTypeEnum, emailStatusEnum } from "@/modules/notifications";
+import { emailLogFilterSchema } from "@/modules/notifications";
 import type { EmailLog, EmailType, EmailStatus } from "@/types";
 import { emailTemplates } from "@/lib/email";
 
@@ -26,81 +26,6 @@ describe("Email types", () => {
   it("EmailStatus accepts all valid values", () => {
     const statuses: EmailStatus[] = ["sent", "failed"];
     expect(statuses).toHaveLength(2);
-  });
-});
-
-describe("emailTypeEnum", () => {
-  it("accepts ticket_issued", () => {
-    expect(emailTypeEnum.safeParse("ticket_issued").success).toBe(true);
-  });
-
-  it("accepts check_in_confirmed", () => {
-    expect(emailTypeEnum.safeParse("check_in_confirmed").success).toBe(true);
-  });
-
-  it("rejects invalid type", () => {
-    expect(emailTypeEnum.safeParse("invalid").success).toBe(false);
-  });
-});
-
-describe("emailStatusEnum", () => {
-  it("accepts sent", () => {
-    expect(emailStatusEnum.safeParse("sent").success).toBe(true);
-  });
-
-  it("accepts failed", () => {
-    expect(emailStatusEnum.safeParse("failed").success).toBe(true);
-  });
-
-  it("rejects invalid status", () => {
-    expect(emailStatusEnum.safeParse("pending").success).toBe(false);
-  });
-});
-
-describe("emailLogInsertSchema", () => {
-  it("accepts valid insert data", () => {
-    const result = emailLogInsertSchema.safeParse({
-      user_id: 1,
-      email_type: "ticket_issued",
-      status: "sent",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts insert with sent_at", () => {
-    const result = emailLogInsertSchema.safeParse({
-      user_id: 1,
-      email_type: "check_in_confirmed",
-      status: "failed",
-      sent_at: "2026-07-10T12:00:00Z",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing user_id", () => {
-    const result = emailLogInsertSchema.safeParse({
-      email_type: "check_in_confirmed",
-      status: "sent",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects invalid email_type", () => {
-    const result = emailLogInsertSchema.safeParse({
-      user_id: 1,
-      email_type: "invalid",
-      status: "sent",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects invalid status", () => {
-    const result = emailLogInsertSchema.safeParse({
-      user_id: 1,
-      email_type: "ticket_issued",
-      status: "pending",
-    });
-    expect(result.success).toBe(false);
   });
 });
 

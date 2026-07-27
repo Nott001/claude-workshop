@@ -1,0 +1,306 @@
+---
+title: Live Events Platform
+---
+erDiagram
+
+    %% ============ Auth & Roles ============
+    USER {
+        int id PK
+        varchar full_name
+        varchar email UK
+        uuid auth_user_id UK
+        user_role role
+        varchar profile_image_url
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    STAFF_INVITE {
+        int id PK
+        varchar email
+        varchar full_name
+        user_role invited_role
+        int event_id FK
+        int invited_by FK
+        boolean requires_approval
+        int approved_by FK
+        staff_invite_status status
+        varchar external_id
+        timestamp responded_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    EVENT_FACILITATOR {
+        int event_id PK
+        int user_id PK
+        int assigned_by FK
+        timestamp created_at
+    }
+
+    %% ============ Events & Lessons ============
+    COURSE {
+        int id PK
+        varchar course_name
+        text course_description
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    MODULE {
+        int id PK
+        int course_id FK
+        varchar module_name
+        int sequence_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    LESSON {
+        int id PK
+        int module_id FK
+        varchar description
+        content_type content_type
+        varchar content_url
+        int sequence_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    EVENT {
+        int id PK
+        int course_id FK
+        varchar title
+        date event_date
+        time start_time
+        time end_time
+        text venue_address
+        varchar venue_name
+        text description
+        numeric price
+        varchar(3) currency
+        varchar cover_image_url
+        event_status status
+        boolean facilitator_surveys_enabled
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SPEAKER_PROFILE {
+        int id PK
+        int user_id FK
+        text bio
+        varchar designation
+        varchar linkedin_url
+        varchar twitter_url
+        varchar github_url
+        varchar website_url
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    EVENT_SPEAKER {
+        int event_id PK
+        int speaker_profile_id PK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Live Session ============
+    LIVE_SESSION_STATE {
+        int event_id PK
+        int highlighted_lesson_id FK
+        int updated_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Support Chat ============
+    SUPPORT_SESSION {
+        int id PK
+        int user_id FK
+        support_session_status status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CHAT_MESSAGE {
+        int id PK
+        int event_id FK
+        chat_channel channel
+        int user_id FK
+        int recipient_user_id FK
+        text message
+        timestamp sent_at
+        int[] read_by
+        int reply_to FK
+        boolean answered_verbally
+        int session_id FK
+        timestamp deleted_at
+        timestamp updated_at
+    }
+
+    %% ============ Survey ============
+    SURVEY {
+        int id PK
+        int event_id FK
+        int course_id FK
+        int created_by FK
+        varchar title
+        text description
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SURVEY_QUESTION {
+        int id PK
+        int survey_id FK
+        text question_text
+        survey_question_type question_type
+        jsonb options
+        boolean is_required
+        int sequence_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SURVEY_RESPONSE {
+        int id PK
+        int survey_id FK
+        int user_id FK
+        timestamp submitted_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SURVEY_ANSWER {
+        int id PK
+        int response_id FK
+        int question_id FK
+        jsonb answer_value
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Community ============
+    COMMUNITY_LINK {
+        int id PK
+        int event_id FK
+        varchar platform
+        varchar label
+        varchar url
+        varchar icon_url
+        int sequence_order
+        int created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Commerce ============
+    PAYMENT {
+        int id PK
+        int user_id FK
+        int event_id FK
+        varchar gateway_reference_id UK
+        payment_status status
+        timestamp paid_at
+        numeric amount
+        varchar(3) currency
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TICKET {
+        int id PK
+        int payment_id FK
+        int user_id FK
+        int event_id FK
+        varchar qr_token UK
+        ticket_status status
+        timestamp issued_at
+        int checked_in_by FK
+        timestamp checked_in_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Notifications ============
+    EMAIL_LOG {
+        int id PK
+        int user_id FK
+        email_type email_type
+        email_status status
+        timestamp sent_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Audit ============
+    AUDIT_LOG {
+        int id PK
+        int actor_id FK
+        audit_action action
+        varchar entity_type
+        int entity_id
+        jsonb metadata
+        timestamp created_at
+    }
+
+    %% ============ System Settings ============
+    SYSTEM_SETTING {
+        varchar setting_key PK
+        jsonb setting_value
+        int updated_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ============ Relationships ============
+
+    USER ||--o| SPEAKER_PROFILE : "has profile"
+    USER ||--o{ STAFF_INVITE : "invites"
+    USER |o--o{ STAFF_INVITE : "approves"
+    USER ||--o{ EVENT_FACILITATOR : "facilitates"
+    USER ||--o{ EVENT_FACILITATOR : "assigns"
+    USER ||--o{ LIVE_SESSION_STATE : "updates"
+    USER ||--o{ SUPPORT_SESSION : "opens"
+    USER ||--o{ CHAT_MESSAGE : "sends"
+    USER |o--o{ CHAT_MESSAGE : "receives"
+    USER ||--o{ SURVEY : "creates"
+    USER ||--o{ SURVEY_RESPONSE : "submits"
+    USER ||--o{ COMMUNITY_LINK : "creates"
+    USER ||--o{ PAYMENT : "pays"
+    USER ||--o{ TICKET : "holds"
+    USER |o--o{ TICKET : "checks in"
+    USER ||--o{ EMAIL_LOG : "receives"
+    USER ||--o{ AUDIT_LOG : "performs"
+    USER ||--o{ SYSTEM_SETTING : "updates"
+
+    COURSE ||--o{ MODULE : "contains"
+    MODULE ||--o{ LESSON : "contains"
+    COURSE |o--o{ EVENT : "backs"
+    COURSE |o--o{ SURVEY : "surveyed by"
+
+    EVENT ||--o{ EVENT_SPEAKER : "features"
+    SPEAKER_PROFILE ||--o{ EVENT_SPEAKER : "assigned to"
+    EVENT |o--o{ STAFF_INVITE : "scopes"
+    EVENT ||--o{ EVENT_FACILITATOR : "staffed by"
+    EVENT ||--o| LIVE_SESSION_STATE : "tracks"
+    EVENT |o--o{ CHAT_MESSAGE : "hosts"
+    EVENT |o--o{ SURVEY : "surveyed by"
+    EVENT ||--o{ COMMUNITY_LINK : "lists"
+    EVENT ||--o{ PAYMENT : "charges for"
+    EVENT ||--o{ TICKET : "admits to"
+
+    LESSON |o--o{ LIVE_SESSION_STATE : "highlights"
+
+    SUPPORT_SESSION |o--o{ CHAT_MESSAGE : "groups"
+    CHAT_MESSAGE |o--o{ CHAT_MESSAGE : "replies to"
+
+    SURVEY ||--o{ SURVEY_QUESTION : "asks"
+    SURVEY ||--o{ SURVEY_RESPONSE : "collects"
+    SURVEY_RESPONSE ||--o{ SURVEY_ANSWER : "contains"
+    SURVEY_QUESTION ||--o{ SURVEY_ANSWER : "answered by"
+
+    PAYMENT |o--o{ TICKET : "issues"

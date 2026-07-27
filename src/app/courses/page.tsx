@@ -52,7 +52,7 @@ export default function CoursesPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[#FBF9F8] p-8">
+      <div className="flex flex-1 items-center justify-center bg-bg p-8">
         <div className="text-sm text-muted-foreground">Loading courses...</div>
       </div>
     );
@@ -60,7 +60,7 @@ export default function CoursesPage() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
+      <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
             onClick={() => router.push("/events")}
@@ -72,12 +72,12 @@ export default function CoursesPage() {
 
           <div className="mb-8 flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 p-2">
-                <span className="material-symbols-rounded text-[24px] text-[#29B6F6]">menu_book</span>
+              <div className="rounded-lg bg-info/10 p-2">
+                <span className="material-symbols-rounded text-[24px] text-brand">menu_book</span>
               </div>
               <div>
-                <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-[#0F172A]">Courses</h1>
-                <p className="mt-1 text-sm text-[#6B7280]">Manage your course offerings and curriculum.</p>
+                <h1 className="text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-fg">Courses</h1>
+                <p className="mt-1 text-sm text-muted-fg">Manage your course offerings and curriculum.</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -95,45 +95,45 @@ export default function CoursesPage() {
           )}
 
           {courses.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed border-[#D1D5DB] bg-white py-16 text-center">
-              <span className="material-symbols-rounded mb-3 block text-[40px] text-[#D1D5DB]">menu_book</span>
-              <p className="text-sm text-[#6B7280]">No courses yet. Create your first course to get started.</p>
+            <div className="rounded-xl border-2 border-dashed border-border bg-surface py-16 text-center">
+              <span className="material-symbols-rounded mb-3 block text-[40px] text-muted-fg">menu_book</span>
+              <p className="text-sm text-muted-fg">No courses yet. Create your first course to get started.</p>
               <Button className="mt-4" onClick={() => router.push("/courses/new")}>
                 <span className="material-symbols-rounded text-sm">add_circle</span>
                 Create Course
               </Button>
             </div>
           ) : (
-            <div className="rounded-xl border border-[#F3F4F6] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-3 border-b border-[#F9FAFB] px-8 pb-4 pt-6">
-                <div className="rounded-lg bg-blue-50 p-2">
-                  <span className="material-symbols-rounded text-[16px] text-[#29B6F6]">school</span>
+            <div className="rounded-xl border border-border bg-surface shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-3 border-b border-border px-8 pb-4 pt-6">
+                <div className="rounded-lg bg-info/10 p-2">
+                  <span className="material-symbols-rounded text-[16px] text-brand">school</span>
                 </div>
-                <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">ALL COURSES ({courses.length})</span>
+                <span className="text-xs font-bold tracking-[0.1em] text-fg">ALL COURSES ({courses.length})</span>
               </div>
-              <div className="divide-y divide-[#F9FAFB]">
+              <div className="divide-y divide-border">
                 {courses.map((course) => (
                   <div
                     key={course.course_id}
-                    className="group flex items-center justify-between px-8 py-4 transition-colors hover:bg-[#FAFBFC]"
+                    className="group flex items-center justify-between px-8 py-4 transition-colors hover:bg-muted"
                   >
                     <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.course_id}`)}>
-                      <h3 className="text-sm font-semibold text-[#334155] group-hover:text-[#29B6F6]">{course.course_name}</h3>
+                      <h3 className="text-sm font-semibold text-fg group-hover:text-brand">{course.course_name}</h3>
                       {course.course_description && (
-                        <p className="mt-0.5 text-sm text-[#6B7280] line-clamp-1">{course.course_description}</p>
+                        <p className="mt-0.5 text-sm text-muted-fg line-clamp-1">{course.course_description}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => router.push(`/courses/${course.course_id}`)}
-                        className="rounded-md p-1.5 text-[#9CA3AF] hover:bg-[#F3F4F6] hover:text-[#334155]"
+                        className="rounded-md p-1.5 text-muted-fg hover:bg-muted hover:text-fg"
                         title="Edit"
                       >
                         <span className="material-symbols-rounded text-[16px]">edit</span>
                       </button>
                       <button
                         onClick={() => handleDelete(course.course_id)}
-                        className="rounded-md p-1.5 text-[#9CA3AF] hover:bg-red-50 hover:text-[#DC2626]"
+                        className="rounded-md p-1.5 text-muted-fg hover:bg-error/10 hover:text-error"
                         title="Delete"
                       >
                         <span className="material-symbols-rounded text-[16px]">delete</span>

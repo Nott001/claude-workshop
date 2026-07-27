@@ -343,7 +343,7 @@ export default function CourseDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[#FBF9F8] p-8">
+      <div className="flex flex-1 items-center justify-center bg-bg p-8">
         <div className="text-sm text-muted-foreground">Loading course...</div>
       </div>
     );
@@ -351,7 +351,7 @@ export default function CourseDetailPage() {
 
   if (error || !course) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-[#FBF9F8] p-8">
+      <div className="flex flex-1 flex-col items-center justify-center bg-bg p-8">
         <p className="text-destructive">{error ?? "Course not found"}</p>
         <Button variant="outline" className="mt-4" onClick={() => router.push("/courses")}>
           Back
@@ -361,7 +361,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-[#FBF9F8] px-5 py-12 sm:px-8 md:px-12">
+    <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
           onClick={() => router.push("/courses")}
@@ -374,23 +374,21 @@ export default function CourseDetailPage() {
         <div className="mb-8">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 p-2">
-                <span className="material-symbols-rounded text-[24px] text-[#29B6F6]">menu_book</span>
+              <div className="rounded-lg bg-info/10 p-2">
+                <span className="material-symbols-rounded text-[24px] text-brand">menu_book</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-[#0F172A]">
-                    {course.course_name}
-                  </h1>
+                  <h1 className="text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-fg">{course.course_name}</h1>
                   <button
                     onClick={openEditDialog}
-                    className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#334155]"
+                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
                     title="Edit course"
                   >
                     <span className="material-symbols-rounded text-[18px]">edit</span>
                   </button>
                 </div>
-                {course.course_description && <p className="mt-1 text-sm text-[#6B7280]">{course.course_description}</p>}
+                {course.course_description && <p className="mt-1 text-sm text-muted-fg">{course.course_description}</p>}
               </div>
             </div>
             <div className="flex gap-2"></div>
@@ -404,50 +402,50 @@ export default function CourseDetailPage() {
         )}
 
         {course.EVENTS && course.EVENTS.length > 0 && (
-          <div className="mb-8 rounded-xl border border-[#F3F4F6] bg-white p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-            <div className="mb-4 flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
-              <div className="rounded-lg bg-blue-50 p-2">
-                <span className="material-symbols-rounded text-[20px] text-[#29B6F6]">event</span>
+          <div className="mb-8 rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+            <div className="mb-4 flex items-center gap-3 border-b border-border pb-4">
+              <div className="rounded-lg bg-info/10 p-2">
+                <span className="material-symbols-rounded text-[20px] text-brand">event</span>
               </div>
-              <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">LINKED EVENTS</span>
+              <span className="text-xs font-bold tracking-[0.1em] text-fg">LINKED EVENTS</span>
             </div>
             <div className="space-y-2">
               {course.EVENTS.map((evt) => (
                 <button
                   key={evt.event_id}
                   onClick={() => router.push(`/events/${evt.event_id}`)}
-                  className="flex w-full items-center justify-between rounded-lg border border-[#F3F4F6] bg-[#FAFBFC] px-5 py-3 text-left transition-colors hover:bg-[#F3F4F6]"
+                  className="flex w-full items-center justify-between rounded-lg border border-border bg-muted px-5 py-3 text-left transition-colors hover:bg-muted"
                 >
                   <div>
-                    <span className="text-sm font-semibold text-[#334155]">{evt.title}</span>
-                    <span className="ml-3 text-xs text-[#6B7280]">
+                    <span className="text-sm font-semibold text-fg">{evt.title}</span>
+                    <span className="ml-3 text-xs text-muted-fg">
                       {new Date(evt.event_date).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
                       })}
                     </span>
-                    <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#2563EB]">
+                    <span className="ml-2 inline-flex items-center rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-info">
                       {evt.status}
                     </span>
                   </div>
-                  <span className="material-symbols-rounded text-[16px] text-[#9CA3AF]">arrow_forward</span>
+                  <span className="material-symbols-rounded text-[16px] text-muted-fg">arrow_forward</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        <div className="rounded-xl border border-[#F3F4F6] bg-white p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-          <div className="flex items-center gap-3 border-b border-[#F9FAFB] pb-4">
-            <div className="rounded-lg bg-blue-50 p-2">
-              <span className="material-symbols-rounded text-[20px] text-[#29B6F6]">school</span>
+        <div className="rounded-xl border border-border bg-surface p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+          <div className="flex items-center gap-3 border-b border-border pb-4">
+            <div className="rounded-lg bg-info/10 p-2">
+              <span className="material-symbols-rounded text-[20px] text-brand">school</span>
             </div>
-            <span className="text-xs font-bold tracking-[0.1em] text-[#334155]">CURRICULUM</span>
+            <span className="text-xs font-bold tracking-[0.1em] text-fg">CURRICULUM</span>
           </div>
 
           <div className="mb-6 mt-6 flex items-center justify-between">
-            <p className="text-sm text-[#6B7280]">Organize your course into modules and lessons.</p>
+            <p className="text-sm text-muted-fg">Organize your course into modules and lessons.</p>
             <Button variant="outline" size="sm" onClick={handleAddModule}>
               <span className="material-symbols-rounded text-[14px]">add_circle</span>
               Add module
@@ -455,9 +453,9 @@ export default function CourseDetailPage() {
           </div>
 
           {course.MODULES.length === 0 ? (
-            <div className="rounded-lg border-2 border-dashed border-[#D1D5DB] py-12 text-center">
-              <span className="material-symbols-rounded mb-2 block text-[32px] text-[#D1D5DB]">post_add</span>
-              <p className="text-sm text-[#6B7280]">No modules yet. Add your first module to start building the curriculum.</p>
+            <div className="rounded-lg border-2 border-dashed border-border py-12 text-center">
+              <span className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">post_add</span>
+              <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -473,10 +471,10 @@ export default function CourseDetailPage() {
                   onDragLeave={() => setDragOverModuleId(null)}
                   onDrop={(e) => handleModuleDrop(e, mod.module_id)}
                   onDragEnd={() => setDragOverModuleId(null)}
-                  className={`rounded-lg border bg-[#FAFBFC] p-5 transition-shadow ${
+                  className={`rounded-lg border bg-muted p-5 transition-shadow ${
                     dragOverModuleId === mod.module_id
-                      ? "border-[#29B6F6] shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                      : "border-[#F3F4F6]"
+                      ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                      : "border-border"
                   }`}
                 >
                   <div className="mb-3 flex items-center gap-2">
@@ -490,10 +488,10 @@ export default function CourseDetailPage() {
                           if (e.key === "Escape") setRenamingModuleId(null);
                         }}
                         onBlur={() => handleRenameModule(mod.module_id)}
-                        className="rounded-lg border border-[#29B6F6] bg-white px-3 py-1.5 text-sm font-semibold text-[#374151] outline-none ring-2 ring-[#29B6F6]/20"
+                        className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
                       />
                     ) : (
-                      <span className="text-sm font-semibold text-[#334155]">{mod.module_name}</span>
+                      <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
                     )}
 
                     <button
@@ -501,19 +499,19 @@ export default function CourseDetailPage() {
                         setRenamingModuleId(mod.module_id);
                         setRenameValue(mod.module_name);
                       }}
-                      className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#334155]"
+                      className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
                       title="Rename module"
                     >
                       <span className="material-symbols-rounded text-[14px]">edit</span>
                     </button>
 
-                    <span className="rounded-full bg-[#EFF6FF] px-2.5 py-0.5 text-xs font-medium text-[#2563EB]">
+                    <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
                       {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
                     </span>
 
                     <button
                       onClick={() => handleDeleteModule(mod.module_id)}
-                      className="ml-auto rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                      className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                       title="Delete module"
                     >
                       <span className="material-symbols-rounded text-[14px]">delete</span>
@@ -536,16 +534,16 @@ export default function CourseDetailPage() {
                           onDragEnd={() => setDragOverLessonId(null)}
                           className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
                             dragOverLessonId === lesson.lesson_id
-                              ? "border-[#29B6F6] bg-white shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                              : "border-[#F3F4F6] bg-white"
+                              ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
+                              : "border-border bg-surface"
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <span className="text-xs font-medium text-[#9CA3AF]">
+                            <span className="text-xs font-medium text-muted-fg">
                               {mod.sequence_order}.{lesson.sequence_order}
                             </span>
-                            <span className="text-sm text-[#374151]">{lesson.description}</span>
-                            <span className="rounded-md bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                            <span className="text-sm text-fg">{lesson.description}</span>
+                            <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
                               {lesson.content_type}
                             </span>
                           </div>
@@ -557,7 +555,7 @@ export default function CourseDetailPage() {
                             )}
                             <button
                               onClick={() => handleDeleteLesson(lesson.lesson_id)}
-                              className="rounded-md p-1 text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#DC2626]"
+                              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                               title="Delete lesson"
                             >
                               <span className="material-symbols-rounded text-[14px]">delete</span>
@@ -635,9 +633,9 @@ export default function CourseDetailPage() {
                     setLessonContentFile(e.target.files?.[0] ?? null);
                     if (e.target.files?.[0]) setLessonContentUrl("");
                   }}
-                  className="block w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#374151] file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#2563EB] hover:file:bg-blue-100"
+                  className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg file:mr-3 file:rounded-md file:border-0 file:bg-info/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-info hover:file:bg-blue-100"
                 />
-                {lessonContentFile && <p className="mt-1 text-xs text-[#6B7280]">Selected: {lessonContentFile.name}</p>}
+                {lessonContentFile && <p className="mt-1 text-xs text-muted-fg">Selected: {lessonContentFile.name}</p>}
               </FormField>
 
               <FormField className="mt-3">
