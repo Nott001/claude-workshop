@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { StatusBadge, type EventStatus } from "@/components/status-badge";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Footer } from "@/components/footer";
-import { formatEventDate, formatTime } from "@/lib/landing";
+import { formatEventDate, formatTime, isEventLive } from "@/lib/landing";
 
 interface EventData {
   event_id: number;
@@ -22,15 +22,8 @@ interface EventData {
   attendee_count: number;
 }
 
-function isCurrentlyLive(eventDate: string, startTime: string, endTime: string): boolean {
-  const now = new Date();
-  const start = new Date(`${eventDate}T${startTime}`);
-  const end = new Date(`${eventDate}T${endTime}`);
-  return now >= start && now <= end;
-}
-
 function eventStatusBadge(status: string, eventDate: string, startTime: string, endTime: string): EventStatus {
-  if (isCurrentlyLive(eventDate, startTime, endTime)) return "live";
+  if (isEventLive(eventDate, startTime, endTime)) return "live";
   switch (status) {
     case "active":
       return "upcoming";
@@ -42,7 +35,7 @@ function eventStatusBadge(status: string, eventDate: string, startTime: string, 
 }
 
 function statusLabel(status: string, eventDate: string, startTime: string, endTime: string): string {
-  if (isCurrentlyLive(eventDate, startTime, endTime)) return "Live Now";
+  if (isEventLive(eventDate, startTime, endTime)) return "Live Now";
   switch (status) {
     case "active":
       return "Upcoming Event";
@@ -107,7 +100,7 @@ export default function SpeakerEventDetailsPage() {
     );
   }
 
-  const isLive = isCurrentlyLive(event.event_date, event.start_time, event.end_time);
+  const isLive = isEventLive(event.event_date, event.start_time, event.end_time);
   const isUpcoming = !isLive && event.status === "active";
   const isComplete = event.status === "complete";
 

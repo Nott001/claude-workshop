@@ -37,3 +37,27 @@ export const speakerProfileUpdateSchema = z.object({
 export const speakerAssignmentSchema = z.object({
   speaker_profile_id: z.coerce.number().int().positive(),
 });
+
+export type BadgeStatus = "live" | "upcoming" | "completed" | "draft";
+
+export function getBadgeProps(event: { event_date: string; start_time: string; end_time: string; status: string }): {
+  status: BadgeStatus;
+  label: string;
+} {
+  const now = new Date();
+  const start = new Date(`${event.event_date}T${event.start_time}`);
+  const end = new Date(`${event.event_date}T${event.end_time}`);
+  if (now >= start && now <= end) {
+    return { status: "live", label: "Live" };
+  }
+  switch (event.status) {
+    case "active":
+      return { status: "upcoming", label: "Upcoming" };
+    case "complete":
+      return { status: "completed", label: "Completed" };
+    case "draft":
+      return { status: "draft", label: "Draft" };
+    default:
+      return { status: "draft", label: "Draft" };
+  }
+}
