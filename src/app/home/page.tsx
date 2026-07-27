@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 import { Footer } from "@/components/footer";
 import { EventCard } from "@/components/event-card";
 import { formatEventDate, formatTime, eventStatusLabel, type LandingEvent } from "@/lib/landing";
 
 export default function HomePage() {
-  const { user } = useUser();
+  const { user } = useSession();
   const [events, setEvents] = useState<LandingEvent[]>([]);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function HomePage() {
   }, []);
 
   const featured = events[0] ?? null;
-  const firstName = user?.firstName ?? "there";
+  const firstName = user?.full_name?.split(/\s+/)[0] ?? "there";
 
   return (
     <>

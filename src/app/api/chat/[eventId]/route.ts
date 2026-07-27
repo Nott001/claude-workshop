@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { eventDao, userDao, chatDao } from "@/lib/db/dao";
+import { eventDao, chatDao } from "@/lib/db/dao";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
 export async function GET(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { eventId } = await params;
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get("channel");
@@ -28,9 +23,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  let userRole: string | null = null;
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  userRole = dbUser?.role ?? null;
+  const user = await requireAuth(supabase);
+  const userRole = user?.role ?? null;
 
   if (event.status === "draft" && userRole !== "facilitator") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -46,11 +40,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ eventId:
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { eventId } = await params;
   const body = await req.json();
   const parsed = sendMessageSchema.safeParse(body);
@@ -65,18 +54,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const dbUser = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
-  const userRole = dbUser.role;
+  const userRole = user.role;
 
   if (event.status === "draft" && userRole !== "facilitator") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const count = await chatDao.countRecentByUser(supabase, dbUser.id, Number(eventId), parsed.data.channel, windowStart);
+  const count = await chatDao.countRecentByUser(supabase, user.id, Number(eventId), parsed.data.channel, windowStart);
 
   if (count >= RATE_LIMIT_MAX) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
@@ -85,7 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
   const message = await chatDao.sendMessage(supabase, {
     event_id: Number(eventId),
     channel: parsed.data.channel,
-    user_id: dbUser.id,
+    user_id: user.id,
     message: parsed.data.message,
     reply_to: parsed.data.reply_to ?? null,
     answered_verbally: parsed.data.answered_verbally ?? false,

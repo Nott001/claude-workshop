@@ -1,17 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import type { User, UserRole } from "@/types";
 
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(),
-  clerkClient: vi.fn(),
-}));
-
-vi.mock("@/lib/db", () => ({
-  getServiceClient: vi.fn(),
-}));
-
-vi.mock("@/lib/auth/sync-user", () => ({
-  syncUser: vi.fn(),
+vi.mock("@/modules/auth/session", () => ({
+  requireAuth: vi.fn(),
 }));
 
 describe("User types", () => {
@@ -20,7 +11,7 @@ describe("User types", () => {
       id: 1,
       full_name: "Test User",
       email: "test@example.com",
-      auth_user_id: "clerk_123",
+      auth_user_id: "auth_123",
       role: "attendee",
       profile_image_url: null,
       created_at: "2026-01-01T00:00:00Z",
@@ -38,25 +29,11 @@ describe("User types", () => {
 });
 
 describe("requireRole", () => {
-  it("returns Unauthenticated when no userId", async () => {
-    const { auth } = await import("@clerk/nextjs/server");
-    vi.mocked(auth).mockResolvedValue({
-      userId: null,
-      sessionId: null,
-      actor: null,
-      sessionClaims: null,
-      orgId: null,
-      orgRole: null,
-      orgSlug: null,
-      permissions: null,
-      debug: null,
-      getToken: vi.fn(),
-      has: vi.fn(),
-      redirectToSignIn: vi.fn(),
-      protect: vi.fn(),
-    });
+  it("returns Unauthenticated when no user", async () => {
+    const { requireAuth } = await import("@/modules/auth/session");
+    vi.mocked(requireAuth).mockResolvedValue(null);
 
-    const { requireRole } = await import("@/lib/auth/role-guard");
+    const { requireRole } = await import("@/modules/auth");
     const result = await requireRole("facilitator");
 
     expect(result.allowed).toBe(false);
@@ -64,30 +41,24 @@ describe("requireRole", () => {
   });
 
   it("returns Forbidden when user role is not allowed", async () => {
-    const { auth } = await import("@clerk/nextjs/server");
-    vi.mocked(auth).mockResolvedValue({
-      userId: "clerk_123",
-      sessionId: null,
-      actor: null,
-      sessionClaims: null,
-      orgId: null,
-      orgRole: null,
-      orgSlug: null,
-      permissions: null,
-      debug: null,
-      getToken: vi.fn(),
-      has: vi.fn(),
-      redirectToSignIn: vi.fn(),
-      protect: vi.fn(),
-    });
+    const { requireAuth } = await import("@/modules/auth/session");
+    vi.mocked(requireAuth).mockResolvedValue({ id: 1, role: "attendee", full_name: "Test", email: "test@test.com" });
 
-    const { syncUser } = await import("@/lib/auth/sync-user");
-    vi.mocked(syncUser).mockResolvedValue({ id: 1, role: "attendee", full_name: "Test", email: "test@test.com" });
-
-    const { requireRole } = await import("@/lib/auth/role-guard");
+    const { requireRole } = await import("@/modules/auth");
     const result = await requireRole("facilitator");
 
     expect(result.allowed).toBe(false);
     expect(result.error).toBe("Forbidden");
+  });
+
+  it("returns allowed when user role matches", async () => {
+    const { requireAuth } = await import("@/modules/auth/session");
+    vi.mocked(requireAuth).mockResolvedValue({ id: 1, role: "facilitator", full_name: "Admin", email: "admin@test.com" });
+
+    const { requireRole } = await import("@/modules/auth");
+    const result = await requireRole("facilitator");
+
+    expect(result.allowed).toBe(true);
+    expect(result.error).toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import { Navbar } from "@/components/navbar";
 import { FloatingAssistButton } from "@/components/floating-assist-button";
 
@@ -25,7 +25,7 @@ function shouldHideAssist(pathname: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isSignedIn } = useUser();
+  const { isSignedIn } = useSession();
   const [role, setRole] = useState<string | null>(null);
   const hideNavbar = shouldHideNavbar(pathname);
   const showAssist = !shouldHideAssist(pathname) && role !== "facilitator" && role !== "speaker";

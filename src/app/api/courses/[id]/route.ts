@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { courseDao } from "@/lib/db/dao";
 import { courseSchema } from "@/modules/course-content";
@@ -43,9 +42,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "course.updated", "course", Number(id), {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "course.updated", "course", Number(id), {
       changes: Object.keys(parsed.data),
     });
   }
@@ -61,7 +60,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const { userId } = await auth();
+  const user = await requireAuth(supabase);
 
   const courseInfo = await courseDao.findCourseById(supabase, Number(id));
 
@@ -84,8 +83,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 
-  if (userId) {
-    await logAuditEvent(supabase, userId, "course.deleted", "course", Number(id), {
+  if (user) {
+    await logAuditEvent(supabase, user.id, "course.deleted", "course", Number(id), {
       name: courseInfo?.course_name,
     });
   }

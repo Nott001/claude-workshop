@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { courseDao } from "@/lib/db/dao";
 import { moduleSchema } from "@/modules/course-content";
@@ -30,9 +29,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update module" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "module.updated", "module", Number(id), {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "module.updated", "module", Number(id), {
       changes: Object.keys(parsed.data),
     });
   }
@@ -48,7 +47,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const { userId } = await auth();
+  const user = await requireAuth(supabase);
 
   const mod = await courseDao.findModuleById(supabase, Number(id));
   if (mod) {
@@ -69,8 +68,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete module" }, { status: 500 });
   }
 
-  if (userId) {
-    await logAuditEvent(supabase, userId, "module.deleted", "module", Number(id), {
+  if (user) {
+    await logAuditEvent(supabase, user.id, "module.deleted", "module", Number(id), {
       course_id: mod?.course_id,
     });
   }

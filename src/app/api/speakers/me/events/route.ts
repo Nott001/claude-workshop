@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, speakerDao, eventDao } from "@/lib/db/dao";
+import { speakerDao, eventDao } from "@/lib/db/dao";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
 
-  const dbUser = await userDao.findByAuthId(supabase, userId);
-
-  if (!dbUser) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json([]);
   }
 
-  const profile = await speakerDao.findByUserId(supabase, dbUser.id);
+  const profile = await speakerDao.findByUserId(supabase, user.id);
 
   if (!profile) {
     return NextResponse.json([]);

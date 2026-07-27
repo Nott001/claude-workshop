@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import LessonViewer from "@/components/lesson-viewer";
@@ -39,7 +39,7 @@ export default function EventRoomPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
 
   const [access, setAccess] = useState<AccessLevel>("loading");
   const [eventTitle, setEventTitle] = useState("");

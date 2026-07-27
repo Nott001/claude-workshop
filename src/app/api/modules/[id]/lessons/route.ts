@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
 import { courseDao } from "@/lib/db/dao";
 import { lessonSchema } from "@/modules/course-content";
@@ -32,9 +31,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to create lesson" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "lesson.created", "lesson", lesson.id, {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "lesson.created", "lesson", lesson.id, {
       module_id: Number(id),
       description: lesson.description,
     });

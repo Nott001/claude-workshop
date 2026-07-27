@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { eventDao, userDao, courseDao } from "@/lib/db/dao";
+import { eventDao, courseDao } from "@/lib/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,16 +31,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!user || (user.role !== "speaker" && user.role !== "facilitator")) {
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (user.role !== "speaker" && user.role !== "facilitator") {
     return NextResponse.json({ error: "Only speakers and facilitators can update the live highlight" }, { status: 403 });
   }
 
@@ -88,16 +87,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await userDao.findByAuthIdWithRole(supabase, userId);
-  if (!user || (user.role !== "speaker" && user.role !== "facilitator")) {
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (user.role !== "speaker" && user.role !== "facilitator") {
     return NextResponse.json({ error: "Only speakers and facilitators can clear the live highlight" }, { status: 403 });
   }
 

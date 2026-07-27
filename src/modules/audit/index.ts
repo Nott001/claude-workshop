@@ -3,13 +3,11 @@ import { auditDao } from "@/lib/db/dao";
 
 export async function logAuditEvent(
   supabase: ReturnType<typeof import("@/lib/db").getServiceClient>,
-  clerkId: string,
+  actorId: number,
   action: AuditAction,
   entityType: string,
   entityId: number | null,
   metadata?: Record<string, unknown>,
 ) {
-  const user = await auditDao.findByClerkId(supabase, clerkId);
-  if (!user) return;
-  await auditDao.log(supabase, user.id, action, entityType, entityId, metadata);
+  await auditDao.log(supabase, actorId, action, entityType, entityId, metadata);
 }

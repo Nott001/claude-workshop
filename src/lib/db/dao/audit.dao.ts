@@ -34,8 +34,3 @@ export async function list(supabase: DbClient, page: number, limit: number): Pro
     limit,
   };
 }
-
-export async function findByClerkId(supabase: DbClient, clerkId: string): Promise<{ id: number } | null> {
-  const { data } = await supabase.from("USER").select("id").eq("auth_user_id", clerkId).single();
-  return data;
-}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useUser, useClerk } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 import { cn } from "@/lib/utils";
 
 type UserRole = "attendee" | "speaker" | "facilitator";
@@ -39,28 +39,23 @@ const GUEST_NAV_ITEMS: NavItem[] = [
   { label: "Events", href: "/events", icon: "event" },
 ];
 
-function getInitials(firstName?: string, lastName?: string): string {
-  const first = firstName?.charAt(0) || "";
-  const last = lastName?.charAt(0) || "";
+function getInitials(fullName?: string | null): string {
+  const parts = (fullName ?? "").trim().split(/\s+/);
+  const first = parts[0]?.charAt(0) || "";
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
   return (first + last).toUpperCase();
 }
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isSignedIn } = useUser();
-  const { signOut } = useClerk();
-  const [dbRole, setDbRole] = useState<UserRole | null>(null);
+  const { user, loading, isSignedIn, signOut } = useSession();
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
+  const userRole: UserRole = (user?.role as UserRole) ?? "attendee";
 
   useEffect(() => {
     if (!isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.role) setDbRole(data.role as UserRole);
-      })
-      .catch(() => {});
     fetch("/api/speakers/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -76,7 +71,6 @@ export function Navbar() {
     return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
   }, [isSignedIn]);
 
-  const userRole: UserRole = dbRole ?? "attendee";
   const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
 
   const handleSignOut = async () => {
@@ -123,15 +117,10 @@ export function Navbar() {
                 <img src={profilePhoto} alt="Profile" className="size-7 shrink-0 rounded-full object-cover" />
               ) : (
                 <div className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
-                  {getInitials(user?.firstName ?? undefined, user?.lastName ?? undefined) ||
-                    (user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ?? "?").toUpperCase()}
+                  {getInitials(user?.full_name) || (user?.email?.charAt(0) ?? "?").toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-sm font-medium text-fg">
-                {user?.firstName
-                  ? `${user.firstName} ${user.lastName ?? ""}`
-                  : (user?.emailAddresses?.[0]?.emailAddress ?? "User")}
-              </span>
+              <span className="truncate text-sm font-medium text-fg">{user?.full_name ?? user?.email ?? "User"}</span>
             </div>
             <Link
               href="/user"

@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
+import { requireAuth, requireRole } from "@/modules/auth";
 import { getServiceClient } from "@/lib/db";
-import { userDao, eventDao } from "@/lib/db/dao";
+import { eventDao } from "@/lib/db/dao";
 import { eventSchema } from "@/modules/event-management";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter");
-  const { userId } = await auth();
   const supabase = getServiceClient();
 
-  let userRole: string | null = null;
-  if (userId) {
-    const user = await userDao.findByAuthIdWithRole(supabase, userId);
-    userRole = user?.role ?? null;
-  }
+  const user = await requireAuth(supabase);
+  const userRole = user?.role ?? null;
 
   const events = await eventDao.list(supabase, { role: userRole, filter });
 
@@ -64,9 +59,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: "Failed to create event" } }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "event.created", "event", event.id, {
+  const user = await requireAuth(supabase);
+  if (user) {
+    await logAuditEvent(supabase, user.id, "event.created", "event", event.id, {
       title: event.title,
     });
   }

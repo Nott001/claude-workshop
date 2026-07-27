@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/modules/auth";
 
 export default function CheckoutPage() {
   const params = useParams();
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading: isLoaded, isSignedIn } = useSession();
   const paymentId = params.paymentId as string;
   const [status, setStatus] = useState<string>("loading");
   const [error, setError] = useState<string | null>(null);
