@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { usePayments } from "@/modules/commerce/lib/use-payments";
 
 export default function PaymentsPage() {
-  const router = useRouter();
   const { payments, loading, error } = usePayments();
 
   if (loading) return <div>Loading payments...</div>;

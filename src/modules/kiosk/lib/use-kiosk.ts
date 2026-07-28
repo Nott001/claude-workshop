@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
-import type { Event } from "@/types";
+import type { Event } from "@/shared/types";
 
 export function useKiosk() {
   const router = useRouter();

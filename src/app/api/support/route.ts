@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { chatDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
-const CHANNEL = "global_support" as const;
+const CHANNEL = "support" as const;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -73,6 +73,7 @@ export async function POST(req: Request) {
 
   const message = await chatDao.sendSupportMessage(supabase, {
     channel: CHANNEL,
+    event_id: 0,
     user_id: user.id,
     message: parsed.data.message,
     session_id: sessionId,

@@ -2,11 +2,10 @@
 
 import { useSession } from "@/modules/auth";
 
-import { Footer } from "@/components/footer";
-import { formatEventDate, formatTime } from "@/lib/date-utils";
-import { eventStatusLabel } from "@/lib/landing";
-import { useUpcomingEvents } from "@/modules/event-management/lib/use-upcoming-events";
-import { EventGrid } from "@/modules/event-management/ui/event-grid";
+import { Footer } from "@/shared/components/footer";
+import { formatEventDate, formatTime, eventStatusLabel } from "@/shared/lib/date-utils";
+import { useUpcomingEvents } from "@/modules/events/lib/use-upcoming-events";
+import { EventGrid } from "@/modules/events/ui/event-grid";
 
 export default function HomePage() {
   const { user } = useSession();

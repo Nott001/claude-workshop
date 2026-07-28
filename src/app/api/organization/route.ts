@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { userDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 const PAGE_SIZE = 10;
@@ -55,13 +55,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "organization.invited", "user", null, {
-      email: parsed.data.email,
-      role: parsed.data.role,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "organization.invited", "user", null, {
+    email: parsed.data.email,
+    role: parsed.data.role,
+  });
 
   return NextResponse.json({ email: parsed.data.email, role: parsed.data.role }, { status: 201 });
 }

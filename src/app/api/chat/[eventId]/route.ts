@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { eventDao, chatDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao, chatDao } from "@/shared/db/dao";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
 export async function GET(req: Request, { params }: { params: Promise<{ eventId: string }> }) {

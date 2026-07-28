@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { speakerDao, eventDao, ticketDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao, eventDao, ticketDao } from "@/shared/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;

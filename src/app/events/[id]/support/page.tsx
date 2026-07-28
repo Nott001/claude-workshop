@@ -2,9 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { useSession } from "@/modules/auth";
-import ChatPanel from "@/components/chat-panel";
-import type { UserRole } from "@/types";
-import { Footer } from "@/components/footer";
+import ChatPanel from "@/modules/chat/components/chat-panel";
+import type { UserRole } from "@/shared/types";
+import { Footer } from "@/shared/components/footer";
 
 export default function SupportPage() {
   const params = useParams();

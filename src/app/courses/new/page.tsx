@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormField, FormLabel } from "@/components/ui/form";
-import { Footer } from "@/components/footer";
-import { LessonDialog } from "@/modules/course-content/ui/lesson-dialog";
-import { CurriculumBuilder } from "@/modules/course-content/ui/curriculum-builder";
-import { useCourseCreate } from "@/modules/course-content/lib/use-course-create";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
+import { Footer } from "@/shared/components/footer";
+import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
+import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 
 export default function NewCoursePage() {
   const router = useRouter();

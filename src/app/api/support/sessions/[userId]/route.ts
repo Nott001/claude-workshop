@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { chatDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 
-const CHANNEL = "global_support" as const;
+const CHANNEL = "support" as const;
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId: targetUserId } = await params;

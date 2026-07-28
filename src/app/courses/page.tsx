@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Footer } from "@/components/footer";
-import { useCourseList } from "@/modules/course-content/lib/use-course-list";
+import { Button } from "@/shared/components/ui/button";
+import { Footer } from "@/shared/components/footer";
+import { useCourseList } from "@/modules/courses/lib/use-course-list";
 
 export default function CoursesPage() {
   const router = useRouter();

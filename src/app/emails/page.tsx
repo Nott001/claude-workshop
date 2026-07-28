@@ -1,7 +1,7 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Footer } from "@/components/footer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";

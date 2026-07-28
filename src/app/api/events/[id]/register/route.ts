@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { eventDao, ticketDao, paymentDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao, ticketDao, paymentDao } from "@/shared/db/dao";
 import { paymentInitSchema } from "@/modules/commerce";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

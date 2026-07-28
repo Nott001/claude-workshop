@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { speakerDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao } from "@/shared/db/dao";
 import {
   uploadToStorage,
   buildProfileImagePath,
@@ -10,7 +10,7 @@ import {
   getExtensionFromMimeType,
   listStorageFolder,
   deleteFromStorage,
-} from "@/lib/storage";
+} from "@/shared/integrations/storage";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator", "speaker", "attendee");
@@ -35,27 +35,22 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
   const ext = getExtensionFromMimeType(file.type);
-  const path = buildProfileImagePath(user.id, ext);
+  const path = buildProfileImagePath(guard.user.id, ext);
 
   try {
-    const oldPaths = await listStorageFolder("profile_images", `users/${user.id}`);
+    const oldPaths = await listStorageFolder("profile_images", `users/${guard.user.id}`);
     if (oldPaths.length > 0) {
       await deleteFromStorage("profile_images", oldPaths);
     }
 
     const result = await uploadToStorage("profile_images", path, file);
 
-    const existing = await speakerDao.findByUserId(supabase, user.id);
+    const existing = await speakerDao.findByUserId(supabase, guard.user.id);
     if (existing) {
       await speakerDao.update(supabase, existing.id, { photo_url: result.url });
     } else {
-      await speakerDao.create(supabase, { user_id: user.id, photo_url: result.url });
+      await speakerDao.create(supabase, { user_id: guard.user.id, photo_url: result.url });
     }
 
     return NextResponse.json({ url: result.url, path: result.path });

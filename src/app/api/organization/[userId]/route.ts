@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { userDao } from "@/lib/db/dao";
-import type { UserRole } from "@/types";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { userDao } from "@/shared/db/dao";
+import type { UserRole } from "@/shared/types";
 import { logAuditEvent } from "@/modules/audit";
 
 const updateSchema = z.object({
@@ -31,12 +31,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
   }
 
-  const currentUser = await requireAuth(supabase);
-  if (currentUser) {
-    await logAuditEvent(supabase, currentUser.id, "organization.role_changed", "user", Number(userId), {
-      new_role: parsed.data.role,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
+    new_role: parsed.data.role,
+  });
 
   return NextResponse.json(user);
 }
@@ -50,12 +47,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   const { userId } = await params;
   const supabase = getServiceClient();
 
-  const currentUser = await requireAuth(supabase);
-  if (!currentUser) {
-    return NextResponse.json({ error: { message: "Unauthorized" } }, { status: 401 });
-  }
-
-  if (currentUser.id === Number(userId)) {
+  if (guard.user.id === Number(userId)) {
     return NextResponse.json({ error: { message: "Cannot remove yourself" } }, { status: 400 });
   }
 
@@ -65,9 +57,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
     return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
   }
 
-  if (currentUser) {
-    await logAuditEvent(supabase, currentUser.id, "organization.removed", "user", Number(userId));
-  }
+  await logAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
 
   return NextResponse.json({ success: true });
 }

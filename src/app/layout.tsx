@@ -1,6 +1,6 @@
 import { SessionProvider } from "@/modules/auth";
 import type { Metadata } from "next";
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/shared/components/app-shell";
 import "./fonts.css";
 import "./globals.css";
 
@@ -15,12 +15,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <SessionProvider>
-      <html lang="en" className="h-full antialiased">
-        <body className="flex min-h-full flex-col font-sans">
+    <html lang="en" className="h-full antialiased">
+      <body className="flex min-h-full flex-col font-sans">
+        <SessionProvider>
           <AppShell>{children}</AppShell>
-        </body>
-      </html>
-    </SessionProvider>
+        </SessionProvider>
+      </body>
+    </html>
   );
 }

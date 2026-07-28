@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { formatEventDate, formatTime } from "@/lib/date-utils";
+import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useTickets } from "@/modules/commerce/lib/use-tickets";
 import { useTicketCard } from "@/modules/commerce/lib/use-ticket-card";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";

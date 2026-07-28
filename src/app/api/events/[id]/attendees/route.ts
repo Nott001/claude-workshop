@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { ticketDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { ticketDao } from "@/shared/db/dao";
 
 interface AttendeeRow {
   user_id: number;

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { paymentDao, ticketDao } from "@/lib/db/dao";
-import { paymentInitSchema, SimulatedPaymentGateway } from "@/modules/commerce";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { paymentDao, ticketDao } from "@/shared/db/dao";
+import { paymentInitSchema } from "@/modules/commerce";
+import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 
 export async function POST(req: Request) {
   const supabase = getServiceClient();
@@ -92,14 +94,10 @@ export async function GET() {
   }
 
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
 
   let payments;
-  if (user.role === "attendee") {
-    payments = await paymentDao.listByUser(supabase, user.id);
+  if (guard.user.role === "attendee") {
+    payments = await paymentDao.listByUser(supabase, guard.user.id);
   } else {
     payments = await paymentDao.listAll(supabase);
   }

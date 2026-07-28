@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Footer } from "@/components/footer";
+import { Footer } from "@/shared/components/footer";
 import { useSpeakerEdit } from "@/modules/speakers/lib/use-speaker-edit";
 
 export default function EditSpeakerProfilePage() {

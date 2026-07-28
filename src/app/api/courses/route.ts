@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { courseDao } from "@/lib/db/dao";
-import { courseSchema } from "@/modules/course-content";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { courseDao } from "@/shared/db/dao";
+import { courseSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET() {
@@ -39,12 +39,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "course.created", "course", course.id, {
-      name: course.course_name,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "course.created", "course", course.id, {
+    name: course.course_name,
+  });
 
   return NextResponse.json(course, { status: 201 });
 }

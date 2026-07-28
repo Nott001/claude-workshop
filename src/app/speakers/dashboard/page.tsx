@@ -1,8 +1,8 @@
 "use client";
 
-import { EventCard } from "@/components/event-card";
-import { Footer } from "@/components/footer";
-import { useSpeakerEvents } from "@/modules/event-management/lib/use-speaker-events";
+import { EventCard } from "@/modules/events/components/event-card";
+import { Footer } from "@/shared/components/footer";
+import { useSpeakerEvents } from "@/modules/events/lib/use-speaker-events";
 
 export default function SpeakerDashboardPage() {
   const { events, loading, error } = useSpeakerEvents();

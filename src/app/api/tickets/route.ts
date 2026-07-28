@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { ticketDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { ticketDao } from "@/shared/db/dao";
 
 export async function GET() {
   const guard = await requireRole("attendee", "facilitator");
@@ -10,14 +10,10 @@ export async function GET() {
   }
 
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
 
   let tickets;
-  if (user.role === "attendee") {
-    tickets = await ticketDao.listByUser(supabase, user.id);
+  if (guard.user.role === "attendee") {
+    tickets = await ticketDao.listByUser(supabase, guard.user.id);
   } else {
     tickets = await ticketDao.listAll(supabase);
   }

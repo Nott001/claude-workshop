@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { ticketDao } from "@/lib/db/dao";
-import { generateQRDataUrl } from "@/lib/qr";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { ticketDao } from "@/shared/db/dao";
+import { generateQRDataUrl } from "@/shared/integrations/qr";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
@@ -13,18 +13,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
   const { paymentId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
   const ticket = await ticketDao.findWithPaymentAndEvent(supabase, Number(paymentId));
 
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  if (user.role === "attendee" && (ticket as { user_id: number }).user_id !== user.id) {
+  if (guard.user.role === "attendee" && (ticket as { user_id: number }).user_id !== guard.user.id) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
