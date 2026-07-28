@@ -46,7 +46,8 @@ export default function SpeakerDashboardPage() {
                 startTime={event.start_time}
                 endTime={event.end_time}
                 venueName={event.venue_name}
-                courseName={event.COURSE?.course_name ?? undefined}
+                // TODO: Speakers should be the one creating courses
+                // courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}
                 detailHref={`/speakers/dashboard/${event.event_id}`}
               />

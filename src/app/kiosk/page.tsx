@@ -49,7 +49,7 @@ export default function KioskPage() {
             <div className="grid w-full max-w-2xl grid-cols-1 gap-3">
               {events.map((event) => (
                 <button
-                  key={event.event_id}
+                  key={event.id}
                   onClick={() => setSelectedEvent(event)}
                   className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand"
                 >
