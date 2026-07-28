@@ -1,8 +1,7 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Footer } from "@/shared/components/footer";
+import { getServiceClient } from "@/shared/db/client";
+import { userDao } from "@/shared/db/dao";
 
 interface Member {
   id: number;
@@ -11,17 +10,10 @@ interface Member {
   role: string;
 }
 
-export default function OrganizationPage() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/organization")
-      .then((r) => r.json())
-      .then((data) => setMembers(data.members ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+export default async function OrganizationPage() {
+  const supabase = getServiceClient();
+  const result = await userDao.listStaff(supabase, 1, "", 50);
+  const members: Member[] = result.data;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,9 +26,7 @@ export default function OrganizationPage() {
           </Button>
         </div>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading members...</p>
-        ) : members.length === 0 ? (
+        {members.length === 0 ? (
           <p className="text-sm text-muted-foreground">No members found.</p>
         ) : (
           <div className="rounded-xl border border-border">
