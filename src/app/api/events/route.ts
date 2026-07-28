@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { eventDao } from "@/lib/db/dao";
-import { eventSchema } from "@/modules/event-management";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao } from "@/shared/db/dao";
+import { eventSchema } from "@/modules/events/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(req: Request) {
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
 
   if (parsed.data.course_id) {
-    const { courseDao } = await import("@/lib/db/dao");
+    const { courseDao } = await import("@/shared/db/dao");
     const course = await courseDao.findCourseById(supabase, parsed.data.course_id);
     if (!course) {
       return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
@@ -59,12 +60,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: "Failed to create event" } }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "event.created", "event", event.id, {
-      title: event.title,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "event.created", "event", event.id, {
+    title: event.title,
+  });
 
   return NextResponse.json(event, { status: 201 });
 }

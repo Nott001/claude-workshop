@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { eventDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,10 +29,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to publish event" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "event.published", "event", Number(id));
-  }
+  await logAuditEvent(supabase, guard.user.id, "event.published", "event", Number(id));
 
   return NextResponse.json({ success: true });
 }

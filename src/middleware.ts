@@ -1,23 +1,32 @@
-import { createMiddlewareClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const isProtectedRoute = (pathname: string) => {
   if (pathname.startsWith("/courses") || pathname.startsWith("/kiosk") || pathname.startsWith("/organization")) return true;
-  if (
-    pathname.startsWith("/api/") &&
-    !pathname.startsWith("/api/auth") &&
-    !pathname.startsWith("/api/events") &&
-    !pathname.startsWith("/api/speakers") &&
-    !pathname.startsWith("/api/storage")
-  )
-    return true;
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) return true;
   return false;
 };
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  let res = NextResponse.next();
+  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      get(name: string) {
+        return req.cookies.get(name)?.value;
+      },
+      set(name: string, value: string, options: Record<string, unknown>) {
+        req.cookies.set({ name, value, ...options });
+        res = NextResponse.next({ request: { headers: req.headers } });
+        res.cookies.set(name, value, options);
+      },
+      remove(name: string, options: Record<string, unknown>) {
+        req.cookies.delete(name);
+        res = NextResponse.next({ request: { headers: req.headers } });
+        res.cookies.delete(name);
+      },
+    },
+  });
   const { data } = await supabase.auth.getUser();
   const user = data.user;
 

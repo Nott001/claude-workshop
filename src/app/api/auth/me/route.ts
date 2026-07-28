@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth";
+import { requireAuth } from "@/modules/auth/lib/session";
 
 export async function GET() {
   const user = await requireAuth();

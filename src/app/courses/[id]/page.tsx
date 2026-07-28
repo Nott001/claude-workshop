@@ -1,40 +1,14 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormField, FormLabel } from "@/components/ui/form";
-import { LessonDialog } from "@/modules/course-content/ui/lesson-dialog";
-import { CurriculumBuilder } from "@/modules/course-content/ui/curriculum-builder";
-import { useCourseDetail } from "@/modules/course-content/lib/use-course-detail";
+import { Button } from "@/shared/components/ui/button";
+import { useCourseDetail } from "@/modules/courses/lib/use-course-detail";
 
 export default function CourseDetailPage() {
   const router = useRouter();
   const params = useParams();
   const courseId = params.id as string;
-  const {
-    course,
-    loading,
-    error,
-    editDialogOpen,
-    editName,
-    editDescription,
-    lessonDialogModuleId,
-    setEditDialogOpen,
-    setEditName,
-    setEditDescription,
-    openEditDialog,
-    handleEditCourse,
-    handleAddModule,
-    handleRenameModule,
-    handleDeleteModule,
-    handleDeleteLesson,
-    openLessonDialog,
-    handleAddLesson,
-    handleReorderModules,
-    handleReorderLessons,
-  } = useCourseDetail(courseId);
+  const { course, loading, error } = useCourseDetail(courseId);
 
   if (loading) {
     return (
@@ -67,102 +41,34 @@ export default function CourseDetailPage() {
         </button>
 
         <div className="mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-info/10 p-2">
-                <span className="material-symbols-rounded text-[24px] text-brand">menu_book</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-fg">{course.course_name}</h1>
-                  <button
-                    onClick={openEditDialog}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Edit course"
-                  >
-                    <span className="material-symbols-rounded text-[18px]">edit</span>
-                  </button>
-                </div>
-                {course.course_description && <p className="mt-1 text-sm text-muted-fg">{course.course_description}</p>}
-              </div>
-            </div>
-          </div>
+          <h1 className="text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-fg">{course.course_name}</h1>
+          {course.course_description && <p className="mt-2 text-sm text-muted-fg">{course.course_description}</p>}
         </div>
 
-        {course.EVENTS && course.EVENTS.length > 0 && (
-          <div className="mb-8 rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-            <div className="mb-4 flex items-center gap-3 border-b border-border pb-4">
-              <div className="rounded-lg bg-info/10 p-2">
-                <span className="material-symbols-rounded text-[20px] text-brand">event</span>
-              </div>
-              <span className="text-xs font-bold tracking-[0.1em] text-fg">LINKED EVENTS</span>
-            </div>
-            <div className="space-y-2">
-              {course.EVENTS.map((evt) => (
-                <button
-                  key={evt.event_id}
-                  onClick={() => router.push(`/events/${evt.event_id}`)}
-                  className="flex w-full items-center justify-between rounded-lg border border-border bg-muted px-5 py-3 text-left transition-colors hover:bg-muted"
-                >
-                  <div>
-                    <span className="text-sm font-semibold text-fg">{evt.title}</span>
-                    <span className="ml-3 text-xs text-muted-fg">
-                      {new Date(evt.event_date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                    <span className="ml-2 inline-flex items-center rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-info">
-                      {evt.status}
-                    </span>
+        {course.MODULES && course.MODULES.length > 0 ? (
+          <div className="space-y-4">
+            {course.MODULES.map((mod) => (
+              <div key={mod.id} className="rounded-xl border border-border bg-surface p-4">
+                <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                {mod.LESSONS && mod.LESSONS.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {mod.LESSONS.map((lesson) => (
+                      <div
+                        key={lesson.id}
+                        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-fg"
+                      >
+                        <span className="material-symbols-rounded text-[14px]">description</span>
+                        {lesson.description}
+                      </div>
+                    ))}
                   </div>
-                  <span className="material-symbols-rounded text-[16px] text-muted-fg">arrow_forward</span>
-                </button>
-              ))}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
+        ) : (
+          <p className="text-sm text-muted-fg">No modules yet.</p>
         )}
-
-        <CurriculumBuilder
-          modules={course.MODULES}
-          onAddModule={handleAddModule}
-          onRenameModule={handleRenameModule}
-          onDeleteModule={handleDeleteModule}
-          onDeleteLesson={handleDeleteLesson}
-          onAddLessonClick={openLessonDialog}
-          onReorderModules={handleReorderModules}
-          onReorderLessons={handleReorderLessons}
-        />
-
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Course</DialogTitle>
-            </DialogHeader>
-            <Form onSubmit={handleEditCourse}>
-              <FormField>
-                <FormLabel>Name</FormLabel>
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} required />
-              </FormField>
-              <FormField>
-                <FormLabel>Description</FormLabel>
-                <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-              </FormField>
-              <Button type="submit" className="mt-4">
-                Save
-              </Button>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <LessonDialog
-          open={lessonDialogModuleId !== null}
-          onOpenChange={(open) => {
-            if (!open) setLessonDialogModuleId(null);
-          }}
-          onAddLesson={handleAddLesson}
-        />
       </div>
     </div>
   );

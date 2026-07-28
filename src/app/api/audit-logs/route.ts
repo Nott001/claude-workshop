@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { auditDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { auditDao } from "@/shared/db/dao";
 
 export async function GET(req: Request) {
   const guard = await requireRole("facilitator");

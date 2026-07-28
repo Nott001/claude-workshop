@@ -1,27 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import QAPanel from "@/components/qa-panel";
-import { EventSessionNavbar } from "@/components/event-session-navbar";
-import { RoomCurriculum } from "@/modules/event-management/ui/room-curriculum";
-import { LessonViewerModal } from "@/modules/event-management/ui/lesson-viewer-modal";
-import { useRoomAccess } from "@/modules/event-management/lib/use-room-access";
-import type { UserRole } from "@/types";
-import type { Lesson } from "@/modules/event-management/lib/use-room-access";
+import QAPanel from "@/modules/chat/components/qa-panel";
+import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
+import { useRoomAccess } from "@/modules/events/lib/use-room-access";
+import type { UserRole } from "@/shared/types";
 
 export default function EventRoomPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
   const {
     access,
     eventTitle,
     eventDate,
     startTime,
-    endTime,
     course,
     currentUserId,
     userRole,
@@ -30,10 +24,6 @@ export default function EventRoomPage() {
     eventEnded,
     elapsed,
     remaining,
-    highlightedLessonId,
-    settingHighlight,
-    handleSetHighlight,
-    handleClearHighlight,
   } = useRoomAccess(eventId);
 
   if (access === "loading") {
@@ -93,16 +83,28 @@ export default function EventRoomPage() {
           )}
 
           {course && (
-            <RoomCurriculum
-              course={course}
-              highlightedLessonId={highlightedLessonId}
-              isStaff={isStaff}
-              eventStarted={eventStarted}
-              settingHighlight={settingHighlight}
-              onSetHighlight={handleSetHighlight}
-              onClearHighlight={handleClearHighlight}
-              onSelectLesson={setSelectedLesson}
-            />
+            <div className="rounded-xl border border-border bg-surface p-6">
+              <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
+              {course.MODULES && (
+                <div className="mt-4 space-y-3">
+                  {course.MODULES.map((mod) => (
+                    <div key={mod.id} className="rounded-lg border border-border p-3">
+                      <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                      {mod.LESSONS && (
+                        <div className="mt-2 space-y-1">
+                          {mod.LESSONS.map((lesson) => (
+                            <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
+                              <span className="material-symbols-rounded text-[14px]">description</span>
+                              {lesson.description}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -116,8 +118,6 @@ export default function EventRoomPage() {
           eventEnded={eventEnded}
         />
       </div>
-
-      <LessonViewerModal lesson={selectedLesson} onClose={() => setSelectedLesson(null)} />
     </div>
   );
 }

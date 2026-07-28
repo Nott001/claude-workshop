@@ -2,9 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 
-import { formatEventDate, formatTime } from "@/lib/date-utils";
-import { Footer } from "@/components/footer";
-import { useEventRegistration } from "@/modules/event-management/lib/use-event-registration";
+import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { Footer } from "@/shared/components/footer";
+import { useEventRegistration } from "@/modules/events/lib/use-event-registration";
 
 export default function RegisterPage() {
   const params = useParams();

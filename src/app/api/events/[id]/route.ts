@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { eventDao, courseDao, paymentDao, ticketDao } from "@/lib/db/dao";
-import { eventPartialSchema } from "@/modules/event-management";
-import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao, courseDao } from "@/shared/db/dao";
+import { eventPartialSchema } from "@/modules/events/lib/schemas";
+import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -59,12 +60,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: { message: "Failed to update event" } }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "event.updated", "event", Number(id), {
-      changes: Object.keys(parsed.data),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "event.updated", "event", Number(id), {
+    changes: Object.keys(parsed.data),
+  });
 
   return NextResponse.json(event);
 }
@@ -77,16 +75,18 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
 
   const event = await eventDao.findById(supabase, Number(id));
+
+  // Collect storage paths before deletion
+  const storagePaths: string[] = [];
 
   if (event?.cover_image_url) {
     const imagePath = event.cover_image_url.split("/").pop();
     if (imagePath) {
       const { data: eventFiles } = await supabase.storage.from("event_images").list(`events/${id}`);
       const paths = (eventFiles ?? []).map((f) => `events/${id}/${f.name}`);
-      await deleteFromStorage("event_images", paths);
+      storagePaths.push(...paths);
     }
   }
 
@@ -100,31 +100,33 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
           listStorageFolder("course_assets", folder),
           listStorageFolder("course_videos", folder),
         ]);
-        await Promise.all([deleteFromStorage("course_assets", assetPaths), deleteFromStorage("course_videos", videoPaths)]);
+        storagePaths.push(...assetPaths, ...videoPaths);
       }
     }
   }
 
-  const paymentIds = await paymentDao.deleteByEvent(supabase, Number(id));
-
-  if (paymentIds.length > 0) {
-    const ok = await ticketDao.deleteByPaymentIds(supabase, paymentIds);
-    if (!ok) {
-      return NextResponse.json({ error: { message: "Failed to delete tickets" } }, { status: 500 });
-    }
-  }
-
+  // Delete event row first (FK cascades handle payments, tickets)
   const removed = await eventDao.remove(supabase, Number(id));
 
   if (!removed) {
     return NextResponse.json({ error: { message: "Failed to delete event" } }, { status: 500 });
   }
 
-  if (user) {
-    await logAuditEvent(supabase, user.id, "event.deleted", "event", Number(id), {
-      title: event?.title,
-    });
+  // Best-effort storage cleanup
+  if (storagePaths.length > 0) {
+    try {
+      await deleteFromStorage(
+        "event_images",
+        storagePaths.filter((p) => p.startsWith("events/")),
+      );
+    } catch {
+      // Storage cleanup is best-effort
+    }
   }
+
+  await logAuditEvent(supabase, guard.user.id, "event.deleted", "event", Number(id), {
+    title: event?.title,
+  });
 
   return NextResponse.json({ success: true });
 }

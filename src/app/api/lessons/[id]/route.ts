@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { courseDao } from "@/lib/db/dao";
-import { lessonSchema } from "@/modules/course-content";
-import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { courseDao } from "@/shared/db/dao";
+import { lessonSchema } from "@/modules/courses/lib/schemas";
+import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -54,12 +54,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update lesson" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "lesson.updated", "lesson", Number(id), {
-      changes: Object.keys(parsed.data),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "lesson.updated", "lesson", Number(id), {
+    changes: Object.keys(parsed.data),
+  });
 
   return NextResponse.json(lesson);
 }
@@ -72,7 +69,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
 
   const lesson = await courseDao.findLessonModule(supabase, Number(id));
   if (lesson) {
@@ -93,11 +89,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete lesson" }, { status: 500 });
   }
 
-  if (user) {
-    await logAuditEvent(supabase, user.id, "lesson.deleted", "lesson", Number(id), {
-      module_id: lesson?.module_id,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "lesson.deleted", "lesson", Number(id), {
+    module_id: lesson?.module_id,
+  });
 
   return NextResponse.json({ success: true });
 }

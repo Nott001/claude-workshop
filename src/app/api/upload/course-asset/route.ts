@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { courseDao } from "@/lib/db/dao";
-import { uploadToStorage, buildCourseAssetPath, validateFileType, validateFileSize } from "@/lib/storage";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { courseDao } from "@/shared/db/dao";
+import { uploadToStorage, buildCourseAssetPath, validateFileType, validateFileSize } from "@/shared/integrations/storage";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");

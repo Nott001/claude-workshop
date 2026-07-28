@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { speakerDao } from "@/lib/db/dao";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; profileId: string }> }) {
@@ -19,12 +19,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to unassign speaker" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "speaker.unassigned", "speaker_profile", Number(profileId), {
-      event_id: Number(id),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "speaker.unassigned", "speaker_profile", Number(profileId), {
+    event_id: Number(id),
+  });
 
   return NextResponse.json({ success: true });
 }

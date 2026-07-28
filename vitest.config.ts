@@ -5,7 +5,7 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   test: {
-    include: ["**/*.{test,spec}.{ts,tsx}"],
+    include: ["test/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
     alias: {

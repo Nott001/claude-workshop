@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { courseDao } from "@/lib/db/dao";
-import { courseSchema } from "@/modules/course-content";
-import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { courseDao } from "@/shared/db/dao";
+import { courseSchema } from "@/modules/courses/lib/schemas";
+import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -42,12 +42,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "course.updated", "course", Number(id), {
-      changes: Object.keys(parsed.data),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "course.updated", "course", Number(id), {
+    changes: Object.keys(parsed.data),
+  });
 
   return NextResponse.json(course);
 }
@@ -60,7 +57,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
 
   const courseInfo = await courseDao.findCourseById(supabase, Number(id));
 
@@ -83,11 +79,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 
-  if (user) {
-    await logAuditEvent(supabase, user.id, "course.deleted", "course", Number(id), {
-      name: courseInfo?.course_name,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "course.deleted", "course", Number(id), {
+    name: courseInfo?.course_name,
+  });
 
   return NextResponse.json({ success: true });
 }

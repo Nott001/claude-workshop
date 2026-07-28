@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Footer } from "@/components/footer";
-import { Toast } from "@/components/toast";
+import { Footer } from "@/shared/components/footer";
+import { Toast } from "@/shared/components/toast";
 import { useSpeakerUpdateInfo } from "@/modules/speakers/lib/use-speaker-update-info";
 
 const cardClass = "rounded-xl border border-border bg-surface p-[33px] flex flex-col gap-6";

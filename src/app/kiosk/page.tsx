@@ -1,8 +1,6 @@
 "use client";
 
-import { Footer } from "@/components/footer";
-import { KioskEventSelector } from "@/modules/kiosk/ui/kiosk-event-selector";
-import { KioskScannerView } from "@/modules/kiosk/ui/kiosk-scanner-view";
+import { Footer } from "@/shared/components/footer";
 import { useKiosk } from "@/modules/kiosk/lib/use-kiosk";
 
 export default function KioskPage() {
@@ -40,9 +38,36 @@ export default function KioskPage() {
       </div>
 
       {!selectedEvent ? (
-        <KioskEventSelector events={events} eventsLoading={eventsLoading} error={eventsError} onSelect={setSelectedEvent} />
+        <div className="flex flex-1 flex-col items-center justify-center p-8">
+          {eventsLoading ? (
+            <p className="text-sm text-muted-fg">Loading events...</p>
+          ) : eventsError ? (
+            <p className="text-sm text-error">{eventsError}</p>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-muted-fg">No events available.</p>
+          ) : (
+            <div className="grid w-full max-w-2xl grid-cols-1 gap-3">
+              {events.map((event) => (
+                <button
+                  key={event.event_id}
+                  onClick={() => setSelectedEvent(event)}
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand"
+                >
+                  <div>
+                    <span className="text-sm font-semibold text-fg">{event.title}</span>
+                    <span className="ml-3 text-xs text-muted-fg">{event.event_date}</span>
+                  </div>
+                  <span className="material-symbols-rounded text-[16px] text-muted-fg">arrow_forward</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
-        <KioskScannerView selectedEvent={selectedEvent} onChangeEvent={() => setSelectedEvent(null)} />
+        <div className="flex flex-1 flex-col items-center justify-center p-8">
+          <span className="material-symbols-rounded text-6xl text-brand">qr_code_scanner</span>
+          <p className="mt-4 text-sm text-muted-fg">Scanner view coming soon.</p>
+        </div>
       )}
 
       <Footer role="facilitator" />

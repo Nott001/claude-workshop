@@ -3,11 +3,11 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/status-badge";
-import { CountdownTimer } from "@/components/countdown-timer";
-import { Footer } from "@/components/footer";
-import { formatEventDate, formatTime } from "@/lib/date-utils";
-import { useSpeakerEvent } from "@/modules/event-management/lib/use-speaker-event";
+import { StatusBadge } from "@/modules/events/components/status-badge";
+import { CountdownTimer } from "@/modules/events/components/countdown-timer";
+import { Footer } from "@/shared/components/footer";
+import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 
 export default function SpeakerEventDetailsPage() {
   const params = useParams();

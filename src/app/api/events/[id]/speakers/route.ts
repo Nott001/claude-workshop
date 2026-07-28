@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { speakerDao } from "@/lib/db/dao";
-import { speakerAssignmentSchema } from "@/modules/event-management";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao } from "@/shared/db/dao";
+import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,12 +39,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to assign speaker" }, { status: 500 });
   }
 
-  const user = await requireAuth(supabase);
-  if (user) {
-    await logAuditEvent(supabase, user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
-      event_id: Number(id),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
+    event_id: Number(id),
+  });
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

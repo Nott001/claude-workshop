@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/modules/auth";
-import { getServiceClient } from "@/lib/db";
-import { chatDao } from "@/lib/db/dao";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ eventId: string; messageId: string }> }) {
   const { eventId, messageId } = await params;

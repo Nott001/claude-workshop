@@ -1,10 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { EventCard } from "@/components/event-card";
-import { Footer } from "@/components/footer";
-import { useEventList } from "@/modules/event-management/lib/use-event-list";
-import type { FilterTab } from "@/modules/event-management/lib/use-event-list";
+import { cn } from "@/shared/lib/utils";
+import { EventCard } from "@/modules/events/components/event-card";
+import { Footer } from "@/shared/components/footer";
+import { useEventList } from "@/modules/events/lib/use-event-list";
+import type { FilterTab } from "@/modules/events/lib/use-event-list";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -18,7 +18,7 @@ const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function EventsPage() {
-  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, isLoaded, tabCounts } = useEventList();
+  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts } = useEventList();
 
   if (loading) {
     return (
