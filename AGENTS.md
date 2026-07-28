@@ -16,12 +16,16 @@
 - Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
 - Add or update tests for the code you change, even if nobody asked.
 - Update `vitest.config.ts` if other depencies necessitate it.
+- `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
+- **Assert on behaviour, not on type shapes.** A test that builds an object literal and asserts on that same literal executes no product code — TypeScript already checks the shape. Call the real function.
+- Coverage thresholds in `vitest.config.ts` are a ratchet. Raise them when you raise coverage; never lower them to make a build pass.
+- See `specs/SPEC-07-TEST-STRATEGY.md` for the current gaps and priorities.
 
 ## Commits and PRs
 
 - Use the **imperative mood**. Use conventional commit prefixes (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, etc.).
 - The commit body should explain why the change was made, never what it is.
-- Always run `pnpm format`, `pnpm lint` and `pnpm test` before committing.
+- Always run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing. These are the same gates CI enforces.
 - Update `CHANELOG.md` only for meaningful commits. Filter for commits that affect user-facing features, bug fixes, or breaking changes. Skip internal refactors, documentation tweaks, or minor code cleanup unless they're significant.
 - If the changes are huge enough on different commits.
 

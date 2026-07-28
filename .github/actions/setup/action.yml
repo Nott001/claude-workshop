@@ -1,0 +1,19 @@
+name: Setup
+description: Install pnpm, Node and project dependencies from the lockfile.
+
+runs:
+  using: composite
+  steps:
+    # No `version` input: pnpm/action-setup reads the `packageManager` field in
+    # package.json, so CI always matches what developers run locally.
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    # --frozen-lockfile fails rather than silently resolving new versions, so a
+    # lockfile that drifted from package.json is caught here.
+    - run: pnpm install --frozen-lockfile
+      shell: bash
