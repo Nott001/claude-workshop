@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { emailDao } from "@/shared/db/dao";
 import { emailLogFilterSchema } from "@/modules/notifications";
 
 export async function GET(req: Request) {
@@ -24,33 +25,11 @@ export async function GET(req: Request) {
   }
 
   const supabase = getServiceClient();
-  let query = supabase.from("EMAIL_LOGS").select("*, USER:user_id(full_name, email)").order("sent_at", { ascending: false });
 
-  if (parsed.data.email_type) {
-    query = query.eq("email_type", parsed.data.email_type);
-  }
-
-  if (parsed.data.status) {
-    query = query.eq("status", parsed.data.status);
-  }
-
-  if (parsed.data.user_id) {
-    query = query.eq("user_id", parsed.data.user_id);
-  }
-
-  if (parsed.data.date_from) {
-    query = query.gte("sent_at", parsed.data.date_from);
-  }
-
-  if (parsed.data.date_to) {
-    query = query.lte("sent_at", parsed.data.date_to);
-  }
-
-  const { data: logs, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const logs = await emailDao.list(supabase, {
+    ...parsed.data,
+    user_id: parsed.data.user_id?.toString(),
+  });
 
   return NextResponse.json(logs);
 }

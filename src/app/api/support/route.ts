@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getServiceClient } from "@/lib/db";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
-const CHANNEL = "global_support" as const;
+const CHANNEL = "support" as const;
 
 export async function GET(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(req.url);
   const before = searchParams.get("before");
   const after = searchParams.get("after");
@@ -19,85 +15,28 @@ export async function GET(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  let sessionActive = false;
-
-  let query = supabase
-    .from("CHAT_MESSAGES")
-    .select("*, USER:user_id(full_name, role)")
-    .eq("channel", CHANNEL)
-    .is("deleted_at", null);
-
-  if (dbUser.role !== "facilitator") {
-    query = query.or(`user_id.eq.${dbUser.user_id},recipient_user_id.eq.${dbUser.user_id}`);
-
-    const { data: latestSession } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .select("session_id, status")
-      .eq("user_id", dbUser.user_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestSession) {
-      sessionActive = latestSession.status === "active";
-      query = query.eq("session_id", latestSession.session_id);
-    } else {
-      query = query.is("session_id", null);
-    }
-  } else if (filterUserId) {
-    query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${dbUser.user_id},recipient_user_id.eq.${filterUserId})`);
-
-    const { data: latestSession } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .select("session_id")
-      .eq("user_id", Number(filterUserId))
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestSession) {
-      query = query.eq("session_id", latestSession.session_id);
-    } else {
-      query = query.is("session_id", null);
-    }
-  }
-
-  if (after) {
-    query = query.gt("sent_at", after).order("sent_at", { ascending: true });
-  } else {
-    query = query.order("sent_at", { ascending: false });
-  }
-
-  if (before) {
-    query = query.lt("sent_at", before);
-  }
-
-  const { data: messages, error } = await query.limit(limit + 1);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const hasMore = messages ? messages.length > limit : false;
-  const result = hasMore ? messages.slice(0, limit) : (messages ?? []);
-  const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].sent_at : null;
-
-  if (!after) result.reverse();
-
-  return NextResponse.json({ messages: result, nextCursor, session_active: sessionActive });
-}
-
-export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
+  const result = await chatDao.listSupportMessages(supabase, {
+    userId: user.id,
+    role: user.role,
+    before: before ?? null,
+    after: after ?? null,
+    limit,
+    filterUserId: filterUserId ?? null,
+  });
+
+  return NextResponse.json({
+    messages: result.messages,
+    nextCursor: result.nextCursor,
+    session_active: result.sessionActive,
+  });
+}
+
+export async function POST(req: Request) {
   const body = await req.json();
   const parsed = sendMessageSchema.safeParse({ ...body, channel: CHANNEL });
   if (!parsed.success) {
@@ -106,73 +45,43 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).maybeSingle();
-  if (!dbUser) {
+  const user = await requireAuth(supabase);
+  if (!user) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const sessionUserId =
-    dbUser.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : dbUser.user_id;
+  const sessionUserId = user.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
 
-  const [rateLimitResult, sessionResult] = await Promise.all([
-    supabase
-      .from("CHAT_MESSAGES")
-      .select("*", { count: "exact", head: true })
-      .eq("channel", CHANNEL)
-      .eq("user_id", dbUser.user_id)
-      .is("event_id", null)
-      .gte("sent_at", windowStart)
-      .is("deleted_at", null),
-    supabase.from("SUPPORT_SESSIONS").select("session_id").eq("user_id", sessionUserId).eq("status", "active").maybeSingle(),
+  const [rateLimitCount, existing] = await Promise.all([
+    chatDao.countRecentSupportByUser(supabase, user.id, windowStart),
+    chatDao.findActiveSession(supabase, sessionUserId),
   ]);
 
-  const count = rateLimitResult.count;
-  const existing = sessionResult.data;
-
-  if (count != null && count >= RATE_LIMIT_MAX) {
+  if (rateLimitCount >= RATE_LIMIT_MAX) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
   let sessionId: number;
 
   if (existing) {
-    sessionId = existing.session_id;
-  } else if (dbUser.role === "facilitator") {
-    const { data: newSession } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .insert({ user_id: sessionUserId })
-      .select("session_id")
-      .single();
-    sessionId = newSession!.session_id;
+    sessionId = existing.id;
   } else {
-    const { data: newSession } = await supabase
-      .from("SUPPORT_SESSIONS")
-      .insert({ user_id: sessionUserId })
-      .select("session_id")
-      .single();
-    sessionId = newSession!.session_id;
+    const newSession = await chatDao.createSession(supabase, sessionUserId);
+    sessionId = newSession!.id;
   }
 
-  const insertPayload: Record<string, unknown> = {
+  const message = await chatDao.sendSupportMessage(supabase, {
     channel: CHANNEL,
-    user_id: dbUser.user_id,
+    event_id: 0,
+    user_id: user.id,
     message: parsed.data.message,
     session_id: sessionId,
-  };
+    recipient_user_id: user.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
+  });
 
-  if (dbUser.role === "facilitator" && parsed.data.recipient_user_id) {
-    insertPayload.recipient_user_id = parsed.data.recipient_user_id;
-  }
-
-  const { data: message, error } = await supabase
-    .from("CHAT_MESSAGES")
-    .insert(insertPayload)
-    .select("*, USER:user_id(full_name, role)")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!message) {
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 
   return NextResponse.json(message, { status: 201 });

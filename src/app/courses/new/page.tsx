@@ -1,337 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormField, FormLabel } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Footer } from "@/components/footer";
-
-interface Lesson {
-  lesson_id: number;
-  module_id: number;
-  description: string;
-  content_type: string;
-  content_url: string | null;
-  sequence_order: number;
-}
-
-interface Module {
-  module_id: number;
-  course_id: number;
-  module_name: string;
-  sequence_order: number;
-  LESSONS: Lesson[];
-}
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
+import { Footer } from "@/shared/components/footer";
+import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
+import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 
 export default function NewCoursePage() {
   const router = useRouter();
-
-  const [courseName, setCourseName] = useState("");
-  const [courseDescription, setCourseDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [modules, setModules] = useState<Module[]>([]);
-  const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
-
-  const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
-  const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
-  const [lessonDescription, setLessonDescription] = useState("");
-  const [lessonContentUrl, setLessonContentUrl] = useState("");
-  const [lessonContentFile, setLessonContentFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
-  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (renamingModuleId !== null && renameInputRef.current) {
-      renameInputRef.current.focus();
-      renameInputRef.current.select();
-    }
-  }, [renamingModuleId]);
-
-  async function handleCreateCourse(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-
-    const res = await fetch("/api/courses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        course_name: courseName,
-        course_description: courseDescription || null,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Failed to create course");
-      setSubmitting(false);
-      return;
-    }
-
-    const course = await res.json();
-    router.push(`/courses/${course.course_id}`);
-  }
-
-  async function handleAddModule() {
-    const courseId = await ensureCourseCreated();
-    if (!courseId) return;
-
-    const order = modules.length + 1;
-    const res = await fetch(`/api/courses/${courseId}/modules`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ module_name: `Module ${order}`, sequence_order: order }),
-    });
-    if (!res.ok) return;
-    const mod = await res.json();
-    setModules((prev) => [...prev, { ...mod, LESSONS: [] }]);
-    setRenamingModuleId(mod.module_id);
-    setRenameValue(`Module ${order}`);
-  }
-
-  async function ensureCourseCreated(): Promise<number | null> {
-    if (modules.length > 0) {
-      return modules[0].course_id;
-    }
-
-    const res = await fetch("/api/courses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        course_name: courseName || "Untitled Course",
-        course_description: courseDescription || null,
-      }),
-    });
-
-    if (!res.ok) {
-      setError("Failed to create course");
-      return null;
-    }
-
-    const course = await res.json();
-    setCourseName(course.course_name);
-    return course.course_id;
-  }
-
-  async function handleRenameModule(moduleId: number) {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenamingModuleId(null);
-      return;
-    }
-
-    const mod = modules.find((m) => m.module_id === moduleId);
-    if (!mod || trimmed === mod.module_name) {
-      setRenamingModuleId(null);
-      return;
-    }
-
-    const res = await fetch(`/api/modules/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ module_name: trimmed, sequence_order: mod.sequence_order }),
-    });
-
-    if (res.ok) {
-      setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, module_name: trimmed } : m)));
-    }
-    setRenamingModuleId(null);
-  }
-
-  async function handleDeleteModule(moduleId: number) {
-    if (!confirm("Delete this module and all its lessons?")) return;
-    const res = await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
-    if (!res.ok) return;
-    setModules((prev) => prev.filter((m) => m.module_id !== moduleId));
-  }
-
-  async function handleDeleteLesson(lessonId: number, moduleId: number) {
-    if (!confirm("Delete this lesson?")) return;
-    const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
-    if (!res.ok) return;
-    setModules((prev) =>
-      prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: m.LESSONS.filter((l) => l.lesson_id !== lessonId) } : m)),
-    );
-  }
-
-  function openLessonDialog(moduleId: number) {
-    setActiveModuleId(moduleId);
-    setLessonDescription("");
-    setLessonContentUrl("");
-    setLessonContentFile(null);
-    setLessonDialogOpen(true);
-  }
-
-  function detectContentType(): string {
-    if (lessonContentFile) {
-      if (lessonContentFile.type === "application/pdf") return "pdf";
-      if (lessonContentFile.type.startsWith("video/")) return "video";
-      if (lessonContentFile.type.startsWith("image/")) return "image";
-    }
-    if (lessonContentUrl) {
-      const url = normalizeUrl(lessonContentUrl);
-      const ext = url.split(".").pop()?.toLowerCase() || "";
-      if (ext === "pdf") return "pdf";
-      if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return "video";
-      if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
-      return "link";
-    }
-    return "pdf";
-  }
-
-  function normalizeUrl(url: string): string {
-    const trimmed = url.trim();
-    if (!trimmed) return trimmed;
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
-    return `https://${trimmed}`;
-  }
-
-  function getUploadEndpoint(type: string): string | null {
-    if (type === "video") return "/api/upload/course-video";
-    if (type === "pdf" || type === "image") return "/api/upload/course-asset";
-    return null;
-  }
-
-  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(moduleId));
-  }
-
-  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetModuleId) return;
-
-    const draggedIdx = modules.findIndex((m) => m.module_id === draggedId);
-    const targetIdx = modules.findIndex((m) => m.module_id === targetModuleId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const next = [...modules];
-    const [moved] = next.splice(draggedIdx, 1);
-    next.splice(targetIdx, 0, moved);
-    const reordered = next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
-    setModules(reordered);
-
-    await Promise.all(
-      reordered.map((m) =>
-        fetch(`/api/modules/${m.module_id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
-        }),
-      ),
-    );
-  }
-
-  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(lessonId));
-  }
-
-  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
-    e.preventDefault();
-    setDragOverLessonId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetLessonId) return;
-
-    const mod = modules.find((m) => m.module_id === moduleId);
-    if (!mod) return;
-
-    const lessons = [...mod.LESSONS];
-    const draggedIdx = lessons.findIndex((l) => l.lesson_id === draggedId);
-    const targetIdx = lessons.findIndex((l) => l.lesson_id === targetLessonId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const [moved] = lessons.splice(draggedIdx, 1);
-    lessons.splice(targetIdx, 0, moved);
-    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
-
-    setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: reordered } : m)));
-
-    await Promise.all(
-      reordered.map((l) =>
-        fetch(`/api/lessons/${l.lesson_id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            description: l.description,
-            content_type: l.content_type,
-            content_url: l.content_url,
-            sequence_order: l.sequence_order,
-          }),
-        }),
-      ),
-    );
-  }
-
-  async function handleAddLesson() {
-    if (!activeModuleId) return;
-
-    const mod = modules.find((m) => m.module_id === activeModuleId);
-    if (!mod) return;
-
-    const sequenceOrder = mod.LESSONS.length + 1;
-    setError(null);
-
-    const contentType = detectContentType();
-
-    const res = await fetch(`/api/modules/${activeModuleId}/lessons`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: lessonDescription,
-        content_type: contentType,
-        content_url: lessonContentFile ? undefined : lessonContentUrl ? normalizeUrl(lessonContentUrl) : undefined,
-        sequence_order: sequenceOrder,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Failed to create lesson");
-      return;
-    }
-    const lesson = await res.json();
-
-    if (lessonContentFile) {
-      setUploading(true);
-      const endpoint = getUploadEndpoint(contentType);
-      if (endpoint) {
-        const formData = new FormData();
-        formData.append("file", lessonContentFile);
-        formData.append("lesson_id", String(lesson.lesson_id));
-        formData.append("course_id", String(modules[0].course_id));
-        formData.append("module_id", String(activeModuleId));
-
-        const uploadRes = await fetch(endpoint, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadRes.ok) {
-          const uploadData = await uploadRes.json().catch(() => null);
-          setError(uploadData?.error ?? "Lesson saved but file upload failed.");
-          setUploading(false);
-          return;
-        }
-        setUploading(false);
-      }
-    }
-
-    setModules((prev) => prev.map((m) => (m.module_id === activeModuleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
-    setLessonDialogOpen(false);
-    setActiveModuleId(null);
-    setLessonContentFile(null);
-  }
+  const {
+    courseName,
+    courseDescription,
+    error,
+    submitting,
+    modules,
+    lessonDialogModuleId,
+    setCourseName,
+    setCourseDescription,
+    setLessonDialogModuleId,
+    handleCreateCourse,
+    handleAddModule,
+    handleRenameModule,
+    handleDeleteModule,
+    handleDeleteLesson,
+    openLessonDialog,
+    handleAddLesson,
+    handleReorderModules,
+    handleReorderLessons,
+  } = useCourseCreate();
 
   return (
     <>
@@ -410,214 +110,27 @@ export default function NewCoursePage() {
             </Form>
           </div>
 
-          <div className="mt-8 rounded-xl border border-border bg-surface p-10 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-            <div className="mb-8 flex items-center gap-3 border-b border-border pb-4">
-              <div className="rounded-lg bg-info/10 p-2">
-                <span className="material-symbols-rounded text-[20px] text-brand">school</span>
-              </div>
-              <span className="text-xs font-bold tracking-[0.1em] text-fg">CURRICULUM BUILDER</span>
-            </div>
-
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-muted-fg">Organize your course into modules and lessons.</p>
-              <Button variant="outline" size="sm" onClick={handleAddModule}>
-                <span className="material-symbols-rounded text-[14px]">add_circle</span>
-                Add module
-              </Button>
-            </div>
-
-            {modules.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed border-border py-12 text-center">
-                <span className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">post_add</span>
-                <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {modules.map((mod) => (
-                  <div
-                    key={mod.module_id}
-                    draggable
-                    onDragStart={(e) => handleModuleDragStart(e, mod.module_id)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOverModuleId(mod.module_id);
-                    }}
-                    onDragLeave={() => setDragOverModuleId(null)}
-                    onDrop={(e) => handleModuleDrop(e, mod.module_id)}
-                    onDragEnd={() => setDragOverModuleId(null)}
-                    className={`rounded-lg border bg-muted p-5 transition-shadow ${
-                      dragOverModuleId === mod.module_id
-                        ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                        : "border-border"
-                    }`}
-                  >
-                    <div className="mb-3 flex items-center gap-2">
-                      {renamingModuleId === mod.module_id ? (
-                        <input
-                          ref={renameInputRef}
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRenameModule(mod.module_id);
-                            if (e.key === "Escape") setRenamingModuleId(null);
-                          }}
-                          onBlur={() => handleRenameModule(mod.module_id)}
-                          className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                        />
-                      ) : (
-                        <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          setRenamingModuleId(mod.module_id);
-                          setRenameValue(mod.module_name);
-                        }}
-                        className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                        title="Rename module"
-                      >
-                        <span className="material-symbols-rounded text-[14px]">edit</span>
-                      </button>
-
-                      <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
-                        {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
-                      </span>
-
-                      <button
-                        onClick={() => handleDeleteModule(mod.module_id)}
-                        className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                        title="Delete module"
-                      >
-                        <span className="material-symbols-rounded text-[14px]">delete</span>
-                      </button>
-                    </div>
-
-                    {mod.LESSONS.length > 0 && (
-                      <div className="mb-3 space-y-1.5">
-                        {mod.LESSONS.map((lesson) => (
-                          <div
-                            key={lesson.lesson_id}
-                            draggable
-                            onDragStart={(e) => handleLessonDragStart(e, lesson.lesson_id)}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              setDragOverLessonId(lesson.lesson_id);
-                            }}
-                            onDragLeave={() => setDragOverLessonId(null)}
-                            onDrop={(e) => handleLessonDrop(e, lesson.lesson_id, mod.module_id)}
-                            onDragEnd={() => setDragOverLessonId(null)}
-                            className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
-                              dragOverLessonId === lesson.lesson_id
-                                ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                                : "border-border bg-surface"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-xs font-medium text-muted-fg">
-                                {mod.sequence_order}.{lesson.sequence_order}
-                              </span>
-                              <span className="text-sm text-fg">{lesson.description}</span>
-                              <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                                {lesson.content_type}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteLesson(lesson.lesson_id, mod.module_id)}
-                              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                              title="Delete lesson"
-                            >
-                              <span className="material-symbols-rounded text-[14px]">delete</span>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <Button variant="ghost" size="sm" onClick={() => openLessonDialog(mod.module_id)}>
-                      <span className="material-symbols-rounded text-[14px]">add_circle</span>
-                      Add lesson to topic
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="mt-8">
+            <CurriculumBuilder
+              modules={modules}
+              onAddModule={handleAddModule}
+              onRenameModule={handleRenameModule}
+              onDeleteModule={handleDeleteModule}
+              onDeleteLesson={handleDeleteLesson}
+              onAddLessonClick={openLessonDialog}
+              onReorderModules={handleReorderModules}
+              onReorderLessons={handleReorderLessons}
+            />
           </div>
         </div>
 
-        <Dialog
-          open={lessonDialogOpen}
+        <LessonDialog
+          open={lessonDialogModuleId !== null}
           onOpenChange={(open) => {
-            setLessonDialogOpen(open);
-            if (!open) setActiveModuleId(null);
+            if (!open) setLessonDialogModuleId(null);
           }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add lesson</DialogTitle>
-            </DialogHeader>
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleAddLesson();
-              }}
-            >
-              <FormField>
-                <FormLabel>Lesson name</FormLabel>
-                <Input
-                  value={lessonDescription}
-                  onChange={(e) => setLessonDescription(e.target.value)}
-                  placeholder="e.g. Introduction to the topic"
-                  required
-                />
-              </FormField>
-
-              <FormField className="mt-3">
-                <FormLabel>Upload file</FormLabel>
-                <input
-                  type="file"
-                  accept="application/pdf,video/mp4,video/webm,video/quicktime,image/jpeg,image/png"
-                  onChange={(e) => {
-                    setLessonContentFile(e.target.files?.[0] ?? null);
-                    if (e.target.files?.[0]) setLessonContentUrl("");
-                  }}
-                  className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg file:mr-3 file:rounded-md file:border-0 file:bg-info/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-info hover:file:bg-blue-100"
-                />
-                {lessonContentFile && <p className="mt-1 text-xs text-muted-fg">Selected: {lessonContentFile.name}</p>}
-              </FormField>
-
-              <FormField className="mt-3">
-                <FormLabel>Or paste a URL</FormLabel>
-                <Input
-                  value={lessonContentUrl}
-                  onChange={(e) => {
-                    setLessonContentUrl(e.target.value);
-                    if (e.target.value) setLessonContentFile(null);
-                  }}
-                  placeholder="https://..."
-                />
-              </FormField>
-
-              <div className="mt-4 flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={!lessonDescription.trim() || uploading || (!lessonContentFile && !lessonContentUrl.trim())}
-                >
-                  {uploading ? (
-                    <>Uploading...</>
-                  ) : (
-                    <>
-                      <span className="material-symbols-rounded text-[16px]">add_circle</span>
-                      Add lesson
-                    </>
-                  )}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setLessonDialogOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </Form>
-          </DialogContent>
-        </Dialog>
+          onAddLesson={handleAddLesson}
+        />
       </div>
       <Footer role="facilitator" />
     </>

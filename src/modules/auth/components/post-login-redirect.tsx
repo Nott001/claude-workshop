@@ -1,0 +1,32 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
+
+const ROLE_HOME: Record<string, string> = {
+  speaker: "/speakers/dashboard",
+  facilitator: "/events",
+  attendee: "/home",
+};
+
+export function PostLoginRedirect() {
+  const router = useRouter();
+  const { loading: isLoaded, isSignedIn } = useSession();
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) {
+          const dest = ROLE_HOME[data.role] ?? "/";
+          router.replace(dest);
+        }
+      })
+      .catch(() => {});
+  }, [isLoaded, isSignedIn, router]);
+
+  return null;
+}

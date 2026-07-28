@@ -1,58 +1,44 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getServiceClient } from "@/lib/db";
-
-const CHANNEL = "global_support" as const;
+import { requireAuth } from "@/modules/auth/lib/session";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("role").eq("clerk_id", userId).maybeSingle();
-  if (!dbUser || dbUser.role !== "facilitator") {
+  const user = await requireAuth(supabase);
+  if (!user || user.role !== "facilitator") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: allSessions } = await supabase
-    .from("SUPPORT_SESSIONS")
-    .select("session_id, user_id, status")
-    .gte("created_at", since)
-    .order("created_at", { ascending: false });
+  const allSessions = await chatDao.listRecentSessions(supabase, since);
 
   const latestSessionPerUser = new Map<number, { session_id: number; status: string }>();
-  for (const s of allSessions ?? []) {
+  for (const s of allSessions as Array<{ id: number; user_id: number; status: string }>) {
     if (!latestSessionPerUser.has(s.user_id)) {
-      latestSessionPerUser.set(s.user_id, { session_id: s.session_id, status: s.status });
+      latestSessionPerUser.set(s.user_id, { session_id: s.id, status: s.status });
     }
   }
 
-  const { data: messages, error } = await supabase
-    .from("CHAT_MESSAGES")
-    .select("user_id, recipient_user_id, message, sent_at, session_id, USER:user_id!inner(full_name, role)")
-    .eq("channel", CHANNEL)
-    .gte("sent_at", since)
-    .is("deleted_at", null)
-    .order("sent_at", { ascending: false })
-    .limit(500);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const messages = await chatDao.listRecentSupportMessages(supabase, since);
 
   const userMap = new Map<
     number,
     { user_id: number; full_name: string; last_message: string; last_sent_at: string; session_active: boolean }
   >();
 
-  for (const msg of messages ?? []) {
-    const user = msg.USER as unknown as { full_name: string; role: string } | null;
-    if (user?.role === "facilitator") continue;
+  for (const msg of messages as Array<{
+    user_id: number;
+    recipient_user_id: number | null;
+    message: string;
+    sent_at: string;
+    session_id: number;
+    USER: { full_name: string; role: string } | null;
+  }>) {
+    const u = msg.USER;
+    if (u?.role === "facilitator") continue;
 
     const latest = latestSessionPerUser.get(msg.user_id);
     if (latest && msg.session_id !== latest.session_id) continue;
@@ -60,7 +46,7 @@ export async function GET() {
     if (!userMap.has(msg.user_id)) {
       userMap.set(msg.user_id, {
         user_id: msg.user_id,
-        full_name: user?.full_name ?? "Unknown",
+        full_name: u?.full_name ?? "Unknown",
         last_message: msg.message,
         last_sent_at: msg.sent_at,
         session_active: latest?.status === "active",
@@ -68,7 +54,13 @@ export async function GET() {
     }
   }
 
-  for (const msg of messages ?? []) {
+  for (const msg of messages as Array<{
+    user_id: number;
+    recipient_user_id: number | null;
+    message: string;
+    sent_at: string;
+    session_id: number;
+  }>) {
     const recipientId = msg.recipient_user_id;
     if (recipientId != null && userMap.has(recipientId)) {
       const entry = userMap.get(recipientId)!;

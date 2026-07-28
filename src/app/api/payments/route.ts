@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
-import { paymentInitSchema, SimulatedPaymentGateway } from "@/modules/commerce";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { paymentDao, ticketDao } from "@/shared/db/dao";
+import { paymentInitSchema } from "@/modules/commerce";
+import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const supabase = getServiceClient();
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, full_name, email").eq("clerk_id", userId).single();
+  const user = await requireAuth(supabase);
 
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const body = await req.json();
@@ -25,11 +22,7 @@ export async function POST(req: Request) {
 
   const { event_id } = parsed.data;
 
-  const { data: event } = await supabase
-    .from("EVENTS")
-    .select("title, price, currency, status")
-    .eq("event_id", event_id)
-    .single();
+  const event = await paymentDao.findEventForPayment(supabase, event_id);
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
@@ -38,70 +31,58 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const { data: existing } = await supabase
-    .from("PAYMENTS")
-    .select("payment_id, status")
-    .eq("user_id", dbUser.user_id)
-    .eq("event_id", event_id)
-    .order("created_at", { ascending: false })
-    .limit(1);
+  const existing = await paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id);
 
-  if (existing && existing.length > 0) {
-    const last = existing[0];
-    if (last.status === "pending") {
+  if (existing) {
+    if (existing.status === "pending") {
       const gateway = new SimulatedPaymentGateway();
       const result = await gateway.createPayment({
         amount: event.price,
         currency: event.currency,
-        payment_id: last.payment_id,
-        user_id: dbUser.user_id,
+        payment_id: existing.id,
+        user_id: user.id,
         event_id,
-        user_email: dbUser.email,
-        user_name: dbUser.full_name,
+        user_email: user.email,
+        user_name: user.full_name,
       });
 
       return NextResponse.json({
-        payment_id: last.payment_id,
+        payment_id: existing.id,
         checkout_url: result.checkout_url,
       });
     }
   }
 
-  const { data: activeTicket } = await supabase
-    .from("TICKETS")
-    .select("payment_id")
-    .eq("user_id", dbUser.user_id)
-    .eq("event_id", event_id)
-    .neq("status", "cancelled")
-    .limit(1);
+  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, event_id);
 
-  if (activeTicket && activeTicket.length > 0) {
+  if (activeTickets.length > 0) {
     return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
   }
 
-  const { data: payment, error } = await supabase
-    .from("PAYMENTS")
-    .insert({ user_id: dbUser.user_id, event_id, amount: event.price, currency: event.currency })
-    .select()
-    .single();
+  const payment = await paymentDao.create(supabase, {
+    user_id: user.id,
+    event_id,
+    amount: event.price,
+    currency: event.currency,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!payment) {
+    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 
   const gateway = new SimulatedPaymentGateway();
   const result = await gateway.createPayment({
     amount: event.price,
     currency: event.currency,
-    payment_id: payment.payment_id,
-    user_id: dbUser.user_id,
+    payment_id: payment.id,
+    user_id: user.id,
     event_id,
-    user_email: dbUser.email,
-    user_name: dbUser.full_name,
+    user_email: user.email,
+    user_name: user.full_name,
   });
 
   return NextResponse.json({
-    payment_id: payment.payment_id,
+    payment_id: payment.id,
     checkout_url: result.checkout_url,
   });
 }
@@ -113,26 +94,12 @@ export async function GET() {
   }
 
   const supabase = getServiceClient();
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, role")
-    .eq("clerk_id", (await auth()).userId)
-    .single();
 
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  let query = supabase.from("PAYMENTS").select("*, EVENTS(title)").order("created_at", { ascending: false });
-
-  if (dbUser.role === "attendee") {
-    query = query.eq("user_id", dbUser.user_id);
-  }
-
-  const { data: payments, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  let payments;
+  if (guard.user.role === "attendee") {
+    payments = await paymentDao.listByUser(supabase, guard.user.id);
+  } else {
+    payments = await paymentDao.listAll(supabase);
   }
 
   return NextResponse.json(payments);

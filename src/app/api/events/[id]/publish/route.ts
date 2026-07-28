@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -13,9 +13,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: event, error: fetchError } = await supabase.from("EVENTS").select("status").eq("event_id", id).single();
+  const event = await eventDao.findById(supabase, Number(id));
 
-  if (fetchError || !event) {
+  if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
@@ -23,16 +23,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Only draft events can be published" }, { status: 400 });
   }
 
-  const { error: updateError } = await supabase.from("EVENTS").update({ status: "active" }).eq("event_id", id);
+  const ok = await eventDao.updateField(supabase, Number(id), "status", "active");
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to publish event" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "event.published", "event", Number(id));
-  }
+  await logAuditEvent(supabase, guard.user.id, "event.published", "event", Number(id));
 
   return NextResponse.json({ success: true });
 }

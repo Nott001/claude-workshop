@@ -1,94 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
 
-interface AuditLog {
-  log_id: number;
-  actor_id: number;
-  action: string;
-  entity_type: string;
-  entity_id: number | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
-  ACTOR: { user_id: number; full_name: string; email: string } | null;
+function actionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    "event.created": "Event Created",
+    "event.updated": "Event Updated",
+    "event.deleted": "Event Deleted",
+    "event.published": "Event Published",
+    "speaker.assigned": "Speaker Assigned",
+    "speaker.unassigned": "Speaker Removed",
+    "organization.invited": "Member Invited",
+    "organization.role_changed": "Role Changed",
+    "organization.removed": "Member Removed",
+    "checkin.performed": "Check-in",
+    "course.created": "Course Created",
+    "course.updated": "Course Updated",
+    "course.deleted": "Course Deleted",
+    "module.created": "Module Created",
+    "module.updated": "Module Updated",
+    "module.deleted": "Module Deleted",
+    "lesson.created": "Lesson Created",
+    "lesson.updated": "Lesson Updated",
+    "lesson.deleted": "Lesson Deleted",
+  };
+  return labels[action] ?? action;
+}
+
+function actionColor(action: string): string {
+  if (action.includes("deleted") || action.includes("removed") || action.includes("unassigned")) {
+    return "text-error bg-error/10";
+  }
+  if (
+    action.includes("created") ||
+    action.includes("published") ||
+    action.includes("assigned") ||
+    action === "checkin.performed"
+  ) {
+    return "text-success bg-success/10";
+  }
+  return "text-info bg-info/10";
 }
 
 export default function AuditLogsPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const limit = 20;
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) {
-      router.push("/sign-in");
-      return;
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const res = await fetch(`/api/audit-logs?page=${page}&limit=${limit}`);
-      if (!res.ok) {
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setLogs(data.logs ?? []);
-      setTotal(data.total ?? 0);
-      setLoading(false);
-    }
-    load();
-  }, [page]);
-
-  function actionLabel(action: string): string {
-    const labels: Record<string, string> = {
-      "event.created": "Event Created",
-      "event.updated": "Event Updated",
-      "event.deleted": "Event Deleted",
-      "event.published": "Event Published",
-      "speaker.assigned": "Speaker Assigned",
-      "speaker.unassigned": "Speaker Removed",
-      "organization.invited": "Member Invited",
-      "organization.role_changed": "Role Changed",
-      "organization.removed": "Member Removed",
-      "checkin.performed": "Check-in",
-      "course.created": "Course Created",
-      "course.updated": "Course Updated",
-      "course.deleted": "Course Deleted",
-      "module.created": "Module Created",
-      "module.updated": "Module Updated",
-      "module.deleted": "Module Deleted",
-      "lesson.created": "Lesson Created",
-      "lesson.updated": "Lesson Updated",
-      "lesson.deleted": "Lesson Deleted",
-    };
-    return labels[action] ?? action;
-  }
-
-  function actionColor(action: string): string {
-    if (action.includes("deleted") || action.includes("removed") || action.includes("unassigned")) {
-      return "text-error bg-error/10";
-    }
-    if (
-      action.includes("created") ||
-      action.includes("published") ||
-      action.includes("assigned") ||
-      action === "checkin.performed"
-    ) {
-      return "text-success bg-success/10";
-    }
-    return "text-info bg-info/10";
-  }
-
-  const totalPages = Math.ceil(total / limit);
+  const { logs, loading, page, setPage, totalPages } = useAuditLogs();
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
