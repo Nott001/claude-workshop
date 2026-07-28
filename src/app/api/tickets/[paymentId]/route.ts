@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
-import { generateQRDataUrl } from "@/lib/qr";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { ticketDao } from "@/shared/db/dao";
+import { generateQRDataUrl } from "@/shared/integrations/qr";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
@@ -13,34 +13,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
   const { paymentId } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, role")
-    .eq("clerk_id", (await auth()).userId)
-    .single();
+  const ticket = await ticketDao.findWithPaymentAndEvent(supabase, Number(paymentId));
 
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  let query = supabase
-    .from("TICKETS")
-    .select(
-      "*, PAYMENTS(status, paid_at), EVENTS(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)",
-    )
-    .eq("payment_id", paymentId);
-
-  if (dbUser.role === "attendee") {
-    query = query.eq("user_id", dbUser.user_id);
-  }
-
-  const { data: ticket, error } = await query.single();
-
-  if (error || !ticket) {
+  if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  const qrDataUrl = await generateQRDataUrl(ticket.qr_token);
+  if (guard.user.role === "attendee" && (ticket as { user_id: number }).user_id !== guard.user.id) {
+    return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+  }
+
+  const qrDataUrl = await generateQRDataUrl((ticket as { qr_token: string }).qr_token);
 
   return NextResponse.json({ ...ticket, qr_data_url: qrDataUrl });
 }

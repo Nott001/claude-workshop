@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 
 const PAGE_SIZE = 10;
@@ -25,29 +25,11 @@ export async function GET(req: Request) {
 
   const supabase = getServiceClient();
 
-  let query = supabase
-    .from("USERS")
-    .select("user_id, full_name, email, role", { count: "exact" })
-    .in("role", ["facilitator", "speaker"])
-    .order("full_name", { ascending: true });
-
-  if (search) {
-    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
-  }
-
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-  query = query.range(from, to);
-
-  const { data: users, error, count } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const result = await userDao.listStaff(supabase, page, search, PAGE_SIZE);
 
   return NextResponse.json({
-    users: users ?? [],
-    total: count ?? 0,
+    users: result.data,
+    total: result.total,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -67,31 +49,16 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const { data: existing } = await supabase.from("USERS").select("user_id").eq("email", parsed.data.email).maybeSingle();
+  const existing = await userDao.findStaffByEmail(supabase, parsed.data.email);
 
   if (existing) {
     return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
   }
 
-  try {
-    const client = await clerkClient();
-    await client.invitations.createInvitation({
-      emailAddress: parsed.data.email,
-      publicMetadata: { role: parsed.data.role },
-      notify: true,
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to send invitation";
-    return NextResponse.json({ error: { message } }, { status: 500 });
-  }
-
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "organization.invited", "user", null, {
-      email: parsed.data.email,
-      role: parsed.data.role,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "organization.invited", "user", null, {
+    email: parsed.data.email,
+    role: parsed.data.role,
+  });
 
   return NextResponse.json({ email: parsed.data.email, role: parsed.data.role }, { status: 201 });
 }

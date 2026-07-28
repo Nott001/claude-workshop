@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
-import { speakerProfileUpdateSchema } from "@/modules/event-management";
-import { deleteFromStorage } from "@/lib/storage";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao } from "@/shared/db/dao";
+import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
+import { deleteFromStorage } from "@/shared/integrations/storage";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator", "speaker");
@@ -20,28 +20,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const supabase = getServiceClient();
 
-  const { data: profile } = await supabase.from("SPEAKER_PROFILES").select("user_id").eq("speaker_profile_id", id).single();
+  const profile = await speakerDao.findById(supabase, Number(id));
 
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const { userId: clerkId } = await auth();
-  const { data: caller } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", clerkId).single();
-
-  if (caller && caller.role !== "facilitator" && caller.user_id !== profile.user_id) {
+  if (guard.user.role !== "facilitator" && guard.user.id !== (profile as { user_id: number }).user_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: updated, error } = await supabase
-    .from("SPEAKER_PROFILES")
-    .update(parsed.data)
-    .eq("speaker_profile_id", id)
-    .select()
-    .single();
+  const updated = await speakerDao.update(supabase, Number(id), parsed.data);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated) {
+    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   }
 
   return NextResponse.json(updated);
@@ -56,22 +48,18 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: profile } = await supabase
-    .from("SPEAKER_PROFILES")
-    .select("user_id, photo_url")
-    .eq("speaker_profile_id", id)
-    .single();
+  const profile = await speakerDao.findById(supabase, Number(id));
 
-  if (profile?.photo_url) {
-    const { data: userFiles } = await supabase.storage.from("profile_images").list(`users/${profile.user_id}`);
-    const paths = (userFiles ?? []).map((f) => `users/${profile.user_id}/${f.name}`);
+  if ((profile as { photo_url?: string | null } | null)?.photo_url) {
+    const { data: userFiles } = await supabase.storage.from("profile_images").list(`users/${profile!.user_id}`);
+    const paths = (userFiles ?? []).map((f) => `users/${profile!.user_id}/${f.name}`);
     await deleteFromStorage("profile_images", paths);
   }
 
-  const { error } = await supabase.from("SPEAKER_PROFILES").delete().eq("speaker_profile_id", id);
+  const ok = await speakerDao.remove(supabase, Number(id));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete speaker profile" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

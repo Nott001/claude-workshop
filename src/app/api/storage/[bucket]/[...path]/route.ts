@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/db";
+import { getServiceClient } from "@/shared/db/client";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ bucket: string; path: string[] }> }) {
   const { bucket, path } = await params;

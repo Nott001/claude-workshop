@@ -1,50 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { EventCard } from "@/components/event-card";
-import { Footer } from "@/components/footer";
-
-interface Course {
-  course_name: string;
-}
-
-interface Event {
-  event_id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  status: string;
-  COURSE: Course | null;
-}
+import { EventCard } from "@/modules/events/components/event-card";
+import { Footer } from "@/shared/components/footer";
+import { useSpeakerEvents } from "@/modules/events/lib/use-speaker-events";
 
 export default function SpeakerDashboardPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchEvents() {
-      setLoading(true);
-      const res = await fetch("/api/speakers/me/events");
-      if (!res.ok) {
-        if (!cancelled) setError("Failed to load events");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      if (!cancelled) setEvents(data);
-      setLoading(false);
-    }
-
-    fetchEvents();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { events, loading, error } = useSpeakerEvents();
 
   if (loading) {
     return (
@@ -85,7 +46,8 @@ export default function SpeakerDashboardPage() {
                 startTime={event.start_time}
                 endTime={event.end_time}
                 venueName={event.venue_name}
-                courseName={event.COURSE?.course_name ?? undefined}
+                // TODO: Speakers should be the one creating courses
+                // courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}
                 detailHref={`/speakers/dashboard/${event.event_id}`}
               />

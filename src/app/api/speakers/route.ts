@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
-import { speakerProfileSchema } from "@/modules/event-management";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { speakerDao } from "@/shared/db/dao";
+import { speakerProfileSchema } from "@/modules/events/lib/schemas";
 
 export async function GET() {
   const guard = await requireRole("facilitator");
@@ -11,14 +12,7 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const { data: profiles, error } = await supabase
-    .from("SPEAKER_PROFILES")
-    .select("*, USERS(full_name, email)")
-    .order("speaker_profile_id", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const profiles = await speakerDao.list(supabase);
 
   return NextResponse.json(profiles);
 }
@@ -36,19 +30,15 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
-  const { data: profile, error } = await supabase
-    .from("SPEAKER_PROFILES")
-    .insert({
-      user_id: parsed.data.user_id,
-      bio: parsed.data.bio ?? null,
-      photo_url: parsed.data.photo_url ?? null,
-      designation: parsed.data.designation ?? null,
-    })
-    .select()
-    .single();
+  const profile = await speakerDao.create(supabase, {
+    user_id: parsed.data.user_id,
+    bio: parsed.data.bio ?? null,
+    photo_url: parsed.data.photo_url ?? null,
+    designation: parsed.data.designation ?? null,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!profile) {
+    return NextResponse.json({ error: "Failed to create speaker profile" }, { status: 500 });
   }
 
   return NextResponse.json(profile, { status: 201 });

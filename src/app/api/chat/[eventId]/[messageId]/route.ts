@@ -1,33 +1,24 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ eventId: string; messageId: string }> }) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
   const { eventId, messageId } = await params;
   const body = await req.json();
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase.from("USERS").select("user_id, role").eq("clerk_id", userId).single();
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (dbUser.role !== "facilitator" && dbUser.role !== "speaker") {
+  if (user.role !== "facilitator" && user.role !== "speaker") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: message } = await supabase
-    .from("CHAT_MESSAGES")
-    .select("message_id, event_id")
-    .eq("message_id", messageId)
-    .eq("event_id", eventId)
-    .single();
+  const message = await chatDao.findMessageById(supabase, Number(messageId), Number(eventId));
 
   if (!message) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
@@ -39,10 +30,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ eventI
     updates.answered_verbally = body.answered_verbally;
   }
 
-  const { error } = await supabase.from("CHAT_MESSAGES").update(updates).eq("message_id", messageId);
+  const ok = await chatDao.updateMessage(supabase, Number(messageId), updates);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
@@ -57,39 +48,25 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ even
   const { eventId, messageId } = await params;
   const supabase = getServiceClient();
 
-  const { data: message } = await supabase
-    .from("CHAT_MESSAGES")
-    .select("message_id")
-    .eq("message_id", messageId)
-    .eq("event_id", eventId)
-    .single();
+  const message = await chatDao.findMessageById(supabase, Number(messageId), Number(eventId));
 
   if (!message) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
-  const now = new Date().toISOString();
-  const idsToDelete = [messageId];
+  const idsToDelete = [Number(messageId)];
 
-  const { data: replies } = await supabase
-    .from("CHAT_MESSAGES")
-    .select("message_id")
-    .eq("reply_to", messageId)
-    .eq("event_id", eventId);
-
+  const replies = await chatDao.findReplies(supabase, Number(messageId), Number(eventId));
   if (replies) {
     for (const reply of replies) {
-      idsToDelete.push(reply.message_id);
+      idsToDelete.push((reply as { id: number }).id);
     }
   }
 
-  const { error } = await supabase
-    .from("CHAT_MESSAGES")
-    .update({ deleted_at: now, updated_at: now })
-    .in("message_id", idsToDelete);
+  const ok = await chatDao.softDeleteMessages(supabase, idsToDelete);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete messages" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

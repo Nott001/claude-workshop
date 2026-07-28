@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { eventDao } from "@/shared/db/dao";
 import {
   uploadToStorage,
   buildEventImagePath,
   validateFileType,
   validateFileSize,
   getExtensionFromMimeType,
-} from "@/lib/storage";
+} from "@/shared/integrations/storage";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");
@@ -38,10 +39,10 @@ export async function POST(req: Request) {
     const result = await uploadToStorage("event_images", path, file);
 
     const supabase = getServiceClient();
-    const { error } = await supabase.from("EVENTS").update({ cover_image_url: result.url }).eq("event_id", eventId);
+    const ok = await eventDao.updateField(supabase, Number(eventId), "cover_image_url", result.url);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!ok) {
+      return NextResponse.json({ error: "Failed to update event cover image" }, { status: 500 });
     }
 
     return NextResponse.json({ url: result.url, path: result.path });

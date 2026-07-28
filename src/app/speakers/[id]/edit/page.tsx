@@ -1,102 +1,38 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { Footer } from "@/components/footer";
+import { useRef } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Footer } from "@/shared/components/footer";
+import { useSpeakerEdit } from "@/modules/speakers/lib/use-speaker-edit";
 
 export default function EditSpeakerProfilePage() {
-  const router = useRouter();
   const params = useParams();
   const profileId = params.id as string;
-  const [loading, setLoading] = useState(true);
-  const [bio, setBio] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [designation, setDesignation] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const {
+    bio,
+    setBio,
+    photoUrl,
+    setPhotoUrl,
+    photoFile,
+    setPhotoFile,
+    designation,
+    setDesignation,
+    error,
+    loading,
+    uploading,
+    handleFileChange,
+    handleSubmit,
+  } = useSpeakerEdit(profileId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/speakers");
-      if (!res.ok) {
-        setError("Failed to load profile");
-        setLoading(false);
-        return;
-      }
-      const profiles = await res.json();
-      const profile = profiles.find((p: { speaker_profile_id: number }) => p.speaker_profile_id === Number(profileId));
-      if (!profile) {
-        setError("Profile not found");
-        setLoading(false);
-        return;
-      }
-      setBio(profile.bio ?? "");
-      setPhotoUrl(profile.photo_url ?? "");
-      setDesignation(profile.designation ?? "");
-      setLoading(false);
-    }
-    load();
-  }, [profileId]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    const res = await fetch(`/api/speakers/${profileId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bio: bio || null,
-        photo_url: photoFile ? undefined : photoUrl || null,
-        designation: designation || null,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error?.message ?? "Failed to update profile");
-      return;
-    }
-
-    if (photoFile) {
-      setUploading(true);
-      const formData = new FormData();
-      formData.append("file", photoFile);
-
-      const uploadRes = await fetch("/api/upload/profile-image", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        setError("Profile updated but photo upload failed.");
-        setUploading(false);
-        router.push("/speakers");
-        return;
-      }
-      setUploading(false);
-    }
-
-    router.push("/speakers");
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-      setPhotoUrl("");
-    }
-  }
-
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  if (error && !bio && !designation) return <div>{error}</div>;
 
   return (
     <>
       <div>
-        <button onClick={() => router.push("/speakers")}>&larr; Back to Speakers</button>
+        <Link href="/speakers">&larr; Back to Speakers</Link>
         <h1>Edit Speaker Profile</h1>
 
         {error && <p>{error}</p>}

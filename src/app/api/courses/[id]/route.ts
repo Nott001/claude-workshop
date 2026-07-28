@@ -1,41 +1,18 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
-import { courseSchema } from "@/modules/course-content";
-import { deleteFromStorage, listStorageFolder } from "@/lib/storage";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { courseDao } from "@/shared/db/dao";
+import { courseSchema } from "@/modules/courses/lib/schemas";
+import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: course, error } = await supabase
-    .from("COURSE")
-    .select(
-      `
-      *,
-      MODULES (
-        *,
-        LESSONS (*)
-      ),
-      EVENTS (
-        event_id,
-        title,
-        event_date,
-        status
-      )
-    `,
-    )
-    .eq("course_id", id)
-    .order("sequence_order", { foreignTable: "MODULES", ascending: true })
-    .order("sequence_order", {
-      foreignTable: "MODULES.LESSONS",
-      ascending: true,
-    })
-    .single();
+  const course = await courseDao.findCourseWithDetails(supabase, Number(id));
 
-  if (error) {
+  if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
 
@@ -56,23 +33,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
-  const { data: course, error } = await supabase
-    .from("COURSE")
-    .update({ course_name: parsed.data.course_name, course_description: parsed.data.course_description ?? null })
-    .eq("course_id", id)
-    .select()
-    .single();
+  const course = await courseDao.updateCourse(supabase, Number(id), {
+    course_name: parsed.data.course_name,
+    course_description: parsed.data.course_description ?? null,
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!course) {
+    return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 
-  const { userId } = await auth();
-  if (userId) {
-    await logAuditEvent(supabase, userId, "course.updated", "course", Number(id), {
-      changes: Object.keys(parsed.data),
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "course.updated", "course", Number(id), {
+    changes: Object.keys(parsed.data),
+  });
 
   return NextResponse.json(course);
 }
@@ -85,15 +57,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const supabase = getServiceClient();
-  const { userId } = await auth();
 
-  const { data: courseInfo } = await supabase.from("COURSE").select("course_name").eq("course_id", id).single();
+  const courseInfo = await courseDao.findCourseById(supabase, Number(id));
 
-  const { data: modules } = await supabase.from("MODULES").select("module_id").eq("course_id", id);
-  for (const mod of modules ?? []) {
-    const { data: lessons } = await supabase.from("LESSONS").select("lesson_id").eq("module_id", mod.module_id);
-    for (const lesson of lessons ?? []) {
-      const folder = `courses/${id}/modules/${mod.module_id}/lessons/${lesson.lesson_id}`;
+  const modules = await courseDao.findModulesByCourse(supabase, Number(id));
+  for (const mod of modules) {
+    const lessons = await courseDao.findLessonsByModule(supabase, mod.id);
+    for (const lesson of lessons) {
+      const folder = `courses/${id}/modules/${mod.id}/lessons/${lesson.id}`;
       const [assetPaths, videoPaths] = await Promise.all([
         listStorageFolder("course_assets", folder),
         listStorageFolder("course_videos", folder),
@@ -102,17 +73,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  const { error } = await supabase.from("COURSE").delete().eq("course_id", id);
+  const ok = await courseDao.deleteCourse(supabase, Number(id));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 
-  if (userId) {
-    await logAuditEvent(supabase, userId, "course.deleted", "course", Number(id), {
-      name: courseInfo?.course_name,
-    });
-  }
+  await logAuditEvent(supabase, guard.user.id, "course.deleted", "course", Number(id), {
+    name: courseInfo?.course_name,
+  });
 
   return NextResponse.json({ success: true });
 }

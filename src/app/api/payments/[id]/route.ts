@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { requireRole } from "@/lib/auth/role-guard";
-import { getServiceClient } from "@/lib/db";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { getServiceClient } from "@/shared/db/client";
+import { paymentDao } from "@/shared/db/dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
@@ -12,25 +12,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const { data: dbUser } = await supabase
-    .from("USERS")
-    .select("user_id, role")
-    .eq("clerk_id", (await auth()).userId)
-    .single();
+  const payment = await paymentDao.findById(supabase, Number(id));
 
-  if (!dbUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!payment) {
+    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  let query = supabase.from("PAYMENTS").select("*, EVENTS(title)").eq("payment_id", id);
-
-  if (dbUser.role === "attendee") {
-    query = query.eq("user_id", dbUser.user_id);
-  }
-
-  const { data: payment, error } = await query.single();
-
-  if (error || !payment) {
+  if (guard.user.role === "attendee" && payment.user_id !== guard.user.id) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 

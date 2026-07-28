@@ -1,54 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import type { Course } from "@/types";
-import { Footer } from "@/components/footer";
+import { Button } from "@/shared/components/ui/button";
+import { Footer } from "@/shared/components/footer";
+import { useCourseList } from "@/modules/courses/lib/use-course-list";
 
 export default function CoursesPage() {
   const router = useRouter();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/courses");
-      if (!res.ok) {
-        setError("Failed to load courses");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setCourses(data);
-      setLoading(false);
-    }
-    load();
-  }, []);
-
-  async function fetchCourses() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/courses");
-    if (!res.ok) {
-      setError("Failed to load courses");
-      setLoading(false);
-      return;
-    }
-    const data = await res.json();
-    setCourses(data);
-    setLoading(false);
-  }
-
-  async function handleDelete(id: number) {
-    if (!confirm("Delete this course? This will remove all modules and lessons.")) return;
-    const res = await fetch(`/api/courses/${id}`, { method: "DELETE" });
-    if (!res.ok) return;
-    await fetchCourses();
-  }
+  const { courses, loading, error, handleDelete } = useCourseList();
 
   if (loading) {
     return (
@@ -114,10 +73,10 @@ export default function CoursesPage() {
               <div className="divide-y divide-border">
                 {courses.map((course) => (
                   <div
-                    key={course.course_id}
+                    key={course.id}
                     className="group flex items-center justify-between px-8 py-4 transition-colors hover:bg-muted"
                   >
-                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.course_id}`)}>
+                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.id}`)}>
                       <h3 className="text-sm font-semibold text-fg group-hover:text-brand">{course.course_name}</h3>
                       {course.course_description && (
                         <p className="mt-0.5 text-sm text-muted-fg line-clamp-1">{course.course_description}</p>
@@ -125,14 +84,14 @@ export default function CoursesPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => router.push(`/courses/${course.course_id}`)}
+                        onClick={() => router.push(`/courses/${course.id}`)}
                         className="rounded-md p-1.5 text-muted-fg hover:bg-muted hover:text-fg"
                         title="Edit"
                       >
                         <span className="material-symbols-rounded text-[16px]">edit</span>
                       </button>
                       <button
-                        onClick={() => handleDelete(course.course_id)}
+                        onClick={() => handleDelete(course.id)}
                         className="rounded-md p-1.5 text-muted-fg hover:bg-error/10 hover:text-error"
                         title="Delete"
                       >

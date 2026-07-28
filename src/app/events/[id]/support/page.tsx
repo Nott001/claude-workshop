@@ -1,32 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import ChatPanel from "@/components/chat-panel";
-import type { UserRole } from "@/types";
-import { Footer } from "@/components/footer";
+import { useSession } from "@/modules/auth";
+import ChatPanel from "@/modules/chat/components/chat-panel";
+import type { UserRole } from "@/shared/types";
+import { Footer } from "@/shared/components/footer";
 
 export default function SupportPage() {
   const params = useParams();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn } = useUser();
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => {
-        setUserRole(data.role);
-        setCurrentUserId(data.user_id);
-        setLoading(false);
-      });
-  }, [isLoaded, isSignedIn]);
-
-  if (loading) return <div>Loading...</div>;
+  const { user } = useSession();
+  const userRole = (user?.role as UserRole) ?? null;
+  const currentUserId = user?.id ?? null;
 
   return (
     <>
