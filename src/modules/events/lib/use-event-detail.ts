@@ -32,7 +32,6 @@ export interface EventDetail {
   end_time: string;
   venue_name: string;
   venue_address: string | null;
-  course_id: number | null;
   cover_image_url: string | null;
   status: "draft" | "active" | "complete";
   price: number;

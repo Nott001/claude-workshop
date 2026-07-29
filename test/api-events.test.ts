@@ -104,15 +104,6 @@ describe("POST /api/events validation", () => {
     expect(res.status).toBe(400);
     expect(create).not.toHaveBeenCalled();
   });
-
-  it("rejects a course_id that does not resolve", async () => {
-    findCourseById.mockResolvedValue(null);
-
-    const res = await POST(postEvent({ ...validEvent, course_id: 404 }));
-
-    expect(res.status).toBe(400);
-    expect(create).not.toHaveBeenCalled();
-  });
 });
 
 describe("POST /api/events creation", () => {

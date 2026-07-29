@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
 import type { Lesson, Module } from "@/modules/courses/lib/use-course-detail";
 
-export function useCourseCreate() {
+export function useCourseCreate(eventId: string) {
   const router = useRouter();
 
   const [courseName, setCourseName] = useState("");
@@ -27,6 +27,7 @@ export function useCourseCreate() {
       body: JSON.stringify({
         course_name: courseName,
         course_description: courseDescription || null,
+        event_id: Number(eventId),
       }),
     });
 
@@ -38,7 +39,7 @@ export function useCourseCreate() {
     }
 
     const course = await res.json();
-    router.push(`/courses/${course.course_id}`);
+    router.push(`/courses/${course.id}`);
   }
 
   async function ensureCourseCreated(): Promise<number | null> {
@@ -52,6 +53,7 @@ export function useCourseCreate() {
       body: JSON.stringify({
         course_name: courseName || "Untitled Course",
         course_description: courseDescription || null,
+        event_id: Number(eventId),
       }),
     });
 

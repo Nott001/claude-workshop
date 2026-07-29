@@ -91,10 +91,13 @@ export function useRoomAccess(eventId: string) {
       setCurrentUserId(user.id);
 
       const role = user.role;
+      const eventCourse = (eventData as Record<string, unknown>).COURSE as Record<string, unknown> | null;
+      const eventCourseId = eventCourse?.id ? (eventCourse.id as number) : null;
+      const hasCourse = eventCourseId !== null;
 
       if (hasMinRole(role, "facilitator")) {
-        if (eventData.course_id) {
-          await fetchCourse(eventData.course_id as number);
+        if (eventCourseId) {
+          await fetchCourse(eventCourseId);
         }
         if (!cancelled) setAccess("allowed");
         return;
@@ -102,8 +105,8 @@ export function useRoomAccess(eventId: string) {
 
       if (role === "speaker") {
         if (accessData.isSpeakerAssigned) {
-          if (eventData.course_id) {
-            await fetchCourse(eventData.course_id as number);
+          if (eventCourseId) {
+            await fetchCourse(eventCourseId);
           }
           if (!cancelled) setAccess("allowed");
         } else {
@@ -117,11 +120,11 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      if (eventData.course_id) {
-        await fetchCourse(eventData.course_id as number);
+      if (eventCourseId) {
+        await fetchCourse(eventCourseId);
       }
 
-      if (!cancelled) setAccess(eventData.course_id ? "allowed" : "no_course");
+      if (!cancelled) setAccess(hasCourse ? "allowed" : "no_course");
     }
 
     if (!isLoaded) return;

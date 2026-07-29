@@ -16,8 +16,10 @@ describe("Course content types", () => {
   it("Course interface has correct shape", () => {
     const course: Course = {
       id: 1,
+      event_id: 1,
       course_name: "Test Course",
       course_description: "A description",
+      created_by: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -56,22 +58,27 @@ describe("Course content types", () => {
 
 describe("courseSchema", () => {
   it("accepts valid course data", () => {
-    const result = courseSchema.safeParse({ course_name: "Intro to React" });
+    const result = courseSchema.safeParse({ course_name: "Intro to React", event_id: 1 });
     expect(result.success).toBe(true);
   });
 
   it("accepts course with description", () => {
-    const result = courseSchema.safeParse({ course_name: "Intro", course_description: "Desc" });
+    const result = courseSchema.safeParse({ course_name: "Intro", course_description: "Desc", event_id: 1 });
     expect(result.success).toBe(true);
   });
 
   it("rejects empty name", () => {
-    const result = courseSchema.safeParse({ course_name: "" });
+    const result = courseSchema.safeParse({ course_name: "", event_id: 1 });
     expect(result.success).toBe(false);
   });
 
   it("rejects name over 255 chars", () => {
-    const result = courseSchema.safeParse({ course_name: "a".repeat(256) });
+    const result = courseSchema.safeParse({ course_name: "a".repeat(256), event_id: 1 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing event_id", () => {
+    const result = courseSchema.safeParse({ course_name: "Intro" });
     expect(result.success).toBe(false);
   });
 });

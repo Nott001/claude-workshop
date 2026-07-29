@@ -61,7 +61,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const mod = await courseDao.findModuleById(supabase, lesson.module_id);
 
-    if (!mod || mod.course_id !== event.course_id) {
+    const { data: eventCourse } = await supabase.from("COURSE").select("id").eq("event_id", Number(id)).maybeSingle();
+
+    if (!mod || !eventCourse || mod.course_id !== eventCourse.id) {
       return NextResponse.json({ error: "Lesson does not belong to this event's course" }, { status: 400 });
     }
   }

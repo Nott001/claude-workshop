@@ -16,8 +16,10 @@ export type ContentType = "pdf" | "video" | "image" | "link";
 
 export interface Course {
   id: number;
+  event_id: number;
   course_name: string;
   course_description: string | null;
+  created_by: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +48,6 @@ export type EventStatus = "draft" | "active" | "complete";
 
 export interface Event {
   id: number;
-  course_id: number | null;
   title: string;
   event_date: string;
   start_time: string;
