@@ -1,29 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { Footer } from "@/shared/components/footer";
-import { useSession } from "@/modules/auth";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 
-const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
+const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
+  { key: "upcoming", label: "Upcoming" },
+  { key: "completed", label: "Completed" },
+  { key: "drafts", label: "Drafts" },
+];
+
+const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
 ];
 
-export default function EventsPage() {
-  const router = useRouter();
-  const { user } = useSession();
-  const { filteredEvents, loading, error, activeTab, setActiveTab, tabCounts } = useEventList();
-
-  useEffect(() => {
-    if (user && user.role !== "attendee") {
-      router.replace("/staff/events");
-    }
-  }, [user, router]);
+export default function StaffEventsPage() {
+  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, userRole, tabCounts } = useEventList();
 
   if (loading) {
     return (
@@ -41,15 +36,17 @@ export default function EventsPage() {
     );
   }
 
+  const filterTabs = isFacilitator ? FACILITATOR_TABS : NON_FACILITATOR_TABS;
+
   return (
     <>
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-base font-bold text-foreground">Event list</span>
+          <span className="text-base font-bold text-foreground">Events</span>
         </div>
 
         <div className="mb-3 flex gap-1.5">
-          {ATTENDEE_TABS.map((tab) => (
+          {filterTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -83,12 +80,14 @@ export default function EventsPage() {
                 venueName={event.venue_name}
                 coverImageUrl={event.cover_image_url}
                 accentIndex={index}
+                showEdit={isFacilitator}
+                detailHref={`/staff/events/${event.event_id}`}
               />
             ))}
           </div>
         )}
       </div>
-      <Footer role="attendee" />
+      <Footer role={userRole as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }
