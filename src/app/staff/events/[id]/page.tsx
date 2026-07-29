@@ -120,7 +120,7 @@ function OverviewSection({
 
 function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
   const { course, loading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate();
+  const courseBuilder = useCourseCreate(eventId);
   const router = useRouter();
   const isSpeaker = hasMinRole(userRole, "speaker");
   const isFacilitator = hasMinRole(userRole, "facilitator");

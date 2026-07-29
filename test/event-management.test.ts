@@ -11,7 +11,6 @@ describe("Event types", () => {
   it("Event interface has correct shape", () => {
     const event: Event = {
       id: 1,
-      course_id: null,
       title: "Test Event",
       event_date: "2026-06-15",
       start_time: "09:00:00",
@@ -68,7 +67,6 @@ describe("eventSchema", () => {
       end_time: "17:00",
       venue_name: "Convention Center",
       venue_address: "123 Main St",
-      course_id: 1,
     });
     expect(result.success).toBe(true);
   });

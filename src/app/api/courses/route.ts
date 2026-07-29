@@ -33,6 +33,8 @@ export async function POST(req: Request) {
   const course = await courseDao.createCourse(supabase, {
     course_name: parsed.data.course_name,
     course_description: parsed.data.course_description ?? null,
+    event_id: parsed.data.event_id,
+    created_by: guard.user.id,
   });
 
   if (!course) {

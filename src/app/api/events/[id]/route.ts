@@ -48,13 +48,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const supabase = getServiceClient();
 
-  if (parsed.data.course_id !== undefined && parsed.data.course_id !== null) {
-    const courseExists = await courseDao.findCourseById(supabase, parsed.data.course_id);
-    if (!courseExists) {
-      return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
-    }
-  }
-
   const event = await eventDao.update(supabase, Number(id), parsed.data);
 
   if (!event) {
@@ -91,17 +84,21 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  if (event?.course_id) {
-    const modules = await courseDao.findModulesByCourse(supabase, event.course_id);
-    for (const mod of modules) {
-      const lessons = await courseDao.findLessonsByModule(supabase, mod.id);
-      for (const lesson of lessons) {
-        const folder = `courses/${event.course_id}/modules/${mod.id}/lessons/${lesson.id}`;
-        const [assetPaths, videoPaths] = await Promise.all([
-          listStorageFolder("course_assets", folder),
-          listStorageFolder("course_videos", folder),
-        ]);
-        storagePaths.push(...assetPaths, ...videoPaths);
+  if (event?.id) {
+    const { data: linkedCourse } = await supabase.from("COURSE").select("id").eq("event_id", event.id).maybeSingle();
+
+    if (linkedCourse) {
+      const modules = await courseDao.findModulesByCourse(supabase, linkedCourse.id);
+      for (const mod of modules) {
+        const lessons = await courseDao.findLessonsByModule(supabase, mod.id);
+        for (const lesson of lessons) {
+          const folder = `courses/${linkedCourse.id}/modules/${mod.id}/lessons/${lesson.id}`;
+          const [assetPaths, videoPaths] = await Promise.all([
+            listStorageFolder("course_assets", folder),
+            listStorageFolder("course_videos", folder),
+          ]);
+          storagePaths.push(...assetPaths, ...videoPaths);
+        }
       }
     }
   }

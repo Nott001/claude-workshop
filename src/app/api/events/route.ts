@@ -33,14 +33,6 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  if (parsed.data.course_id) {
-    const { courseDao } = await import("@/shared/db/dao");
-    const course = await courseDao.findCourseById(supabase, parsed.data.course_id);
-    if (!course) {
-      return NextResponse.json({ error: { message: "Course not found" } }, { status: 400 });
-    }
-  }
-
   const event = await eventDao.create(supabase, {
     title: parsed.data.title,
     event_date: parsed.data.event_date,
@@ -49,7 +41,6 @@ export async function POST(req: Request) {
     venue_name: parsed.data.venue_name,
     venue_address: parsed.data.venue_address ?? null,
     description: parsed.data.description ?? null,
-    course_id: parsed.data.course_id ?? null,
     price: parsed.data.price ?? 0,
     currency: parsed.data.currency ?? "PHP",
     cover_image_url: parsed.data.cover_image_url ?? null,

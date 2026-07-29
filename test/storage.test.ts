@@ -154,7 +154,6 @@ describe("Type shapes", () => {
   it("Event has cover_image_url field", () => {
     const event: Event = {
       id: 1,
-      course_id: null,
       title: "Test",
       event_date: "2026-01-01",
       start_time: "09:00",
