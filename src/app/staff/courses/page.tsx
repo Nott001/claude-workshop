@@ -43,7 +43,9 @@ export default function StaffCoursesPage() {
           setDataLoading(false);
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isLoaded, role]);
 
   if (!hasMinRole(role, "admin")) return null;
@@ -110,8 +112,12 @@ export default function StaffCoursesPage() {
                             <p className="mt-0.5 text-xs text-muted-fg line-clamp-1">{course.course_description}</p>
                           )}
                         </td>
-                        <td className="px-8 py-4 text-sm text-fg">{course.event_title ?? <span className="text-muted-fg">&mdash;</span>}</td>
-                        <td className="px-8 py-4 text-sm text-muted-fg">{course.event_date ?? <span className="text-muted-fg">&mdash;</span>}</td>
+                        <td className="px-8 py-4 text-sm text-fg">
+                          {course.event_title ?? <span className="text-muted-fg">&mdash;</span>}
+                        </td>
+                        <td className="px-8 py-4 text-sm text-muted-fg">
+                          {course.event_date ?? <span className="text-muted-fg">&mdash;</span>}
+                        </td>
                         <td className="px-8 py-4 text-sm text-muted-fg">{formatDate(course.created_at)}</td>
                         <td className="px-8 py-4 text-sm text-muted-fg">{formatDate(course.updated_at)}</td>
                       </tr>
