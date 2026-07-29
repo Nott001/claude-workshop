@@ -84,30 +84,24 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      setEventTitle((eventData.title as string) || "Event Room");
-      setEventDate((eventData.event_date as string) ?? "");
-      setStartTime((eventData.start_time as string) ?? "");
-      setEndTime((eventData.end_time as string) ?? "");
+      setEventTitle(eventData.title || "Event Room");
+      setEventDate(eventData.event_date ?? "");
+      setStartTime(eventData.start_time ?? "");
+      setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
 
-      const role = user.role;
-      const eventCourse = (eventData as Record<string, unknown>).COURSE as Record<string, unknown> | null;
-      const eventCourseId = eventCourse?.id ? (eventCourse.id as number) : null;
-      const hasCourse = eventCourseId !== null;
+      const hasCourse = !!eventData.COURSE?.id;
+      const eventCourseId = eventData.COURSE?.id ?? null;
 
-      if (hasMinRole(role, "facilitator")) {
-        if (eventCourseId) {
-          await fetchCourse(eventCourseId);
-        }
+      if (hasMinRole(user.role, "facilitator")) {
+        if (eventCourseId) await fetchCourse(eventCourseId);
         if (!cancelled) setAccess("allowed");
         return;
       }
 
-      if (role === "speaker") {
+      if (user.role === "speaker") {
         if (accessData.isSpeakerAssigned) {
-          if (eventCourseId) {
-            await fetchCourse(eventCourseId);
-          }
+          if (eventCourseId) await fetchCourse(eventCourseId);
           if (!cancelled) setAccess("allowed");
         } else {
           if (!cancelled) setAccess("denied");

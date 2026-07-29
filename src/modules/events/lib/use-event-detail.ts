@@ -6,42 +6,7 @@ import { useSession } from "@/modules/auth";
 import { getBadgeProps } from "@/modules/events/lib/schemas";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
 import { hasMinRole } from "@/shared/auth/role-hierarchy";
-
-export interface SpeakerProfile {
-  id: number;
-  bio: string | null;
-  designation: string | null;
-  USERS?: { full_name: string; email: string } | null;
-}
-
-export interface EventSpeaker {
-  SPEAKER_PROFILES: SpeakerProfile;
-}
-
-interface EventDetailCourse {
-  id: number;
-  course_name: string;
-  course_description: string | null;
-}
-
-export interface EventDetail {
-  id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  venue_address: string | null;
-  cover_image_url: string | null;
-  status: "draft" | "active" | "complete";
-  price: number;
-  currency: string;
-  description: string | null;
-  COURSE: EventDetailCourse | null;
-  EVENT_SPEAKERS: EventSpeaker[];
-  attendee_count?: number;
-  payment_count?: number;
-}
+import type { EventWithCourse } from "@/modules/events/lib/types";
 
 export interface AttendeeRow {
   user_id: number;
@@ -56,14 +21,14 @@ export function useEventDetail(eventId: string) {
   const router = useRouter();
   const { loading: isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
-  const [event, setEvent] = useState<EventDetail | null>(null);
+  const [event, setEvent] = useState<EventWithCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasTicket, setHasTicket] = useState(false);
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
   const [attendeesLoaded, setAttendeesLoaded] = useState(false);
-  const attendeesLoading = hasMinRole(userRole, "facilitator") ? !attendeesLoaded : false;
+  const attendeesLoading = userRole && hasMinRole(userRole, "facilitator") ? !attendeesLoaded : false;
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -108,7 +73,7 @@ export function useEventDetail(eventId: string) {
   }, [eventId, isLoaded, isSignedIn, user]);
 
   const isSpeakerAssigned =
-    speakerProfileId && event?.EVENT_SPEAKERS?.some((es) => es.SPEAKER_PROFILES.id === speakerProfileId);
+    (speakerProfileId && event?.EVENT_SPEAKER?.some((es) => es.SPEAKER_PROFILE.id === speakerProfileId)) ?? false;
 
   const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
 
