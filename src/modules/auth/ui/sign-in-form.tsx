@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/ui/form";
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
@@ -31,31 +35,58 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        className="rounded-lg border border-border px-3 py-2 text-sm"
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-        className="rounded-lg border border-border px-3 py-2 text-sm"
-      />
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-      >
-        {loading ? "Signing in..." : "Sign In"}
-      </button>
-      {error && <p className="text-xs text-error">{error}</p>}
-    </form>
+    <div className="w-full max-w-sm">
+      <div className="mb-8">
+        <span className="material-symbols-rounded mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
+          lock_open
+        </span>
+        <h1 className="text-xl font-bold text-fg">Welcome back</h1>
+        <p className="mt-1 text-sm text-muted-fg">Sign in to your account to continue.</p>
+      </div>
+
+      <Form onSubmit={handleSubmit} className="space-y-4">
+        <FormField>
+          <FormLabel htmlFor="signin-email">Email</FormLabel>
+          <Input
+            id="signin-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </FormField>
+
+        <FormField>
+          <div className="flex items-center justify-between">
+            <FormLabel htmlFor="signin-password">Password</FormLabel>
+            <Link href="/forgot-password" className="text-xs text-muted-fg hover:text-fg transition-colors">
+              Forgot password?
+            </Link>
+          </div>
+          <Input
+            id="signin-password"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </FormField>
+
+        {error && <FormMessage>{error}</FormMessage>}
+
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? "Signing in\u2026" : "Sign in"}
+        </Button>
+      </Form>
+
+      <p className="mt-6 text-center text-sm text-muted-fg">
+        Don&apos;t have an account?{" "}
+        <Link href="/sign-up" className="font-medium text-brand hover:text-brand/80 transition-colors">
+          Sign up
+        </Link>
+      </p>
+    </div>
   );
 }

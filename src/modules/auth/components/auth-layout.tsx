@@ -16,12 +16,13 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <div className="grid flex-1 grid-cols-2">
-        <div className="flex flex-col justify-center gap-3 bg-gradient-to-br from-blue-900/30 to-background p-10">
-          <div className="max-w-[220px] text-lg font-bold leading-snug text-foreground">
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-2">
+        <div className="relative hidden flex-col justify-center gap-3 overflow-hidden bg-gradient-to-br from-blue-900/30 to-background p-10 md:flex">
+          <div className="absolute inset-0 bg-[radial-gradient(var(--brand)_1px,transparent_1px)] [background-size:24px_24px] opacity-20" />
+          <div className="relative max-w-[220px] text-lg font-bold leading-snug text-foreground">
             Empowering the next generation of founders.
           </div>
-          <div className="max-w-[220px] text-xs text-muted-foreground">
+          <div className="relative max-w-[220px] text-xs text-muted-foreground">
             Join a community of innovators and scale your business at StartupLab.
           </div>
         </div>
