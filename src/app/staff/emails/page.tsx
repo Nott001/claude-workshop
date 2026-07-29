@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "@/modules/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
@@ -29,7 +30,8 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleString();
 }
 
-export default function EmailsPage() {
+export default function StaffEmailsPage() {
+  const { user } = useSession();
   const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter, userRole, isLoaded } =
     useEmailLogs();
 
@@ -120,7 +122,7 @@ export default function EmailsPage() {
           </div>
         )}
       </div>
-      <Footer role="facilitator" />
+      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }

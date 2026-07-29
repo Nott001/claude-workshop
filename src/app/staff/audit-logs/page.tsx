@@ -43,7 +43,7 @@ function actionColor(action: string): string {
   return "text-info bg-info/10";
 }
 
-export default function AuditLogsPage() {
+export default function StaffAuditLogsPage() {
   const router = useRouter();
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
 
@@ -56,7 +56,7 @@ export default function AuditLogsPage() {
             <p className="mt-1 text-sm text-muted-fg">Track all facilitator actions across the platform</p>
           </div>
           <button
-            onClick={() => router.push("/home")}
+            onClick={() => router.push("/staff/events")}
             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-fg transition-colors hover:bg-muted"
           >
             Back to Dashboard

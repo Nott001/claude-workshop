@@ -3,7 +3,7 @@
 import { Footer } from "@/shared/components/footer";
 import { useKiosk } from "@/modules/kiosk/lib/use-kiosk";
 
-export default function KioskPage() {
+export default function StaffKioskPage() {
   const { isLoaded, userRole, events, eventsLoading, eventsError, selectedEvent, setSelectedEvent } = useKiosk();
 
   if (!isLoaded) {

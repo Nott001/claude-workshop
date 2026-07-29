@@ -3,7 +3,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { chatDao } from "@/shared/db/dao";
 import { SupportChatClient } from "@/modules/support/components/support-chat-client";
 
-export default async function SupportPage() {
+export default async function StaffSupportPage() {
   const supabase = getServiceClient();
   const user = await requireAuth(supabase);
 

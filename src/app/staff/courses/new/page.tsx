@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -10,8 +11,9 @@ import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
 import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 
-export default function NewCoursePage() {
+export default function StaffNewCoursePage() {
   const router = useRouter();
+  const { user } = useSession();
   const {
     courseName,
     courseDescription,
@@ -38,7 +40,7 @@ export default function NewCoursePage() {
       <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
-            onClick={() => router.push("/courses")}
+            onClick={() => router.push("/staff/courses")}
             className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <span className="material-symbols-rounded text-[16px]">arrow_back</span>
@@ -89,7 +91,7 @@ export default function NewCoursePage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => router.push("/courses")}
+                  onClick={() => router.push("/staff/courses")}
                   disabled={submitting}
                   className="text-sm font-semibold text-muted-fg"
                 >
@@ -132,7 +134,7 @@ export default function NewCoursePage() {
           onAddLesson={handleAddLesson}
         />
       </div>
-      <Footer role="facilitator" />
+      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }
