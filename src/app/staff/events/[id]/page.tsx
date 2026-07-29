@@ -106,6 +106,12 @@ export default function StaffEventDetailPage() {
                 Support
               </button>
               <button
+                onClick={() => router.push(`/staff/events/${eventId}/kiosk`)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
+              >
+                Kiosk
+              </button>
+              <button
                 onClick={handleDelete}
                 className="rounded-lg border border-error/30 px-4 py-2 text-sm font-semibold text-error hover:bg-error/10"
               >

@@ -6,6 +6,40 @@ export async function listCourses(supabase: DbClient): Promise<Course[]> {
   return (data ?? []) as Course[];
 }
 
+export type CourseWithEvent = Course & {
+  event_title: string | null;
+  event_date: string | null;
+  event_id: number | null;
+};
+
+export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseWithEvent[]> {
+  const { data: courses } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
+  if (!courses) return [];
+
+  const courseIds = (courses as Course[]).map((c) => c.id);
+
+  if (courseIds.length === 0) return [];
+
+  const { data: events } = await supabase.from("EVENT").select("id, title, event_date, course_id").in("course_id", courseIds);
+
+  const eventMap = new Map<number, { id: number; title: string; event_date: string }>();
+  for (const e of (events ?? []) as Array<{ id: number; title: string; event_date: string; course_id: number }>) {
+    if (!eventMap.has(e.course_id)) {
+      eventMap.set(e.course_id, { id: e.id, title: e.title, event_date: e.event_date });
+    }
+  }
+
+  return (courses as Course[]).map((course) => {
+    const linked = eventMap.get(course.id);
+    return {
+      ...course,
+      event_id: linked?.id ?? null,
+      event_title: linked?.title ?? null,
+      event_date: linked?.event_date ?? null,
+    };
+  });
+}
+
 export async function findCourseById(supabase: DbClient, id: number): Promise<Course | null> {
   const { data } = await supabase.from("COURSE").select("*").eq("id", id).single();
   return data;

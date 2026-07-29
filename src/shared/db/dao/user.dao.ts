@@ -25,7 +25,7 @@ export async function listStaff(
   let query = supabase
     .from("USER")
     .select("id, full_name, email, role", { count: "exact" })
-    .in("role", ["facilitator", "speaker"])
+    .in("role", ["facilitator", "speaker", "admin", "super_admin"])
     .order("full_name", { ascending: true });
 
   if (search) {
