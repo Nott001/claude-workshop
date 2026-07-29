@@ -4,10 +4,11 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import type { UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit";
 
 const updateSchema = z.object({
-  role: z.enum(["attendee", "speaker", "facilitator", "admin", "super_admin"]),
+  role: z.enum(["speaker", "facilitator", "admin"]),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
@@ -21,6 +22,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  if (parsed.data.role === "admin" && !hasMinRole(guard.user.role, "super_admin")) {
+    return NextResponse.json({ error: { message: "Only super admins can promote to admin" } }, { status: 403 });
   }
 
   const supabase = getServiceClient();
