@@ -40,6 +40,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
     end_time: event.end_time,
     venue_name: event.venue_name,
     status: event.status,
+    course_id: event.COURSE?.id ?? null,
     course_name: event.COURSE?.course_name ?? null,
     description: event.description ?? null,
     attendee_count: attendeeCount,

@@ -1,24 +1,37 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
 
   const { id } = await params;
+  const supabase = getServiceClient();
+
+  const course = await courseDao.findCourseOwner(supabase, Number(id));
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+
+  if (course.created_by !== guard.user.id) {
+    if (!hasMinRole(guard.user.role, "facilitator")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const body = await req.json();
   const parsed = moduleSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const supabase = getServiceClient();
   const mod = await courseDao.createModule(supabase, {
     course_id: Number(id),
     module_name: parsed.data.module_name,

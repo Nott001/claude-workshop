@@ -4,7 +4,7 @@ import type { Event, User, SpeakerProfile } from "@/shared/types";
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
 
-type EventWithCourseName = Event & { COURSE?: { course_name: string } | null };
+type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
 type EventSpeakerJoin = {
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email"> };
@@ -29,7 +29,7 @@ export async function findByIdWithCourse(supabase: DbClient, id: number): Promis
 }
 
 export async function findByIdWithCourseName(supabase: DbClient, id: number): Promise<EventWithCourseName | null> {
-  const { data } = await supabase.from("EVENT").select("*, COURSE!event_id(course_name)").eq("id", id).single();
+  const { data } = await supabase.from("EVENT").select("*, COURSE!event_id(id, course_name)").eq("id", id).single();
   return data;
 }
 

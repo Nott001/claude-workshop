@@ -11,6 +11,7 @@ interface EventData {
   end_time: string;
   venue_name: string;
   status: string;
+  course_id: number | null;
   course_name: string | null;
   description: string | null;
   attendee_count: number;

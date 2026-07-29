@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
@@ -7,6 +8,11 @@ import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/stor
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireRole("speaker");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
   const { id } = await params;
   const supabase = getServiceClient();
 
@@ -20,25 +26,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
 
   const { id } = await params;
+  const supabase = getServiceClient();
+
+  const course = await courseDao.findCourseOwner(supabase, Number(id));
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+
+  if (course.created_by !== guard.user.id) {
+    const isStaff = hasMinRole(guard.user.role, "facilitator");
+    if (!isStaff) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const body = await req.json();
   const parsed = courseSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const supabase = getServiceClient();
-  const course = await courseDao.updateCourse(supabase, Number(id), {
+  const updated = await courseDao.updateCourse(supabase, Number(id), {
     course_name: parsed.data.course_name,
     course_description: parsed.data.course_description ?? null,
   });
 
-  if (!course) {
+  if (!updated) {
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 
@@ -46,11 +65,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     changes: Object.keys(parsed.data),
   });
 
-  return NextResponse.json(course);
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -59,6 +78,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
 
   const courseInfo = await courseDao.findCourseById(supabase, Number(id));
+  if (!courseInfo) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+
+  if (courseInfo.created_by !== guard.user.id) {
+    if (!hasMinRole(guard.user.role, "admin")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   const modules = await courseDao.findModulesByCourse(supabase, Number(id));
   for (const mod of modules) {

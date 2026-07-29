@@ -148,7 +148,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
           {totalLessons !== 1 ? "s" : ""}
         </p>
         <button
-          onClick={() => router.push(`/courses/${course.id}`)}
+          onClick={() => router.push(`/staff/events/${eventId}`)}
           className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
         >
           View Course
