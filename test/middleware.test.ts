@@ -21,7 +21,16 @@ beforeEach(() => {
 });
 
 describe("route protection", () => {
-  const protectedPaths = ["/courses", "/courses/1", "/kiosk", "/organization", "/api/events", "/api/tickets/1", "/api/checkin"];
+  const protectedPaths = [
+    "/staff",
+    "/staff/events",
+    "/staff/events/new",
+    "/staff/organization",
+    "/staff/kiosk",
+    "/api/events",
+    "/api/tickets/1",
+    "/api/checkin",
+  ];
 
   it.each(protectedPaths)("redirects signed-out users away from %s", async (path) => {
     getUser.mockResolvedValue(signedOut);
@@ -63,11 +72,11 @@ describe("api responses", () => {
 describe("sign-in redirect", () => {
   it("preserves the target path so the user lands where they intended", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await middleware(request("/courses/42"));
+    const res = await middleware(request("/staff/events"));
 
     const location = new URL(res.headers.get("location")!);
     expect(location.pathname).toBe("/sign-in");
-    expect(location.searchParams.get("redirect_url")).toBe("/courses/42");
+    expect(location.searchParams.get("redirect_url")).toBe("/staff/events");
   });
 });
 
@@ -79,20 +88,10 @@ describe("public routes", () => {
   });
 });
 
-// These pass today because isProtectedRoute only guards /courses, /kiosk,
-// /organization and /api. The pages themselves are expected to gate their own
-// content. Recorded so that the exposure is visible and any change to it is a
-// deliberate edit rather than a silent behaviour shift. See SPEC-07 §3 (P1).
+// The middleware only guards /staff/ and /api/ routes. Page-level components
+// are expected to gate their own content. See SPEC-07 §3 (P1).
 describe("routes the middleware does NOT protect", () => {
-  it.each([
-    "/events/1/edit",
-    "/events/new",
-    "/events/1/speakers",
-    "/payments",
-    "/tickets",
-    "/audit-logs",
-    "/speakers/dashboard",
-  ])("reaches %s without a session", async (path) => {
+  it.each(["/events/1/edit", "/payments", "/tickets", "/speakers/dashboard"])("reaches %s without a session", async (path) => {
     getUser.mockResolvedValue(signedOut);
     const res = await middleware(request(path));
     expect(res.status).toBe(200);
