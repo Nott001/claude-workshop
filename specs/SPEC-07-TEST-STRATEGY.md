@@ -5,21 +5,41 @@ Scope: what we test, how it runs in CI, and what is deliberately deferred.
 
 ## 1. Where we actually stand
 
-Measured on `main`, not estimated:
+Measured, not estimated:
 
-| Signal                | Value                                              |
-| --------------------- | -------------------------------------------------- |
-| Test files            | 12 (`test/*.test.ts`)                              |
-| Tests                 | 169, all passing                                   |
-| Runtime               | ~1.8s (~3.3s with coverage)                        |
-| **Statement coverage**| **2.25%** (72 / 3195)                              |
-| Source files touched  | **10 of ~174**                                     |
+| Signal                 | Baseline | Now       |
+| ---------------------- | -------: | --------: |
+| Test files             |       12 |    **21** |
+| Tests                  |      169 |   **293** |
+| Runtime (with coverage)|    ~3.3s |    ~6.0s  |
+| **Statement coverage** |    2.25% | **7.22%** |
+| Branch coverage        |    1.75% | **7.87%** |
+| Source files touched   |       10 |    **20** |
 
-The headline number to internalise: **169 passing tests exercise 10 source
-files.** The suite is not as strong as its test count suggests.
+The global percentage stays low because it is measured against all ~174 source
+files, most of which are React components (see §3, P4). The number that matters
+is *where* the coverage sits — the request-handling trust boundary is now
+covered end to end:
 
-The reason is that a large share of the assertions are *type-shape tests* —
-they build an object literal inline and assert on that literal:
+| Coverage | File                                          |
+| -------: | --------------------------------------------- |
+|     100% | `app/api/events/route.ts`                     |
+|     100% | `app/api/events/[id]/publish/route.ts`        |
+|     100% | `app/api/storage/[bucket]/[...path]/route.ts` |
+|     100% | `modules/auth/lib/role-guard.ts`              |
+|     100% | `shared/db/dao/helpers.ts`                    |
+|     100% | `modules/courses/lib/lesson-utils.ts`         |
+|      97% | `app/api/events/[id]/register/route.ts`       |
+|      96% | `app/api/checkin/route.ts`                    |
+|      74% | `modules/auth/lib/session.ts`                 |
+|      72% | `middleware.ts`                               |
+
+### What the baseline suite was actually testing
+
+Worth recording, because it is the trap to avoid repeating. The original 169
+tests exercised only 10 files, because a large share of the assertions are
+*type-shape tests* — they build an object literal inline and assert on that
+literal:
 
 ```ts
 // test/commerce.test.ts — passes even if every line of the payment module is deleted
@@ -31,105 +51,113 @@ That executes zero product code. TypeScript already guarantees the shape at
 compile time; asserting it again at runtime buys nothing. These tests are not
 harmful, but they must not be counted as coverage.
 
-The 10 files that genuinely are covered:
+That executes zero product code. TypeScript already guarantees the shape at
+compile time. Those tests are not harmful, but they must never be counted as
+coverage — write tests that call the real function.
 
-| Coverage | File                                    |
-| -------: | --------------------------------------- |
-|     100% | `src/modules/auth/lib/role-guard.ts`    |
-|     100% | `src/modules/chat/lib/index.ts`         |
-|     100% | `src/modules/commerce/index.ts`         |
-|     100% | `src/modules/courses/lib/schemas.ts`    |
-|     100% | `src/modules/kiosk/index.ts`            |
-|     100% | `src/modules/notifications/index.ts`    |
-|     100% | `src/shared/lib/date-utils.ts`          |
-|      50% | `src/modules/events/lib/schemas.ts`     |
-|      29% | `src/shared/integrations/storage/index.ts` |
-|      14% | `src/shared/integrations/email/index.ts` |
-
-These are the right things to have tested — pure logic, guards, schemas. The
-problem is everything around them.
-
-## 2. The pyramid we are aiming at
+## 2. The pyramid
 
 ```
         /   E2E    \      deferred — see §6
-       / Integration \    API routes + DAOs   <- the gap
-      /   Unit tests  \   guards, schemas, pure logic  <- exists, thin
+       / Integration \    API routes + DAOs   <- built, §3
+      /   Unit tests  \   guards, schemas, pure logic
 ```
 
-We are bottom-heavy in the wrong way: a thin base and nothing above it.
+## 3. What is covered, and what remains
 
-## 3. Priority gaps, highest value first
+### Done — API route handlers
 
-### P0 — API route handlers (43 routes, 0 tested)
+Tested as integration tests against a mocked Supabase client: no live backend,
+no browser, whole suite still under 6s. Each route covers the same four cases.
 
-Every route under `src/app/api/**/route.ts` is untested. These are the real
-trust boundary: they parse untrusted input, enforce roles, and write to the
-database. A bug here is a security bug, not a cosmetic one.
+| Case            | Assert                                                  |
+| --------------- | ------------------------------------------------------- |
+| Unauthenticated | 401, **and no database call is issued**                 |
+| Wrong role      | refused, and no write attempted                         |
+| Invalid body    | 400 from the zod schema, with no partial write          |
+| Happy path      | correct status, shape, and DAO call with correct scoping|
 
-Test as integration tests with a mocked Supabase client — no live backend, no
-browser, still milliseconds per test.
+| Test file                    | Covers                                                |
+| ---------------------------- | ----------------------------------------------------- |
+| `api-checkin.test.ts`        | QR check-in: replay, cancelled, forged token, audit    |
+| `api-event-register.test.ts` | ticket issuance, draft visibility, duplicate guard     |
+| `api-events.test.ts`         | event create/publish, role gate, draft-only publish    |
+| `api-storage.test.ts`        | object serving, 404 paths, and the gap below           |
+| `api-auth-coverage.test.ts`  | **sweep: every route must have a guard**               |
+| `auth-session.test.ts`       | `requireAuth`, `requireRole`, first sign-in provisioning|
+| `middleware.test.ts`         | which routes are protected, and which are not          |
+| `dao.test.ts`                | query shaping, user/event scoping, write failures      |
+| `lesson-utils.test.ts`       | content type detection, url normalisation              |
 
-For each route, cover four cases:
+The sweep in `api-auth-coverage.test.ts` is the highest-leverage of these: it
+scans all 43 route files and fails if any lacks a `requireAuth`/`requireRole`
+call. A new route shipped without a guard breaks the build rather than
+shipping. Exceptions live in two explicit lists with stated reasons.
 
-| Case             | Assert                                                     |
-| ---------------- | ---------------------------------------------------------- |
-| Unauthenticated  | 401, and no database call is issued                        |
-| Wrong role       | 403 (an attendee must not reach facilitator-only routes)    |
-| Invalid body     | 400 from the zod schema, with no partial write             |
-| Happy path       | correct status, correct shape, correct DAO call             |
+### Open finding — storage route has no authorization
 
-Start with the routes where a failure costs the most:
+`api/storage/[bucket]/[...path]` takes both the bucket and the object key from
+the URL and reads with the **service client**, which bypasses row level
+security. It performs no ownership check; the middleware only verifies that
+*some* session exists. Any signed-in user can therefore read any object in any
+bucket, and traversal-shaped segments pass through unsanitised.
 
-1. `api/events/[id]/register` and `api/tickets/*` — ticket issuance
-2. `api/payments/*` and `api/checkout` — money, and payment state transitions
-3. `api/checkin` — QR check-in, the replay/forgery surface
-4. `api/storage/[bucket]/[...path]` and `api/upload/*` — arbitrary file paths
-5. `api/organization/*` and `api/audit-logs` — privileged reads
+This is pinned by tests under a `KNOWN GAP` heading so the behaviour is visible
+and a fix registers as a deliberate change. It is listed in `KNOWN_UNGUARDED`
+in the sweep. **Fix by resolving the object's owner and comparing to the caller,
+or by issuing short-lived signed URLs instead of proxying the download.**
 
-### P1 — Authorization logic
+### Open finding — routes the middleware does not protect
 
-`role-guard.ts` is covered; `session.ts`, `ensure-user.ts` and `middleware.ts`
-are not. `middleware.ts:5-9` is the single point deciding which routes are
-public — worth a dedicated table-driven test over pathnames, including the
-cases that look protected but are not (`/events/[id]/edit`, `/payments`,
-`/tickets` are all reachable unauthenticated today).
+`middleware.ts:5-9` guards only `/courses`, `/kiosk`, `/organization` and
+`/api/*`. These are reachable with no session and rely on the page to gate its
+own content: `/events/[id]/edit`, `/events/new`, `/events/[id]/speakers`,
+`/payments`, `/tickets`, `/audit-logs`, `/speakers/dashboard`. Pinned in
+`middleware.test.ts` under an explicit heading. Worth a deliberate decision on
+whether page-level gating is sufficient.
 
-### P2 — DAO layer (14 files, 0 tested)
+### P2 — remaining DAO methods
 
-`src/shared/db/dao/*` builds every query. Test the query-shaping logic against
-a mocked client: correct filters applied, tenant/user scoping never omitted,
-errors surfaced rather than swallowed.
+`dao.test.ts` covers `helpers.ts` fully and the security-relevant parts of
+`ticket.dao.ts`. The other 12 DAOs are untested. Same pattern applies: assert
+that user/event scoping is never dropped from a query.
 
-### P3 — State machines and pure helpers
+### P3 — remaining API routes
 
-`canTransitionPayment` / `canTransitionTicket` are covered for the happy
-transitions; extend to the illegal ones (refunded → paid, used → issued).
-`generateQrToken` needs a collision/entropy assertion, not just a shape check.
+Roughly 38 of 43 routes still have no behavioural test, though all now pass the
+guard sweep. Next by value: `api/payments/*` and `api/checkout` (money and
+payment state transitions), `api/upload/*` (file type and size handling), then
+`api/organization/*` and `api/audit-logs` (privileged reads).
 
 ### P4 — Components
 
-`src/modules/*/components` are untested. Lower priority than the above: a
-broken button is visible, a broken authorization check is not. Revisit after
-P0–P2.
+`src/modules/*/components` are untested, and are most of the remaining
+uncovered surface. Deliberately last: a broken button is visible in seconds, a
+broken authorization check is not.
+
+Note that the payment and ticket state machines (`canTransitionPayment`,
+`canTransitionTicket`, `generateQrToken`) already have genuine behavioural
+coverage in `commerce.test.ts`, including the illegal transitions.
 
 ## 4. Coverage targets
 
-Thresholds in `vitest.config.ts` are set at the **measured baseline**, as a
-ratchet against regression — not as an achievement:
+Thresholds in `vitest.config.ts` are a **ratchet against regression**, set just
+under measured coverage — not an achievement:
 
-| Metric     | Now   | Floor | Target after P0 | Target after P2 |
-| ---------- | ----: | ----: | --------------: | --------------: |
-| Statements | 2.25% |    2% |             25% |             45% |
-| Branches   | 1.75% |  1.5% |             20% |             40% |
-| Functions  | 3.52% |    3% |             25% |             45% |
-| Lines      | 2.36% |    2% |             25% |             45% |
+| Metric     | Baseline |   Now | Floor | Target after P2/P3 |
+| ---------- | -------: | ----: | ----: | -----------------: |
+| Statements |    2.25% | 7.22% |    7% |                25% |
+| Branches   |    1.75% | 7.87% |  7.5% |                20% |
+| Functions  |    3.52% | 6.41% |    6% |                25% |
+| Lines      |    2.36% | 7.42% |    7% |                25% |
 
-Raise the floor in the same PR that raises actual coverage. Never lower it.
+Raise the floor in the same PR that raises actual coverage. Never lower it to
+make a build pass.
 
 Coverage counts *executed lines*, not *verified behaviour* — it is a gap
 detector, not a quality score. A file at 100% with only type-shape assertions
-is still untested, which is exactly how we got here.
+is still untested, which is exactly how the baseline suite reached 169 tests
+while touching 10 files.
 
 ## 5. CI pipeline
 
