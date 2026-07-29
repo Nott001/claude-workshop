@@ -71,7 +71,7 @@ function StaffFooter() {
   );
 }
 
-export function Footer({ role }: { role: UserRole }) {
+export function Footer({ role }: { role: UserRole | null }) {
   if (!hasMinRole(role, "speaker")) return <AttendeeFooter />;
   return <StaffFooter />;
 }

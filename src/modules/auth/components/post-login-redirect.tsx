@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 
 const ROLE_HOME: Record<string, string> = {
-  speaker: "/speakers/dashboard",
+  speaker: "/speaker/dashboard",
   facilitator: "/staff/events",
   attendee: "/home",
 };

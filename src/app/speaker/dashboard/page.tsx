@@ -49,7 +49,7 @@ export default function SpeakerDashboardPage() {
                 // TODO: Speakers should be the one creating courses
                 // courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}
-                detailHref={`/speakers/dashboard/${event.event_id}`}
+                detailHref={`/speaker/event/${event.event_id}`}
               />
             ))}
           </div>

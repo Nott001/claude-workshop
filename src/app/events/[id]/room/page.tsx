@@ -70,7 +70,15 @@ export default function EventRoomPage() {
         remaining={remaining}
         eventDate={eventDate}
         startTime={startTime}
-        onExit={() => router.push(isStaff ? `/speakers/dashboard/${eventId}` : `/events/${eventId}`)}
+        onExit={() => {
+          if (userRole === "speaker") {
+            router.push(`/speaker/event/${eventId}`);
+          } else if (isStaff) {
+            router.push(`/staff/events/${eventId}`);
+          } else {
+            router.push(`/events/${eventId}`);
+          }
+        }}
       />
 
       <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0 xl:pr-[352px]">
