@@ -13,6 +13,11 @@ on:
       - "LICENSE"
       - ".gitignore"
       - ".prettierignore"
+  # Also on main, because a pull request is audited against its own branch. Two
+  # changes that each pass alone can combine into a regression the merge result
+  # is the first thing to contain.
+  push:
+    branches: [main]
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}
