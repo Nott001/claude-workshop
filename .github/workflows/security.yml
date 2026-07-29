@@ -1,0 +1,126 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so newly-disclosed advisories against unchanged code still surface.
+    - cron: "0 3 * * 1"
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Static analysis for injection, auth bypass, unsafe redirects and the like.
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended adds lower-severity and experimental queries; this
+          # codebase handles payments, QR tickets and role-gated routes, so the
+          # extra signal is worth the longer run.
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
+  # Production dependencies are gated hard. Dev-only advisories are reported but
+  # do not block: they never reach a user, and blocking on them trains people to
+  # merge red. The current 3 high findings are all dev-only (eslint > minimatch).
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Audit dev dependencies (advisory)
+        if: always()
+        continue-on-error: true
+        run: pnpm audit --dev --audit-level=high
+
+  # Catches credentials committed by mistake. This repo gitignores .env* and a
+  # local .env.local holds live Supabase and payment-gateway keys, so a stray
+  # `git add -f` is a realistic path to leaking them.
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the scan covers secrets introduced in earlier
+          # commits on the branch, not just the tip.
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  # Guards the database's own authorization layer. RLS is what stops one
+  # attendee reading another's tickets or payments, and a migration that adds a
+  # table without enabling it is a silent, total bypass of that guarantee.
+  rls-policy:
+    name: RLS policy check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every table must enable row level security
+        run: |
+          missing=0
+          for file in supabase/migrations/*.sql; do
+            [ -e "$file" ] || continue
+            tables=$(grep -oiP 'CREATE TABLE (IF NOT EXISTS )?"?\K[A-Za-z_][A-Za-z0-9_]*' "$file" | sort -u)
+            for t in $tables; do
+              if ! grep -qiE "ALTER TABLE \"?${t}\"? ENABLE ROW LEVEL SECURITY" "$file"; then
+                echo "::error file=${file}::Table '${t}' is created without ENABLE ROW LEVEL SECURITY."
+                missing=1
+              fi
+            done
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Tables must enable RLS in the same migration that creates them."
+            exit 1
+          fi
+          echo "All tables enable row level security."
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    needs: [codeql, dependencies, secrets, rls-policy]
+    if: always()
+    steps:
+      - name: Verify all checks passed
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "Upstream results: $results"
+          for r in $results; do
+            if [ "$r" != "success" ]; then
+              echo "::error::A required security check did not succeed."
+              exit 1
+            fi
+          done
+          echo "All security checks passed."
