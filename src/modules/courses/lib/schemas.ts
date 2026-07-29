@@ -12,6 +12,7 @@ const contentTypeEnum = z.enum(["pdf", "video", "image", "link"]);
 export const courseSchema = z.object({
   course_name: z.string().min(1, "Name is required").max(255, "Name too long"),
   course_description: z.string().optional(),
+  event_id: z.coerce.number().int().positive(),
 });
 
 export const moduleSchema = z.object({

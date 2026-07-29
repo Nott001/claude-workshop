@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChatPolling } from "@/shared/lib/use-chat-polling";
 import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
 import type { ChatMessage, UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string };
@@ -24,7 +25,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
-  const isStaff = userRole === "facilitator" || userRole === "speaker";
+  const isStaff = hasMinRole(userRole, "speaker");
 
   const { data, isLoading, setActive } = useChatPolling<{ messages: ChatMessageWithUser[] }>(
     `/api/chat/${eventId}?channel=${channel}&limit=50`,

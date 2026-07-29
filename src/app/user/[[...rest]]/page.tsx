@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { useSession } from "@/modules/auth";
@@ -8,6 +8,8 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
 import { Toast } from "@/shared/components/toast";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import type { UserRole } from "@/shared/types";
 
 type ToastData = { title: string; description: string; type: "success" | "error" };
 
@@ -30,6 +32,30 @@ export default function UserSettingsPage() {
 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [speakerProfileId, setSpeakerProfileId] = useState<number | null | undefined>(undefined);
+  const [designation, setDesignation] = useState("");
+  const [bio, setBio] = useState("");
+  const [savingSpeaker, setSavingSpeaker] = useState(false);
+
+  const isSpeaker = hasMinRole((currentUser?.role as UserRole) ?? null, "speaker");
+
+  useEffect(() => {
+    if (!isSpeaker) return;
+    let cancelled = false;
+    fetch("/api/speakers/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setSpeakerProfileId(data.speaker_profile_id ?? null);
+        setDesignation(data.designation ?? "");
+        setBio(data.bio ?? "");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isSpeaker]);
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -114,6 +140,33 @@ export default function UserSettingsPage() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleSaveSpeaker(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingSpeaker(true);
+
+    const payload = { designation: designation.trim() || null, bio: bio.trim() || null };
+
+    const exists = speakerProfileId !== null && speakerProfileId !== undefined;
+    const url = "/api/speakers/me";
+    const method = exists ? "PATCH" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setToast({ title: "Error", description: data?.error ?? "Failed to save professional info.", type: "error" });
+      setSavingSpeaker(false);
+      return;
+    }
+
+    setToast({ title: "Saved", description: "Professional info updated.", type: "success" });
+    setSavingSpeaker(false);
   }
 
   const previewUrl = currentUser?.profile_image_url;
@@ -232,6 +285,42 @@ export default function UserSettingsPage() {
               </Button>
             </Form>
           </div>
+
+          {isSpeaker && (
+            <div className="rounded-xl border border-border bg-surface p-6">
+              <h2 className="text-sm font-bold text-fg">Professional Info</h2>
+              <p className="mt-1 text-xs text-muted-fg">Speaker designation and bio.</p>
+              {speakerProfileId === undefined ? (
+                <p className="mt-4 text-xs text-muted-fg">Loading...</p>
+              ) : (
+                <Form onSubmit={handleSaveSpeaker} className="mt-4 space-y-3">
+                  <FormField>
+                    <FormLabel htmlFor="designation">Designation</FormLabel>
+                    <Input
+                      id="designation"
+                      value={designation}
+                      onChange={(e) => setDesignation(e.target.value)}
+                      placeholder="e.g. Senior Developer"
+                    />
+                  </FormField>
+                  <FormField>
+                    <FormLabel htmlFor="bio">Bio</FormLabel>
+                    <textarea
+                      id="bio"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Tell attendees about yourself..."
+                      rows={3}
+                      className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring/20"
+                    />
+                  </FormField>
+                  <Button type="submit" disabled={savingSpeaker}>
+                    {savingSpeaker ? "Saving..." : "Save"}
+                  </Button>
+                </Form>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

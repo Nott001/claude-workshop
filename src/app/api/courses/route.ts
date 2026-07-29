@@ -1,24 +1,25 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
+import { courseDao, speakerDao } from "@/shared/db/dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET() {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
 
   const supabase = getServiceClient();
-  const courses = await courseDao.listCourses(supabase);
+  const courses = await courseDao.listCoursesWithEvents(supabase);
 
   return NextResponse.json(courses);
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -30,9 +31,23 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
+
+  if (!hasMinRole(guard.user.role, "facilitator")) {
+    const profile = await speakerDao.findByUserId(supabase, guard.user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "No speaker profile found" }, { status: 400 });
+    }
+    const assigned = await speakerDao.checkSpeakerAssignment(supabase, profile.id, parsed.data.event_id);
+    if (!assigned) {
+      return NextResponse.json({ error: "You are not assigned as a speaker to this event" }, { status: 403 });
+    }
+  }
+
   const course = await courseDao.createCourse(supabase, {
     course_name: parsed.data.course_name,
     course_description: parsed.data.course_description ?? null,
+    event_id: parsed.data.event_id,
+    created_by: guard.user.id,
   });
 
   if (!course) {

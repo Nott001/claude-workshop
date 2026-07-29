@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export interface Lesson {
   id: number;
@@ -44,7 +45,7 @@ export function useRoomAccess(eventId: string) {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
-  const isStaff = userRole === "speaker" || userRole === "facilitator";
+  const isStaff = hasMinRole(userRole, "speaker");
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 
@@ -83,27 +84,24 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      setEventTitle((eventData.title as string) || "Event Room");
-      setEventDate((eventData.event_date as string) ?? "");
-      setStartTime((eventData.start_time as string) ?? "");
-      setEndTime((eventData.end_time as string) ?? "");
+      setEventTitle(eventData.title || "Event Room");
+      setEventDate(eventData.event_date ?? "");
+      setStartTime(eventData.start_time ?? "");
+      setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
 
-      const role = user.role;
+      const hasCourse = !!eventData.COURSE?.id;
+      const eventCourseId = eventData.COURSE?.id ?? null;
 
-      if (role === "facilitator") {
-        if (eventData.course_id) {
-          await fetchCourse(eventData.course_id as number);
-        }
+      if (hasMinRole(user.role, "facilitator")) {
+        if (eventCourseId) await fetchCourse(eventCourseId);
         if (!cancelled) setAccess("allowed");
         return;
       }
 
-      if (role === "speaker") {
+      if (user.role === "speaker") {
         if (accessData.isSpeakerAssigned) {
-          if (eventData.course_id) {
-            await fetchCourse(eventData.course_id as number);
-          }
+          if (eventCourseId) await fetchCourse(eventCourseId);
           if (!cancelled) setAccess("allowed");
         } else {
           if (!cancelled) setAccess("denied");
@@ -116,11 +114,11 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      if (eventData.course_id) {
-        await fetchCourse(eventData.course_id as number);
+      if (eventCourseId) {
+        await fetchCourse(eventCourseId);
       }
 
-      if (!cancelled) setAccess(eventData.course_id ? "allowed" : "no_course");
+      if (!cancelled) setAccess(hasCourse ? "allowed" : "no_course");
     }
 
     if (!isLoaded) return;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 interface Course {
   course_name: string;
@@ -25,7 +26,7 @@ export type FilterTab = "upcoming" | "completed" | "drafts";
 export function useEventList() {
   const { loading: isLoaded, user } = useSession();
   const userRole = user?.role ?? null;
-  const isFacilitator = userRole === "facilitator";
+  const isFacilitator = hasMinRole(userRole, "facilitator");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

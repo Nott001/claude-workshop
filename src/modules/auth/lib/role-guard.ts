@@ -1,6 +1,7 @@
 import type { UserRole } from "@/shared/types";
 import { requireAuth } from "./session";
 import type { RoleGuardResult } from "./types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export async function requireRole(...allowedRoles: UserRole[]): Promise<RoleGuardResult> {
   const user = await requireAuth();
@@ -9,7 +10,7 @@ export async function requireRole(...allowedRoles: UserRole[]): Promise<RoleGuar
     return { allowed: false, error: "Unauthenticated", user: null };
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role as UserRole)) {
+  if (allowedRoles.length > 0 && !allowedRoles.some((r) => hasMinRole(user.role as UserRole, r))) {
     return { allowed: false, error: "Forbidden", user: null };
   }
 

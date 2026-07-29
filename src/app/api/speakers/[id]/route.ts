@@ -4,6 +4,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { speakerDao } from "@/shared/db/dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage } from "@/shared/integrations/storage";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator", "speaker");
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  if (guard.user.role !== "facilitator" && guard.user.id !== (profile as { user_id: number }).user_id) {
+  if (!hasMinRole(guard.user.role, "facilitator") && guard.user.id !== (profile as { user_id: number }).user_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

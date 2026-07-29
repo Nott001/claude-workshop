@@ -4,13 +4,14 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 const PAGE_SIZE = 10;
 
 const inviteSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
-  role: z.enum(["attendee", "speaker", "facilitator"]),
+  role: z.enum(["speaker", "facilitator", "admin"]),
 });
 
 export async function GET(req: Request) {
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -45,6 +46,10 @@ export async function POST(req: Request) {
   const parsed = inviteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  if (parsed.data.role === "admin" && !hasMinRole(guard.user.role, "super_admin")) {
+    return NextResponse.json({ error: { message: "Only super admins can invite admins" } }, { status: 403 });
   }
 
   const supabase = getServiceClient();

@@ -1,0 +1,6 @@
+-- COURSE now owns the FK: event_id references EVENT (reversing the old direction)
+
+ALTER TABLE "COURSE" ADD COLUMN event_id INT NOT NULL UNIQUE REFERENCES "EVENT"(id) ON DELETE CASCADE;
+ALTER TABLE "COURSE" ADD COLUMN created_by INT REFERENCES "USER"(id) ON DELETE SET NULL;
+
+ALTER TABLE "EVENT" DROP COLUMN course_id;

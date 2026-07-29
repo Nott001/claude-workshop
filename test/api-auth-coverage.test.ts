@@ -25,7 +25,9 @@ const KNOWN_UNGUARDED: Record<string, string> = {
 };
 
 function routeFiles(): string[] {
-  return globSync("**/route.ts", { cwd: API_DIR }).sort().map((f) => f.replace(/\\/g, "/"));
+  return globSync("**/route.ts", { cwd: API_DIR })
+    .sort()
+    .map((f) => f.replace(/\\/g, "/"));
 }
 
 const guarded = (rel: string) => /requireAuth|requireRole/.test(readFileSync(path.join(API_DIR, rel), "utf8"));

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useChatPolling } from "@/shared/lib/use-chat-polling";
 import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
 import type { ChatMessage, UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };
@@ -43,7 +44,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isStaff = userRole === "facilitator" || userRole === "speaker";
+  const isStaff = hasMinRole(userRole, "speaker");
 
   const { data, isLoading, setActive } = useChatPolling<{ messages: ChatMessageWithUser[] }>(
     `/api/chat/${eventId}?channel=live_qa&limit=50`,
@@ -147,7 +148,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
       );
     }
 
-    if (msg.USER?.role === "facilitator") {
+    if (hasMinRole(msg.USER?.role as UserRole, "facilitator")) {
       return (
         <span className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
           <span className="material-symbols-rounded text-[10px]">support_agent</span>

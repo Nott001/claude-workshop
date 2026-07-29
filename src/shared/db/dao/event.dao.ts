@@ -1,16 +1,16 @@
 import type { DbClient } from "./types";
-import type { Event, Course, User, SpeakerProfile } from "@/shared/types";
+import type { Event, User, SpeakerProfile } from "@/shared/types";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
 
-type EventWithCourseName = Event & { COURSE?: { course_name: string } | null };
+type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
 type EventSpeakerJoin = {
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email"> };
 };
 type EventWithRelations = Event & {
-  COURSE?: Course | null;
+  COURSE?: Record<string, unknown> | null;
   EVENT_SPEAKER?: EventSpeakerJoin[];
 };
 
@@ -22,14 +22,14 @@ export async function findById(supabase: DbClient, id: number): Promise<Event | 
 export async function findByIdWithCourse(supabase: DbClient, id: number): Promise<EventWithRelations | null> {
   const { data } = await supabase
     .from("EVENT")
-    .select("*, COURSE(*), EVENT_SPEAKER(SPEAKER_PROFILE(*, USER(full_name, email)))")
+    .select("*, COURSE!event_id(*), EVENT_SPEAKER(SPEAKER_PROFILE(*, USER(full_name, email)))")
     .eq("id", id)
     .single();
   return data;
 }
 
 export async function findByIdWithCourseName(supabase: DbClient, id: number): Promise<EventWithCourseName | null> {
-  const { data } = await supabase.from("EVENT").select("*, COURSE(course_name)").eq("id", id).single();
+  const { data } = await supabase.from("EVENT").select("*, COURSE!event_id(id, course_name)").eq("id", id).single();
   return data;
 }
 
@@ -42,7 +42,7 @@ export async function list(
 ): Promise<EventWithCourseName[]> {
   const { role, filter } = options ?? {};
 
-  let query = supabase.from("EVENT").select("*, COURSE(course_name)").order("event_date", { ascending: true });
+  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
 
   if (role !== "facilitator") {
     query = query.in("status", ["active", "complete"]);
@@ -62,7 +62,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWi
   const today = new Date().toISOString().split("T")[0];
   const { data } = await supabase
     .from("EVENT")
-    .select("*, COURSE(course_name)")
+    .select("*, COURSE!event_id(course_name)")
     .eq("status", "active")
     .gte("event_date", today)
     .order("event_date", { ascending: true })
@@ -98,7 +98,6 @@ type EventUpdatableField =
   | "venue_name"
   | "venue_address"
   | "description"
-  | "course_id"
   | "price"
   | "currency"
   | "cover_image_url"
@@ -139,7 +138,7 @@ export async function getAttendeeCount(supabase: DbClient, eventId: number): Pro
 export async function findByIds(supabase: DbClient, ids: number[]): Promise<EventWithCourseName[]> {
   const { data } = await supabase
     .from("EVENT")
-    .select("*, COURSE(course_name)")
+    .select("*, COURSE!event_id(course_name)")
     .in("id", ids)
     .order("event_date", { ascending: true });
   return data ?? [];

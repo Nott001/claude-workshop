@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao, courseDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "speaker" && user.role !== "facilitator") {
+  if (!hasMinRole(user.role, "speaker")) {
     return NextResponse.json({ error: "Only speakers and facilitators can update the live highlight" }, { status: 403 });
   }
 
@@ -60,7 +61,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const mod = await courseDao.findModuleById(supabase, lesson.module_id);
 
-    if (!mod || mod.course_id !== event.course_id) {
+    const { data: eventCourse } = await supabase.from("COURSE").select("id").eq("event_id", Number(id)).maybeSingle();
+
+    if (!mod || !eventCourse || mod.course_id !== eventCourse.id) {
       return NextResponse.json({ error: "Lesson does not belong to this event's course" }, { status: 400 });
     }
   }
@@ -95,7 +98,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "speaker" && user.role !== "facilitator") {
+  if (!hasMinRole(user.role, "speaker")) {
     return NextResponse.json({ error: "Only speakers and facilitators can clear the live highlight" }, { status: 403 });
   }
 
