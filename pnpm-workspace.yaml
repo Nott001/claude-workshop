@@ -4,3 +4,9 @@ allowBuilds:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# Transitive advisories that reach production through `next`. Drop an entry once
+# next itself resolves above the patched version.
+overrides:
+  postcss@<8.5.18: ">=8.5.18"
+  sharp@<0.35.0: ">=0.35.0"

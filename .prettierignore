@@ -5,3 +5,4 @@ package-lock.json
 out/**
 build/**
 next-env.d.ts
+coverage/**

@@ -2,11 +2,18 @@
   "name": "claude-workshop",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\""
@@ -17,10 +24,8 @@
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.0",
     "clsx": "^2.1.1",
-    "eslint-config-prettier": "^10.1.8",
     "html5-qrcode": "^2.3.8",
     "next": "16.2.11",
-    "prettier": "^3.9.4",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -28,7 +33,6 @@
     "resend": "^6.17.2",
     "swr": "^2.2.0",
     "tailwind-merge": "^3.6.0",
-    "vitest": "^4.1.10",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -38,10 +42,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "eslint-config-prettier": "^10.1.8",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
