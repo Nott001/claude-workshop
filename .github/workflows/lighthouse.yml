@@ -1,0 +1,76 @@
+name: Lighthouse
+
+on:
+  pull_request:
+    # Nothing here can change what a browser renders, so auditing it is waste.
+    #
+    # Lighthouse must NOT be added to branch protection as a required check
+    # while this filter exists. A required check that never runs leaves the PR
+    # permanently "waiting for status" and unmergeable.
+    paths-ignore:
+      - "**/*.md"
+      - "specs/**"
+      - "LICENSE"
+      - ".gitignore"
+      - ".prettierignore"
+  # Also on main, because a pull request is audited against its own branch. Two
+  # changes that each pass alone can combine into a regression the merge result
+  # is the first thing to contain.
+  push:
+    branches: [main]
+
+concurrency:
+  group: lighthouse-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Lighthouse audits the production build, so the app needs the same build
+      # inputs as the CI build job. The anon key is a public client credential.
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      # Same key as the CI build job, so whichever runs first warms the cache for
+      # the other. Sharing a cache keeps the two workflows independent — passing
+      # a build artifact between them would make this job wait on that one.
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.[jt]s', 'src/**/*.[jt]sx') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            next-${{ runner.os }}-
+
+      - name: Build
+        run: pnpm build
+
+      # The action reads lighthouserc.json, which owns the URL list, the run
+      # count and the assertions. It also starts the server itself via
+      # startServerCommand, so no separate `pnpm start` step is needed.
+      - name: Audit public routes
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 7

@@ -18,11 +18,7 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
  * finding, not an exemption. Remove the entry when the route is fixed; the
  * test then holds the fix in place.
  */
-const KNOWN_UNGUARDED: Record<string, string> = {
-  "storage/[bucket]/[...path]/route.ts":
-    "Reads any bucket/key from the URL with the service client, bypassing RLS. " +
-    "Relies entirely on the middleware session check. See SPEC-07 §3 (P0).",
-};
+const KNOWN_UNGUARDED: Record<string, string> = {};
 
 function routeFiles(): string[] {
   return globSync("**/route.ts", { cwd: API_DIR })

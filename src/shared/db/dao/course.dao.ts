@@ -260,3 +260,38 @@ export async function deleteLesson(supabase: DbClient, id: number): Promise<bool
   const { error } = await supabase.from("LESSON").delete().eq("id", id);
   return !error;
 }
+
+/**
+ * Whether a user is entitled to a course's material.
+ *
+ * Entitlement comes from either holding a live ticket to an event that teaches
+ * the course, or being a speaker assigned to one. Facilitators bypass this and
+ * are checked by the caller, since that is a role decision rather than a query.
+ */
+export async function userHasCourseAccess(supabase: DbClient, userId: number, courseId: number): Promise<boolean> {
+  // The live schema links these as COURSE.event_id -> EVENT, the opposite of
+  // what 00001_initial_schema.sql describes. This follows the database, since
+  // that is what the query actually runs against. Revisit if the schemas are
+  // ever reconciled — see SPEC-09-TEST-STRATEGY §9.
+  const { data: course } = await supabase.from("COURSE").select("event_id").eq("id", courseId).single();
+  if (!course?.event_id) return false;
+
+  const { data: ticket } = await supabase
+    .from("TICKET")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("event_id", course.event_id)
+    .neq("status", "cancelled")
+    .limit(1);
+
+  if (ticket && ticket.length > 0) return true;
+
+  const { data: speaking } = await supabase
+    .from("EVENT_SPEAKER")
+    .select("event_id, SPEAKER_PROFILE!inner(user_id)")
+    .eq("event_id", course.event_id)
+    .eq("SPEAKER_PROFILE.user_id", userId)
+    .limit(1);
+
+  return !!speaking && speaking.length > 0;
+}

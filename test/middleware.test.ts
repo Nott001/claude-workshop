@@ -89,7 +89,7 @@ describe("public routes", () => {
 });
 
 // The middleware only guards /staff/ and /api/ routes. Page-level components
-// are expected to gate their own content. See SPEC-07 §3 (P1).
+// are expected to gate their own content. See SPEC-09-TEST-STRATEGY §3 (P1).
 describe("routes the middleware does NOT protect", () => {
   it.each(["/events/1/edit", "/payments", "/tickets", "/speaker/dashboard"])("reaches %s without a session", async (path) => {
     getUser.mockResolvedValue(signedOut);

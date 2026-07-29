@@ -16,7 +16,7 @@ export async function listMessages(
 
   let query = supabase
     .from("CHAT_MESSAGE")
-    .select("*, USER:id(full_name, role)")
+    .select("*, USER:user_id(full_name, role)")
     .eq("event_id", eventId)
     .eq("channel", channel)
     .is("deleted_at", null);
@@ -57,7 +57,7 @@ export async function sendMessage(
   const { data: message, error } = await supabase
     .from("CHAT_MESSAGE")
     .insert(data)
-    .select("*, USER:id(full_name, role)")
+    .select("*, USER:user_id(full_name, role)")
     .single();
 
   if (error) return null;
@@ -78,7 +78,7 @@ export async function sendSupportMessage(
   const { data: message, error } = await supabase
     .from("CHAT_MESSAGE")
     .insert(data)
-    .select("*, USER:id(full_name, role)")
+    .select("*, USER:user_id(full_name, role)")
     .single();
 
   if (error) return null;
@@ -197,7 +197,7 @@ export async function listSupportMessages(
 
   let query = supabase
     .from("CHAT_MESSAGE")
-    .select("*, USER:id(full_name, role)")
+    .select("*, USER:user_id(full_name, role)")
     .eq("channel", "support")
     .is("deleted_at", null);
 

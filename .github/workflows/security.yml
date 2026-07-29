@@ -16,11 +16,47 @@ permissions:
   contents: read
 
 jobs:
+  # Filtering happens per job rather than on the workflow, because `Security` is
+  # meant to be a required status check. A workflow skipped by `paths-ignore`
+  # never reports, leaving a required check pending and the PR unmergeable —
+  # so the workflow always runs and the aggregator always reports, while the
+  # individual jobs decide whether they have anything to do.
+  #
+  # Outside pull requests (push to main, weekly cron) nothing is filtered.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      deps: ${{ steps.filter.outputs.deps }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'next.config.ts'
+              - 'tsconfig.json'
+            deps:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+            migrations:
+              - 'supabase/migrations/**'
+
   # Static analysis for injection, auth bypass, unsafe redirects and the like.
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
     permissions:
       contents: read
       security-events: write
@@ -46,6 +82,10 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    # The dependency tree only changes when the manifest or lockfile does. The
+    # weekly cron still audits an unchanged tree against new advisories.
+    if: github.event_name != 'pull_request' || needs.changes.outputs.deps == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +102,9 @@ jobs:
   # Catches credentials committed by mistake. This repo gitignores .env* and a
   # local .env.local holds live Supabase and payment-gateway keys, so a stray
   # `git add -f` is a realistic path to leaking them.
+  # Deliberately unfiltered. Documentation is one of the likeliest places to
+  # leak a credential — a key pasted into a README example, a token in a setup
+  # guide — so a markdown-only change is exactly when this needs to run.
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -85,6 +128,8 @@ jobs:
     name: RLS policy check
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.migrations == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -110,7 +155,8 @@ jobs:
   security:
     name: Security
     runs-on: ubuntu-latest
-    needs: [codeql, dependencies, secrets, rls-policy]
+    needs: [changes, codeql, dependencies, secrets, rls-policy]
+    # Always runs, so the required status check always reports.
     if: always()
     steps:
       - name: Verify all checks passed
@@ -118,7 +164,9 @@ jobs:
           results='${{ join(needs.*.result, ' ') }}'
           echo "Upstream results: $results"
           for r in $results; do
-            if [ "$r" != "success" ]; then
+            # `skipped` means the job had nothing to inspect on this diff, which
+            # is a pass. `failure` and `cancelled` are not.
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
               echo "::error::A required security check did not succeed."
               exit 1
             fi
