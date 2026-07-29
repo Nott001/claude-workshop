@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     include: ["test/**/*.{test,spec}.{ts,tsx}"],
+    // Playwright specs live under test/e2e and share the .spec.ts suffix. They
+    // need a browser and a live database, so vitest must not try to run them —
+    // `pnpm test` stays a fast hermetic run. Playwright owns that directory.
+    exclude: [...configDefaults.exclude, "test/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov", "json-summary"],

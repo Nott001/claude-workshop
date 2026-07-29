@@ -48,7 +48,7 @@ next-env.d.ts
 /.clerk/
 
 # playwright
-/e2e/.results
+/test/e2e/.results
 /playwright-report
 /blob-report
 /.playwright

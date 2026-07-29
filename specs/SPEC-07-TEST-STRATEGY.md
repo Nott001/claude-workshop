@@ -271,8 +271,12 @@ become possible. Tracked separately from this spec.
 
 ## 8. E2E (added)
 
-Playwright, in `e2e/`, deliberately outside `test/` so `pnpm test` stays a fast
-hermetic vitest run. These talk to a real browser and a real database.
+Playwright, in `test/e2e/`. Both runners use the `.spec.ts` suffix, so vitest
+excludes that directory and Playwright owns it — `pnpm test` stays a fast
+hermetic run while `pnpm test:e2e` drives a real browser and database.
+
+`pnpm test:e2e` builds before serving, so it works from a clean checkout rather
+than failing on a missing `.next`.
 
 `pnpm test:e2e` — 41 tests across 7 specs, ~80s locally. Four are skipped or
 marked `fixme`; see §9 for why.
@@ -292,7 +296,7 @@ holds a ticket. Three things resolved it:
 
 ### The fixture contract
 
-`e2e/fixtures.ts` creates every user and event a run needs, prefixed `e2e-`,
+`test/e2e/fixtures.ts` creates every user and event a run needs, prefixed `e2e-`,
 and deletes them afterwards — children first, so foreign keys allow it.
 Verified: 4 users before a run, 4 after, zero orphans.
 

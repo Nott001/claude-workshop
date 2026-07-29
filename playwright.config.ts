@@ -11,10 +11,10 @@ const PORT = Number(process.env.E2E_PORT ?? 3200);
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
-  testDir: "./e2e",
-  // Kept out of `test/` so `pnpm test` stays a fast, hermetic vitest run. These
-  // talk to a real database and are an order of magnitude slower.
-  outputDir: "./e2e/.results",
+  // Under test/ per AGENTS.md, in its own directory that vitest excludes: these
+  // need a browser and a live database, so `pnpm test` must not pick them up.
+  testDir: "./test/e2e",
+  outputDir: "./test/e2e/.results",
 
   // Each spec provisions its own users and event, so parallelism is safe. On CI
   // a single worker keeps output readable and load predictable.
@@ -37,11 +37,13 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 
   webServer: {
-    // Production build, matching what users get. Uses a dedicated port so a dev
-    // server on 3000 does not collide.
-    command: `pnpm start --port ${PORT}`,
+    // Builds first so `pnpm test:e2e` works from a clean checkout instead of
+    // failing on a missing .next. Rebuilds are incremental against .next/cache,
+    // which both this and the CI build job share. A dedicated port keeps a dev
+    // server on 3000 out of the way.
+    command: `pnpm build && pnpm start --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
   },
 });

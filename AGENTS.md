@@ -14,6 +14,7 @@
 ## Testing
 
 - Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
+- End-to-end tests are Playwright, in `test/e2e/`. Both runners use the `.spec.ts` suffix, so `vitest.config.ts` excludes that directory. Run them with `pnpm test:e2e`; they need a browser and a live database.
 - Add or update tests for the code you change, even if nobody asked.
 - Update `vitest.config.ts` if other depencies necessitate it.
 - `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
