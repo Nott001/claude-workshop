@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
-import { speakerDao } from "@/shared/db/dao";
+import { userDao } from "@/shared/db/dao";
+import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import {
   uploadToStorage,
   buildProfileImagePath,
@@ -16,6 +18,11 @@ export async function POST(req: Request) {
   const guard = await requireRole("facilitator", "speaker", "attendee");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
+
+  const authUserId = await getCurrentUserId();
+  if (!authUserId) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const formData = await req.formData();
@@ -36,6 +43,7 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
 
   const ext = getExtensionFromMimeType(file.type);
+  const optimizedFile = await optimizeImage(file);
   const path = buildProfileImagePath(guard.user.id, ext);
 
   try {
@@ -44,14 +52,9 @@ export async function POST(req: Request) {
       await deleteFromStorage("profile_images", oldPaths);
     }
 
-    const result = await uploadToStorage("profile_images", path, file);
+    const result = await uploadToStorage("profile_images", path, optimizedFile);
 
-    const existing = await speakerDao.findByUserId(supabase, guard.user.id);
-    if (existing) {
-      await speakerDao.update(supabase, existing.id, { photo_url: result.url });
-    } else {
-      await speakerDao.create(supabase, { user_id: guard.user.id, photo_url: result.url });
-    }
+    await userDao.updateUser(supabase, authUserId, { profile_image_url: result.url });
 
     return NextResponse.json({ url: result.url, path: result.path });
   } catch (err) {

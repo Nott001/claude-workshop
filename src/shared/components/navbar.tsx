@@ -50,26 +50,30 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isSignedIn, signOut } = useSession();
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
   const userRole: UserRole = (user?.role as UserRole) ?? "attendee";
+  const profilePhoto = customPhoto ?? user?.profile_image_url ?? null;
 
   useEffect(() => {
     if (!isSignedIn) return;
-    fetch("/api/speakers/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.photo_url) setProfilePhoto(data.photo_url);
-      })
-      .catch(() => {});
+
+    if (!user?.profile_image_url && !customPhoto) {
+      fetch("/api/speakers/me")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.photo_url) setCustomPhoto(data.photo_url);
+        })
+        .catch(() => {});
+    }
 
     const handlePhotoUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.photoUrl) setProfilePhoto(detail.photoUrl);
+      if (detail?.photoUrl) setCustomPhoto(detail.photoUrl);
     };
     window.addEventListener("profile-photo-updated", handlePhotoUpdate);
     return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
-  }, [isSignedIn]);
+  }, [isSignedIn, user?.profile_image_url, customPhoto]);
 
   const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
 
