@@ -63,7 +63,7 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
       reply_to: null,
       answered_verbally: false,
       deleted_at: null,
-      updated_at: null,
+      updated_at: new Date().toISOString(),
       USER: { full_name: "You" },
     };
 

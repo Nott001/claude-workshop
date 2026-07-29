@@ -3,7 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AuthUser } from "./types";
+import type { AuthUser } from "../lib/types";
 
 interface SessionContextValue {
   user: AuthUser | null;

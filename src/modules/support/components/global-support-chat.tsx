@@ -41,7 +41,9 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const sub = subscribeToSupportSessions((session) => {
       setSessionActive(session.status === "active");
     });
-    return () => sub.unsubscribe();
+    return () => {
+      sub.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -62,16 +64,18 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const optimisticId = -Date.now();
     const optimistic: ChatMessageWithUser = {
       id: optimisticId,
-      channel: "global_support",
+      channel: "support",
       user_id: currentUserId,
       message: text,
+      // Global support is not tied to an event; the API writes the same sentinel.
+      event_id: 0,
       sent_at: new Date().toISOString(),
       session_id: 0,
       recipient_user_id: null,
       reply_to: null,
       answered_verbally: false,
       deleted_at: null,
-      updated_at: null,
+      updated_at: new Date().toISOString(),
       USER: { full_name: currentUser?.full_name ?? "You", role: (currentUser?.role ?? "attendee") as UserRole },
     };
 

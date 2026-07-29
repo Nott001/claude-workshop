@@ -6,7 +6,7 @@ import { fetcher } from "./fetcher";
 
 export function useChatPolling<T>(url: string) {
   const pollIntervalRef = useRef(5000);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prevLastMsgRef = useRef(0);
 
   function setActive() {

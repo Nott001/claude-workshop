@@ -2,12 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-declare global {
-  interface Window {
-    YT: typeof YT | undefined;
-  }
-}
-
 let apiPromise: Promise<void> | null = null;
 
 function loadYouTubeAPI(): Promise<void> {

@@ -194,7 +194,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
             </span>
             <div className="flex gap-1.5">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
@@ -203,7 +203,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
                 Prev
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
