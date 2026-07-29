@@ -26,6 +26,15 @@ interface AttendeeRow {
   updated_at: string;
 }
 
+/**
+ * What the query can hand back before normalization: PostgREST returns a single
+ * object for a to-one embed, but the untyped client infers an array. Accept
+ * either rather than asserting one and hoping.
+ */
+type RawAttendeeRow = Omit<AttendeeRow, "USER"> & {
+  USER: AttendeeRow["USER"] | NonNullable<AttendeeRow["USER"]>[];
+};
+
 export async function findById(supabase: DbClient, id: number): Promise<Ticket | null> {
   const { data } = await supabase.from("TICKET").select("*").eq("id", id).single();
   return data;
@@ -151,8 +160,13 @@ export async function getAttendees(
 
   const { data, count } = await query;
 
+  const rows = (data ?? []) as unknown as RawAttendeeRow[];
+
   return {
-    data: (data ?? []) as AttendeeRow[],
+    data: rows.map((row) => ({
+      ...row,
+      USER: Array.isArray(row.USER) ? (row.USER[0] ?? null) : row.USER,
+    })),
     total: count ?? 0,
   };
 }

@@ -24,7 +24,7 @@ export default function SpeakerEventDetailsPage() {
     );
   }
 
-  if (error || !event) {
+  if (error || !event || !badge) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-bg">
         <div className="text-sm text-error">{error ?? "Event not found"}</div>

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import { ensureUser } from "./ensure-user";
+import type { User } from "@/shared/types";
 import type { AuthUser } from "./types";
 
 export async function getCurrentUserId(): Promise<string | null> {
@@ -19,7 +20,7 @@ export async function getCurrentUserId(): Promise<string | null> {
       },
       remove(name: string, options: Record<string, unknown>) {
         try {
-          cookieStore.delete(name, options);
+          cookieStore.set(name, "", { ...options, maxAge: 0 });
         } catch {}
       },
     },
@@ -33,7 +34,9 @@ export async function requireAuth(supabase?: ReturnType<typeof getServiceClient>
   if (!authUserId) return null;
 
   const db = supabase ?? getServiceClient();
-  let dbUser = await userDao.findByAuthId(db, authUserId);
+  // findByAuthId returns the full User row, ensureUser returns the projected
+  // AuthUser — only the fields common to both are read below.
+  let dbUser: User | AuthUser | null = await userDao.findByAuthId(db, authUserId);
   if (!dbUser) {
     dbUser = await ensureUser(db, authUserId);
   }
