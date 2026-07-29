@@ -274,7 +274,8 @@ become possible. Tracked separately from this spec.
 Playwright, in `e2e/`, deliberately outside `test/` so `pnpm test` stays a fast
 hermetic vitest run. These talk to a real browser and a real database.
 
-`pnpm test:e2e` — 5 tests, ~11s locally.
+`pnpm test:e2e` — 22 tests across 4 specs, ~60s locally. One is marked
+`fixme`; see §9.
 
 ### Why this became viable
 
@@ -317,10 +318,75 @@ receive secrets — skipping is honest where failing would be noise.
 security entirely. The alternative is a dedicated Supabase project for testing,
 which is the right move if this repo ever takes outside contributions.
 
-### What to add next
+### What is covered
 
-One flow at a time, so the fixture pattern stays proven:
+| Spec | Covers |
+| --- | --- |
+| `auth.spec.ts` | session, staff redirect, bad credentials, role boundary |
+| `tickets.spec.ts` | buy → ticket issued → QR check-in, replay, forged token, role gate |
+| `entitlement.spec.ts` | course material access with/without ticket, cancelled ticket, bucket and path refusal |
+| `events.spec.ts` | draft visibility, publish, republish refusal, role gate |
 
-1. register → pay → ticket issued → QR check-in (the highest-value path)
-2. facilitator creates an event, publishes it, sees it on the public listing
-3. course material entitlement — an attendee without a ticket is refused
+Cleanup is verified rather than assumed: the database returns to exactly its
+baseline after a full run — 4 users, no events, courses, tickets or objects.
+
+## 9. Findings from the first E2E run
+
+Three defects surfaced within minutes of running against a real database. All
+322 unit tests were green throughout, which is the argument for E2E in one
+paragraph: a mock returns whatever the test tells it to, so a query that cannot
+run still passes.
+
+### Fixed — broken embed in eight queries
+
+Four DAOs asked PostgREST to embed the user via `USER:id(...)`, which joins
+through the row's own primary key rather than its foreign key. No such
+relationship exists, so the query errored, `.single()` returned null, and the
+caller treated it as "not found".
+
+**QR check-in was completely broken in production** — every scan returned
+"Invalid QR token". Chat messages, the attendee list and email logs were
+affected by the same mistake.
+
+Corrected to `USER:user_id(...)` in `ticket.dao.ts` (×2), `chat-message.dao.ts`
+(×4) and `email.dao.ts` (×2), and each corrected query verified against the
+live database.
+
+### Fixed — entitlement query written against the wrong schema
+
+`userHasCourseAccess`, added the same day, joined on `EVENT.course_id`. That
+column does not exist. Both joins errored, the function returned false, and
+course material was denied to everyone except facilitators — a fix that failed
+closed, with every unit test green because they stub the function outright.
+
+Now follows the live schema. Verified by `entitlement.spec.ts`: an attendee
+holding a ticket gets 200, one without gets 404.
+
+### Open — the migration file does not match the database
+
+The live schema and `00001_initial_schema.sql` disagree about how courses and
+events relate:
+
+| | Migration file | Live database |
+| --- | --- | --- |
+| Link | `EVENT.course_id → COURSE` | `COURSE.event_id → EVENT` |
+
+`EVENT.course_id` does not exist. Consequences reaching beyond the tests:
+
+- **Event creation through the API always fails.** `api/events/route.ts:52`
+  writes `course_id` on every insert, and the column is absent. This is why the
+  database contains no events at all — not a fresh project, a broken endpoint.
+  Recorded as a `fixme` test in `events.spec.ts`.
+- `api/events/[id]/route.ts` reads `event.course_id` when deleting course
+  assets, so that cleanup path cannot work either.
+- `AUDIT_LOG` uses `actor_id`, not `user_id` — matching the migration, but worth
+  noting since the fixtures got it wrong first.
+
+Resolving this is a schema decision, not a test one. Either add `course_id` to
+`EVENT` in a new migration and change the COURSE side, or keep the live shape
+and change the routes to match. Either way the migration file should describe
+what actually exists — `AGENTS.md` forbids editing an applied migration, so
+this wants a new numbered one.
+
+Until then, `userHasCourseAccess` and the E2E fixtures follow the database,
+because that is what the queries run against.

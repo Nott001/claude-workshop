@@ -46,7 +46,7 @@ export async function findByPaymentId(supabase: DbClient, paymentId: number): Pr
 }
 
 export async function findByQrToken(supabase: DbClient, qrToken: string): Promise<TicketWithUser | null> {
-  const { data } = await supabase.from("TICKET").select("*, USER:id(full_name, email)").eq("qr_token", qrToken).single();
+  const { data } = await supabase.from("TICKET").select("*, USER:user_id(full_name, email)").eq("qr_token", qrToken).single();
   return data;
 }
 
@@ -142,7 +142,7 @@ export async function getAttendees(
 
   let query = supabase
     .from("TICKET")
-    .select("USER:id(id, full_name, email), status, issued_at, updated_at", { count: "exact" })
+    .select("USER:user_id(id, full_name, email), status, issued_at, updated_at", { count: "exact" })
     .eq("event_id", eventId)
     .order("issued_at", { ascending: false });
 

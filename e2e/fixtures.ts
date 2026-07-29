@@ -93,32 +93,133 @@ export async function createEvent(db: SupabaseClient, overrides: Record<string, 
   return { eventId: data.id, title };
 }
 
+export interface SeededCourse {
+  courseId: number;
+  name: string;
+}
+
+/**
+ * A course belongs to an event in the live schema (COURSE.event_id), which is
+ * the reverse of what the migration file describes. See SPEC-07 §9.
+ */
+export async function createCourse(db: SupabaseClient, eventId: number): Promise<SeededCourse> {
+  const name = `${E2E_PREFIX}course-${RUN}-${randomUUID().slice(0, 6)}`;
+
+  const { data, error } = await db.from("COURSE").insert({ course_name: name, event_id: eventId }).select("id").single();
+  if (error || !data) throw new Error(`COURSE insert failed: ${error?.message}`);
+
+  return { courseId: data.id, name };
+}
+
+/**
+ * Puts a real object in a real bucket. Without this the entitlement tests prove
+ * nothing: a missing object and a forbidden one both return 404, by design.
+ */
+export async function uploadObject(db: SupabaseClient, bucket: string, key: string, body: string): Promise<void> {
+  const { error } = await db.storage.from(bucket).upload(key, new Blob([body], { type: "application/pdf" }), {
+    contentType: "application/pdf",
+    upsert: true,
+  });
+  if (error) throw new Error(`storage upload failed: ${error.message}`);
+}
+
+/** Issues a ticket the way the application does, so status and token are real. */
+export async function issueTicket(db: SupabaseClient, userId: number, eventId: number): Promise<string> {
+  const { data: payment, error: pErr } = await db
+    .from("PAYMENT")
+    .insert({ user_id: userId, event_id: eventId, amount: 0, currency: "PHP", status: "paid" })
+    .select("id")
+    .single();
+  if (pErr || !payment) throw new Error(`PAYMENT insert failed: ${pErr?.message}`);
+
+  const token = `${E2E_PREFIX}${randomUUID()}`;
+  const { error: tErr } = await db
+    .from("TICKET")
+    .insert({ payment_id: payment.id, user_id: userId, event_id: eventId, qr_token: token, status: "issued" });
+  if (tErr) throw new Error(`TICKET insert failed: ${tErr.message}`);
+
+  return token;
+}
+
+/**
+ * Signs in through the real form rather than injecting a cookie, so the tests
+ * exercise the same session the application issues. Requests made through the
+ * page afterwards carry that session.
+ */
+export async function signIn(page: import("@playwright/test").Page, user: SeededUser): Promise<void> {
+  await page.goto("/sign-in");
+  await page.locator("#signin-email").fill(user.email);
+  await page.locator("#signin-password").fill(user.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/events/, { timeout: 20_000 });
+}
+
 /**
  * Removes everything a run created, children first so foreign keys allow it.
  * Failures here are logged rather than thrown: a teardown error must not turn a
  * passing test red, and the `e2e-` prefix makes leftovers easy to sweep.
  */
-export async function cleanup(db: SupabaseClient, users: SeededUser[], events: SeededEvent[]): Promise<void> {
+export async function cleanup(
+  db: SupabaseClient,
+  users: SeededUser[],
+  events: SeededEvent[],
+  courses: SeededCourse[] = [],
+  objects: Array<{ bucket: string; key: string }> = [],
+): Promise<void> {
   const eventIds = events.map((e) => e.eventId);
   const userIds = users.map((u) => u.userId);
+  const courseIds = courses.map((c) => c.courseId);
 
   try {
+    for (const o of objects) {
+      await db.storage.from(o.bucket).remove([o.key]);
+    }
     if (eventIds.length) {
       await db.from("TICKET").delete().in("event_id", eventIds);
       await db.from("PAYMENT").delete().in("event_id", eventIds);
       await db.from("EVENT_SPEAKER").delete().in("event_id", eventIds);
     }
     if (userIds.length) {
-      await db.from("TICKET").delete().in("user_id", userIds);
-      await db.from("PAYMENT").delete().in("user_id", userIds);
-      await db.from("AUDIT_LOG").delete().in("user_id", userIds);
-      await db.from("EMAIL_LOG").delete().in("user_id", userIds);
+      // Every foreign key into USER, or the delete below is blocked by one of
+      // them. AUDIT_LOG in particular uses `actor_id`, and a facilitator who
+      // performed a check-in always has a row there.
+      for (const [table, column] of [
+        ["TICKET", "user_id"],
+        ["TICKET", "checked_in_by"],
+        ["PAYMENT", "user_id"],
+        ["AUDIT_LOG", "actor_id"],
+        ["EMAIL_LOG", "user_id"],
+        ["CHAT_MESSAGE", "user_id"],
+        ["CHAT_MESSAGE", "recipient_user_id"],
+        ["SUPPORT_SESSION", "user_id"],
+        ["SURVEY_RESPONSE", "user_id"],
+        ["SPEAKER_PROFILE", "user_id"],
+        ["EVENT_FACILITATOR", "user_id"],
+        ["EVENT_FACILITATOR", "assigned_by"],
+      ] as const) {
+        const { error } = await db.from(table).delete().in(column, userIds);
+        // A column that does not exist means the schema moved; surfacing it
+        // beats silently leaking rows into a shared database.
+        if (error) console.warn(`cleanup ${table}.${column}: ${error.message}`);
+      }
+    }
+    if (courseIds.length) {
+      const { data: modules } = await db.from("MODULE").select("id").in("course_id", courseIds);
+      const moduleIds = (modules ?? []).map((m: { id: number }) => m.id);
+      if (moduleIds.length) await db.from("LESSON").delete().in("module_id", moduleIds);
+      await db.from("MODULE").delete().in("course_id", courseIds);
+      await db.from("COURSE").delete().in("id", courseIds);
     }
     if (eventIds.length) await db.from("EVENT").delete().in("id", eventIds);
-    if (userIds.length) await db.from("USER").delete().in("id", userIds);
+
+    if (userIds.length) {
+      const { error } = await db.from("USER").delete().in("id", userIds);
+      if (error) console.warn(`cleanup USER: ${error.message}`);
+    }
 
     for (const u of users) {
-      await db.auth.admin.deleteUser(u.authId);
+      const { error } = await db.auth.admin.deleteUser(u.authId);
+      if (error) console.warn(`cleanup auth user: ${error.message}`);
     }
   } catch (err) {
     console.warn("E2E cleanup incomplete:", err instanceof Error ? err.message : err);
