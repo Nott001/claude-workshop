@@ -26,6 +26,7 @@ const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   facilitator: [
     { label: "Events", href: "/staff/events", icon: "event" },
     { label: "Create event", href: "/staff/events/new", icon: "add_circle" },
+    { label: "Courses", href: "/staff/courses", icon: "school" },
     { label: "Organization", href: "/staff/organization", icon: "groups" },
     { label: "Emails", href: "/staff/emails", icon: "mail" },
     { label: "Support", href: "/staff/support", icon: "support_agent" },

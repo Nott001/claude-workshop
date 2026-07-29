@@ -2,16 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
-import type { Lesson, Module } from "@/modules/courses/lib/use-course-detail";
+import type { Lesson, Module } from "@/shared/types";
+
+interface ModuleWithLessons extends Module {
+  LESSONS: Lesson[];
+}
 
 interface CurriculumBuilderProps {
-  modules: Module[];
+  modules: ModuleWithLessons[];
   onAddModule: () => Promise<number | undefined> | number | undefined;
   onRenameModule: (moduleId: number, newName: string) => Promise<void> | void;
   onDeleteModule: (moduleId: number) => Promise<void> | void;
   onDeleteLesson: (lessonId: number, moduleId: number) => Promise<void> | void;
   onAddLessonClick: (moduleId: number) => void;
-  onReorderModules: (modules: Module[]) => Promise<void>;
+  onReorderModules: (modules: ModuleWithLessons[]) => Promise<void>;
   onReorderLessons: (moduleId: number, lessons: Lesson[]) => Promise<void>;
 }
 
@@ -62,8 +66,8 @@ export function CurriculumBuilder({
     const draggedId = Number(e.dataTransfer.getData("text/plain"));
     if (!draggedId || draggedId === targetModuleId) return;
 
-    const draggedIdx = modules.findIndex((m) => m.module_id === draggedId);
-    const targetIdx = modules.findIndex((m) => m.module_id === targetModuleId);
+    const draggedIdx = modules.findIndex((m) => m.id === draggedId);
+    const targetIdx = modules.findIndex((m) => m.id === targetModuleId);
     if (draggedIdx === -1 || targetIdx === -1) return;
 
     const next = [...modules];
@@ -85,12 +89,12 @@ export function CurriculumBuilder({
     const draggedId = Number(e.dataTransfer.getData("text/plain"));
     if (!draggedId || draggedId === targetLessonId) return;
 
-    const mod = modules.find((m) => m.module_id === moduleId);
+    const mod = modules.find((m) => m.id === moduleId);
     if (!mod) return;
 
     const lessons = [...mod.LESSONS];
-    const draggedIdx = lessons.findIndex((l) => l.lesson_id === draggedId);
-    const targetIdx = lessons.findIndex((l) => l.lesson_id === targetLessonId);
+    const draggedIdx = lessons.findIndex((l) => l.id === draggedId);
+    const targetIdx = lessons.findIndex((l) => l.id === targetLessonId);
     if (draggedIdx === -1 || targetIdx === -1) return;
 
     const [moved] = lessons.splice(draggedIdx, 1);
@@ -126,33 +130,33 @@ export function CurriculumBuilder({
         <div className="space-y-3">
           {modules.map((mod) => (
             <div
-              key={mod.module_id}
+              key={mod.id}
               draggable
-              onDragStart={(e) => handleModuleDragStart(e, mod.module_id)}
-              onDragOver={(e) => handleModuleDragOver(e, mod.module_id)}
+              onDragStart={(e) => handleModuleDragStart(e, mod.id)}
+              onDragOver={(e) => handleModuleDragOver(e, mod.id)}
               onDragLeave={() => setDragOverModuleId(null)}
-              onDrop={(e) => handleModuleDrop(e, mod.module_id)}
+              onDrop={(e) => handleModuleDrop(e, mod.id)}
               onDragEnd={() => setDragOverModuleId(null)}
               className={`rounded-lg border bg-muted p-5 transition-shadow ${
-                dragOverModuleId === mod.module_id ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]" : "border-border"
+                dragOverModuleId === mod.id ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]" : "border-border"
               }`}
             >
               <div className="mb-3 flex items-center gap-2">
-                {renamingModuleId === mod.module_id ? (
+                {renamingModuleId === mod.id ? (
                   <input
                     ref={renameInputRef}
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        onRenameModule(mod.module_id, renameValue.trim());
+                        onRenameModule(mod.id, renameValue.trim());
                         setRenamingModuleId(null);
                       }
                       if (e.key === "Escape") setRenamingModuleId(null);
                     }}
                     onBlur={() => {
                       if (renameValue.trim()) {
-                        onRenameModule(mod.module_id, renameValue.trim());
+                        onRenameModule(mod.id, renameValue.trim());
                       }
                       setRenamingModuleId(null);
                     }}
@@ -164,7 +168,7 @@ export function CurriculumBuilder({
 
                 <button
                   onClick={() => {
-                    setRenamingModuleId(mod.module_id);
+                    setRenamingModuleId(mod.id);
                     setRenameValue(mod.module_name);
                   }}
                   className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
@@ -178,7 +182,7 @@ export function CurriculumBuilder({
                 </span>
 
                 <button
-                  onClick={() => onDeleteModule(mod.module_id)}
+                  onClick={() => onDeleteModule(mod.id)}
                   className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                   title="Delete module"
                 >
@@ -190,18 +194,18 @@ export function CurriculumBuilder({
                 <div className="mb-3 space-y-1.5">
                   {mod.LESSONS.map((lesson) => (
                     <div
-                      key={lesson.lesson_id}
+                      key={lesson.id}
                       draggable
-                      onDragStart={(e) => handleLessonDragStart(e, lesson.lesson_id)}
+                      onDragStart={(e) => handleLessonDragStart(e, lesson.id)}
                       onDragOver={(e) => {
                         e.preventDefault();
-                        setDragOverLessonId(lesson.lesson_id);
+                        setDragOverLessonId(lesson.id);
                       }}
                       onDragLeave={() => setDragOverLessonId(null)}
-                      onDrop={(e) => handleLessonDrop(e, lesson.lesson_id, mod.module_id)}
+                      onDrop={(e) => handleLessonDrop(e, lesson.id, mod.id)}
                       onDragEnd={() => setDragOverLessonId(null)}
                       className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
-                        dragOverLessonId === lesson.lesson_id
+                        dragOverLessonId === lesson.id
                           ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
                           : "border-border bg-surface"
                       }`}
@@ -226,7 +230,7 @@ export function CurriculumBuilder({
                           </Button>
                         )}
                         <button
-                          onClick={() => onDeleteLesson(lesson.lesson_id, mod.module_id)}
+                          onClick={() => onDeleteLesson(lesson.id, mod.id)}
                           className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
                           title="Delete lesson"
                         >
@@ -238,7 +242,7 @@ export function CurriculumBuilder({
                 </div>
               )}
 
-              <Button variant="ghost" size="sm" onClick={() => onAddLessonClick(mod.module_id)}>
+              <Button variant="ghost" size="sm" onClick={() => onAddLessonClick(mod.id)}>
                 <span className="material-symbols-rounded text-[14px]">add_circle</span>
                 Add lesson to topic
               </Button>

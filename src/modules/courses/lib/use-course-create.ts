@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
-import type { Lesson, Module } from "@/modules/courses/lib/use-course-detail";
+import type { Lesson, Module } from "@/shared/types";
 
 export function useCourseCreate(eventId: string) {
   const router = useRouter();
@@ -13,7 +13,7 @@ export function useCourseCreate(eventId: string) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [modules, setModules] = useState<Module[]>([]);
+  const [modules, setModules] = useState<(Module & { LESSONS: Lesson[] })[]>([]);
   const [lessonDialogModuleId, setLessonDialogModuleId] = useState<number | null>(null);
 
   async function handleCreateCourse(e: React.FormEvent) {
@@ -44,7 +44,7 @@ export function useCourseCreate(eventId: string) {
 
   async function ensureCourseCreated(): Promise<number | null> {
     if (modules.length > 0) {
-      return modules[0].course_id;
+      return modules[0].id;
     }
 
     const res = await fetch("/api/courses", {
@@ -64,7 +64,7 @@ export function useCourseCreate(eventId: string) {
 
     const course = await res.json();
     setCourseName(course.course_name);
-    return course.course_id;
+    return course.id;
   }
 
   async function handleAddModule(): Promise<number | undefined> {
@@ -80,14 +80,14 @@ export function useCourseCreate(eventId: string) {
     if (!res.ok) return;
     const mod = await res.json();
     setModules((prev) => [...prev, { ...mod, LESSONS: [] }]);
-    return mod.module_id;
+    return mod.id;
   }
 
   async function handleRenameModule(moduleId: number, newName: string) {
     const trimmed = newName.trim();
     if (!trimmed) return;
 
-    const mod = modules.find((m) => m.module_id === moduleId);
+    const mod = modules.find((m) => m.id === moduleId);
     if (!mod || trimmed === mod.module_name) return;
 
     const res = await fetch(`/api/modules/${moduleId}`, {
@@ -97,7 +97,7 @@ export function useCourseCreate(eventId: string) {
     });
 
     if (res.ok) {
-      setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, module_name: trimmed } : m)));
+      setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, module_name: trimmed } : m)));
     }
   }
 
@@ -105,7 +105,7 @@ export function useCourseCreate(eventId: string) {
     if (!confirm("Delete this module and all its lessons?")) return;
     const res = await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
     if (!res.ok) return;
-    setModules((prev) => prev.filter((m) => m.module_id !== moduleId));
+    setModules((prev) => prev.filter((m) => m.id !== moduleId));
   }
 
   async function handleDeleteLesson(lessonId: number, moduleId: number) {
@@ -113,7 +113,7 @@ export function useCourseCreate(eventId: string) {
     const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
     if (!res.ok) return;
     setModules((prev) =>
-      prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: m.LESSONS.filter((l) => l.lesson_id !== lessonId) } : m)),
+      prev.map((m) => (m.id === moduleId ? { ...m, LESSONS: m.LESSONS.filter((l) => l.id !== lessonId) } : m)),
     );
   }
 
@@ -125,7 +125,7 @@ export function useCourseCreate(eventId: string) {
     const moduleId = lessonDialogModuleId;
     if (!moduleId) return "No module selected";
 
-    const mod = modules.find((m) => m.module_id === moduleId);
+    const mod = modules.find((m) => m.id === moduleId);
     if (!mod) return "Module not found";
 
     const sequenceOrder = mod.LESSONS.length + 1;
@@ -155,8 +155,8 @@ export function useCourseCreate(eventId: string) {
       if (endpoint) {
         const formData = new FormData();
         formData.append("file", data.file);
-        formData.append("lesson_id", String(lesson.lesson_id));
-        formData.append("course_id", String(modules[0].course_id));
+        formData.append("lesson_id", String(lesson.id));
+        formData.append("course_id", String(modules[0].id));
         formData.append("module_id", String(moduleId));
 
         const uploadRes = await fetch(endpoint, { method: "POST", body: formData });
@@ -167,16 +167,16 @@ export function useCourseCreate(eventId: string) {
       }
     }
 
-    setModules((prev) => prev.map((m) => (m.module_id === moduleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
+    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
     setLessonDialogModuleId(null);
     return null;
   }
 
-  async function handleReorderModules(reordered: Module[]) {
+  async function handleReorderModules(reordered: (Module & { LESSONS: Lesson[] })[]) {
     setModules(reordered);
     await Promise.all(
       reordered.map((m) =>
-        fetch(`/api/modules/${m.module_id}`, {
+        fetch(`/api/modules/${m.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
@@ -186,10 +186,10 @@ export function useCourseCreate(eventId: string) {
   }
 
   async function handleReorderLessons(_moduleId: number, lessons: Lesson[]) {
-    setModules((prev) => prev.map((m) => (m.module_id === _moduleId ? { ...m, LESSONS: lessons } : m)));
+    setModules((prev) => prev.map((m) => (m.id === _moduleId ? { ...m, LESSONS: lessons } : m)));
     await Promise.all(
       lessons.map((l) =>
-        fetch(`/api/lessons/${l.lesson_id}`, {
+        fetch(`/api/lessons/${l.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

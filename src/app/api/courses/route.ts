@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
+import { courseDao, speakerDao } from "@/shared/db/dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -30,6 +31,18 @@ export async function POST(req: Request) {
   }
 
   const supabase = getServiceClient();
+
+  if (!hasMinRole(guard.user.role, "facilitator")) {
+    const profile = await speakerDao.findByUserId(supabase, guard.user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "No speaker profile found" }, { status: 400 });
+    }
+    const assigned = await speakerDao.checkSpeakerAssignment(supabase, profile.id, parsed.data.event_id);
+    if (!assigned) {
+      return NextResponse.json({ error: "You are not assigned as a speaker to this event" }, { status: 403 });
+    }
+  }
+
   const course = await courseDao.createCourse(supabase, {
     course_name: parsed.data.course_name,
     course_description: parsed.data.course_description ?? null,
