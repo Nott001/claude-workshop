@@ -13,5 +13,10 @@ export async function optimizeImage(file: File): Promise<File> {
     optimized = await pipeline.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
   }
 
-  return new File([optimized], file.name, { type: file.type });
+  // sharp returns a Node Buffer, typed as Uint8Array<ArrayBufferLike>, but File
+  // needs an ArrayBuffer-backed view. Node buffers are never backed by a
+  // SharedArrayBuffer, so this narrows the type without copying the bytes.
+  const bytes = new Uint8Array(optimized.buffer as ArrayBuffer, optimized.byteOffset, optimized.byteLength);
+
+  return new File([bytes], file.name, { type: file.type });
 }
