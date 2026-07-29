@@ -74,6 +74,27 @@ export async function upsertUser(
   return result;
 }
 
+export async function updateUser(
+  supabase: DbClient,
+  authUserId: string,
+  data: { full_name?: string; email?: string; profile_image_url?: string | null },
+): Promise<User | null> {
+  const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (data.full_name !== undefined) updatePayload.full_name = data.full_name;
+  if (data.email !== undefined) updatePayload.email = data.email;
+  if (data.profile_image_url !== undefined) updatePayload.profile_image_url = data.profile_image_url;
+
+  const { data: result, error } = await supabase
+    .from("USER")
+    .update(updatePayload)
+    .eq("auth_user_id", authUserId)
+    .select("*")
+    .single();
+
+  if (error || !result) return null;
+  return result;
+}
+
 export async function updateRole(
   supabase: DbClient,
   id: number,
