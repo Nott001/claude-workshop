@@ -32,11 +32,13 @@ A dashboard with role-gated sections rendered as cards/sections on one page.
 | Section | Role gate | Contents |
 |---|---|---|
 | **Overview** | all staff (f+) | Event info, attendee count, publish/edit/delete buttons |
-| **Course** | speaker+ | View course (f+), build course (speaker) |
+| **Course** | speaker+ | **Speaker**: inline course builder with curriculum builder. **Facilitator/admin**: "View Course" if exists, or "Waiting for speaker to create course" if missing. **Admin**: "Assign a speaker first" if no speaker assigned to event. |
 | **Speakers** | admin+ | Assign/remove speakers from event |
 | **Support** | facilitator+ | Event-specific support chat |
 | **Kiosk** | facilitator+ | QR attendance scanner |
 | **Surveys** | facilitator+ | Create/manage surveys |
+
+Note: Course is loaded via `GET /api/courses/event/[eventId]` (not from EVENT.course_id).
 
 ### Access control
 

@@ -65,8 +65,8 @@ This means:
 
 | Route | Current | New (effective) |
 |---|---|---|
-| `POST /api/courses` | `facilitator` | `speaker` |
-| `GET /api/courses` | `facilitator` | `speaker` |
+| `POST /api/courses` | `facilitator` | `speaker` (+ event_id validation, see SPEC-06) |
+| `GET /api/courses` | `facilitator` | **Removed** (courses scoped to events) |
 | `POST /api/organization` | `facilitator` | `admin` |
 | `PATCH /api/organization/[id]` | `facilitator` | `admin` |
 | `DELETE /api/organization/[id]` | `facilitator` | `admin` |

@@ -39,6 +39,14 @@ Move entire `src/app/speakers/` directory to `src/app/speaker/`.
 New kiosk page at `src/app/staff/events/[id]/kiosk/page.tsx` pre-selects the event
 so no event picker is needed. Remove old `src/app/staff/kiosk/page.tsx`.
 
-## 3. Navbar changes
+## 3. Course pages removed
+
+- `/staff/courses` — removed (courses are scoped to events, see SPEC-06)
+- `/staff/courses/new` — removed
+- `/staff/courses/[id]` — removed
+- Course creation embedded in event dashboard (see SPEC-03)
+
+## 4. Navbar changes
 
 Add admin/super_admin nav items (same as facilitator). Speaker nav stays minimal.
+Remove `/staff/courses` and `/staff/courses/new` from facilitator nav items.
