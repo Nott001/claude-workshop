@@ -22,7 +22,7 @@ export default function CourseDetailPage() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-bg p-8">
         <p className="text-destructive">{error ?? "Course not found"}</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/courses")}>
+        <Button variant="secondary" className="mt-4" onClick={() => router.push("/courses")}>
           Back
         </Button>
       </div>
@@ -48,13 +48,13 @@ export default function CourseDetailPage() {
         {course.MODULES && course.MODULES.length > 0 ? (
           <div className="space-y-4">
             {course.MODULES.map((mod) => (
-              <div key={mod.id} className="rounded-xl border border-border bg-surface p-4">
+              <div key={mod.module_id} className="rounded-xl border border-border bg-surface p-4">
                 <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
                 {mod.LESSONS && mod.LESSONS.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {mod.LESSONS.map((lesson) => (
                       <div
-                        key={lesson.id}
+                        key={lesson.lesson_id}
                         className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-fg"
                       >
                         <span className="material-symbols-rounded text-[14px]">description</span>

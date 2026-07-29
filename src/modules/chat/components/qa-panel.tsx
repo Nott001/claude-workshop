@@ -82,7 +82,7 @@ export default function QAPanel({ eventId, userRole, currentUserId, eventStarted
       reply_to: replyTarget,
       answered_verbally: false,
       deleted_at: null,
-      updated_at: null,
+      updated_at: new Date().toISOString(),
       USER: { full_name: "You", role: (userRole ?? "attendee") as UserRole },
     };
 
