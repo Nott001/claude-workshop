@@ -74,6 +74,30 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
   return data;
 }
 
+export async function findCourseByEvent(supabase: DbClient, eventId: number): Promise<unknown> {
+  const { data: event } = await supabase.from("EVENT").select("course_id").eq("id", eventId).single();
+
+  if (!event?.course_id) return null;
+
+  const { data } = await supabase
+    .from("COURSE")
+    .select(
+      `
+      *,
+      MODULE (
+        *,
+        LESSON (*)
+      )
+    `,
+    )
+    .eq("id", event.course_id)
+    .order("sequence_order", { foreignTable: "MODULE", ascending: true })
+    .order("sequence_order", { foreignTable: "MODULE.LESSON", ascending: true })
+    .single();
+
+  return data;
+}
+
 export async function createCourse(
   supabase: DbClient,
   data: { course_name: string; course_description: string | null },
