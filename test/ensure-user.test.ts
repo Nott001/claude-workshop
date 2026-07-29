@@ -24,7 +24,13 @@ describe("ensureUser", () => {
       data: { user: { email: "jane@example.com", user_metadata: { full_name: "Jane Doe" } } },
       error: null,
     });
-    upsertUser.mockResolvedValue({ id: 1, auth_user_id: "auth_123", email: "jane@example.com", full_name: "Jane Doe", role: "attendee" });
+    upsertUser.mockResolvedValue({
+      id: 1,
+      auth_user_id: "auth_123",
+      email: "jane@example.com",
+      full_name: "Jane Doe",
+      role: "attendee",
+    });
 
     const result = await ensureUser(fakeServiceClient, "auth_123");
 

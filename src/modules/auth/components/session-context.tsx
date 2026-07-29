@@ -31,7 +31,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function loadSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.user) {
         fetch("/api/auth/me")
           .then((r) => (r.ok ? r.json() : null))
