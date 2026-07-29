@@ -54,8 +54,8 @@ coverage — write tests that call the real function.
 ## 2. The pyramid
 
 ```
-        /   E2E    \      deferred — see §6
-       / Integration \    API routes + DAOs   <- built, §3
+        /   E2E    \      real browser + real database  <- built, §8
+       / Integration \    API routes + DAOs             <- built, §3
       /   Unit tests  \   guards, schemas, pure logic
 ```
 
@@ -225,23 +225,27 @@ Supply-chain posture beyond the above: `--frozen-lockfile` everywhere,
 `minimumReleaseAge` (24h cooling-off before a freshly-published version may
 enter the lockfile), pinned `packageManager`, and grouped Dependabot PRs.
 
-## 6. Deliberately deferred
+## 6. Previously deferred, now built
 
-**E2E (Playwright).** Not now. It needs a green build and a dedicated test
-Supabase project with seeded fixtures; without isolation, E2E tests mutate
-shared dev data, race each other, and fail for reasons unrelated to the PR.
-Flaky E2E is worse than none — it erodes trust in the gates that do work.
-Revisit with exactly one flow: register → pay → issue ticket → check in.
+Both items in this section were deferred for stated reasons. Both reasons went
+away, and the record of why is kept because the reasoning was sound at the time.
 
-**Lighthouse.** Blocked on the build. When it lands, target only the routes
-the middleware leaves public — `/`, `/events`, `/sign-in` — as a separate
-non-blocking job. Note the middleware calls `supabase.auth.getUser()` on every
-matched request, so numbers will be meaningless without real Supabase env.
+**E2E (Playwright).** Deferred on the grounds that it needed a green build and
+an isolated database. The build was fixed, and the isolation concern turned out
+to be answerable another way — see §8. Now 5 tests, ~11s.
 
-## 7. Known-red gates on adoption
+**Lighthouse.** Deferred because it needs `pnpm start`, which needs build
+output that did not exist. Now runs against `/`, `/events` and `/sign-in`, the
+routes the middleware leaves public.
 
-CI will be red on `main` the day it merges. This is the pipeline reporting
-pre-existing breakage, not new breakage — no source file was modified.
+## 7. Adoption history
+
+The pipeline was red on arrival: 24 pre-existing TypeScript errors and a build
+that failed on three modules deleted by an earlier refactor while their
+importers were left behind. That was the pipeline reporting existing breakage
+rather than introducing any — no source file changed when it landed.
+
+All of it is now fixed and every gate passes.
 
 - **Typecheck — 28 errors across 15 files.**
 - **Build — fails**, on the same missing modules.
@@ -264,3 +268,59 @@ cookie-options signature mismatch in `session.ts:22` and
 
 All must be fixed before the pipeline is green, and before Lighthouse or E2E
 become possible. Tracked separately from this spec.
+
+## 8. E2E (added)
+
+Playwright, in `e2e/`, deliberately outside `test/` so `pnpm test` stays a fast
+hermetic vitest run. These talk to a real browser and a real database.
+
+`pnpm test:e2e` — 5 tests, ~11s locally.
+
+### Why this became viable
+
+The earlier objection was that E2E against the shared dev Supabase would mutate
+real data and fail on the second run, since `register` returns 409 once a user
+holds a ticket. Three things resolved it:
+
+- The dev database is effectively empty — 4 users, no events, tickets or
+  courses — so there is almost nothing to pollute.
+- The service role key permits `auth.admin.createUser`, so each run provisions
+  its own accounts rather than reusing one.
+- `SimulatedPaymentGateway` marks payment paid and issues a real ticket with no
+  external gateway, so the full purchase flow is reachable in a test.
+
+### The fixture contract
+
+`e2e/fixtures.ts` creates every user and event a run needs, prefixed `e2e-`,
+and deletes them afterwards — children first, so foreign keys allow it.
+Verified: 4 users before a run, 4 after, zero orphans.
+
+Two details that matter:
+
+- `email_confirm: true` on user creation. A user made through the normal
+  sign-up flow may need to confirm an email, which a test cannot do.
+- The role is written straight into the `USER` row, because `ensure-user`
+  hardcodes every new user to `attendee` and there is no path to facilitator
+  through the application.
+
+Cleanup logs rather than throws. A teardown failure must not turn a passing
+test red, and the `e2e-` prefix makes orphans from a crashed run sweepable.
+
+### CI
+
+`.github/workflows/e2e.yml` needs three repository secrets:
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY`. It skips on fork pull requests, which cannot
+receive secrets — skipping is honest where failing would be noise.
+
+**The service role key in CI is a real exposure.** It bypasses row level
+security entirely. The alternative is a dedicated Supabase project for testing,
+which is the right move if this repo ever takes outside contributions.
+
+### What to add next
+
+One flow at a time, so the fixture pattern stays proven:
+
+1. register → pay → ticket issued → QR check-in (the highest-value path)
+2. facilitator creates an event, publishes it, sees it on the public listing
+3. course material entitlement — an attendee without a ticket is refused

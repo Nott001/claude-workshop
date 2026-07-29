@@ -2,6 +2,17 @@ name: Lighthouse
 
 on:
   pull_request:
+    # Nothing here can change what a browser renders, so auditing it is waste.
+    #
+    # Lighthouse must NOT be added to branch protection as a required check
+    # while this filter exists. A required check that never runs leaves the PR
+    # permanently "waiting for status" and unmergeable.
+    paths-ignore:
+      - "**/*.md"
+      - "specs/**"
+      - "LICENSE"
+      - ".gitignore"
+      - ".prettierignore"
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}

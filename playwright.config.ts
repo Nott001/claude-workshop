@@ -1,0 +1,47 @@
+import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+
+// Locally the credentials live in .env.local; in CI they arrive as secrets on
+// the environment already. Node's own loader avoids a dotenv dependency.
+if (existsSync(".env.local")) {
+  process.loadEnvFile(".env.local");
+}
+
+const PORT = Number(process.env.E2E_PORT ?? 3200);
+const BASE_URL = `http://localhost:${PORT}`;
+
+export default defineConfig({
+  testDir: "./e2e",
+  // Kept out of `test/` so `pnpm test` stays a fast, hermetic vitest run. These
+  // talk to a real database and are an order of magnitude slower.
+  outputDir: "./e2e/.results",
+
+  // Each spec provisions its own users and event, so parallelism is safe. On CI
+  // a single worker keeps output readable and load predictable.
+  fullyParallel: true,
+  workers: process.env.CI ? 1 : undefined,
+
+  // A retry masks a real flake locally, where it should be diagnosed. On CI one
+  // retry absorbs genuine network noise without hiding a reproducible failure.
+  retries: process.env.CI ? 1 : 0,
+  forbidOnly: !!process.env.CI,
+
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
+
+  use: {
+    baseURL: BASE_URL,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
+
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+
+  webServer: {
+    // Production build, matching what users get. Uses a dedicated port so a dev
+    // server on 3000 does not collide.
+    command: `pnpm start --port ${PORT}`,
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+});
