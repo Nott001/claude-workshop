@@ -274,8 +274,8 @@ become possible. Tracked separately from this spec.
 Playwright, in `e2e/`, deliberately outside `test/` so `pnpm test` stays a fast
 hermetic vitest run. These talk to a real browser and a real database.
 
-`pnpm test:e2e` — 22 tests across 4 specs, ~60s locally. One is marked
-`fixme`; see §9.
+`pnpm test:e2e` — 41 tests across 7 specs, ~80s locally. Four are skipped or
+marked `fixme`; see §9 for why.
 
 ### Why this became viable
 
@@ -320,12 +320,30 @@ which is the right move if this repo ever takes outside contributions.
 
 ### What is covered
 
-| Spec | Covers |
-| --- | --- |
-| `auth.spec.ts` | session, staff redirect, bad credentials, role boundary |
-| `tickets.spec.ts` | buy → ticket issued → QR check-in, replay, forged token, role gate |
-| `entitlement.spec.ts` | course material access with/without ticket, cancelled ticket, bucket and path refusal |
-| `events.spec.ts` | draft visibility, publish, republish refusal, role gate |
+| Spec | Tests | Covers |
+| --- | --: | --- |
+| `auth.spec.ts` | 5 | session, staff redirect, bad credentials, role boundary |
+| `tickets.spec.ts` | 6 | buy → ticket issued → QR check-in, replay, forged token, role gate |
+| `entitlement.spec.ts` | 6 | course material access with/without ticket, cancelled ticket, bucket and path refusal |
+| `events.spec.ts` | 5 | draft visibility, publish, republish refusal, role gate |
+| `uploads.spec.ts` | 6 | upload → storage → entitlement, file type, role gate, event cover |
+| `courses.spec.ts` | 6 | modules, lessons, nested read-back, cascade delete, role gate |
+| `signup.spec.ts` | 3 | form rendering and validation |
+
+`uploads.spec.ts` closes a loop the others leave open. `entitlement.spec.ts`
+seeds its object with the service client, so it never proves the upload route
+writes where the storage route reads. Here the file goes in through the
+application and comes back out through it.
+
+### Not covered
+
+Chat, Q&A, support, live session state and surveys. All involve websockets or
+polling, which is where E2E flakiness comes from; the value does not yet
+justify the maintenance. Kiosk scanning needs a fake camera stream.
+
+Most specs sign in through the real form and then drive the API. That verifies
+real auth, real queries and real storage, but not "does the button call the
+right route" — UI-driven coverage is still thin.
 
 Cleanup is verified rather than assumed: the database returns to exactly its
 baseline after a full run — 4 users, no events, courses, tickets or objects.
@@ -390,3 +408,25 @@ this wants a new numbered one.
 
 Until then, `userHasCourseAccess` and the E2E fixtures follow the database,
 because that is what the queries run against.
+
+### Skipped — sign-up happy path is rate limited
+
+Completing sign-up sends a confirmation email, and this Supabase project caps
+those per hour. Running the happy path on every pull request exhausts the quota
+and then fails with `email rate limit exceeded` — red for a reason unrelated to
+the change, which is how teams learn to ignore CI.
+
+`signup.spec.ts` therefore covers rendering and validation only; the two cases
+that create an account are `test.skip`. Enabling them needs either email
+confirmation turned off for the project or custom SMTP configured. Delete the
+markers once that is done.
+
+### Also blocked — course creation through the API
+
+Same drift as event creation. `courseDao.createCourse` inserts only
+`course_name` and `course_description`, but the live COURSE table has
+`event_id NOT NULL`, so every call fails. Recorded as a `fixme` in
+`courses.spec.ts`.
+
+Everything below the course level works and is covered: modules, lessons, the
+nested read-back through `GET /api/courses/[id]`, and cascade delete.
