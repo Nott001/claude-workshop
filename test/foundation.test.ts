@@ -42,7 +42,13 @@ describe("requireRole", () => {
 
   it("returns Forbidden when user role is not allowed", async () => {
     const { requireAuth } = await import("@/modules/auth/lib/session");
-    vi.mocked(requireAuth).mockResolvedValue({ id: 1, role: "attendee", full_name: "Test", email: "test@test.com", profile_image_url: null });
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: 1,
+      role: "attendee",
+      full_name: "Test",
+      email: "test@test.com",
+      profile_image_url: null,
+    });
 
     const { requireRole } = await import("@/modules/auth/lib/role-guard");
     const result = await requireRole("facilitator");
@@ -53,7 +59,13 @@ describe("requireRole", () => {
 
   it("returns allowed when user role matches", async () => {
     const { requireAuth } = await import("@/modules/auth/lib/session");
-    vi.mocked(requireAuth).mockResolvedValue({ id: 1, role: "facilitator", full_name: "Admin", email: "admin@test.com", profile_image_url: null });
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: 1,
+      role: "facilitator",
+      full_name: "Admin",
+      email: "admin@test.com",
+      profile_image_url: null,
+    });
 
     const { requireRole } = await import("@/modules/auth/lib/role-guard");
     const result = await requireRole("facilitator");

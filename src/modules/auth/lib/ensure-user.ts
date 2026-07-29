@@ -15,5 +15,11 @@ export async function ensureUser(supabase: ReturnType<typeof getServiceClient>, 
   });
 
   if (!created) return null;
-  return { id: created.id, role: created.role, full_name: created.full_name, email: created.email, profile_image_url: created.profile_image_url };
+  return {
+    id: created.id,
+    role: created.role,
+    full_name: created.full_name,
+    email: created.email,
+    profile_image_url: created.profile_image_url,
+  };
 }

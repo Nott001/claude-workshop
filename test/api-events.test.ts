@@ -25,7 +25,11 @@ vi.mock("@/modules/audit", () => ({ logAuditEvent }));
 import { GET, POST } from "@/app/api/events/route";
 import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";
 
-const facilitator = { allowed: true, error: null, user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null } };
+const facilitator = {
+  allowed: true,
+  error: null,
+  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+};
 const denied = { allowed: false, error: "Forbidden", user: null };
 
 const validEvent = {
@@ -41,7 +45,13 @@ const postEvent = (body: unknown) => new Request("https://app.test/api/events", 
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(facilitator);
-  requireAuth.mockResolvedValue({ id: 5, role: "attendee", full_name: "Jane", email: "jane@example.com", profile_image_url: null });
+  requireAuth.mockResolvedValue({
+    id: 5,
+    role: "attendee",
+    full_name: "Jane",
+    email: "jane@example.com",
+    profile_image_url: null,
+  });
   list.mockResolvedValue([]);
   create.mockResolvedValue({ id: 1, ...validEvent });
   eventFindById.mockResolvedValue({ id: 1, status: "draft" });

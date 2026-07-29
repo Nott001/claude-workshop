@@ -3,6 +3,7 @@ import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
+import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import {
   uploadToStorage,
   buildProfileImagePath,
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
 
   const ext = getExtensionFromMimeType(file.type);
+  const optimizedFile = await optimizeImage(file);
   const path = buildProfileImagePath(guard.user.id, ext);
 
   try {
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
       await deleteFromStorage("profile_images", oldPaths);
     }
 
-    const result = await uploadToStorage("profile_images", path, file);
+    const result = await uploadToStorage("profile_images", path, optimizedFile);
 
     await userDao.updateUser(supabase, authUserId, { profile_image_url: result.url });
 
