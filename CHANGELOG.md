@@ -12,6 +12,14 @@
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
 
 ### Added
+- Continuous integration. Four workflows run on every pull request: **CI** (format, lint, typecheck, unit tests with coverage, production build), **Security**, **Lighthouse**, and **E2E**. Each collapses into a single status check so branch protection needs no update when a job is added. The repository previously had no CI at all.
+- Security scanning on every pull request and weekly on a schedule, so advisories against unchanged code still surface: CodeQL static analysis, gitleaks secret scanning over full history, a dependency audit that blocks on production advisories and reports dev-only ones, and a check that every table in a migration enables row level security.
+- Lighthouse audits of the public routes (`/`, `/events`, `/sign-in`). Accessibility, best-practices, SEO and layout shift block on regression; performance and timing metrics warn, because they vary with CI runner load.
+- **144 unit and integration tests** covering the request-handling trust boundary — the API routes, the session and role guards, the middleware's route protection, and DAO query shaping. Every route test asserts that an unauthorized request issues no database call at all, not merely that it returns 401.
+- A sweep that reads all 43 API route files and fails if any lacks a `requireAuth` or `requireRole` call, so a route shipped without a guard breaks the build instead of shipping. Exceptions live in two explicit lists with written reasons.
+- **41 end-to-end tests** driving a real browser against a real database: sign-in and route protection, the full purchase path from registration through ticket issuance to QR check-in, course material entitlement, event publishing, uploads read back through the entitlement gate, and course authoring. Each run provisions its own users, events and courses and deletes them afterwards, verified to leave the database exactly as it found it.
+- Coverage measurement with thresholds set at measured values as a ratchet against regression. Statement coverage rose from 2.25% to 8.56%; the global figure stays low because components are most of the remaining surface, while the trust boundary itself is at or near full coverage.
+- Dependabot, grouped so patch and minor updates arrive as one pull request and majors stay separate for review.
 - Staff management pages for events, courses, emails, and organization under `src/app/staff/`.
 
 ### Changed
@@ -21,3 +29,6 @@
 - All client components updated: `useUser()`/`useClerk()` replaced with `useSession()` from auth module.
 - Middleware rewritten to use `@supabase/ssr` for session management.
 - Staff login page merged into unified sign-in page (role-based redirect).
+- `pnpm test` now runs once and exits; `pnpm test:watch` is the watch mode. `AGENTS.md` asks contributors to run the tests before committing, which previously dropped them into a watcher.
+- `prettier`, `vitest` and `eslint-config-prettier` moved out of `dependencies`. They were shipping to production, and separating them is what lets the audit block on production advisories while treating dev-only ones as advisory.
+- `postcss` and `sharp` pinned above their advisories through pnpm overrides, clearing three high-severity findings that reached production through `next`.
