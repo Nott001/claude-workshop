@@ -260,3 +260,31 @@ export async function deleteLesson(supabase: DbClient, id: number): Promise<bool
   const { error } = await supabase.from("LESSON").delete().eq("id", id);
   return !error;
 }
+
+/**
+ * Whether a user is entitled to a course's material.
+ *
+ * Entitlement comes from either holding a live ticket to an event that teaches
+ * the course, or being a speaker assigned to one. Facilitators bypass this and
+ * are checked by the caller, since that is a role decision rather than a query.
+ */
+export async function userHasCourseAccess(supabase: DbClient, userId: number, courseId: number): Promise<boolean> {
+  const { data: ticket } = await supabase
+    .from("TICKET")
+    .select("id, EVENT!inner(course_id)")
+    .eq("user_id", userId)
+    .neq("status", "cancelled")
+    .eq("EVENT.course_id", courseId)
+    .limit(1);
+
+  if (ticket && ticket.length > 0) return true;
+
+  const { data: speaking } = await supabase
+    .from("EVENT_SPEAKER")
+    .select("event_id, SPEAKER_PROFILE!inner(user_id), EVENT!inner(course_id)")
+    .eq("SPEAKER_PROFILE.user_id", userId)
+    .eq("EVENT.course_id", courseId)
+    .limit(1);
+
+  return !!speaking && speaking.length > 0;
+}
