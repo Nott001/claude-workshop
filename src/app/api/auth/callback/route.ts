@@ -17,7 +17,7 @@ export async function GET(req: Request) {
           cookieStore.set(name, value, options);
         },
         remove(name: string, options: Record<string, unknown>) {
-          cookieStore.delete(name, options);
+          cookieStore.set(name, "", { ...options, maxAge: 0 });
         },
       },
     });
