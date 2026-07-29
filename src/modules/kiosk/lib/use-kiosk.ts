@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import type { Event } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export function useKiosk() {
   const router = useRouter();
@@ -16,13 +17,13 @@ export function useKiosk() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn || userRole !== "facilitator") {
+    if (!isSignedIn || !hasMinRole(userRole, "facilitator")) {
       router.push("/");
     }
   }, [isLoaded, isSignedIn, userRole, router]);
 
   useEffect(() => {
-    if (userRole !== "facilitator") return;
+    if (!hasMinRole(userRole, "facilitator")) return;
     fetch("/api/events?filter=upcoming")
       .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load events")))
       .then((data) => {

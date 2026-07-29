@@ -10,11 +10,11 @@ const PAGE_SIZE = 10;
 const inviteSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
-  role: z.enum(["attendee", "speaker", "facilitator"]),
+  role: z.enum(["attendee", "speaker", "facilitator", "admin", "super_admin"]),
 });
 
 export async function GET(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }

@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao, ticketDao, paymentDao } from "@/shared/db/dao";
 import { paymentInitSchema } from "@/modules/commerce";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  if (event.status === "draft" && user.role !== "facilitator") {
+  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
@@ -51,7 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  if (event.status === "draft" && user.role !== "facilitator") {
+  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 

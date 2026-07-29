@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export interface Lesson {
   id: number;
@@ -44,7 +45,7 @@ export function useRoomAccess(eventId: string) {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
-  const isStaff = userRole === "speaker" || userRole === "facilitator";
+  const isStaff = hasMinRole(userRole, "speaker");
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 
@@ -91,7 +92,7 @@ export function useRoomAccess(eventId: string) {
 
       const role = user.role;
 
-      if (role === "facilitator") {
+      if (hasMinRole(role, "facilitator")) {
         if (eventData.course_id) {
           await fetchCourse(eventData.course_id as number);
         }

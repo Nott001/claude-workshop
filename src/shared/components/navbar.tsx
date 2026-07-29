@@ -5,8 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { cn } from "@/shared/lib/utils";
-
-type UserRole = "attendee" | "speaker" | "facilitator";
+import type { UserRole } from "@/shared/types";
 
 interface NavItem {
   label: string;
@@ -14,7 +13,7 @@ interface NavItem {
   icon: string;
 }
 
-const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
+const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   attendee: [
     { label: "Home", href: "/home", icon: "home" },
     { label: "Events", href: "/events", icon: "event" },
@@ -56,6 +55,7 @@ export function Navbar() {
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
   const userRole: UserRole = (user?.role as UserRole) ?? "attendee";
+  const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.facilitator!) : GUEST_NAV_ITEMS;
   const profilePhoto = customPhoto ?? user?.profile_image_url ?? null;
 
   useEffect(() => {
@@ -77,8 +77,6 @@ export function Navbar() {
     window.addEventListener("profile-photo-updated", handlePhotoUpdate);
     return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
   }, [isSignedIn, user?.profile_image_url, customPhoto]);
-
-  const navItems = isSignedIn ? ROLE_NAV_ITEMS[userRole] : GUEST_NAV_ITEMS;
 
   const handleSignOut = async () => {
     await signOut();

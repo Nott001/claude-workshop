@@ -6,6 +6,7 @@ import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
 import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };
@@ -145,7 +146,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
               {allMessages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
-                const isStaff = msg.USER?.role === "facilitator";
+                const isStaff = hasMinRole(msg.USER?.role as UserRole, "facilitator");
                 if (isChatEnded) {
                   return (
                     <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
