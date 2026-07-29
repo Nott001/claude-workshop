@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import sharp from "sharp";
 import {
   validateFileType,
   validateFileSize,
@@ -108,6 +109,44 @@ describe("Storage path builders", () => {
 
   it("buildCourseVideoPath creates correct path", () => {
     expect(buildCourseVideoPath(1, 2, 3, "lecture.mp4")).toBe("courses/1/modules/2/lessons/3/lecture.mp4");
+  });
+});
+
+describe("optimizeImage", () => {
+  it("passes non-image files through unchanged", async () => {
+    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+
+    const file = new File(["hello"], "test.txt", { type: "text/plain" });
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.size).toBe(file.size);
+    expect(optimized.type).toBe("text/plain");
+  });
+
+  it("compresses a JPEG image", async () => {
+    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+
+    const buf = await sharp({ create: { width: 100, height: 100, channels: 3, background: { r: 255, g: 0, b: 0 } } })
+      .jpeg()
+      .toBuffer();
+    const file = new File([buf], "test.jpg", { type: "image/jpeg" });
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/jpeg");
+    expect(optimized.size).toBeGreaterThan(0);
+  });
+
+  it("compresses a PNG image", async () => {
+    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+
+    const buf = await sharp({ create: { width: 100, height: 100, channels: 4, background: { r: 0, g: 255, b: 0, alpha: 1 } } })
+      .png()
+      .toBuffer();
+    const file = new File([buf], "test.png", { type: "image/png" });
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/png");
+    expect(optimized.size).toBeGreaterThan(0);
   });
 });
 

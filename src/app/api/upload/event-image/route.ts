@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao } from "@/shared/db/dao";
+import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import {
   uploadToStorage,
   buildEventImagePath,
@@ -32,11 +33,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
   }
 
+  const optimizedFile = await optimizeImage(file);
   const ext = getExtensionFromMimeType(file.type);
   const path = buildEventImagePath(Number(eventId), ext);
 
   try {
-    const result = await uploadToStorage("event_images", path, file);
+    const result = await uploadToStorage("event_images", path, optimizedFile);
 
     const supabase = getServiceClient();
     const ok = await eventDao.updateField(supabase, Number(eventId), "cover_image_url", result.url);

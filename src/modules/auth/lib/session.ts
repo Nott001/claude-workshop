@@ -38,5 +38,11 @@ export async function requireAuth(supabase?: ReturnType<typeof getServiceClient>
     dbUser = await ensureUser(db, authUserId);
   }
   if (!dbUser) return null;
-  return { id: dbUser.id, role: dbUser.role, full_name: dbUser.full_name, email: dbUser.email, profile_image_url: dbUser.profile_image_url };
+  return {
+    id: dbUser.id,
+    role: dbUser.role,
+    full_name: dbUser.full_name,
+    email: dbUser.email,
+    profile_image_url: dbUser.profile_image_url,
+  };
 }
