@@ -26,7 +26,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
 
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
+  // Everything a run produces stays inside test/e2e, next to the specs that
+  // produced it, rather than scattering directories across the repository root.
+  reporter: process.env.CI ? [["github"], ["html", { open: "never", outputFolder: "test/e2e/.report" }]] : [["list"]],
 
   use: {
     baseURL: BASE_URL,

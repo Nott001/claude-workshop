@@ -14,7 +14,6 @@
 ## Testing
 
 - Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
-- End-to-end tests are Playwright, in `test/e2e/`. Both runners use the `.spec.ts` suffix, so `vitest.config.ts` excludes that directory. Run them with `pnpm test:e2e`; they need a browser and a live database.
 - Add or update tests for the code you change, even if nobody asked.
 - Update `vitest.config.ts` if other depencies necessitate it.
 - `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
@@ -27,7 +26,7 @@
 - Use the **imperative mood**. Use conventional commit prefixes (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, etc.).
 - The commit body should explain why the change was made, never what it is.
 - Always run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing. These are the same gates CI enforces.
-- Update `CHANELOG.md` only for meaningful commits. Filter for commits that affect user-facing features, bug fixes, or breaking changes. Skip internal refactors, documentation tweaks, or minor code cleanup unless they're significant.
+- Update `CHANGELOG.md` only for meaningful commits. Filter for commits that affect user-facing features, bug fixes, or breaking changes. Skip internal refactors, documentation tweaks, or minor code cleanup unless they're significant.
 - If the changes are huge enough on different commits.
 
 ## Debug tools
