@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     });
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}/home`);
+      return NextResponse.redirect(`${origin}/email-verified`);
     }
   }
 

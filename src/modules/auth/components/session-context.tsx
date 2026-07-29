@@ -30,7 +30,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function loadSession() {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         fetch("/api/auth/me")
           .then((r) => (r.ok ? r.json() : null))
@@ -39,7 +40,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } else {
         setLoading(false);
       }
-    });
+    }
+
+    loadSession();
 
     const {
       data: { subscription },
@@ -54,7 +57,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       router.refresh();
     });
 
-    return () => subscription.unsubscribe();
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            fetch("/api/auth/me")
+              .then((r) => (r.ok ? r.json() : null))
+              .then(setUser);
+          }
+        });
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const signOut = async () => {
