@@ -5,6 +5,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { eventDao, courseDao } from "@/shared/db/dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,11 +21,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  if (event.status === "draft" && userRole !== "facilitator") {
+  if (event.status === "draft" && !hasMinRole(userRole, "facilitator")) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  if (userRole === "facilitator") {
+  if (hasMinRole(userRole, "facilitator")) {
     const attendeeCount = await eventDao.getAttendeeCount(supabase, Number(id));
     return NextResponse.json({ ...event, attendee_count: attendeeCount });
   }

@@ -1,4 +1,5 @@
 import type { UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 const imgLogo = "https://www.figma.com/api/mcp/asset/e710e6a4-73be-4bf9-8c93-72c559d307f0";
 const imgFacebook = "https://www.figma.com/api/mcp/asset/ed02e5c9-df38-4602-9eb7-087fef7a6de1";
@@ -71,6 +72,6 @@ function StaffFooter() {
 }
 
 export function Footer({ role }: { role: UserRole }) {
-  if (role === "attendee") return <AttendeeFooter />;
+  if (!hasMinRole(role, "speaker")) return <AttendeeFooter />;
   return <StaffFooter />;
 }

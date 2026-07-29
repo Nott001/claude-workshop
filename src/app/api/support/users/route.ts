@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { chatDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export async function GET() {
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
-  if (!user || user.role !== "facilitator") {
+  if (!user || !hasMinRole(user.role, "facilitator")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -38,7 +39,7 @@ export async function GET() {
     USER: { full_name: string; role: string } | null;
   }>) {
     const u = msg.USER;
-    if (u?.role === "facilitator") continue;
+    if (u?.role && hasMinRole(u.role as import("@/shared/types").UserRole, "facilitator")) continue;
 
     const latest = latestSessionPerUser.get(msg.user_id);
     if (latest && msg.session_id !== latest.session_id) continue;

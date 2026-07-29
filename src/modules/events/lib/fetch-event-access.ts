@@ -1,4 +1,5 @@
 import type { AuthUser } from "@/modules/auth";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 export interface EventAccessData {
   event: Record<string, unknown> | null;
@@ -29,7 +30,7 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
         (es: { SPEAKER_PROFILES: { id?: number; speaker_profile_id?: number } }) =>
           es.SPEAKER_PROFILES.id === speakerProfileId || es.SPEAKER_PROFILES.speaker_profile_id === speakerProfileId,
       );
-  } else if (role !== "facilitator") {
+  } else if (!hasMinRole(role, "facilitator")) {
     const ticketRes = await fetch("/api/tickets");
     const tickets = ticketRes.ok ? await ticketRes.json() : [];
     hasTicket = tickets.some(

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Navbar } from "@/shared/components/navbar";
 import { FloatingAssistButton } from "@/modules/support/components/floating-assist-button";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { ErrorBoundary } from "@/shared/components/ui/error-boundary";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
@@ -28,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   const role = user?.role ?? null;
   const hideNavbar = shouldHideNavbar(pathname);
-  const showAssist = !shouldHideAssist(pathname) && role !== "facilitator" && role !== "speaker";
+  const showAssist = !shouldHideAssist(pathname) && !hasMinRole(role, "speaker");
 
   if (hideNavbar) {
     return <>{children}</>;

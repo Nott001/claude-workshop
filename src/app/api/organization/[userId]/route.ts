@@ -7,11 +7,11 @@ import type { UserRole } from "@/shared/types";
 import { logAuditEvent } from "@/modules/audit";
 
 const updateSchema = z.object({
-  role: z.enum(["attendee", "speaker", "facilitator"]),
+  role: z.enum(["attendee", "speaker", "facilitator", "admin", "super_admin"]),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
@@ -39,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }

@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { chatDao } from "@/shared/db/dao";
 import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
+import { hasMinRole } from "@/shared/auth/role-hierarchy";
 
 const CHANNEL = "support" as const;
 
@@ -51,7 +52,8 @@ export async function POST(req: Request) {
   }
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const sessionUserId = user.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
+  const sessionUserId =
+    hasMinRole(user.role, "facilitator") && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
 
   const [rateLimitCount, existing] = await Promise.all([
     chatDao.countRecentSupportByUser(supabase, user.id, windowStart),
@@ -77,7 +79,8 @@ export async function POST(req: Request) {
     user_id: user.id,
     message: parsed.data.message,
     session_id: sessionId,
-    recipient_user_id: user.role === "facilitator" && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
+    recipient_user_id:
+      hasMinRole(user.role, "facilitator") && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
   });
 
   if (!message) {

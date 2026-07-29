@@ -1,4 +1,4 @@
-export type UserRole = "attendee" | "speaker" | "facilitator";
+export type UserRole = "attendee" | "speaker" | "facilitator" | "admin" | "super_admin";
 export type ChatChannel = "support" | "live_qa";
 
 export interface User {
