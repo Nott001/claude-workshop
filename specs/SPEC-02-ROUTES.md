@@ -26,7 +26,8 @@ Move entire `src/app/speakers/` directory to `src/app/speaker/`.
 | `user.dao.ts` `listStaff()` | Add `admin`, `super_admin` to `.in("role", [...])` |
 | `use-speaker-edit.ts` | Remove (page removed) |
 | `use-speaker-update-info.ts` | Remove (page removed) |
-| `room/page.tsx` (both) | Update redirect URLs |
+| `events/[id]/room/page.tsx` exit redirect | Attendee: `/events/[eventId]`. Speaker: `/speaker/event/[eventId]`. Staff: redirects to `/staff/events/[eventId]/room` |
+| `staff/events/[id]/room/page.tsx` exit redirect | Staff: `/staff/events/[eventId]`. Speaker: `/speaker/event/[eventId]` |
 | `footer.tsx` imports | Update role type import |
 
 ## 2. Kiosk: move under event
@@ -39,14 +40,22 @@ Move entire `src/app/speakers/` directory to `src/app/speaker/`.
 New kiosk page at `src/app/staff/events/[id]/kiosk/page.tsx` pre-selects the event
 so no event picker is needed. Remove old `src/app/staff/kiosk/page.tsx`.
 
-## 3. Course pages removed
+## 3. Course pages
 
-- `/staff/courses` — removed (courses are scoped to events, see SPEC-06)
-- `/staff/courses/new` — removed
-- `/staff/courses/[id]` — removed
-- Course creation embedded in event dashboard (see SPEC-03)
+- `/staff/courses/new` — **Removed** (course creation embedded in event dashboard, see SPEC-03)
+- `/staff/courses/[id]` — **Removed** (course detail moved into event dashboard)
+- `/staff/courses` — **Replaced**: read-only audit table gated to admin+ (see note below)
+
+The admin course audit page at `/staff/courses` is a read-only table listing all courses with:
+- Course name
+- Linked event (title + date)
+- Created by speaker (full name)
+- Created at / Updated at timestamps
+- No create/edit/delete actions — this is an audit view only
+
+Gated to `hasMinRole(role, "admin")`. Not visible to facilitators or speakers in navbar.
 
 ## 4. Navbar changes
 
-Add admin/super_admin nav items (same as facilitator). Speaker nav stays minimal.
-Remove `/staff/courses` and `/staff/courses/new` from facilitator nav items.
+Add admin/super_admin nav items (same as facilitator plus course audit page). Speaker nav stays minimal.
+Remove `/staff/courses/new` from facilitator nav items.

@@ -32,7 +32,16 @@ section for speakers:
 ```
 
 - Visible only when `hasMinRole(user.role, "speaker")`
-- Fetches current bio & designation from `/api/speakers/me`
-- Saves via `PATCH /api/speakers/me` (existing endpoint)
+- Fetches current bio & designation from `GET /api/speakers/me`
+- `GET /api/speakers/me` returns `{ speaker_profile_id: null, ... }` when no profile exists
+- Save logic (create-or-update):
+  1. Call `GET /api/speakers/me` on mount
+  2. If `speaker_profile_id === null`: call `POST /api/speakers/me` with `{ bio, designation }` to create
+  3. If profile exists: call `PATCH /api/speakers/me` with `{ bio, designation }` to update
+- **New endpoint required**: `POST /api/speakers/me`
+  - Gate: `requireRole("speaker")` (speaker+ via hierarchy)
+  - Body: `{ bio: string | null, designation: string | null }`
+  - Sets `user_id` from authenticated user
+  - Returns 409 if profile already exists
 - Non-speakers (attendees) don't see this section at all
 - Removed `/speakers/update-info/` page entirely

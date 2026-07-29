@@ -34,10 +34,24 @@ EXISTS (
 )
 ```
 
-### 2. CHAT_MESSAGE SELECT policy
+### 2. CHAT_MESSAGE SELECT policy — subquery at line 500
 
-Same change to the `EVENT_FACILITATOR` subquery that checks facilitator role.
-Add `'admin'` and `'super_admin'` to the `IN` clause.
+The policy at lines 488–511 has an inner `EXISTS` subquery checking `EVENT_FACILITATOR`:
+
+```sql
+-- Current (line 500):
+EXISTS (
+  SELECT 1 FROM "EVENT_FACILITATOR" ef
+  WHERE ef.event_id = event_id AND ef.user_id = u.id
+)
+```
+
+This subquery checks if the user is an event facilitator. It does NOT use role literals,
+so it needs no change — `EVENT_FACILITATOR` is a join table, not a role check.
+
+**No change needed for this policy.** The old spec was incorrect — the CHAT_MESSAGE policy
+relies on `EVENT_FACILITATOR` membership, not role literals. The only RLS policy that
+hardcodes role literals is the `SUPPORT_SESSION` policy at line 483.
 
 ## Migration 00004 — Course-event 1:1 ownership
 

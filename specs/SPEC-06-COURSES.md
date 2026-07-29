@@ -34,6 +34,14 @@ See SPEC-04 migration 00004 for the schema changes.
 | Validation | Requires caller to be assigned as a speaker to `event_id` |
 | Side effect | `created_by` set to `guard.user.id` |
 
+### `GET /api/courses` — Admin course audit listing
+
+| Aspect | Detail |
+|---|---|
+| Gate | `requireRole("admin")` |
+| Response | Array of courses with event title, created_by user name, created_at, updated_at |
+| Usage | Read-only audit table at `/staff/courses` |
+
 ### `GET /api/courses/event/[eventId]` — Load course by event (NEW)
 
 Replaces the old pattern of loading event → reading `course_id` → loading course.
@@ -42,7 +50,7 @@ Replaces the old pattern of loading event → reading `course_id` → loading co
 |---|---|
 | Gate | `requireRole("speaker")` |
 | Response | Full course tree: course + modules + lessons |
-| Behavior | Returns `{ course: null }` if no course exists for the event |
+| Behavior | Returns 404 with `{ error: "No course for this event" }` if no course exists for the event |
 
 ### `GET /api/courses/[id]` — Get course by ID
 
@@ -67,15 +75,28 @@ Replaces the old pattern of loading event → reading `course_id` → loading co
 
 ### Module/lesson routes
 
-Unchanged gate (`speaker`), but now require module/lesson's course
-to belong to an event the caller is assigned to.
+Gate unchanged (`speaker`). Routes now validate that the course belongs to an event
+the caller is assigned to as a speaker (via `EVENT_SPEAKER` join), or the caller is
+staff (`hasMinRole(role, "facilitator")`) with access to the event via `EVENT_FACILITATOR`.
 
-## Removed routes (standalone course management)
+Validation flow:
+```
+1. Fetch course by course_id
+2. Look up event by course.event_id
+3. If caller is speaker: check EVENT_SPEAKER for caller + event
+4. If caller is staff (facilitator+): check EVENT_FACILITATOR or admin bypass
+5. If neither: 403 Forbidden
+```
 
-- `GET /api/courses` (listing) — no longer needed, courses are scoped to events
-- `/staff/courses` page — removed
-- `/staff/courses/new` page — removed
-- `/staff/courses/[id]` page — removed
+## Removed routes (standalone course builder)
+
+- `/staff/courses/new` page — removed (course creation embedded in event dashboard)
+- `/staff/courses/[id]` page — removed (course detail moved into event dashboard)
+
+## Re-added route (admin audit)
+
+- `GET /api/courses` — restored with `admin` gate for read-only audit listing
+- `/staff/courses` page — restored as read-only audit table, gated to `admin+`
 
 ## Room access changes
 
