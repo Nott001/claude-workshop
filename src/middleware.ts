@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 
 const isProtectedRoute = (pathname: string) => {
   if (pathname.startsWith("/staff")) return true;
-  if (pathname.startsWith("/courses") || pathname.startsWith("/kiosk") || pathname.startsWith("/organization")) return true;
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) return true;
   return false;
 };
