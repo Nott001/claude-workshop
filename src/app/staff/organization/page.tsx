@@ -10,7 +10,7 @@ interface Member {
   role: string;
 }
 
-export default async function OrganizationPage() {
+export default async function StaffOrganizationPage() {
   const supabase = getServiceClient();
   const result = await userDao.listStaff(supabase, 1, "", 50);
   const members: Member[] = result.data;

@@ -1,26 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
-import { useSession } from "@/modules/auth";
-import ChatPanel from "@/modules/chat/components/chat-panel";
-import type { UserRole } from "@/shared/types";
-import { Footer } from "@/shared/components/footer";
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function SupportPage() {
-  const params = useParams();
-  const eventId = params.id as string;
-  const { user } = useSession();
-  const userRole = (user?.role as UserRole) ?? null;
-  const currentUserId = user?.id ?? null;
-
-  return (
-    <>
-      <div>
-        <h1>Support Chat</h1>
-        <p>Use this channel to ask facilitators for help with event logistics.</p>
-        <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
-      </div>
-      <Footer role="facilitator" />
-    </>
-  );
+export default async function OldEventSupportPage({ params }: PageProps) {
+  const { id } = await params;
+  redirect(`/staff/events/${id}/support`);
 }

@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/shared/components/ui/button";
 import { useCourseDetail } from "@/modules/courses/lib/use-course-detail";
 
-export default function CourseDetailPage() {
+export default function StaffCourseDetailPage() {
   const router = useRouter();
   const params = useParams();
   const courseId = params.id as string;
@@ -22,7 +22,7 @@ export default function CourseDetailPage() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-bg p-8">
         <p className="text-destructive">{error ?? "Course not found"}</p>
-        <Button variant="secondary" className="mt-4" onClick={() => router.push("/courses")}>
+        <Button variant="secondary" className="mt-4" onClick={() => router.push("/staff/courses")}>
           Back
         </Button>
       </div>
@@ -33,7 +33,7 @@ export default function CourseDetailPage() {
     <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
         <button
-          onClick={() => router.push("/courses")}
+          onClick={() => router.push("/staff/courses")}
           className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <span className="material-symbols-rounded text-[16px]">arrow_back</span>

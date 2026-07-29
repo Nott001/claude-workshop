@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/shared/components/ui/button";
 import { Footer } from "@/shared/components/footer";
+import { useSession } from "@/modules/auth";
 import { useCourseList } from "@/modules/courses/lib/use-course-list";
 
-export default function CoursesPage() {
+export default function StaffCoursesPage() {
   const router = useRouter();
+  const { user } = useSession();
   const { courses, loading, error, handleDelete } = useCourseList();
 
   if (loading) {
@@ -22,7 +24,7 @@ export default function CoursesPage() {
       <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
-            onClick={() => router.push("/events")}
+            onClick={() => router.push("/staff/events")}
             className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             <span className="material-symbols-rounded text-[16px]">arrow_back</span>
@@ -40,7 +42,7 @@ export default function CoursesPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => router.push("/courses/new")}>
+              <Button onClick={() => router.push("/staff/courses/new")}>
                 <span className="material-symbols-rounded text-sm">add_circle</span>
                 New Course
               </Button>
@@ -57,7 +59,7 @@ export default function CoursesPage() {
             <div className="rounded-xl border-2 border-dashed border-border bg-surface py-16 text-center">
               <span className="material-symbols-rounded mb-3 block text-[40px] text-muted-fg">menu_book</span>
               <p className="text-sm text-muted-fg">No courses yet. Create your first course to get started.</p>
-              <Button className="mt-4" onClick={() => router.push("/courses/new")}>
+              <Button className="mt-4" onClick={() => router.push("/staff/courses/new")}>
                 <span className="material-symbols-rounded text-sm">add_circle</span>
                 Create Course
               </Button>
@@ -76,7 +78,7 @@ export default function CoursesPage() {
                     key={course.id}
                     className="group flex items-center justify-between px-8 py-4 transition-colors hover:bg-muted"
                   >
-                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/courses/${course.id}`)}>
+                    <div className="flex-1 cursor-pointer" onClick={() => router.push(`/staff/courses/${course.id}`)}>
                       <h3 className="text-sm font-semibold text-fg group-hover:text-brand">{course.course_name}</h3>
                       {course.course_description && (
                         <p className="mt-0.5 text-sm text-muted-fg line-clamp-1">{course.course_description}</p>
@@ -84,7 +86,7 @@ export default function CoursesPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => router.push(`/courses/${course.id}`)}
+                        onClick={() => router.push(`/staff/courses/${course.id}`)}
                         className="rounded-md p-1.5 text-muted-fg hover:bg-muted hover:text-fg"
                         title="Edit"
                       >
@@ -105,7 +107,7 @@ export default function CoursesPage() {
           )}
         </div>
       </div>
-      <Footer role="facilitator" />
+      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }

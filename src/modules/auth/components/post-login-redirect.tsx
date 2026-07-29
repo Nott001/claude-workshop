@@ -6,7 +6,7 @@ import { useSession } from "@/modules/auth";
 
 const ROLE_HOME: Record<string, string> = {
   speaker: "/speakers/dashboard",
-  facilitator: "/events",
+  facilitator: "/staff/events",
   attendee: "/home",
 };
 

@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Footer } from "@/shared/components/footer";
 import { Toast } from "@/shared/components/toast";
+import { useSession } from "@/modules/auth";
 
-export default function NewEventPage() {
+export default function StaffNewEventPage() {
   const router = useRouter();
+  const { user } = useSession();
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -29,7 +31,7 @@ export default function NewEventPage() {
       });
       if (!res.ok) throw new Error("Failed to create event");
       setShowToast(true);
-      setTimeout(() => router.push("/events"), 1500);
+      setTimeout(() => router.push("/staff/events"), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create event");
     } finally {
@@ -42,7 +44,7 @@ export default function NewEventPage() {
       <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
         <div className="mx-auto w-full max-w-[896px]">
           <button
-            onClick={() => router.push("/events")}
+            onClick={() => router.push("/staff/events")}
             className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <span className="material-symbols-rounded text-[16px]">arrow_back</span>
@@ -120,7 +122,7 @@ export default function NewEventPage() {
           </div>
         )}
       </div>
-      <Footer role="facilitator" />
+      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }
