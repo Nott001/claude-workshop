@@ -49,6 +49,10 @@ next-env.d.ts
 
 # playwright
 /test/e2e/.results
+/test/e2e/.report
 /playwright-report
 /blob-report
 /.playwright
+
+# lighthouse
+/.lighthouseci
