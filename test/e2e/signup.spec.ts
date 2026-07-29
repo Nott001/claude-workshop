@@ -12,7 +12,7 @@ import { serviceClient, E2E_PREFIX } from "./fixtures";
  * worse than an absent one, so those cases are skipped rather than shipped.
  *
  * To enable them, either turn off email confirmation for the project or
- * configure custom SMTP, then delete the skip markers. See SPEC-07 §9.
+ * configure custom SMTP, then delete the skip markers. See SPEC-09-TEST-STRATEGY §9.
  */
 
 const db = serviceClient();

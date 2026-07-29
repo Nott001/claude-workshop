@@ -100,7 +100,7 @@ export interface SeededCourse {
 
 /**
  * A course belongs to an event in the live schema (COURSE.event_id), which is
- * the reverse of what the migration file describes. See SPEC-07 §9.
+ * the reverse of what the migration file describes. See SPEC-09-TEST-STRATEGY §9.
  */
 export async function createCourse(db: SupabaseClient, eventId: number): Promise<SeededCourse> {
   const name = `${E2E_PREFIX}course-${RUN}-${randomUUID().slice(0, 6)}`;

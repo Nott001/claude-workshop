@@ -100,7 +100,7 @@ test("an attendee cannot create an event", async ({ page }) => {
  * Every creation therefore fails, which is why the database holds no events.
  *
  * Marked fixme rather than deleted so the gap stays visible. Remove the marker
- * once the schema drift in SPEC-07 §9 is resolved; this test then holds the fix
+ * once the schema drift in SPEC-09-TEST-STRATEGY §9 is resolved; this test then holds the fix
  * in place.
  */
 test.fixme("a facilitator can create an event through the API", async ({ page }) => {

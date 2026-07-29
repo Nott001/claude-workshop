@@ -16,7 +16,7 @@ import {
  *
  * The course itself is seeded rather than created through the API, because
  * `POST /api/courses` cannot work against the live schema — see the fixme at
- * the bottom and SPEC-07 §9. Everything below the course level does work, and
+ * the bottom and SPEC-09-TEST-STRATEGY §9. Everything below the course level does work, and
  * is worth holding in place.
  */
 
@@ -169,7 +169,7 @@ test("a facilitator deleting a module removes its lessons", async ({ page }) => 
  * but the live COURSE table has `event_id NOT NULL`. Every call fails, which is
  * the same schema drift that breaks event creation.
  *
- * Marked fixme so the gap stays visible. Remove the marker once SPEC-07 §9 is
+ * Marked fixme so the gap stays visible. Remove the marker once SPEC-09-TEST-STRATEGY §9 is
  * resolved; this test then holds the fix in place.
  */
 test.fixme("a facilitator can create a course through the API", async ({ page }) => {

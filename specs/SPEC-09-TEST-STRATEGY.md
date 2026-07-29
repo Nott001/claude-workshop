@@ -1,4 +1,4 @@
-# SPEC-07 — Test Strategy
+# SPEC-09 — Test Strategy
 
 Status: active
 Scope: what we test, how it runs in CI, and what is deliberately deferred.
@@ -7,18 +7,18 @@ Scope: what we test, how it runs in CI, and what is deliberately deferred.
 
 Measured, not estimated:
 
-| Signal                 | Baseline | Now       |
-| ---------------------- | -------: | --------: |
-| Test files             |       12 |    **23** |
-| Tests                  |      169 |   **322** |
-| Runtime (with coverage)|    ~3.3s |    ~6.5s  |
-| **Statement coverage** |    2.25% | **8.56%** |
-| Branch coverage        |    1.75% | **9.41%** |
-| Source files touched   |       10 |    **20+**|
+| Signal                  | Baseline |       Now |
+| ----------------------- | -------: | --------: |
+| Test files              |       12 |    **23** |
+| Tests                   |      169 |   **322** |
+| Runtime (with coverage) |    ~3.3s |     ~6.5s |
+| **Statement coverage**  |    2.25% | **8.56%** |
+| Branch coverage         |    1.75% | **9.41%** |
+| Source files touched    |       10 |   **20+** |
 
 The global percentage stays low because it is measured against all ~174 source
 files, most of which are React components (see §3, P4). The number that matters
-is *where* the coverage sits — the request-handling trust boundary is now
+is _where_ the coverage sits — the request-handling trust boundary is now
 covered end to end:
 
 | Coverage | File                                          |
@@ -38,12 +38,12 @@ covered end to end:
 
 Worth recording, because it is the trap to avoid repeating. The original 169
 tests exercised only 10 files, because a large share of the assertions are
-*type-shape tests* — they build an object literal inline and assert on that
+_type-shape tests_ — they build an object literal inline and assert on that
 literal:
 
 ```ts
 // test/commerce.test.ts — passes even if every line of the payment module is deleted
-const payment: Payment = { id: 1, status: "pending", /* ... */ };
+const payment: Payment = { id: 1, status: "pending" /* ... */ };
 expect(payment.status).toBe("pending");
 ```
 
@@ -66,24 +66,24 @@ coverage — write tests that call the real function.
 Tested as integration tests against a mocked Supabase client: no live backend,
 no browser, whole suite still under 6s. Each route covers the same four cases.
 
-| Case            | Assert                                                  |
-| --------------- | ------------------------------------------------------- |
-| Unauthenticated | 401, **and no database call is issued**                 |
-| Wrong role      | refused, and no write attempted                         |
-| Invalid body    | 400 from the zod schema, with no partial write          |
-| Happy path      | correct status, shape, and DAO call with correct scoping|
+| Case            | Assert                                                   |
+| --------------- | -------------------------------------------------------- |
+| Unauthenticated | 401, **and no database call is issued**                  |
+| Wrong role      | refused, and no write attempted                          |
+| Invalid body    | 400 from the zod schema, with no partial write           |
+| Happy path      | correct status, shape, and DAO call with correct scoping |
 
-| Test file                    | Covers                                                |
-| ---------------------------- | ----------------------------------------------------- |
-| `api-checkin.test.ts`        | QR check-in: replay, cancelled, forged token, audit    |
-| `api-event-register.test.ts` | ticket issuance, draft visibility, duplicate guard     |
-| `api-events.test.ts`         | event create/publish, role gate, draft-only publish    |
-| `api-storage.test.ts`        | bucket allowlist, path safety, course entitlement     |
-| `api-auth-coverage.test.ts`  | **sweep: every route must have a guard**               |
-| `auth-session.test.ts`       | `requireAuth`, `requireRole`, first sign-in provisioning|
-| `middleware.test.ts`         | which routes are protected, and which are not          |
-| `dao.test.ts`                | query shaping, user/event scoping, write failures      |
-| `lesson-utils.test.ts`       | content type detection, url normalisation              |
+| Test file                    | Covers                                                   |
+| ---------------------------- | -------------------------------------------------------- |
+| `api-checkin.test.ts`        | QR check-in: replay, cancelled, forged token, audit      |
+| `api-event-register.test.ts` | ticket issuance, draft visibility, duplicate guard       |
+| `api-events.test.ts`         | event create/publish, role gate, draft-only publish      |
+| `api-storage.test.ts`        | bucket allowlist, path safety, course entitlement        |
+| `api-auth-coverage.test.ts`  | **sweep: every route must have a guard**                 |
+| `auth-session.test.ts`       | `requireAuth`, `requireRole`, first sign-in provisioning |
+| `middleware.test.ts`         | which routes are protected, and which are not            |
+| `dao.test.ts`                | query shaping, user/event scoping, write failures        |
+| `lesson-utils.test.ts`       | content type detection, url normalisation                |
 
 The sweep in `api-auth-coverage.test.ts` is the highest-leverage of these: it
 scans all 43 route files and fails if any lacks a `requireAuth`/`requireRole`
@@ -177,7 +177,7 @@ under measured coverage — not an achievement:
 Raise the floor in the same PR that raises actual coverage. Never lower it to
 make a build pass.
 
-Coverage counts *executed lines*, not *verified behaviour* — it is a gap
+Coverage counts _executed lines_, not _verified behaviour_ — it is a gap
 detector, not a quality score. A file at 100% with only type-shape assertions
 is still untested, which is exactly how the baseline suite reached 169 tests
 while touching 10 files.
@@ -190,13 +190,13 @@ change when a job is added.
 
 **`.github/workflows/ci.yml`**
 
-| Job       | Command            | Blocking |
-| --------- | ------------------ | -------- |
-| Format    | `pnpm format:check`| yes      |
-| Lint      | `pnpm lint`        | yes      |
-| Typecheck | `pnpm typecheck`   | yes      |
-| Unit tests| `pnpm test:coverage`| yes     |
-| Build     | `pnpm build`       | yes      |
+| Job        | Command              | Blocking |
+| ---------- | -------------------- | -------- |
+| Format     | `pnpm format:check`  | yes      |
+| Lint       | `pnpm lint`          | yes      |
+| Typecheck  | `pnpm typecheck`     | yes      |
+| Unit tests | `pnpm test:coverage` | yes      |
+| Build      | `pnpm build`         | yes      |
 
 Format/Lint/Typecheck run as a `fail-fast: false` matrix so one failure does
 not mask the others. Coverage is written to the job summary and uploaded as an
@@ -204,13 +204,13 @@ artifact on every run, including failures.
 
 **`.github/workflows/security.yml`**
 
-| Job              | Tool                  | Blocking |
-| ---------------- | --------------------- | -------- |
-| CodeQL           | `security-extended`   | yes      |
-| Dependency audit | `pnpm audit --prod`   | yes      |
-| Dependency audit | `pnpm audit --dev`    | no (advisory) |
-| Secret scan      | gitleaks, full history| yes      |
-| RLS policy check | migration grep        | yes      |
+| Job              | Tool                   | Blocking      |
+| ---------------- | ---------------------- | ------------- |
+| CodeQL           | `security-extended`    | yes           |
+| Dependency audit | `pnpm audit --prod`    | yes           |
+| Dependency audit | `pnpm audit --dev`     | no (advisory) |
+| Secret scan      | gitleaks, full history | yes           |
+| RLS policy check | migration grep         | yes           |
 
 Rationale for the split audit: a CVE in `eslint` never reaches a user, and
 blocking on it teaches people to merge red. Production dependencies are gated
@@ -253,11 +253,11 @@ All of it is now fixed and every gate passes.
 The root cause of the largest cluster: commit `6e58d0f` ("refactor: remove
 stale module stubs") deleted three modules but left their importers in place.
 
-| Missing module                            | Imported by                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------ |
-| `@/modules/courses/lib/lesson-utils`      | `use-course-create.ts:5`, `use-course-detail.ts:4`                  |
-| `@/modules/courses/ui/lesson-dialog`      | `app/courses/new/page.tsx:9`                                        |
-| `@/modules/courses/ui/curriculum-builder` | `app/courses/new/page.tsx:10`                                       |
+| Missing module                            | Imported by                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| `@/modules/courses/lib/lesson-utils`      | `use-course-create.ts:5`, `use-course-detail.ts:4`                         |
+| `@/modules/courses/ui/lesson-dialog`      | `app/courses/new/page.tsx:9`                                               |
+| `@/modules/courses/ui/curriculum-builder` | `app/courses/new/page.tsx:10`                                              |
 | `./types`                                 | `modules/auth/components/session-context.tsx:6` — should be `../lib/types` |
 
 The remainder are ordinary type errors: a `"outline"` Button variant that is
@@ -324,15 +324,15 @@ which is the right move if this repo ever takes outside contributions.
 
 ### What is covered
 
-| Spec | Tests | Covers |
-| --- | --: | --- |
-| `auth.spec.ts` | 5 | session, staff redirect, bad credentials, role boundary |
-| `tickets.spec.ts` | 6 | buy → ticket issued → QR check-in, replay, forged token, role gate |
-| `entitlement.spec.ts` | 6 | course material access with/without ticket, cancelled ticket, bucket and path refusal |
-| `events.spec.ts` | 5 | draft visibility, publish, republish refusal, role gate |
-| `uploads.spec.ts` | 6 | upload → storage → entitlement, file type, role gate, event cover |
-| `courses.spec.ts` | 6 | modules, lessons, nested read-back, cascade delete, role gate |
-| `signup.spec.ts` | 3 | form rendering and validation |
+| Spec                  | Tests | Covers                                                                                |
+| --------------------- | ----: | ------------------------------------------------------------------------------------- |
+| `auth.spec.ts`        |     5 | session, staff redirect, bad credentials, role boundary                               |
+| `tickets.spec.ts`     |     6 | buy → ticket issued → QR check-in, replay, forged token, role gate                    |
+| `entitlement.spec.ts` |     6 | course material access with/without ticket, cancelled ticket, bucket and path refusal |
+| `events.spec.ts`      |     5 | draft visibility, publish, republish refusal, role gate                               |
+| `uploads.spec.ts`     |     6 | upload → storage → entitlement, file type, role gate, event cover                     |
+| `courses.spec.ts`     |     6 | modules, lessons, nested read-back, cascade delete, role gate                         |
+| `signup.spec.ts`      |     3 | form rendering and validation                                                         |
 
 `uploads.spec.ts` closes a loop the others leave open. `entitlement.spec.ts`
 seeds its object with the service client, so it never proves the upload route
@@ -389,8 +389,8 @@ holding a ticket gets 200, one without gets 404.
 The live schema and `00001_initial_schema.sql` disagree about how courses and
 events relate:
 
-| | Migration file | Live database |
-| --- | --- | --- |
+|      | Migration file             | Live database             |
+| ---- | -------------------------- | ------------------------- |
 | Link | `EVENT.course_id → COURSE` | `COURSE.event_id → EVENT` |
 
 `EVENT.course_id` does not exist. Consequences reaching beyond the tests:

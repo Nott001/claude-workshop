@@ -272,7 +272,7 @@ export async function userHasCourseAccess(supabase: DbClient, userId: number, co
   // The live schema links these as COURSE.event_id -> EVENT, the opposite of
   // what 00001_initial_schema.sql describes. This follows the database, since
   // that is what the query actually runs against. Revisit if the schemas are
-  // ever reconciled — see SPEC-07 §9.
+  // ever reconciled — see SPEC-09-TEST-STRATEGY §9.
   const { data: course } = await supabase.from("COURSE").select("event_id").eq("id", courseId).single();
   if (!course?.event_id) return false;
 

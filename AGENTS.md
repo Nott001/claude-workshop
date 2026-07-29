@@ -19,7 +19,7 @@
 - `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
 - **Assert on behaviour, not on type shapes.** A test that builds an object literal and asserts on that same literal executes no product code — TypeScript already checks the shape. Call the real function.
 - Coverage thresholds in `vitest.config.ts` are a ratchet. Raise them when you raise coverage; never lower them to make a build pass.
-- See `specs/SPEC-07-TEST-STRATEGY.md` for the current gaps and priorities.
+- See `specs/SPEC-09-TEST-STRATEGY.md` for the current gaps and priorities.
 
 ## Commits and PRs
 
