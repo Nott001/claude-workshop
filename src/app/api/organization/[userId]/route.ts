@@ -4,7 +4,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import type { UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit";
 
 const updateSchema = z.object({

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";

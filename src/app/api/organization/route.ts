@@ -4,7 +4,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 const PAGE_SIZE = 10;
 

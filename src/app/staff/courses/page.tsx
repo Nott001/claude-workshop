@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Footer } from "@/shared/components/footer";
 import { useSession } from "@/modules/auth";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 interface CourseRow {
   id: number;

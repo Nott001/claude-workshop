@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChatPolling } from "@/shared/lib/use-chat-polling";
 import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
 import type { ChatMessage, UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string };

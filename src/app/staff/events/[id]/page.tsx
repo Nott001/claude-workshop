@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { getBadgeProps } from "@/modules/events/lib/schemas";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
 export interface AttendeeRow {

@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export interface Lesson {
   id: number;

@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { Footer } from "@/shared/components/footer";
 import { useEffect, useState } from "react";
 import type { Event } from "@/shared/types";
