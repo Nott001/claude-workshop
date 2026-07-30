@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
@@ -58,11 +59,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
           const msg = payload.new as ChatMessageWithUser;
           if (supportType === "event" && eventId && msg.event_id !== Number(eventId)) return;
           if (supportType === "general" && msg.event_id !== null) return;
-          const { data: full } = await supabase
-            .from("CHAT_MESSAGE")
-            .select("*, USER:user_id(full_name, role)")
-            .eq("id", msg.id)
-            .single();
+          const full = await chatDao.findMessageWithUser(supabase, msg.id);
           if (full) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === full.id)) return prev;

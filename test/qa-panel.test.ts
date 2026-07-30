@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { qaMessageSchema } from "@/modules/chat";
+import { qaMessageSchema } from "@/modules/chat/lib/schemas";
 import type { QaMessage, UserRole } from "@/shared/types";
 
 describe("QAPanel uses QA_MESSAGE", () => {

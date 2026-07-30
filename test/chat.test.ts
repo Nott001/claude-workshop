@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { sendMessageSchema, supportTypeEnum, isRateLimited, RATE_LIMIT_MAX } from "@/modules/chat";
+import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
+import { isRateLimited, RATE_LIMIT_MAX } from "@/modules/chat";
 import type { ChatMessage, SupportType } from "@/shared/types";
 
 describe("SupportType type", () => {

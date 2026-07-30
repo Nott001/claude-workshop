@@ -3,7 +3,8 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { chatDao, courseDao } from "@/shared/db/dao";
-import { qaMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
+import { qaMessageSchema } from "@/modules/chat/lib/schemas";
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;

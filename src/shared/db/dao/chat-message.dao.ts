@@ -1,5 +1,13 @@
 import type { DbClient } from "./types";
-import type { ChatMessage } from "@/shared/types";
+import type { ChatMessage, UserRole } from "@/shared/types";
+
+export async function findMessageWithUser(
+  supabase: DbClient,
+  messageId: number,
+): Promise<(ChatMessage & { USER: { full_name: string; role: UserRole } }) | null> {
+  const { data } = await supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("id", messageId).single();
+  return data as unknown as (ChatMessage & { USER: { full_name: string; role: UserRole } }) | null;
+}
 import { findLatestSession } from "./support-session.dao";
 
 export async function listMessages(

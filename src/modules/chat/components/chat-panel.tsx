@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
 import type { ChatMessage } from "@/shared/types";
 
 interface ChatMessageWithUser extends ChatMessage {
@@ -54,11 +55,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
           if (supportType === "event" && msg.event_id !== Number(eventId)) return;
           if (supportType === "general" && msg.event_id !== null) return;
           if (msg.user_id === currentUserId || msg.recipient_user_id === currentUserId || isStaff) {
-            const { data: full } = await supabase
-              .from("CHAT_MESSAGE")
-              .select("*, USER:user_id(full_name, role)")
-              .eq("id", msg.id)
-              .single();
+            const full = await chatDao.findMessageWithUser(supabase, msg.id);
             if (full) {
               setMessages((prev) => {
                 if (prev.some((m) => m.id === full.id)) return prev;
