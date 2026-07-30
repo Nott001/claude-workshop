@@ -1,6 +1,6 @@
 import { getServiceClient } from "@/shared/db/client";
 import { emailDao } from "@/shared/db/dao";
-import { sendEmail, emailTemplates } from "@/shared/integrations/email";
+import { getEmailService, emailTemplates } from "@/shared/integrations/email";
 import type { EmailType } from "@/shared/types";
 
 export async function sendEmailNotification(params: {
@@ -18,7 +18,7 @@ export async function sendEmailNotification(params: {
   const eventDate = params.eventDate ?? "";
 
   try {
-    const result = await sendEmail({
+    const result = await getEmailService().send({
       to: { email: params.email, name: params.name },
       subject: template.subject,
       htmlContent: template.buildHtml({

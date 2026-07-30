@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { emailLogFilterSchema } from "@/modules/notifications";
 import type { EmailLog, EmailType, EmailStatus } from "@/shared/types";
-import { emailTemplates } from "@/shared/integrations/email";
+import { emailTemplates } from "@/shared/integrations/email/templates";
 
 describe("Email types", () => {
   it("EmailLog interface has correct shape", () => {

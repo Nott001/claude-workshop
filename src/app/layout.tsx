@@ -1,8 +1,12 @@
 import { SessionProvider } from "@/modules/auth";
 import type { Metadata } from "next";
 import { AppShell } from "@/shared/components/app-shell";
+import { configureEmailService } from "@/shared/integrations/email";
+import { ConsoleEmailProvider } from "@/shared/integrations/email/providers/console";
 import "./fonts.css";
 import "./globals.css";
+
+configureEmailService(new ConsoleEmailProvider());
 
 export const metadata: Metadata = {
   title: "StartupLab Business Center",
