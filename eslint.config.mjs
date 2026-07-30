@@ -1,3 +1,23 @@
+// The `lint` script passes --max-warnings=17, which is a ratchet, not a goal —
+// the same approach as the coverage thresholds in vitest.config.ts. eslint exits
+// 0 on warnings, so before this the Lint job could only ever fail on an
+// error-level rule (verified: rules-of-hooks does fail it). Every warning below
+// that bar was invisible, because nobody opens a green check.
+//
+// The ceiling is today's count, so a new warning fails CI while the existing
+// backlog does not. Lower the number as these clear; never raise it.
+//
+//   12  @next/next/no-img-element        <img> -> next/image. Not a lint fix:
+//                                        needs sizing props, and remotePatterns
+//                                        in next.config.ts for external hosts.
+//                                        Worth doing — Lighthouse gates on LCP.
+//    3  react-hooks/exhaustive-deps      Do NOT bulk-fix. Adding the missing
+//                                        deps to these effects risks re-subscribe
+//                                        loops, which this codebase has already
+//                                        been bitten by (see the Realtime ->
+//                                        SWR polling commits). One at a time.
+//    2  @typescript-eslint/no-unused-vars  Trivial; left in this commit so the
+//                                        gate lands as a config-only change.
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
