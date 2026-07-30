@@ -3,7 +3,6 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { speakerDao } from "@/shared/db/dao";
 import { hasMinRole } from "@/shared/auth/role-hierarchy";
-import type { UserRole } from "@/shared/types";
 
 export async function GET() {
   const supabase = getServiceClient();
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (!hasMinRole(user.role as UserRole, "speaker")) {
+  if (!hasMinRole(user.role, "speaker")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

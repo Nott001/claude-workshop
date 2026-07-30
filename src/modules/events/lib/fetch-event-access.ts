@@ -19,26 +19,20 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
     role !== "facilitator" && role !== "speaker" ? fetch("/api/tickets") : Promise.resolve(null),
   ]);
 
-  const event: EventWithCourse | null = eventRes.ok ? await eventRes.json() : null;
+  const [event, speakerData, tickets] = await Promise.all([
+    eventRes.ok ? eventRes.json() : Promise.resolve(null),
+    speakerRes?.ok ? speakerRes.json() : Promise.resolve(null),
+    ticketRes?.ok ? ticketRes.json() : Promise.resolve([]),
+  ]);
 
-  let hasTicket = false;
-  let speakerProfileId: number | null = null;
-  let isSpeakerAssigned = false;
+  const speakerProfileId: number | null = (speakerData as { id?: number } | null)?.id ?? null;
+  const isSpeakerAssigned =
+    !!speakerProfileId &&
+    (event?.EVENT_SPEAKER?.some((es: EventSpeakerEntry) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
-  if (speakerRes) {
-    const speakerData = speakerRes.ok ? await speakerRes.json() : null;
-    speakerProfileId = speakerData?.id ?? null;
-    isSpeakerAssigned =
-      !!speakerProfileId &&
-      (event?.EVENT_SPEAKER?.some((es: EventSpeakerEntry) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
-  }
-
-  if (ticketRes) {
-    const tickets = ticketRes.ok ? await ticketRes.json() : [];
-    hasTicket = tickets.some(
-      (t: { event_id: number; status: string }) => t.event_id === Number(eventId) && t.status !== "cancelled",
-    );
-  }
+  const hasTicket = (tickets as Array<{ event_id: number; status: string }>).some(
+    (t) => t.event_id === Number(eventId) && t.status !== "cancelled",
+  );
 
   return {
     event,

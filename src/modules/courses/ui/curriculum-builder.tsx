@@ -2,11 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
-import type { Lesson, Module } from "@/shared/types";
-
-interface ModuleWithLessons extends Module {
-  LESSONS: Lesson[];
-}
+import type { Lesson } from "@/shared/types";
+import type { ModuleWithLessons } from "../lib/types";
 
 interface CurriculumBuilderProps {
   modules: ModuleWithLessons[];

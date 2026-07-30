@@ -1,0 +1,3 @@
+ALTER TABLE "COURSE" DROP CONSTRAINT course_created_by_fkey;
+ALTER TABLE "COURSE" ADD CONSTRAINT course_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES "USER"(id) ON DELETE CASCADE;

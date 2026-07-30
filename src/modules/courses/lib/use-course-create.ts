@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
-import type { Lesson, Module } from "@/shared/types";
+import type { Lesson } from "@/shared/types";
+import type { ModuleWithLessons } from "./types";
 
 export function useCourseCreate(eventId: string) {
   const router = useRouter();
@@ -13,7 +14,7 @@ export function useCourseCreate(eventId: string) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [modules, setModules] = useState<(Module & { LESSONS: Lesson[] })[]>([]);
+  const [modules, setModules] = useState<ModuleWithLessons[]>([]);
   const [lessonDialogModuleId, setLessonDialogModuleId] = useState<number | null>(null);
 
   async function handleCreateCourse(e: React.FormEvent) {
@@ -172,7 +173,7 @@ export function useCourseCreate(eventId: string) {
     return null;
   }
 
-  async function handleReorderModules(reordered: (Module & { LESSONS: Lesson[] })[]) {
+  async function handleReorderModules(reordered: ModuleWithLessons[]) {
     setModules(reordered);
     await Promise.all(
       reordered.map((m) =>
