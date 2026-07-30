@@ -10,3 +10,15 @@ ignoredBuiltDependencies:
 overrides:
   postcss@<8.5.18: ">=8.5.18"
   sharp@<0.35.0: ">=0.35.0"
+
+# Supply-chain controls. These lived in .npmrc, then .pnpmrc; pnpm 11 reads them
+# from neither — `pnpm config get minimumReleaseAge` returned undefined in both
+# cases, so they had never taken effect. This file is where pnpm actually looks.
+#
+# Reject dependency versions published within this window. Freshly-published
+# versions are how compromised-maintainer attacks land; a delay lets advisories
+# surface before the version can enter our lockfile.
+minimumReleaseAge: 1440
+
+# Lockfile is the source of truth. CI additionally passes --frozen-lockfile.
+resolutionMode: highest
