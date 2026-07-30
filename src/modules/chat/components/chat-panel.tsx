@@ -73,7 +73,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
     return () => {
       sub.unsubscribe();
     };
-  }, [eventId, supportType, currentUserId, isStaff, loadMessages]);
+  }, [eventId, supportType, currentUserId, isStaff]);
 
   useEffect(() => {
     if (isAtBottomRef.current) {
