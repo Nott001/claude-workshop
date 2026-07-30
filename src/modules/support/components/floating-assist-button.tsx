@@ -3,13 +3,18 @@
 import { useState } from "react";
 import GlobalSupportChat from "@/modules/support/components/global-support-chat";
 
-export function FloatingAssistButton() {
+interface FloatingAssistButtonProps {
+  supportType?: "general" | "event";
+  eventId?: string;
+}
+
+export function FloatingAssistButton({ supportType = "general", eventId }: FloatingAssistButtonProps) {
   const [hovered, setHovered] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
-      <GlobalSupportChat isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <GlobalSupportChat isOpen={isOpen} onClose={() => setIsOpen(false)} supportType={supportType} eventId={eventId} />
       <div
         className="fixed bottom-8 right-8 z-50 flex flex-col items-center gap-2"
         onMouseEnter={() => setHovered(true)}

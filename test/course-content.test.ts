@@ -33,6 +33,8 @@ describe("Course content types", () => {
       course_id: 1,
       module_name: "Test Module",
       sequence_order: 1,
+      module_type: "lessons",
+      is_locked: false,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };

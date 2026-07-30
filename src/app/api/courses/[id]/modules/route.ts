@@ -27,6 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     course_id: Number(id),
     module_name: parsed.data.module_name,
     sequence_order: parsed.data.sequence_order,
+    module_type: parsed.data.module_type,
   });
 
   if (!mod) {

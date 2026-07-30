@@ -1,5 +1,5 @@
 export type UserRole = "attendee" | "speaker" | "facilitator" | "admin" | "super_admin";
-export type ChatChannel = "support" | "live_qa";
+export type SupportType = "general" | "event";
 
 export interface User {
   id: number;
@@ -13,6 +13,8 @@ export interface User {
 }
 
 export type ContentType = "pdf" | "video" | "image" | "link";
+
+export type ModuleType = "lessons" | "qa";
 
 export interface Course {
   id: number;
@@ -29,6 +31,8 @@ export interface Module {
   course_id: number;
   module_name: string;
   sequence_order: number;
+  module_type: ModuleType;
+  is_locked: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -108,17 +112,26 @@ export interface Ticket {
 
 export interface ChatMessage {
   id: number;
-  event_id: number;
+  event_id: number | null;
   session_id: number | null;
-  channel: ChatChannel;
+  support_type: SupportType;
   user_id: number;
   recipient_user_id: number | null;
   message: string;
   sent_at: string;
   deleted_at: string | null;
   updated_at: string;
-  reply_to: number | null;
-  answered_verbally: boolean;
+}
+
+export interface QaMessage {
+  id: number;
+  event_id: number;
+  module_id: number;
+  user_id: number;
+  message: string;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type AuditAction =
@@ -165,6 +178,8 @@ export interface SupportSession {
   id: number;
   user_id: number;
   status: SupportSessionStatus;
+  support_type: SupportType;
+  event_id: number | null;
   created_at: string;
   updated_at: string;
 }

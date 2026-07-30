@@ -1,15 +1,16 @@
 import { supabase } from "@/shared/db/client";
-import type { Ticket, SupportSession } from "@/shared/types";
+import type { Ticket, SupportSession, ChatMessage, QaMessage } from "@/shared/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type TicketCallback = (ticket: Ticket) => void;
 type SupportSessionCallback = (session: SupportSession) => void;
+type ChatMessageCallback = (message: ChatMessage) => void;
+type QaMessageCallback = (message: QaMessage) => void;
 
-let sessionsCounter = 0;
-let channelCounter = 0;
+let counter = 0;
 
 export function subscribeToSupportSessions(onChange: SupportSessionCallback): RealtimeChannel {
-  const channelName = `support-sessions-${++sessionsCounter}`;
+  const channelName = `support-sessions-${++counter}`;
   const sub = supabase
     .channel(channelName)
     .on(
@@ -37,8 +38,83 @@ export function subscribeToSupportSessions(onChange: SupportSessionCallback): Re
   return sub;
 }
 
+export function subscribeToSupportMessages(
+  supportType: string,
+  eventId?: number,
+  onChange?: ChatMessageCallback,
+): RealtimeChannel {
+  const filter = `support_type=eq.${supportType}`;
+  const channelName = `support-messages-${supportType}-${eventId ?? "general"}-${++counter}`;
+  const sub = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "CHAT_MESSAGE",
+        filter,
+      },
+      (payload) => {
+        const msg = payload.new as ChatMessage;
+        if (eventId && msg.event_id !== eventId) return;
+        if (!eventId && msg.event_id !== null) return;
+        onChange?.(msg);
+      },
+    )
+    .subscribe();
+
+  return sub;
+}
+
+export function subscribeToQaMessages(eventId: number, onChange?: QaMessageCallback): RealtimeChannel {
+  const channelName = `qa-messages-${eventId}-${++counter}`;
+  const sub = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "QA_MESSAGE",
+        filter: `event_id=eq.${eventId}`,
+      },
+      (payload) => {
+        if (payload.eventType === "INSERT") {
+          onChange?.(payload.new as QaMessage);
+        }
+      },
+    )
+    .subscribe();
+
+  return sub;
+}
+
+export function subscribeToQaMessagesByModule(moduleId: number, onChange?: QaMessageCallback): RealtimeChannel {
+  const channelName = `qa-module-messages-${moduleId}-${++counter}`;
+  const sub = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "QA_MESSAGE",
+        filter: `module_id=eq.${moduleId}`,
+      },
+      (payload) => {
+        if (payload.eventType === "INSERT") {
+          onChange?.(payload.new as QaMessage);
+        }
+      },
+    )
+    .subscribe();
+
+  return sub;
+}
+
 export function subscribeToCheckins(eventId: number, onCheckin: TicketCallback): RealtimeChannel {
-  const channelName = `checkins-${eventId}-${++channelCounter}`;
+  const channelName = `checkins-${eventId}-${++counter}`;
   const sub = supabase
     .channel(channelName)
     .on(

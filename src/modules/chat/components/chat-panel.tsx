@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useChatPolling } from "@/shared/lib/use-chat-polling";
-import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
-import type { ChatMessage, UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { supabase } from "@/shared/db/client";
+import { chatDao } from "@/shared/db/dao";
+import type { ChatMessage } from "@/shared/types";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string };
@@ -12,12 +11,14 @@ interface ChatMessageWithUser extends ChatMessage {
 
 interface ChatPanelProps {
   eventId: string;
-  channel: "support" | "live_qa";
-  userRole: UserRole | null;
+  supportType: "general" | "event";
+  userRole: string | null;
   currentUserId: number | null;
 }
 
-export default function ChatPanel({ eventId, channel, userRole, currentUserId }: ChatPanelProps) {
+export default function ChatPanel({ eventId, supportType, userRole, currentUserId }: ChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,20 +26,57 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
-  const isStaff = hasMinRole(userRole, "speaker");
+  const isStaff = userRole === "facilitator" || userRole === "admin" || userRole === "super_admin";
 
-  const { data, isLoading, setActive } = useChatPolling<{ messages: ChatMessageWithUser[] }>(
-    `/api/chat/${eventId}?channel=${channel}&limit=50`,
-  );
+  const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
 
-  const serverMessages = data?.messages ?? [];
-  const { all: allMessages, addOptimistic, resolveOptimistic } = useOptimisticMessages<ChatMessageWithUser>(serverMessages);
+  useEffect(() => {
+    fetch(apiUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages(data.messages ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+
+    const channelName = `chat-panel-${supportType}-${eventId}-${Date.now()}`;
+    const sub = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "CHAT_MESSAGE",
+          filter: `support_type=eq.${supportType}`,
+        },
+        async (payload) => {
+          const msg = payload.new as ChatMessageWithUser;
+          if (supportType === "event" && msg.event_id !== Number(eventId)) return;
+          if (supportType === "general" && msg.event_id !== null) return;
+          if (msg.user_id === currentUserId || msg.recipient_user_id === currentUserId || isStaff) {
+            const full = await chatDao.findMessageWithUser(supabase, msg.id);
+            if (full) {
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === full.id)) return prev;
+                return [...prev, full as unknown as ChatMessageWithUser];
+              });
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [eventId, supportType, currentUserId, isStaff]);
 
   useEffect(() => {
     if (isAtBottomRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [allMessages]);
+  }, [messages]);
 
   const handleScroll = () => {
     const el = listRef.current;
@@ -51,66 +89,46 @@ export default function ChatPanel({ eventId, channel, userRole, currentUserId }:
     if (!newMessage.trim() || sending) return;
 
     const text = newMessage.trim();
-    const optimisticId = -Date.now();
-    const optimistic: ChatMessageWithUser = {
-      id: optimisticId,
-      channel,
-      user_id: currentUserId ?? 0,
-      message: text,
-      event_id: Number(eventId),
-      sent_at: new Date().toISOString(),
-      session_id: null,
-      recipient_user_id: null,
-      reply_to: null,
-      answered_verbally: false,
-      deleted_at: null,
-      updated_at: new Date().toISOString(),
-      USER: { full_name: "You" },
-    };
-
-    addOptimistic(optimistic);
-    setNewMessage("");
     setSending(true);
     setError(null);
 
-    const res = await fetch(`/api/chat/${eventId}`, {
+    const res = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channel, message: text }),
+      body: JSON.stringify({
+        support_type: supportType,
+        message: text,
+      }),
     });
 
     if (res.status === 429) {
-      resolveOptimistic(optimisticId);
       setError("Too many messages. Please wait a moment.");
     } else if (!res.ok) {
-      resolveOptimistic(optimisticId);
       setError("Failed to send message.");
-    } else {
-      await res.json();
-      resolveOptimistic(optimisticId);
-      setActive();
     }
+    setNewMessage("");
     setSending(false);
   }
 
   async function handleDelete(messageId: number) {
-    const res = await fetch(`/api/chat/${eventId}/${messageId}`, { method: "DELETE" });
+    const res = await fetch(`/api/support/${messageId}`, { method: "DELETE" });
     if (!res.ok) return;
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }
 
   function formatTime(sentAt: string) {
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  if (isLoading) return <div>Loading messages...</div>;
+  if (loading) return <div>Loading messages...</div>;
 
   return (
     <div>
       <div ref={listRef} onScroll={handleScroll} style={{ maxHeight: "400px", overflowY: "auto" }}>
-        {allMessages.length === 0 && <p>No messages yet.</p>}
+        {messages.length === 0 && <p>No messages yet.</p>}
 
-        {allMessages.map((msg) => (
-          <div key={msg.id} data-own={msg.user_id === currentUserId || undefined}>
+        {messages.map((msg) => (
+          <div key={msg.id}>
             <div>
               <strong>{msg.USER?.full_name ?? "Unknown"}</strong>
               <span>{formatTime(msg.sent_at)}</span>

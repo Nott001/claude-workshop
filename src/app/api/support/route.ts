@@ -2,17 +2,25 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { chatDao } from "@/shared/db/dao";
-import { sendMessageSchema, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
+import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-
-const CHANNEL = "support" as const;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const before = searchParams.get("before");
   const after = searchParams.get("after");
   const filterUserId = searchParams.get("user_id");
+  const supportTypeParam = searchParams.get("support_type") ?? "general";
+  const eventIdParam = searchParams.get("event_id");
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 50);
+
+  const parsedType = supportTypeEnum.safeParse(supportTypeParam);
+  if (!parsedType.success) {
+    return NextResponse.json({ error: "Invalid support_type" }, { status: 400 });
+  }
+  const supportType = parsedType.data;
+  const eventId = eventIdParam ? Number(eventIdParam) : null;
 
   const supabase = getServiceClient();
 
@@ -21,9 +29,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
+  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const result = await chatDao.listSupportMessages(supabase, {
     userId: user.id,
     role: user.role,
+    supportType,
+    eventId,
     before: before ?? null,
     after: after ?? null,
     limit,
@@ -39,7 +53,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const parsed = sendMessageSchema.safeParse({ ...body, channel: CHANNEL });
+  const parsed = sendMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
@@ -51,13 +65,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
+  const supportType = parsed.data.support_type ?? "general";
+
+  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const isStaff = hasMinRole(user.role, supportType === "general" ? "admin" : "facilitator");
+
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const sessionUserId =
-    hasMinRole(user.role, "facilitator") && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
+  const sessionUserId = isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
 
   const [rateLimitCount, existing] = await Promise.all([
-    chatDao.countRecentSupportByUser(supabase, user.id, windowStart),
-    chatDao.findActiveSession(supabase, sessionUserId),
+    chatDao.countRecentByUser(supabase, user.id, supportType, windowStart),
+    chatDao.findActiveSession(supabase, sessionUserId, supportType),
   ]);
 
   if (rateLimitCount >= RATE_LIMIT_MAX) {
@@ -69,18 +90,16 @@ export async function POST(req: Request) {
   if (existing) {
     sessionId = existing.id;
   } else {
-    const newSession = await chatDao.createSession(supabase, sessionUserId);
+    const newSession = await chatDao.createSession(supabase, sessionUserId, supportType);
     sessionId = newSession!.id;
   }
 
-  const message = await chatDao.sendSupportMessage(supabase, {
-    channel: CHANNEL,
-    event_id: 0,
+  const message = await chatDao.sendMessage(supabase, {
+    support_type: supportType,
     user_id: user.id,
     message: parsed.data.message,
     session_id: sessionId,
-    recipient_user_id:
-      hasMinRole(user.role, "facilitator") && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
+    recipient_user_id: isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
   });
 
   if (!message) {

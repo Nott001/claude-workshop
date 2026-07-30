@@ -171,12 +171,14 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
         <CurriculumBuilder
           modules={courseBuilder.modules}
           onAddModule={courseBuilder.handleAddModule}
+          onAddQaModule={courseBuilder.handleAddQaModule}
           onRenameModule={courseBuilder.handleRenameModule}
           onDeleteModule={courseBuilder.handleDeleteModule}
           onDeleteLesson={courseBuilder.handleDeleteLesson}
           onAddLessonClick={courseBuilder.openLessonDialog}
           onReorderModules={courseBuilder.handleReorderModules}
           onReorderLessons={courseBuilder.handleReorderLessons}
+          onToggleModuleLock={courseBuilder.handleToggleModuleLock}
         />
         <LessonDialog
           open={courseBuilder.lessonDialogModuleId !== null}
@@ -285,7 +287,7 @@ function SupportSection({ eventId, userRole, userId }: { eventId: string; userRo
 
   return (
     <SectionCard title="Support" icon="support_agent" className="row-span-2">
-      <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={userId} />
+      <ChatPanel eventId={eventId} supportType="event" userRole={userRole} currentUserId={userId} />
     </SectionCard>
   );
 }

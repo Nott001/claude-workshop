@@ -1,11 +1,19 @@
 import type { DbClient } from "./types";
-import type { ChatMessage } from "@/shared/types";
+import type { ChatMessage, UserRole } from "@/shared/types";
+
+export async function findMessageWithUser(
+  supabase: DbClient,
+  messageId: number,
+): Promise<(ChatMessage & { USER: { full_name: string; role: UserRole } }) | null> {
+  const { data } = await supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("id", messageId).single();
+  return data as unknown as (ChatMessage & { USER: { full_name: string; role: UserRole } }) | null;
+}
 import { findLatestSession } from "./support-session.dao";
 
 export async function listMessages(
   supabase: DbClient,
-  eventId: number,
-  channel: string,
+  eventId: number | null,
+  supportType: string,
   options: {
     before?: string | null;
     after?: string | null;
@@ -17,9 +25,14 @@ export async function listMessages(
   let query = supabase
     .from("CHAT_MESSAGE")
     .select("*, USER:user_id(full_name, role)")
-    .eq("event_id", eventId)
-    .eq("channel", channel)
+    .eq("support_type", supportType)
     .is("deleted_at", null);
+
+  if (eventId !== null) {
+    query = query.eq("event_id", eventId);
+  } else {
+    query = query.is("event_id", null);
+  }
 
   if (after) {
     query = query.gt("sent_at", after).order("sent_at", { ascending: true });
@@ -46,33 +59,12 @@ export async function listMessages(
 export async function sendMessage(
   supabase: DbClient,
   data: {
-    event_id: number;
-    channel: string;
+    event_id?: number | null;
+    support_type: string;
     user_id: number;
     message: string;
-    reply_to?: number | null;
-    answered_verbally?: boolean;
-  },
-): Promise<ChatMessage | null> {
-  const { data: message, error } = await supabase
-    .from("CHAT_MESSAGE")
-    .insert(data)
-    .select("*, USER:user_id(full_name, role)")
-    .single();
-
-  if (error) return null;
-  return message;
-}
-
-export async function sendSupportMessage(
-  supabase: DbClient,
-  data: {
-    channel: string;
-    event_id: number;
-    user_id: number;
-    message: string;
-    session_id: number;
     recipient_user_id?: number;
+    session_id?: number;
   },
 ): Promise<ChatMessage | null> {
   const { data: message, error } = await supabase
@@ -88,58 +80,27 @@ export async function sendSupportMessage(
 export async function countRecentByUser(
   supabase: DbClient,
   userId: number,
-  eventId: number,
-  channel: string,
+  supportType: string,
   windowStart: string,
 ): Promise<number> {
-  const { count } = await supabase
+  const query = supabase
     .from("CHAT_MESSAGE")
     .select("*", { count: "exact", head: true })
-    .eq("event_id", eventId)
-    .eq("channel", channel)
+    .eq("support_type", supportType)
     .eq("user_id", userId)
     .gte("sent_at", windowStart)
     .is("deleted_at", null);
 
-  return count ?? 0;
-}
-
-export async function countRecentSupportByUser(supabase: DbClient, userId: number, windowStart: string): Promise<number> {
-  const { count } = await supabase
-    .from("CHAT_MESSAGE")
-    .select("*", { count: "exact", head: true })
-    .eq("channel", "support")
-    .eq("user_id", userId)
-    .gte("sent_at", windowStart)
-    .is("deleted_at", null);
-
+  const { count } = await query;
   return count ?? 0;
 }
 
 export async function findMessageById(
   supabase: DbClient,
   messageId: number,
-  eventId?: number,
-): Promise<{ id: number; event_id?: number } | null> {
-  let query = supabase.from("CHAT_MESSAGE").select("id, event_id").eq("id", messageId);
-
-  if (eventId !== undefined) {
-    query = query.eq("event_id", eventId);
-  }
-
-  const { data } = await query.single();
+): Promise<{ id: number; event_id?: number | null } | null> {
+  const { data } = await supabase.from("CHAT_MESSAGE").select("id, event_id").eq("id", messageId).single();
   return data;
-}
-
-export async function findReplies(supabase: DbClient, messageId: number, eventId?: number): Promise<ChatMessage[]> {
-  let query = supabase.from("CHAT_MESSAGE").select("id").eq("reply_to", messageId);
-
-  if (eventId !== undefined) {
-    query = query.eq("event_id", eventId);
-  }
-
-  const { data } = await query;
-  return (data ?? []) as ChatMessage[];
 }
 
 export async function updateMessage(supabase: DbClient, messageId: number, updates: Record<string, unknown>): Promise<boolean> {
@@ -153,25 +114,13 @@ export async function softDeleteMessages(supabase: DbClient, ids: number[]): Pro
   return !error;
 }
 
-export async function deleteMessagesByUser(supabase: DbClient, userId: number, channel?: string): Promise<boolean> {
-  let query = supabase.from("CHAT_MESSAGE").delete();
-
-  if (channel) {
-    query = query.eq("channel", channel);
-  }
-
-  const { error } = await query.eq("user_id", userId);
+export async function deleteMessagesByUser(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("CHAT_MESSAGE").delete().eq("user_id", userId);
   return !error;
 }
 
-export async function deleteMessagesByRecipient(supabase: DbClient, userId: number, channel?: string): Promise<boolean> {
-  let query = supabase.from("CHAT_MESSAGE").delete();
-
-  if (channel) {
-    query = query.eq("channel", channel);
-  }
-
-  const { error } = await query.eq("recipient_user_id", userId);
+export async function deleteMessagesByRecipient(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("CHAT_MESSAGE").delete().eq("recipient_user_id", userId);
   return !error;
 }
 
@@ -180,6 +129,8 @@ export async function listSupportMessages(
   options: {
     userId?: number;
     role?: string;
+    supportType: string;
+    eventId?: number | null;
     before?: string | null;
     after?: string | null;
     limit: number;
@@ -190,7 +141,7 @@ export async function listSupportMessages(
   nextCursor: string | null;
   sessionActive: boolean;
 }> {
-  const { userId, role, before, after, limit, filterUserId } = options;
+  const { userId, role, supportType, eventId, before, after, limit, filterUserId } = options;
 
   let sessionActive = false;
   let sessionId: number | null = null;
@@ -198,13 +149,21 @@ export async function listSupportMessages(
   let query = supabase
     .from("CHAT_MESSAGE")
     .select("*, USER:user_id(full_name, role)")
-    .eq("channel", "support")
+    .eq("support_type", supportType)
     .is("deleted_at", null);
 
-  if (role !== "facilitator" && userId) {
+  if (eventId !== undefined) {
+    if (eventId !== null) {
+      query = query.eq("event_id", eventId);
+    } else {
+      query = query.is("event_id", null);
+    }
+  }
+
+  if (role !== "facilitator" && role !== "admin" && role !== "super_admin" && userId) {
     query = query.or(`user_id.eq.${userId},recipient_user_id.eq.${userId}`);
 
-    const session = await findLatestSession(supabase, userId);
+    const session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);
     if (session) {
       sessionActive = session.status === "active";
       sessionId = session.id;
@@ -212,7 +171,7 @@ export async function listSupportMessages(
   } else if (filterUserId && userId) {
     query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${userId},recipient_user_id.eq.${filterUserId})`);
 
-    const session = await findLatestSession(supabase, Number(filterUserId));
+    const session = await findLatestSession(supabase, Number(filterUserId), supportType, eventId ?? undefined);
     if (session) {
       sessionId = session.id;
     }
@@ -249,8 +208,7 @@ export async function listSupportMessages(
 export async function listRecentSupportMessages(supabase: DbClient, since: string): Promise<unknown[]> {
   const { data } = await supabase
     .from("CHAT_MESSAGE")
-    .select("user_id, recipient_user_id, message, sent_at, session_id, USER:user_id!inner(full_name, role)")
-    .eq("channel", "support")
+    .select("user_id, recipient_user_id, message, sent_at, session_id, support_type, USER:user_id!inner(full_name, role)")
     .gte("sent_at", since)
     .is("deleted_at", null)
     .order("sent_at", { ascending: false })

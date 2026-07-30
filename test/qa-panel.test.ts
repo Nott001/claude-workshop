@@ -1,64 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { chatChannelEnum, sendMessageSchema } from "@/modules/chat";
-import type { ChatMessage, UserRole } from "@/shared/types";
+import { qaMessageSchema } from "@/modules/chat/lib/schemas";
+import type { QaMessage, UserRole } from "@/shared/types";
 
-describe("QAPanel uses live_qa channel", () => {
-  it("accepts live_qa channel for questions", () => {
-    const result = chatChannelEnum.safeParse("live_qa");
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts valid question message via sendMessageSchema", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "What is the deadline?" });
+describe("QAPanel uses QA_MESSAGE", () => {
+  it("accepts valid question message via qaMessageSchema", () => {
+    const result = qaMessageSchema.safeParse({ message: "What is the deadline?", module_id: 1 });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.channel).toBe("live_qa");
+      expect(result.data.message).toBe("What is the deadline?");
+      expect(result.data.module_id).toBe(1);
     }
   });
 
   it("rejects empty question", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "" });
+    const result = qaMessageSchema.safeParse({ message: "", module_id: 1 });
     expect(result.success).toBe(false);
   });
 
   it("rejects question exceeding max length", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "x".repeat(1001) });
+    const result = qaMessageSchema.safeParse({ message: "x".repeat(1001), module_id: 1 });
     expect(result.success).toBe(false);
   });
 });
 
-describe("reply_to threading", () => {
-  it("accepts reply_to in sendMessageSchema", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "A reply", reply_to: 42 });
+describe("qaMessageSchema requires module_id", () => {
+  it("accepts valid module_id", () => {
+    const result = qaMessageSchema.safeParse({ message: "A question", module_id: 42 });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.reply_to).toBe(42);
+      expect(result.data.module_id).toBe(42);
     }
   });
 
-  it("accepts message without reply_to", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "A question" });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.reply_to).toBeUndefined();
-    }
-  });
-
-  it("rejects negative reply_to", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "Bad", reply_to: -1 });
+  it("rejects missing module_id", () => {
+    const result = qaMessageSchema.safeParse({ message: "A question" });
     expect(result.success).toBe(false);
   });
-});
 
-describe("answered_verbally", () => {
-  it("accepts answered_verbally in schema", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "Q", answered_verbally: true });
-    expect(result.success).toBe(true);
-  });
-
-  it("defaults to undefined when omitted", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "Q" });
-    expect(result.success).toBe(true);
+  it("rejects non-positive module_id", () => {
+    const result = qaMessageSchema.safeParse({ message: "A question", module_id: 0 });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -71,50 +52,22 @@ describe("Q&A moderation — staff can delete questions", () => {
     expect(staffRoles.every(isStaff)).toBe(true);
     expect(nonStaffRoles.some(isStaff)).toBe(false);
   });
-
-  it("delete endpoint accepts both facilitator and speaker roles", () => {
-    const allowedRoles: UserRole[] = ["facilitator", "speaker"];
-    expect(allowedRoles).toContain("facilitator");
-    expect(allowedRoles).toContain("speaker");
-    expect(allowedRoles).not.toContain("attendee");
-  });
 });
 
-describe("ChatMessage type includes threading", () => {
-  it("accepts reply_to and answered_verbally", () => {
-    const msg: ChatMessage = {
+describe("QaMessage type", () => {
+  it("includes module_id instead of reply_to", () => {
+    const msg: QaMessage = {
       id: 1,
       event_id: 99,
-      session_id: null,
-      channel: "live_qa",
+      module_id: 5,
       user_id: 5,
-      recipient_user_id: null,
       message: "Question?",
-      sent_at: "2026-07-10T12:00:00Z",
       deleted_at: null,
+      created_at: "2026-07-10T12:00:00Z",
       updated_at: "2026-07-10T12:00:00Z",
-      reply_to: null,
-      answered_verbally: false,
     };
-    expect(msg.reply_to).toBeNull();
-    expect(msg.answered_verbally).toBe(false);
-  });
-
-  it("accepts a reply with reply_to set", () => {
-    const msg: ChatMessage = {
-      id: 2,
-      event_id: 99,
-      session_id: null,
-      channel: "live_qa",
-      user_id: 3,
-      recipient_user_id: null,
-      message: "Answer",
-      sent_at: "2026-07-10T12:01:00Z",
-      deleted_at: null,
-      updated_at: "2026-07-10T12:01:00Z",
-      reply_to: 1,
-      answered_verbally: false,
-    };
-    expect(msg.reply_to).toBe(1);
+    expect(msg.module_id).toBe(5);
+    expect("reply_to" in msg).toBe(false);
+    expect("answered_verbally" in msg).toBe(false);
   });
 });
