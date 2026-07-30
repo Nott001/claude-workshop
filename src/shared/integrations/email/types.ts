@@ -5,5 +5,5 @@ export interface SendEmailParams {
 }
 
 export interface EmailProvider {
-  send(params: SendEmailParams): Promise<{ success: boolean }>;
+  send(params: SendEmailParams): Promise<{ success: boolean; error?: string }>;
 }

@@ -26,4 +26,4 @@ export const emailTemplates = {
     subject: "Check-In Confirmed",
     buildHtml: checkInConfirmedHtml,
   },
-};
+} as const;

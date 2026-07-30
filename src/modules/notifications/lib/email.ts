@@ -1,7 +1,13 @@
 import { getServiceClient } from "@/shared/db/client";
 import { emailDao } from "@/shared/db/dao";
-import { getEmailService, emailTemplates } from "@/shared/integrations/email";
+import { getEmailService } from "@/shared/integrations/email";
+import { emailTemplates } from "@/shared/integrations/email/templates";
 import type { EmailType } from "@/shared/types";
+
+const templateMap: Record<EmailType, keyof typeof emailTemplates> = {
+  ticket_issued: "ticketIssued",
+  check_in_confirmed: "checkInConfirmed",
+};
 
 export async function sendEmailNotification(params: {
   user_id: number;
@@ -12,8 +18,7 @@ export async function sendEmailNotification(params: {
   eventDate?: string;
   qrDataUrl?: string;
 }) {
-  const templateKey = params.email_type === "ticket_issued" ? "ticketIssued" : "checkInConfirmed";
-  const template = emailTemplates[templateKey];
+  const template = emailTemplates[templateMap[params.email_type]];
 
   const eventDate = params.eventDate ?? "";
 
@@ -28,6 +33,10 @@ export async function sendEmailNotification(params: {
         qrDataUrl: params.qrDataUrl,
       }),
     });
+
+    if (!result.success && result.error) {
+      console.warn("Email send failed:", result.error);
+    }
 
     const supabase = getServiceClient();
     await emailDao.insert(supabase, {

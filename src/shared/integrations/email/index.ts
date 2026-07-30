@@ -1,26 +1,12 @@
-import type { EmailProvider, SendEmailParams } from "./types";
-import { emailTemplates } from "./templates";
+import type { EmailProvider } from "./types";
+import { ConsoleEmailProvider } from "./providers/console";
 
-export type { EmailProvider, SendEmailParams };
-export { emailTemplates };
-
-export class EmailService {
-  constructor(private provider: EmailProvider) {}
-
-  async send(params: SendEmailParams): Promise<{ success: boolean }> {
-    return this.provider.send(params);
-  }
-}
-
-let instance: EmailService | null = null;
+let instance: EmailProvider = new ConsoleEmailProvider();
 
 export function configureEmailService(provider: EmailProvider): void {
-  instance = new EmailService(provider);
+  instance = provider;
 }
 
-export function getEmailService(): EmailService {
-  if (!instance) {
-    throw new Error("EmailService not configured — call configureEmailService(provider) in layout.tsx");
-  }
+export function getEmailService(): EmailProvider {
   return instance;
 }
