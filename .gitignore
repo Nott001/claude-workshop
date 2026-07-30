@@ -56,3 +56,7 @@ next-env.d.ts
 
 # lighthouse
 /.lighthouseci
+
+# claude code — machine-specific approvals stay local, the shared allowlist is
+# committed so it survives a fresh clone
+/.claude/settings.local.json
