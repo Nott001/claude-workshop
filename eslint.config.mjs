@@ -1,4 +1,4 @@
-// The `lint` script passes --max-warnings=17, which is a ratchet, not a goal —
+// The `lint` script passes --max-warnings=16, which is a ratchet, not a goal —
 // the same approach as the coverage thresholds in vitest.config.ts. eslint exits
 // 0 on warnings, so before this the Lint job could only ever fail on an
 // error-level rule (verified: rules-of-hooks does fail it). Every warning below
@@ -16,8 +16,13 @@
 //                                        loops, which this codebase has already
 //                                        been bitten by (see the Realtime ->
 //                                        SWR polling commits). One at a time.
-//    2  @typescript-eslint/no-unused-vars  Trivial; left in this commit so the
-//                                        gate lands as a config-only change.
+//    1  @typescript-eslint/no-unused-vars  Trivial; left so this stays a
+//                                        config-only change. Clearing it takes
+//                                        the ceiling straight to 15.
+//
+// 0 is the real target, but it is only reachable once the 12 <img> conversions
+// land. Setting it early would just make CI permanently red, which is what the
+// ratchet exists to avoid.
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";

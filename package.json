@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --max-warnings=17",
+    "lint": "eslint --max-warnings=16",
     "format": "prettier --write \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\"",
     "test:e2e": "playwright test",
