@@ -1,4 +1,14 @@
-export type StorageBucket = "event_images" | "profile_images" | "course_assets" | "course_videos";
+export const STORAGE_BUCKETS = ["event_images", "profile_images", "course_assets", "course_videos"] as const;
+
+export type StorageBucket = (typeof STORAGE_BUCKETS)[number];
+
+/** Narrows an untrusted path segment to a bucket we actually serve. */
+export function isStorageBucket(value: string): value is StorageBucket {
+  return (STORAGE_BUCKETS as readonly string[]).includes(value);
+}
+
+/** Buckets holding paid course material, which requires an entitlement check. */
+export const COURSE_CONTENT_BUCKETS: readonly StorageBucket[] = ["course_assets", "course_videos"];
 
 const BUCKET_CONFIG: Record<StorageBucket, { allowedTypes: string[]; maxSizeBytes: number }> = {
   event_images: {

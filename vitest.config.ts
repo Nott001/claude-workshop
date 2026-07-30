@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     include: ["test/**/*.{test,spec}.{ts,tsx}"],
+    // Playwright specs live under test/e2e and share the .spec.ts suffix. They
+    // need a browser and a live database, so vitest must not try to run them —
+    // `pnpm test` stays a fast hermetic run. Playwright owns that directory.
+    exclude: [...configDefaults.exclude, "test/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov", "json-summary"],
@@ -16,12 +20,12 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/shared/types/**", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
-      // See specs/SPEC-07-TEST-STRATEGY.md for the target trajectory.
+      // See specs/SPEC-09-TEST-STRATEGY.md for the target trajectory.
       thresholds: {
-        statements: 7,
-        branches: 7.5,
-        functions: 6,
-        lines: 7,
+        statements: 8.5,
+        branches: 9,
+        functions: 7,
+        lines: 8.4,
       },
     },
   },

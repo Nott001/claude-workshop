@@ -1,0 +1,12 @@
+# Fast checks only. A slow commit hook gets bypassed with --no-verify within a
+# week, and then it protects nothing. Linting the whole project takes ~18s, so
+# lint-staged narrows it to the files actually being committed.
+#
+# The real gate is CI on the pull request; this exists to catch cheap mistakes
+# before they cost a round trip.
+pnpm exec lint-staged
+
+# Not scopable to staged files — tsc needs the whole project to resolve types.
+# ~4s, and it is the check that would have caught the 24 errors this repo
+# accumulated while nothing was verifying them.
+pnpm typecheck

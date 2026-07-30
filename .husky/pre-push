@@ -1,0 +1,7 @@
+# Tests run here rather than on commit. Commits should stay cheap — people
+# check in work in progress, and a broken commit on your own branch harms
+# nobody. A push is the first point where the work becomes visible to others.
+#
+# ~7s for 322 tests. E2E is deliberately absent: it needs a browser, a build and
+# a live database, and belongs in CI.
+pnpm test

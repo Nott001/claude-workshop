@@ -1,0 +1,188 @@
+import { test, expect } from "@playwright/test";
+import {
+  serviceClient,
+  createUser,
+  createEvent,
+  createCourse,
+  signIn,
+  cleanup,
+  type SeededUser,
+  type SeededEvent,
+  type SeededCourse,
+} from "./fixtures";
+
+/**
+ * Course authoring: modules and lessons.
+ *
+ * The course itself is seeded rather than created through the API, because
+ * `POST /api/courses` cannot work against the live schema — see the fixme at
+ * the bottom and SPEC-09-TEST-STRATEGY §9. Everything below the course level does work, and
+ * is worth holding in place.
+ */
+
+const db = serviceClient();
+const users: SeededUser[] = [];
+const events: SeededEvent[] = [];
+const courses: SeededCourse[] = [];
+const moduleIds: number[] = [];
+
+let event: SeededEvent;
+let course: SeededCourse;
+
+test.beforeAll(async () => {
+  event = await createEvent(db);
+  events.push(event);
+  course = await createCourse(db, event.eventId);
+  courses.push(course);
+});
+
+test.afterAll(async () => {
+  if (moduleIds.length) await db.from("LESSON").delete().in("module_id", moduleIds);
+  await cleanup(db, users, events, courses);
+});
+
+test("a facilitator adds a module to a course", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const res = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-module-one", sequence_order: 1 },
+  });
+
+  expect(res.status()).toBe(201);
+  const mod = await res.json();
+  moduleIds.push(mod.id);
+
+  expect(mod.module_name).toBe("e2e-module-one");
+  expect(mod.course_id).toBe(course.courseId);
+});
+
+test("a facilitator adds a lesson to a module", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const modRes = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-module-two", sequence_order: 2 },
+  });
+  const mod = await modRes.json();
+  moduleIds.push(mod.id);
+
+  const res = await page.request.post(`/api/modules/${mod.id}/lessons`, {
+    data: { description: "e2e-lesson-one", content_type: "link", sequence_order: 1 },
+  });
+
+  expect(res.status()).toBe(201);
+  const lesson = await res.json();
+  expect(lesson.description).toBe("e2e-lesson-one");
+  expect(lesson.module_id).toBe(mod.id);
+});
+
+test("the curriculum reads back with its modules and lessons", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const modRes = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-module-three", sequence_order: 3 },
+  });
+  const mod = await modRes.json();
+  moduleIds.push(mod.id);
+
+  await page.request.post(`/api/modules/${mod.id}/lessons`, {
+    data: { description: "e2e-lesson-readback", content_type: "link", sequence_order: 1 },
+  });
+
+  // The course detail endpoint nests MODULE -> LESSON, which is the join that
+  // would break silently if a relationship name were wrong.
+  const detail = await page.request.get(`/api/courses/${course.courseId}`);
+  expect(detail.status()).toBe(200);
+
+  const body = await detail.json();
+  const found = (body.MODULE ?? []).find((m: { id: number }) => m.id === mod.id);
+  expect(found, "the module just created should be in the course detail").toBeTruthy();
+  expect((found.LESSON ?? []).some((l: { description: string }) => l.description === "e2e-lesson-readback")).toBe(true);
+});
+
+test("an invalid module is refused without writing", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const blank = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "", sequence_order: 1 },
+  });
+  expect(blank.status()).toBe(400);
+
+  const badOrder = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-bad", sequence_order: 0 },
+  });
+  expect(badOrder.status()).toBe(400);
+});
+
+test("an attendee cannot author course content", async ({ page }) => {
+  const attendee = await createUser(db, "attendee");
+  users.push(attendee);
+
+  await signIn(page, attendee);
+
+  const mod = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-should-not-exist", sequence_order: 9 },
+  });
+  expect(mod.status()).toBe(401);
+
+  const list = await page.request.get("/api/courses");
+  expect(list.status()).toBe(401);
+});
+
+test("a facilitator deleting a module removes its lessons", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const modRes = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-module-doomed", sequence_order: 8 },
+  });
+  const mod = await modRes.json();
+
+  await page.request.post(`/api/modules/${mod.id}/lessons`, {
+    data: { description: "e2e-lesson-doomed", content_type: "link", sequence_order: 1 },
+  });
+
+  const del = await page.request.delete(`/api/modules/${mod.id}`);
+  expect(del.status()).toBe(200);
+
+  const { count } = await db.from("LESSON").select("*", { count: "exact", head: true }).eq("module_id", mod.id);
+  expect(count).toBe(0);
+});
+
+/**
+ * Creating a course through the API cannot work against the live database.
+ *
+ * `courseDao.createCourse` inserts only `course_name` and `course_description`,
+ * but the live COURSE table has `event_id NOT NULL`. Every call fails, which is
+ * the same schema drift that breaks event creation.
+ *
+ * Marked fixme so the gap stays visible. Remove the marker once SPEC-09-TEST-STRATEGY §9 is
+ * resolved; this test then holds the fix in place.
+ */
+test.fixme("a facilitator can create a course through the API", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const res = await page.request.post("/api/courses", {
+    data: { course_name: "e2e-created-course", course_description: "made by an e2e run" },
+  });
+
+  expect(res.status()).toBe(201);
+  const created = await res.json();
+  courses.push({ courseId: created.id, name: created.course_name });
+});

@@ -2,7 +2,7 @@ import type { DbClient } from "./types";
 import type { EmailLog, EmailType, EmailStatus } from "@/shared/types";
 
 export async function findById(supabase: DbClient, id: number): Promise<EmailLog | null> {
-  const { data } = await supabase.from("EMAIL_LOG").select("*, USER:id(full_name, email)").eq("id", id).single();
+  const { data } = await supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").eq("id", id).single();
   return data;
 }
 
@@ -16,7 +16,7 @@ export async function list(
     date_to?: string;
   },
 ): Promise<EmailLog[]> {
-  let query = supabase.from("EMAIL_LOG").select("*, USER:id(full_name, email)").order("sent_at", { ascending: false });
+  let query = supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").order("sent_at", { ascending: false });
 
   if (filters?.email_type) {
     query = query.eq("email_type", filters.email_type);
