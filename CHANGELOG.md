@@ -10,6 +10,7 @@
 ### Fixed
 
 - Sessions survive a token refresh. The middleware rebuilt its response once per cookie, so each write discarded the one before it and the browser was left holding part of a chunked auth token — presenting as a random logout. Refusing a request no longer drops the cookies either, which is what cleared an expired session, so a stale token could previously fail the same way on every retry. Responses that carry a refreshed session are now marked uncacheable, since a shared cache could otherwise replay one visitor's session to the next.
+- Deleting an event now deletes its course material. Asset and video paths were collected and then discarded: the single cleanup call only ever targeted the `event_images` bucket, so every deleted event left its uploads orphaned in storage.
 - QR check-in works again. Every scan returned "Invalid QR token" because the ticket lookup joined the user through the wrong column, so the query errored and the ticket was reported as missing.
 - Chat message senders, the event attendee list, and email log recipients load again — all four affected queries shared the same fault.
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
