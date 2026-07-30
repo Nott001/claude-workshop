@@ -16,9 +16,9 @@ export default function StaffSupportPage() {
   return (
     <>
       <div>
-        <h1>Support Chat</h1>
+        <h1>Event Support Chat</h1>
         <p>Use this channel to communicate with event attendees.</p>
-        <ChatPanel eventId={eventId} channel="support" userRole={userRole} currentUserId={currentUserId} />
+        <ChatPanel eventId={eventId} supportType="event" userRole={userRole} currentUserId={currentUserId} />
       </div>
       <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>

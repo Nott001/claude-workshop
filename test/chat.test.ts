@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { sendMessageSchema, chatChannelEnum, isRateLimited, RATE_LIMIT_MAX } from "@/modules/chat";
-import type { ChatMessage, ChatChannel } from "@/shared/types";
+import { sendMessageSchema, supportTypeEnum, isRateLimited, RATE_LIMIT_MAX } from "@/modules/chat";
+import type { ChatMessage, SupportType } from "@/shared/types";
 
-describe("ChatChannel type", () => {
-  it("accepts valid channel values", () => {
-    const channels: ChatChannel[] = ["support", "live_qa"];
-    expect(channels).toHaveLength(2);
+describe("SupportType type", () => {
+  it("accepts valid support_type values", () => {
+    const types: SupportType[] = ["general", "event"];
+    expect(types).toHaveLength(2);
   });
 });
 
@@ -13,20 +13,18 @@ describe("ChatMessage type", () => {
   it("has correct shape", () => {
     const msg: ChatMessage = {
       id: 1,
-      event_id: 1,
+      event_id: null,
       session_id: null,
-      channel: "live_qa",
+      support_type: "general",
       user_id: 5,
       recipient_user_id: null,
       message: "Hello, world!",
       sent_at: "2026-07-10T12:00:00Z",
       deleted_at: null,
       updated_at: "2026-07-10T12:00:00Z",
-      reply_to: null,
-      answered_verbally: false,
     };
     expect(msg.id).toBe(1);
-    expect(msg.channel).toBe("live_qa");
+    expect(msg.support_type).toBe("general");
     expect(msg.message).toBe("Hello, world!");
   });
 
@@ -35,87 +33,75 @@ describe("ChatMessage type", () => {
       id: 2,
       event_id: 1,
       session_id: null,
-      channel: "support",
+      support_type: "event",
       user_id: 3,
       recipient_user_id: null,
       message: "Need help",
       sent_at: "2026-07-10T12:00:00Z",
       deleted_at: "2026-07-10T12:05:00Z",
       updated_at: "2026-07-10T12:05:00Z",
-      reply_to: null,
-      answered_verbally: false,
     };
     expect(msg.deleted_at).toBeTruthy();
   });
 });
 
-describe("chatChannelEnum", () => {
-  it("accepts 'support'", () => {
-    const result = chatChannelEnum.safeParse("support");
+describe("supportTypeEnum", () => {
+  it("accepts 'general'", () => {
+    const result = supportTypeEnum.safeParse("general");
     expect(result.success).toBe(true);
   });
 
-  it("accepts 'live_qa'", () => {
-    const result = chatChannelEnum.safeParse("live_qa");
+  it("accepts 'event'", () => {
+    const result = supportTypeEnum.safeParse("event");
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid channel", () => {
-    const result = chatChannelEnum.safeParse("dm");
+  it("rejects invalid type", () => {
+    const result = supportTypeEnum.safeParse("dm");
     expect(result.success).toBe(false);
   });
 
-  it("rejects global_support", () => {
-    const result = chatChannelEnum.safeParse("global_support");
+  it("rejects old channel values", () => {
+    const result = supportTypeEnum.safeParse("live_qa");
     expect(result.success).toBe(false);
   });
 });
 
 describe("sendMessageSchema", () => {
-  it("accepts valid message", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "Hello!" });
+  it("accepts valid general support message", () => {
+    const result = sendMessageSchema.safeParse({ support_type: "general", message: "Hello!" });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.channel).toBe("live_qa");
+      expect(result.data.support_type).toBe("general");
       expect(result.data.message).toBe("Hello!");
     }
   });
 
-  it("accepts support channel", () => {
-    const result = sendMessageSchema.safeParse({ channel: "support", message: "Need help" });
+  it("accepts event support message", () => {
+    const result = sendMessageSchema.safeParse({ support_type: "event", message: "Need help" });
     expect(result.success).toBe(true);
   });
 
-  it("rejects global_support channel", () => {
-    const result = sendMessageSchema.safeParse({ channel: "global_support", message: "Need help" });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts support with reply_to", () => {
-    const result = sendMessageSchema.safeParse({ channel: "support", message: "Reply", reply_to: 42 });
+  it("defaults support_type to general", () => {
+    const result = sendMessageSchema.safeParse({ message: "Hello" });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.reply_to).toBe(42);
+      expect(result.data.support_type).toBe("general");
     }
   });
 
   it("rejects empty message", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "" });
+    const result = sendMessageSchema.safeParse({ message: "" });
     expect(result.success).toBe(false);
   });
 
   it("rejects too-long message", () => {
-    const result = sendMessageSchema.safeParse({ channel: "live_qa", message: "x".repeat(1001) });
+    const result = sendMessageSchema.safeParse({ message: "x".repeat(1001) });
     expect(result.success).toBe(false);
   });
 
-  it("rejects invalid channel", () => {
-    const result = sendMessageSchema.safeParse({ channel: "invalid", message: "Hello" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects missing channel", () => {
-    const result = sendMessageSchema.safeParse({ message: "Hello" });
+  it("rejects invalid support_type", () => {
+    const result = sendMessageSchema.safeParse({ support_type: "invalid", message: "Hello" });
     expect(result.success).toBe(false);
   });
 });

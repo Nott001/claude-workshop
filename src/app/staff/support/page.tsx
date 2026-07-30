@@ -1,22 +1,22 @@
-import { requireAuth } from "@/modules/auth/lib/session";
-import { getServiceClient } from "@/shared/db/client";
-import { chatDao } from "@/shared/db/dao";
-import { SupportChatClient } from "@/modules/support/components/support-chat-client";
+"use client";
 
-export default async function StaffSupportPage() {
-  const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
+import { useSession } from "@/modules/auth";
+import ChatPanel from "@/modules/chat/components/chat-panel";
+import { Footer } from "@/shared/components/footer";
 
-  const result = user
-    ? await chatDao.listSupportMessages(supabase, {
-        userId: user.id,
-        role: user.role,
-        before: null,
-        after: null,
-        limit: 50,
-        filterUserId: null,
-      })
-    : { messages: [], nextCursor: null, sessionActive: false };
+export default function StaffSupportPage() {
+  const { user } = useSession();
+  const userRole = user?.role ?? null;
+  const currentUserId = user?.id ?? null;
 
-  return <SupportChatClient messages={result.messages} currentUserId={user?.id ?? null} />;
+  return (
+    <>
+      <div>
+        <h1>General Support Inbox</h1>
+        <p>Handle general support requests from attendees.</p>
+        <ChatPanel eventId="" supportType="general" userRole={userRole} currentUserId={currentUserId} />
+      </div>
+      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
+    </>
+  );
 }

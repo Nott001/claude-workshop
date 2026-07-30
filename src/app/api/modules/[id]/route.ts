@@ -18,6 +18,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (accessError) return accessError;
 
   const body = await req.json();
+
+  if (body.is_locked !== undefined) {
+    const supabase = getServiceClient();
+    const mod = await courseDao.setModuleLock(supabase, Number(id), body.is_locked);
+    if (!mod) {
+      return NextResponse.json({ error: "Failed to update lock state" }, { status: 500 });
+    }
+    return NextResponse.json(mod);
+  }
+
   const parsed = moduleSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

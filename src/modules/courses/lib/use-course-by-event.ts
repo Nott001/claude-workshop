@@ -16,6 +16,8 @@ interface CourseModule {
   course_id: number;
   module_name: string;
   sequence_order: number;
+  module_type: string;
+  is_locked: boolean;
   LESSON: CourseLesson[];
 }
 

@@ -18,6 +18,13 @@ export const courseSchema = z.object({
 export const moduleSchema = z.object({
   module_name: z.string().min(1, "Name is required"),
   sequence_order: z.coerce.number().int().positive("Must be at least 1"),
+  module_type: z.enum(["lessons", "qa"]).default("lessons"),
+});
+
+export const qaModuleSchema = z.object({
+  module_name: z.string().min(1, "Name is required"),
+  sequence_order: z.coerce.number().int().positive("Must be at least 1"),
+  is_locked: z.boolean().optional(),
 });
 
 export const lessonSchema = z.object({

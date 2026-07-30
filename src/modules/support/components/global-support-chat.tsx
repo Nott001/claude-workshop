@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useChatPolling } from "@/shared/lib/use-chat-polling";
-import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
+import { supabase } from "@/shared/db/client";
 import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
@@ -12,17 +11,16 @@ interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };
 }
 
-interface SupportData {
-  messages: ChatMessageWithUser[];
-  session_active: boolean;
-}
-
 interface GlobalSupportChatProps {
   isOpen: boolean;
   onClose: () => void;
+  supportType?: "general" | "event";
+  eventId?: string;
 }
 
-export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
+export default function GlobalSupportChat({ isOpen, onClose, supportType = "general", eventId }: GlobalSupportChatProps) {
+  const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,26 +30,64 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
-  const { data, isLoading, setActive } = useChatPolling<SupportData>("/api/support");
-
-  const serverMessages = data?.messages ?? [];
-  const { all: rawMessages, addOptimistic, resolveOptimistic } = useOptimisticMessages<ChatMessageWithUser>(serverMessages);
-  const allMessages = rawMessages.sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
+  const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
 
   useEffect(() => {
-    const sub = subscribeToSupportSessions((session) => {
+    if (!isOpen) return;
+    fetch(apiUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages(data.messages ?? []);
+        setSessionActive(data.session_active ?? true);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+
+    const channelName = `global-support-${supportType}-${eventId ?? "general"}-${Date.now()}`;
+    const sub = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "CHAT_MESSAGE",
+          filter: `support_type=eq.${supportType}`,
+        },
+        async (payload) => {
+          const msg = payload.new as ChatMessageWithUser;
+          if (supportType === "event" && eventId && msg.event_id !== Number(eventId)) return;
+          if (supportType === "general" && msg.event_id !== null) return;
+          const { data: full } = await supabase
+            .from("CHAT_MESSAGE")
+            .select("*, USER:user_id(full_name, role)")
+            .eq("id", msg.id)
+            .single();
+          if (full) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === full.id)) return prev;
+              return [...prev, full as unknown as ChatMessageWithUser];
+            });
+          }
+        },
+      )
+      .subscribe();
+
+    const sessionSub = subscribeToSupportSessions((session) => {
       setSessionActive(session.status === "active");
     });
+
     return () => {
       sub.unsubscribe();
+      sessionSub.unsubscribe();
     };
-  }, []);
+  }, [isOpen, supportType, eventId]);
 
   useEffect(() => {
     if (isOpen) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [allMessages, isOpen]);
+  }, [messages, isOpen]);
 
   function formatTime(sentAt: string) {
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -62,50 +98,29 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     if (!newMessage.trim() || sending || currentUserId == null) return;
 
     const text = newMessage.trim();
-    const optimisticId = -Date.now();
-    const optimistic: ChatMessageWithUser = {
-      id: optimisticId,
-      channel: "support",
-      user_id: currentUserId,
-      message: text,
-      // Global support is not tied to an event; the API writes the same sentinel.
-      event_id: 0,
-      sent_at: new Date().toISOString(),
-      session_id: 0,
-      recipient_user_id: null,
-      reply_to: null,
-      answered_verbally: false,
-      deleted_at: null,
-      updated_at: new Date().toISOString(),
-      USER: { full_name: currentUser?.full_name ?? "You", role: (currentUser?.role ?? "attendee") as UserRole },
-    };
-
-    addOptimistic(optimistic);
-    setNewMessage("");
     setSending(true);
     setError(null);
 
     const res = await fetch("/api/support", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({
+        support_type: supportType,
+        message: text,
+        ...(supportType === "event" && eventId ? { event_id: Number(eventId) } : {}),
+      }),
     });
 
     if (res.status === 429) {
-      resolveOptimistic(optimisticId);
       setError("Too many messages. Please wait a moment.");
     } else if (!res.ok) {
-      resolveOptimistic(optimisticId);
       setError("Failed to send message.");
-    } else {
-      await res.json();
-      resolveOptimistic(optimisticId);
-      setActive();
     }
+    setNewMessage("");
     setSending(false);
   }
 
-  const chatEnded = !sessionActive && serverMessages.length > 0;
+  const chatEnded = !sessionActive && messages.length > 0;
 
   return (
     <div
@@ -118,7 +133,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-lg text-brand">support_agent</span>
-          <span className="text-sm font-semibold text-fg">Support</span>
+          <span className="text-sm font-semibold text-fg">{supportType === "general" ? "Support" : "Event Support"}</span>
           {!sessionActive && (
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-fg">Ended</span>
           )}
@@ -128,7 +143,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         </button>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="flex items-center gap-2">
             <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
@@ -139,11 +154,11 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         <>
           <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
-              {allMessages.length === 0 && (
+              {messages.length === 0 && (
                 <p className="py-12 text-center text-sm text-muted-fg">No messages yet. How can we help?</p>
               )}
 
-              {allMessages.map((msg) => {
+              {messages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = hasMinRole(msg.USER?.role as UserRole, "facilitator");

@@ -1,13 +1,16 @@
 import { z } from "zod";
 
-export const chatChannelEnum = z.enum(["support", "live_qa"]);
+export const supportTypeEnum = z.enum(["general", "event"]);
 
 export const sendMessageSchema = z.object({
-  channel: chatChannelEnum,
+  support_type: supportTypeEnum.default("general"),
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
-  reply_to: z.number().int().positive().optional(),
   recipient_user_id: z.number().int().positive().optional(),
-  answered_verbally: z.boolean().optional(),
+});
+
+export const qaMessageSchema = z.object({
+  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
+  module_id: z.number().int().positive(),
 });
 
 export const RATE_LIMIT_WINDOW_MS = 60_000;
