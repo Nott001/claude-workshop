@@ -5,7 +5,7 @@ import { emailDao } from "@/shared/db/dao";
 import { emailLogFilterSchema } from "@/modules/notifications";
 
 export async function GET(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("admin");
   if (!guard.allowed) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }

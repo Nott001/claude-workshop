@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";
 type EmailStatus = "sent" | "failed";
@@ -31,9 +34,17 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
+  const router = useRouter();
   const { user } = useSession();
   const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter, userRole, isLoaded } =
     useEmailLogs();
+
+  useEffect(() => {
+    if (!isLoaded || userRole === null) return;
+    if (!hasMinRole(userRole, "admin")) {
+      router.replace("/access-denied");
+    }
+  }, [userRole, router, isLoaded]);
 
   if (!isLoaded || userRole === null) {
     return (
@@ -42,6 +53,8 @@ export default function StaffEmailsPage() {
       </div>
     );
   }
+
+  if (!hasMinRole(userRole, "admin")) return null;
 
   return (
     <>

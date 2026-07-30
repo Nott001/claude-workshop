@@ -91,9 +91,9 @@ describe("POST /api/events authorization", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("requires the facilitator role specifically", async () => {
+  it("requires the admin role specifically", async () => {
     await POST(postEvent(validEvent));
-    expect(requireRole).toHaveBeenCalledWith("facilitator");
+    expect(requireRole).toHaveBeenCalledWith("admin");
   });
 });
 

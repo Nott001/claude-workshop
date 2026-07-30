@@ -1,31 +1,53 @@
-import { notFound } from "next/navigation";
-import { getServiceClient } from "@/shared/db/client";
-import { eventDao } from "@/shared/db/dao";
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
+import { useEffect, useState } from "react";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+export default function StaffEditEventPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useSession();
+  const userRole = user?.role ?? null;
+  const eventId = params.id as string;
+  const [initialData, setInitialData] = useState<{
+    title: string;
+    event_date: string;
+    start_time: string;
+    end_time: string;
+    venue_name: string;
+  } | null>(null);
 
-export default async function StaffEditEventPage({ params }: PageProps) {
-  const { id } = await params;
-  const supabase = getServiceClient();
-  const event = await eventDao.findByIdWithCourse(supabase, Number(id));
+  useEffect(() => {
+    if (!hasMinRole(userRole, "facilitator")) {
+      router.replace("/staff/events");
+    }
+  }, [userRole, router]);
 
-  if (!event) {
-    notFound();
+  useEffect(() => {
+    fetch(`/api/events/${eventId}`)
+      .then((res) => res.json())
+      .then((data) => setInitialData(data))
+      .catch(() => router.replace("/staff/events"));
+  }, [eventId, router]);
+
+  if (!hasMinRole(userRole, "facilitator")) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-foreground">Redirecting...</div>
+      </div>
+    );
   }
 
-  return (
-    <EditEventForm
-      eventId={id}
-      initialData={{
-        title: event.title ?? "",
-        event_date: event.event_date ?? "",
-        start_time: event.start_time ?? "",
-        end_time: event.end_time ?? "",
-        venue_name: event.venue_name ?? "",
-      }}
-    />
-  );
+  if (!initialData) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  return <EditEventForm eventId={eventId} initialData={initialData} />;
 }

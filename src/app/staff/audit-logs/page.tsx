@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
@@ -45,7 +48,17 @@ function actionColor(action: string): string {
 
 export default function StaffAuditLogsPage() {
   const router = useRouter();
+  const { user } = useSession();
+  const userRole = user?.role ?? null;
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
+
+  useEffect(() => {
+    if (!hasMinRole(userRole, "admin")) {
+      router.replace("/access-denied");
+    }
+  }, [userRole, router]);
+
+  if (!hasMinRole(userRole, "admin")) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">

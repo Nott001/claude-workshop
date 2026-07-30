@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { Footer } from "@/shared/components/footer";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -18,7 +21,15 @@ const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function StaffEventsPage() {
+  const router = useRouter();
   const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, userRole, tabCounts } = useEventList();
+
+  useEffect(() => {
+    if (loading || error) return;
+    if (!hasMinRole(userRole, "facilitator")) {
+      router.replace("/access-denied");
+    }
+  }, [userRole, router, loading, error]);
 
   if (loading) {
     return (
@@ -35,6 +46,8 @@ export default function StaffEventsPage() {
       </div>
     );
   }
+
+  if (!hasMinRole(userRole, "facilitator")) return null;
 
   const filterTabs = isFacilitator ? FACILITATOR_TABS : NON_FACILITATOR_TABS;
 
