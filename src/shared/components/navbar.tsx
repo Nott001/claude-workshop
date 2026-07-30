@@ -19,18 +19,8 @@ const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
     { label: "Events", href: "/events", icon: "event" },
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },
   ],
-  speaker: [
-    { label: "Dashboard", href: "/speaker/dashboard", icon: "event" },
-    { label: "Events", href: "/staff/events", icon: "event" },
-  ],
-  facilitator: [
-    { label: "Events", href: "/staff/events", icon: "event" },
-    { label: "Create event", href: "/staff/events/new", icon: "add_circle" },
-    { label: "Organization", href: "/staff/organization", icon: "groups" },
-    { label: "Emails", href: "/staff/emails", icon: "mail" },
-    { label: "Support", href: "/staff/support", icon: "support_agent" },
-    { label: "Audit Logs", href: "/staff/audit-logs", icon: "history" },
-  ],
+  speaker: [{ label: "Dashboard", href: "/speaker/dashboard", icon: "event" }],
+  facilitator: [{ label: "Events", href: "/staff/events", icon: "event" }],
   admin: [
     { label: "Events", href: "/staff/events", icon: "event" },
     { label: "Create event", href: "/staff/events/new", icon: "add_circle" },
@@ -70,7 +60,7 @@ export function Navbar() {
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
   const userRole: UserRole = (user?.role as UserRole) ?? "attendee";
-  const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.facilitator!) : GUEST_NAV_ITEMS;
+  const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.attendee!) : GUEST_NAV_ITEMS;
   const profilePhoto = customPhoto ?? user?.profile_image_url ?? null;
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import { useSession } from "@/modules/auth";
 import ChatPanel from "@/modules/chat/components/chat-panel";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export default function StaffSupportPage() {
   const params = useParams();
@@ -12,6 +13,14 @@ export default function StaffSupportPage() {
   const { user } = useSession();
   const userRole = (user?.role as UserRole) ?? null;
   const currentUserId = user?.id ?? null;
+
+  if (!hasMinRole(userRole, "facilitator")) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-error">Access denied.</div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -107,6 +107,16 @@ export default function StaffOrganizationPage() {
 
   const allowedInviteRoles = isSuperAdmin ? INVITE_ROLES : INVITE_ROLES.filter((r) => r !== "admin");
 
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <div className="mx-auto max-w-4xl flex-1 p-8">
+          <p className="text-sm text-error">Access denied.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <div className="mx-auto max-w-4xl flex-1 p-8">

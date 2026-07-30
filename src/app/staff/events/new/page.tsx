@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Footer } from "@/shared/components/footer";
 import { Toast } from "@/shared/components/toast";
 import { useSession } from "@/modules/auth";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export default function StaffNewEventPage() {
   const router = useRouter();
   const { user } = useSession();
+  const userRole = user?.role ?? null;
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -17,6 +19,14 @@ export default function StaffNewEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    if (!hasMinRole(userRole, "admin")) {
+      router.replace("/staff/events");
+    }
+  }, [userRole, router]);
+
+  if (!hasMinRole(userRole, "admin")) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
