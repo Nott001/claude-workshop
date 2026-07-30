@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
@@ -41,7 +41,7 @@ function SectionCard({
 
 function OverviewSection({
   event,
-  isFacilitator,
+  isStaff,
   publishing,
   publishError,
   deleteError,
@@ -50,7 +50,7 @@ function OverviewSection({
   attendeeCount,
 }: {
   event: NonNullable<ReturnType<typeof useEventDetail>["event"]>;
-  isFacilitator: boolean;
+  isStaff: boolean;
   publishing: boolean;
   publishError: string | null;
   deleteError: string | null;
@@ -83,7 +83,7 @@ function OverviewSection({
       {publishError && <p className="mb-3 mt-3 text-xs text-error">{publishError}</p>}
       {deleteError && <p className="mb-3 mt-3 text-xs text-error">{deleteError}</p>}
 
-      {isFacilitator && (
+      {isStaff && (
         <div className="mt-5 flex flex-wrap gap-2">
           {event.status === "draft" && (
             <button
@@ -123,7 +123,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
   const courseBuilder = useCourseCreate(eventId);
   const router = useRouter();
   const isSpeaker = hasMinRole(userRole, "speaker");
-  const isFacilitator = hasMinRole(userRole, "facilitator");
+  const isStaff = hasMinRole(userRole, "facilitator");
   const isAdmin = hasMinRole(userRole, "admin");
   const { assignments, loading: speakersLoading } = useEventSpeakers(eventId);
 
@@ -147,12 +147,6 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
           {course.MODULE.length} module{course.MODULE.length !== 1 ? "s" : ""} &middot; {totalLessons} lesson
           {totalLessons !== 1 ? "s" : ""}
         </p>
-        <button
-          onClick={() => router.push(`/staff/events/${eventId}`)}
-          className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
-        >
-          View Course
-        </button>
       </SectionCard>
     );
   }
@@ -195,7 +189,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (!isAdmin && !isFacilitator && !isSpeaker) {
+  if (!isAdmin && !isStaff && !isSpeaker) {
     return null;
   }
 
@@ -345,7 +339,6 @@ export default function StaffEventDashboardPage() {
     handleDelete,
   } = useEventDetail(eventId);
 
-  const isFacilitator = hasMinRole(userRole, "facilitator");
   const isStaff = hasMinRole(userRole, "facilitator");
 
   if (loading) {
@@ -399,7 +392,7 @@ export default function StaffEventDashboardPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           <OverviewSection
             event={event}
-            isFacilitator={isFacilitator}
+            isStaff={isStaff}
             publishing={publishing}
             publishError={publishError}
             deleteError={deleteError}

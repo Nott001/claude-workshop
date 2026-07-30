@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Navbar } from "@/shared/components/navbar";
 import { FloatingAssistButton } from "@/modules/support/components/floating-assist-button";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { ErrorBoundary } from "@/shared/components/ui/error-boundary";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];

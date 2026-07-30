@@ -1,7 +1,7 @@
 import type { UserRole } from "@/shared/types";
 import { requireAuth } from "./session";
 import type { RoleGuardResult } from "./types";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function requireRole(...allowedRoles: UserRole[]): Promise<RoleGuardResult> {
   const user = await requireAuth();

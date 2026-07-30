@@ -12,6 +12,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const { eventId } = await params;
   const supabase = getServiceClient();
   const course = await courseDao.findCourseByEvent(supabase, Number(eventId));
+  if (!course) {
+    return NextResponse.json({ error: "No course for this event" }, { status: 404 });
+  }
 
   return NextResponse.json(course);
 }

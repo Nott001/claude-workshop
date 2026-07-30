@@ -4,7 +4,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { speakerDao } from "@/shared/db/dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage } from "@/shared/integrations/storage";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator", "speaker");

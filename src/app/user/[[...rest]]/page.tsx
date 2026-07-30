@@ -8,7 +8,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
 import { Toast } from "@/shared/components/toast";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 
 type ToastData = { title: string; description: string; type: "success" | "error" };

@@ -5,7 +5,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { eventDao, courseDao } from "@/shared/db/dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

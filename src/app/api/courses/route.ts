@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao, speakerDao } from "@/shared/db/dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";

@@ -6,7 +6,7 @@ import { useOptimisticMessages } from "@/shared/lib/use-optimistic-messages";
 import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 interface ChatMessageWithUser extends ChatMessage {
   USER: { full_name: string; role: UserRole };

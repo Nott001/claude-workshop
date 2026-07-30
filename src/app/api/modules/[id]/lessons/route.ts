@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { lessonSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
+import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("speaker");
@@ -13,18 +13,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const { id } = await params;
+  const accessError = await requireModuleAccess(Number(id), guard.user.id, guard.user.role);
+  if (accessError) return accessError;
   const supabase = getServiceClient();
-
-  const course = await courseDao.findCourseByModule(supabase, Number(id));
-  if (!course) {
-    return NextResponse.json({ error: "Module not found" }, { status: 404 });
-  }
-
-  if (course.created_by !== guard.user.id) {
-    if (!hasMinRole(guard.user.role, "facilitator")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
 
   const body = await req.json();
   const parsed = lessonSchema.safeParse(body);

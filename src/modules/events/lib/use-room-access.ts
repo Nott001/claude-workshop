@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
-import { hasMinRole } from "@/shared/auth/role-hierarchy";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export interface Lesson {
   id: number;
@@ -58,14 +58,6 @@ export function useRoomAccess(eventId: string) {
   );
   const highlightedLessonId = highlightData?.highlighted_lesson_id ?? null;
 
-  async function fetchCourse(courseId: number) {
-    const res = await fetch(`/api/courses/${courseId}`);
-    if (res.ok) {
-      const data: CourseData = await res.json();
-      setCourse(data);
-    }
-  }
-
   useEffect(() => {
     let cancelled = false;
 
@@ -90,35 +82,27 @@ export function useRoomAccess(eventId: string) {
       setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
 
-      const hasCourse = !!eventData.COURSE?.id;
-      const eventCourseId = eventData.COURSE?.id ?? null;
+      const speakerAssigned = user.role === "speaker" ? accessData.isSpeakerAssigned : true;
+      const hasTicketOrBypass = hasMinRole(user.role, "facilitator") || accessData.hasTicket;
 
-      if (hasMinRole(user.role, "facilitator")) {
-        if (eventCourseId) await fetchCourse(eventCourseId);
-        if (!cancelled) setAccess("allowed");
+      if (!speakerAssigned) {
+        if (!cancelled) setAccess("denied");
         return;
       }
-
-      if (user.role === "speaker") {
-        if (accessData.isSpeakerAssigned) {
-          if (eventCourseId) await fetchCourse(eventCourseId);
-          if (!cancelled) setAccess("allowed");
-        } else {
-          if (!cancelled) setAccess("denied");
-        }
-        return;
-      }
-
-      if (!accessData.hasTicket) {
+      if (!hasTicketOrBypass) {
         if (!cancelled) setAccess("no_ticket");
         return;
       }
 
-      if (eventCourseId) {
-        await fetchCourse(eventCourseId);
+      if (eventData.COURSE?.id) {
+        const res = await fetch(`/api/courses/event/${eventId}`);
+        if (res.ok) {
+          const data: CourseData = await res.json();
+          if (!cancelled) setCourse(data);
+        }
       }
 
-      if (!cancelled) setAccess(hasCourse ? "allowed" : "no_course");
+      if (!cancelled) setAccess(eventData.COURSE?.id ? "allowed" : "no_course");
     }
 
     if (!isLoaded) return;
