@@ -12,8 +12,15 @@ concurrency:
   group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# pull-requests: read is needed by two jobs that ask GitHub about the PR itself
+# rather than about the code: gitleaks lists the PR's commits to scan them, and
+# paths-filter lists its changed files. With contents: read alone both got a 403
+# ("Resource not accessible by integration"), and the three jobs gated on
+# paths-filter were skipped in turn — so the whole workflow reported without
+# inspecting anything. Read-only; nothing here writes to a pull request.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   # Filtering happens per job rather than on the workflow, because `Security` is
