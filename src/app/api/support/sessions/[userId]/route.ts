@@ -4,8 +4,6 @@ import { getServiceClient } from "@/shared/db/client";
 import { chatDao } from "@/shared/db/dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
-const CHANNEL = "support" as const;
-
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId: targetUserId } = await params;
   const supabase = getServiceClient();
@@ -17,9 +15,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
 
   await chatDao.deleteSession(supabase, Number(targetUserId));
 
-  await chatDao.deleteMessagesByUser(supabase, Number(targetUserId), CHANNEL);
+  await chatDao.deleteMessagesByUser(supabase, Number(targetUserId));
 
-  await chatDao.deleteMessagesByRecipient(supabase, Number(targetUserId), CHANNEL);
+  await chatDao.deleteMessagesByRecipient(supabase, Number(targetUserId));
 
   return NextResponse.json({ ok: true });
 }

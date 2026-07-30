@@ -21,6 +21,8 @@ interface Module {
   id: number;
   module_name: string;
   sequence_order: number;
+  module_type: string;
+  is_locked: boolean;
   LESSONS: Lesson[];
 }
 
@@ -28,7 +30,7 @@ interface CourseData {
   id: number;
   course_name: string;
   course_description: string | null;
-  MODULES: Module[];
+  MODULE: Module[];
 }
 
 export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "loading" | "denied";

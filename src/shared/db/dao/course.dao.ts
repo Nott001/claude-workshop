@@ -152,16 +152,17 @@ export async function findModulesByCourse(supabase: DbClient, courseId: number):
   return (data ?? []) as Module[];
 }
 
-export async function findModuleById(supabase: DbClient, id: number): Promise<{ course_id: number } | null> {
-  const { data } = await supabase.from("MODULE").select("course_id").eq("id", id).single();
+export async function findModuleById(supabase: DbClient, id: number): Promise<Module | null> {
+  const { data } = await supabase.from("MODULE").select("*").eq("id", id).single();
   return data;
 }
 
 export async function createModule(
   supabase: DbClient,
-  data: { course_id: number; module_name: string; sequence_order: number },
+  data: { course_id: number; module_name: string; sequence_order: number; module_type?: string },
 ): Promise<Module | null> {
-  const { data: module, error } = await supabase.from("MODULE").insert(data).select("*").single();
+  const insertData = { ...data, module_type: data.module_type ?? "lessons" };
+  const { data: module, error } = await supabase.from("MODULE").insert(insertData).select("*").single();
 
   if (error) {
     console.error("course.dao.createModule failed:", error.message, error.code);
@@ -173,12 +174,27 @@ export async function createModule(
 export async function updateModule(
   supabase: DbClient,
   id: number,
-  data: { module_name: string; sequence_order: number },
+  data: { module_name?: string; sequence_order?: number; is_locked?: boolean },
 ): Promise<Module | null> {
   const { data: module, error } = await supabase.from("MODULE").update(data).eq("id", id).select("*").single();
 
   if (error) {
     console.error("course.dao.updateModule failed:", error.message, error.code);
+    return null;
+  }
+  return module;
+}
+
+export async function setModuleLock(supabase: DbClient, id: number, is_locked: boolean): Promise<Module | null> {
+  const { data: module, error } = await supabase
+    .from("MODULE")
+    .update({ is_locked, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("course.dao.setModuleLock failed:", error.message, error.code);
     return null;
   }
   return module;

@@ -72,16 +72,44 @@ export function useCourseCreate(eventId: string) {
     const courseId = await ensureCourseCreated();
     if (!courseId) return;
 
-    const order = modules.length + 1;
+    const order = modules.filter((m) => m.module_type !== "qa").length + 1;
     const res = await fetch(`/api/courses/${courseId}/modules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ module_name: `Module ${order}`, sequence_order: order }),
+      body: JSON.stringify({ module_name: `Module ${order}`, sequence_order: modules.length + 1 }),
     });
     if (!res.ok) return;
     const mod = await res.json();
     setModules((prev) => [...prev, { ...mod, LESSONS: [] }]);
     return mod.id;
+  }
+
+  async function handleAddQaModule(): Promise<number | undefined> {
+    const courseId = await ensureCourseCreated();
+    if (!courseId) return;
+
+    const res = await fetch(`/api/courses/${courseId}/modules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        module_name: "Q&A",
+        sequence_order: modules.length + 1,
+        module_type: "qa",
+      }),
+    });
+    if (!res.ok) return;
+    const mod = await res.json();
+    setModules((prev) => [...prev, { ...mod, LESSONS: [] }]);
+    return mod.id;
+  }
+
+  async function handleToggleModuleLock(moduleId: number, currentLocked: boolean) {
+    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, is_locked: !currentLocked } : m)));
+    await fetch(`/api/qa/module/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_locked: !currentLocked }),
+    });
   }
 
   async function handleRenameModule(moduleId: number, newName: string) {
@@ -103,7 +131,7 @@ export function useCourseCreate(eventId: string) {
   }
 
   async function handleDeleteModule(moduleId: number) {
-    if (!confirm("Delete this module and all its lessons?")) return;
+    if (!confirm("Delete this module and all its content?")) return;
     const res = await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
     if (!res.ok) return;
     setModules((prev) => prev.filter((m) => m.id !== moduleId));
@@ -216,6 +244,8 @@ export function useCourseCreate(eventId: string) {
     setLessonDialogModuleId,
     handleCreateCourse,
     handleAddModule,
+    handleAddQaModule,
+    handleToggleModuleLock,
     handleRenameModule,
     handleDeleteModule,
     handleDeleteLesson,

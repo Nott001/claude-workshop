@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
@@ -17,7 +18,6 @@ export default function SpeakerEventRoomPage() {
     eventDate,
     startTime,
     course,
-    currentUserId,
     userRole,
     eventStarted,
     eventEnded,
@@ -28,6 +28,15 @@ export default function SpeakerEventRoomPage() {
     handleSetHighlight,
     handleClearHighlight,
   } = useRoomAccess(eventId);
+
+  const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
+    await fetch(`/api/qa/module/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_locked: !currentLocked }),
+    });
+    window.location.reload();
+  }, []);
 
   if (access === "loading") {
     return (
@@ -58,7 +67,7 @@ export default function SpeakerEventRoomPage() {
         onExit={() => router.push(`/speaker/event/${eventId}`)}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0 xl:pr-[352px]">
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0">
         <div className="mx-auto w-full max-w-[896px]">
           {access === "no_course" && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -70,55 +79,58 @@ export default function SpeakerEventRoomPage() {
           {course && (
             <div className="rounded-xl border border-border bg-surface p-6">
               <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
-              {course.MODULES && (
+              {course.MODULE && (
                 <div className="mt-4 space-y-3">
-                  {course.MODULES.map((mod) => (
-                    <div key={mod.id} className="rounded-lg border border-border p-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                  {course.MODULE.map((mod) =>
+                    mod.module_type === "qa" ? (
+                      <div key={mod.id} className="rounded-lg border border-border overflow-hidden">
+                        <QAPanel
+                          moduleId={mod.id}
+                          userRole={userRole as UserRole | null}
+                          eventStarted={eventStarted}
+                          eventEnded={eventEnded}
+                          isLocked={mod.is_locked}
+                          onToggleLock={() => handleToggleLock(mod.id, mod.is_locked)}
+                        />
                       </div>
-                      {mod.LESSONS && (
-                        <div className="mt-2 space-y-1">
-                          {mod.LESSONS.map((lesson) => (
-                            <div key={lesson.id} className="flex items-center justify-between gap-2 text-xs text-muted-fg">
-                              <div className="flex items-center gap-2">
-                                <span className="material-symbols-rounded text-[14px]">description</span>
-                                {lesson.description}
-                              </div>
-                              <button
-                                onClick={() =>
-                                  highlightedLessonId === lesson.id ? handleClearHighlight() : handleSetHighlight(lesson.id)
-                                }
-                                className={`rounded px-2 py-0.5 text-[10px] font-semibold transition-colors ${
-                                  highlightedLessonId === lesson.id
-                                    ? "bg-brand text-white"
-                                    : "bg-muted text-muted-fg hover:bg-brand/10 hover:text-brand"
-                                }`}
-                                disabled={settingHighlight}
-                              >
-                                {highlightedLessonId === lesson.id ? "Highlighted" : "Highlight"}
-                              </button>
-                            </div>
-                          ))}
+                    ) : (
+                      <div key={mod.id} className="rounded-lg border border-border p-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {mod.LESSONS && (
+                          <div className="mt-2 space-y-1">
+                            {mod.LESSONS.map((lesson) => (
+                              <div key={lesson.id} className="flex items-center justify-between gap-2 text-xs text-muted-fg">
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-rounded text-[14px]">description</span>
+                                  {lesson.description}
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    highlightedLessonId === lesson.id ? handleClearHighlight() : handleSetHighlight(lesson.id)
+                                  }
+                                  className={`rounded px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                                    highlightedLessonId === lesson.id
+                                      ? "bg-brand text-white"
+                                      : "bg-muted text-muted-fg hover:bg-brand/10 hover:text-brand"
+                                  }`}
+                                  disabled={settingHighlight}
+                                >
+                                  {highlightedLessonId === lesson.id ? "Highlighted" : "Highlight"}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
-      </div>
-
-      <div className="fixed right-4 top-24 z-10 flex h-[calc(100vh-120px)] w-72 flex-col sm:w-80 overflow-hidden rounded-xl">
-        <QAPanel
-          eventId={eventId}
-          userRole={userRole as UserRole | null}
-          currentUserId={currentUserId}
-          eventStarted={eventStarted}
-          eventEnded={eventEnded}
-        />
       </div>
     </div>
   );

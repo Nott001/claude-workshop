@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
@@ -11,20 +12,16 @@ export default function EventRoomPage() {
   const router = useRouter();
   const eventId = params.id as string;
 
-  const {
-    access,
-    eventTitle,
-    eventDate,
-    startTime,
-    course,
-    currentUserId,
-    userRole,
-    isStaff,
-    eventStarted,
-    eventEnded,
-    elapsed,
-    remaining,
-  } = useRoomAccess(eventId);
+  const { access, eventTitle, eventDate, startTime, course, userRole, isStaff, eventStarted, eventEnded, elapsed, remaining } =
+    useRoomAccess(eventId);
+
+  const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
+    await fetch(`/api/qa/module/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_locked: !currentLocked }),
+    });
+  }, []);
 
   if (access === "loading") {
     return (
@@ -81,7 +78,7 @@ export default function EventRoomPage() {
         }}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0 xl:pr-[352px]">
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0">
         <div className="mx-auto w-full max-w-[896px]">
           {access === "no_course" && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -93,38 +90,41 @@ export default function EventRoomPage() {
           {course && (
             <div className="rounded-xl border border-border bg-surface p-6">
               <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
-              {course.MODULES && (
+              {course.MODULE && (
                 <div className="mt-4 space-y-3">
-                  {course.MODULES.map((mod) => (
-                    <div key={mod.id} className="rounded-lg border border-border p-3">
-                      <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
-                      {mod.LESSONS && (
-                        <div className="mt-2 space-y-1">
-                          {mod.LESSONS.map((lesson) => (
-                            <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
-                              <span className="material-symbols-rounded text-[14px]">description</span>
-                              {lesson.description}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {course.MODULE.map((mod) =>
+                    mod.module_type === "qa" ? (
+                      <div key={mod.id} className="rounded-lg border border-border overflow-hidden">
+                        <QAPanel
+                          moduleId={mod.id}
+                          userRole={userRole as UserRole | null}
+                          eventStarted={eventStarted}
+                          eventEnded={eventEnded}
+                          isLocked={mod.is_locked}
+                          onToggleLock={() => handleToggleLock(mod.id, mod.is_locked)}
+                        />
+                      </div>
+                    ) : (
+                      <div key={mod.id} className="rounded-lg border border-border p-3">
+                        <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                        {mod.LESSONS && (
+                          <div className="mt-2 space-y-1">
+                            {mod.LESSONS.map((lesson) => (
+                              <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
+                                <span className="material-symbols-rounded text-[14px]">description</span>
+                                {lesson.description}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
-      </div>
-
-      <div className="fixed right-4 top-24 z-10 flex h-[calc(100vh-120px)] w-72 flex-col sm:w-80 overflow-hidden rounded-xl">
-        <QAPanel
-          eventId={eventId}
-          userRole={userRole as UserRole | null}
-          currentUserId={currentUserId}
-          eventStarted={eventStarted}
-          eventEnded={eventEnded}
-        />
       </div>
     </div>
   );
