@@ -8,9 +8,12 @@ runs:
     # package.json, so CI always matches what developers run locally.
     - uses: pnpm/action-setup@v4
 
+    # Pinned inline rather than via node-version-file: there is no .nvmrc to read
+    # any more, and package.json#engines.node is a floor (">=22") not a selector,
+    # so it cannot stand in for one. Keep this in step with that floor.
     - uses: actions/setup-node@v4
       with:
-        node-version-file: .nvmrc
+        node-version: 22
         cache: pnpm
 
     # --frozen-lockfile fails rather than silently resolving new versions, so a
