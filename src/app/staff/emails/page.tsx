@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Footer } from "@/shared/components/footer";
@@ -32,9 +34,17 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
+  const router = useRouter();
   const { user } = useSession();
   const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter, userRole, isLoaded } =
     useEmailLogs();
+
+  useEffect(() => {
+    if (!isLoaded || userRole === null) return;
+    if (!hasMinRole(userRole, "admin")) {
+      router.replace("/access-denied");
+    }
+  }, [userRole, router, isLoaded]);
 
   if (!isLoaded || userRole === null) {
     return (
@@ -44,13 +54,7 @@ export default function StaffEmailsPage() {
     );
   }
 
-  if (!hasMinRole(userRole, "admin")) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-error">Access denied.</div>
-      </div>
-    );
-  }
+  if (!hasMinRole(userRole, "admin")) return null;
 
   return (
     <>

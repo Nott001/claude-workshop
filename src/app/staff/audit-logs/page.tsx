@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
@@ -51,13 +52,13 @@ export default function StaffAuditLogsPage() {
   const userRole = user?.role ?? null;
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
 
-  if (!hasMinRole(userRole, "admin")) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-bg">
-        <div className="text-sm text-error">Access denied.</div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!hasMinRole(userRole, "admin")) {
+      router.replace("/access-denied");
+    }
+  }, [userRole, router]);
+
+  if (!hasMinRole(userRole, "admin")) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
