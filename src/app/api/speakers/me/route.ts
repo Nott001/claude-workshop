@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/modules/auth/lib/role-guard";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { speakerDao } from "@/shared/db/dao";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET() {
   const supabase = getServiceClient();
@@ -27,24 +27,20 @@ export async function GET() {
 
   return NextResponse.json({
     ...profile,
+    speaker_profile_id: profile.id,
     full_name: user.full_name,
     email: user.email,
   });
 }
 
 export async function POST(req: Request) {
+  const guard = await requireRole("speaker");
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: 401 });
+  }
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
-  if (!hasMinRole(user.role, "speaker")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const existing = await speakerDao.findByUserId(supabase, user.id);
+  const existing = await speakerDao.findByUserId(supabase, guard.user.id);
   if (existing) {
     return NextResponse.json({ error: "Speaker profile already exists" }, { status: 409 });
   }
@@ -53,7 +49,7 @@ export async function POST(req: Request) {
   const { designation, bio } = body;
 
   const profile = await speakerDao.create(supabase, {
-    user_id: user.id,
+    user_id: guard.user.id,
     designation: designation ?? null,
     bio: bio ?? null,
   });

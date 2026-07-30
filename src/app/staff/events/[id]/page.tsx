@@ -123,7 +123,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
   const courseBuilder = useCourseCreate(eventId);
   const router = useRouter();
   const isSpeaker = hasMinRole(userRole, "speaker");
-  const isFacilitator = hasMinRole(userRole, "facilitator");
+  const isStaff = hasMinRole(userRole, "facilitator");
   const isAdmin = hasMinRole(userRole, "admin");
   const { assignments, loading: speakersLoading } = useEventSpeakers(eventId);
 
@@ -189,7 +189,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (!isAdmin && !isFacilitator && !isSpeaker) {
+  if (!isAdmin && !isStaff && !isSpeaker) {
     return null;
   }
 

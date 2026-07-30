@@ -25,7 +25,7 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
     ticketRes?.ok ? ticketRes.json() : Promise.resolve([]),
   ]);
 
-  const speakerProfileId: number | null = (speakerData as { id?: number } | null)?.id ?? null;
+  const speakerProfileId: number | null = speakerData?.id ?? null;
   const isSpeakerAssigned =
     !!speakerProfileId &&
     (event?.EVENT_SPEAKER?.some((es: EventSpeakerEntry) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
