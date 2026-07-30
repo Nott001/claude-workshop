@@ -66,11 +66,12 @@ Place it after the `useSession()` call and before the return statement.
 Currently relies on `useRoomAccess` which allows assigned speakers through.
 Add an explicit page-level guard that redirects speakers to their own room or
 the attendee room. Add after the `useSession()` call and before the
-`useRoomAccess()` call:
+`useRoomAccess()` call. Note: the condition must be `||` not `&&` — we wait
+until loading is done AND the user object is resolved before checking:
 
 ```ts
 useEffect(() => {
-  if (!isLoaded && !user) return;
+  if (!isLoaded || !user) return;
   if (!hasMinRole(userRole, "facilitator")) {
     router.replace(`/events/${eventId}/room`);
   }

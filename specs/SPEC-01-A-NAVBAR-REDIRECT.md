@@ -1,6 +1,6 @@
 # SPEC-01-A — Navbar + Post-Login Redirect
 
-Prerequisites: none
+Prerequisites: SPEC-00
 After this: SPEC-01-B
 
 ## Scope
@@ -9,7 +9,22 @@ After this: SPEC-01-B
 
 ## Changes
 
-### 1. `src/shared/components/navbar.tsx`
+### 0. `src/shared/components/navbar.tsx` — fix fallback (line 73)
+
+Before making any nav item changes, fix the dangerous fallback on line 73:
+
+```ts
+// Before:
+const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.facilitator!) : GUEST_NAV_ITEMS;
+// After:
+const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.attendee!) : GUEST_NAV_ITEMS;
+```
+
+If a user has an unrecognised role (DB corruption, new role not yet mapped),
+the current code falls back to `facilitator` nav — the worst default. Fall
+back to `attendee` (least privilege) instead.
+
+### 1. `src/shared/components/navbar.tsx` — role nav items
 
 Modify the `ROLE_NAV_ITEMS` map:
 

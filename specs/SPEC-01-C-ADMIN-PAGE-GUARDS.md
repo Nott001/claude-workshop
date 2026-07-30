@@ -13,24 +13,28 @@ deny access to anyone below `admin` (for the client pages) or below
 
 ### 1. `src/app/staff/events/new/page.tsx` (client)
 
-Add guard after `const { user } = useSession();`:
+Add guard after `const { user } = useSession();`. Import `useEffect` from
+`react`, `useRouter` from `next/navigation` (already imported), and
+`hasMinRole` from `@/shared/lib/role-hierarchy`.
+
+**Must use `useEffect`, not inline `router.push()`.** Calling `router.push()`
+during React render is illegal — it triggers state updates outside the commit
+phase. Use:
 
 ```ts
 const userRole = user?.role ?? null;
 
-if (!hasMinRole(userRole, "admin")) {
-  router.push("/staff/events");
-  return null;
-}
+useEffect(() => {
+  if (!hasMinRole(userRole, "admin")) {
+    router.replace("/staff/events");
+  }
+}, [userRole, router]);
+
+if (!hasMinRole(userRole, "admin")) return null;
 ```
 
-Or use a `useEffect` to redirect. Either way, a `facilitator` who visits
-`/staff/events/new` must be sent back to `/staff/events`. A brief flash of the
-form is acceptable; the API (`POST /api/events` changed in SPEC-01-D) also
-rejects them.
-
-Import `hasMinRole` from `@/shared/lib/role-hierarchy` and `useRouter` from
-`next/navigation` (already imported).
+A brief flash of the form is acceptable while the session loads; the API
+(`POST /api/events` changed in SPEC-01-D) also rejects them.
 
 ### 2. `src/app/staff/emails/page.tsx` (client)
 

@@ -84,6 +84,26 @@ Change both to point to `/speaker/event/${eventId}/course` instead.
 
 No new dependencies. All hooks and components are already in the codebase.
 
+## Known issue — schema mismatch on `event.course_id`
+
+The speaker event detail page (`/speaker/event/[eventId]/page.tsx`) decides
+whether to show "Manage Course" or "Build Course" based on `event.course_id`.
+From SPEC-09 (§9, "Open — the migration file does not match the database"):
+
+|      | Migration file             | Live database             |
+| ---- | -------------------------- | ------------------------- |
+| Link | `EVENT.course_id → COURSE` | `COURSE.event_id → EVENT` |
+
+The column `EVENT.course_id` does not exist in the live database, so
+`event.course_id` is always `undefined/null` and the "Build Course" link is
+always shown, even when a course already exists.
+
+This is a pre-existing defect, not introduced by this spec. If the schema is
+reconciled (see SPEC-09), the speaker event page will correctly show "Manage
+Course" when a course exists. No change is needed in this spec — just be aware
+that initially the link will always say "Build Course" until the schema is
+fixed.
+
 ## Verification
 
 - Sign in as a `speaker` assigned to an event → navigate to
