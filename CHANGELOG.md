@@ -3,15 +3,21 @@
 ## [Unreleased]
 
 ### Security
+
 - Course material is no longer readable by any signed-in user. `/api/storage/[bucket]/[...path]` read any bucket and object key straight from the URL using the service client, bypassing row level security — paid course videos and assets were available to anyone with an account. Access now requires a live ticket to the event teaching the course, a speaker assignment to it, or the facilitator role.
 - Storage requests are answered `Cache-Control: private`. Entitlement is per user, and the previous `public` response could be served from a shared cache to someone not entitled to it.
 
 ### Fixed
+
+- Sessions survive a token refresh. The middleware rebuilt its response once per cookie, so each write discarded the one before it and the browser was left holding part of a chunked auth token — presenting as a random logout. Refusing a request no longer drops the cookies either, which is what cleared an expired session, so a stale token could previously fail the same way on every retry. Responses that carry a refreshed session are now marked uncacheable, since a shared cache could otherwise replay one visitor's session to the next.
+- Deleting an event now deletes its course material. Asset and video paths were collected and then discarded: the single cleanup call only ever targeted the `event_images` bucket, so every deleted event left its uploads orphaned in storage.
+- Attendee search returns matches again. The filter named embedded columns at the top level, which PostgREST does not apply, so searching a name or email quietly returned nothing. Search terms are now escaped as well — an underscore in an email address matched any character, and a comma silently split the filter.
 - QR check-in works again. Every scan returned "Invalid QR token" because the ticket lookup joined the user through the wrong column, so the query errored and the ticket was reported as missing.
 - Chat message senders, the event attendee list, and email log recipients load again — all four affected queries shared the same fault.
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
 
 ### Added
+
 - Continuous integration. Four workflows run on every pull request: **CI** (format, lint, typecheck, unit tests with coverage, production build), **Security**, **Lighthouse**, and **E2E**. Each collapses into a single status check so branch protection needs no update when a job is added. The repository previously had no CI at all.
 - Security scanning on every pull request and weekly on a schedule, so advisories against unchanged code still surface: CodeQL static analysis, gitleaks secret scanning over full history, a dependency audit that blocks on production advisories and reports dev-only ones, and a check that every table in a migration enables row level security.
 - Lighthouse audits of the public routes (`/`, `/events`, `/sign-in`). Accessibility, best-practices, SEO and layout shift block on regression; performance and timing metrics warn, because they vary with CI runner load.
@@ -23,6 +29,7 @@
 - Staff management pages for events, courses, emails, and organization under `src/app/staff/`.
 
 ### Changed
+
 - Migrated from Clerk to Supabase Auth. All auth logic centralized in `src/modules/auth/`.
 - Old staff-related pages moved under `src/app/staff/` namespace; route protection updated accordingly.
 - All API routes updated: `auth()` from Clerk replaced with `requireAuth()`/`requireRole()` from auth module.

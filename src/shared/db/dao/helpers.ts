@@ -25,3 +25,16 @@ export async function deleteById(supabase: DbClient, table: string, id: number):
   const { error } = await supabase.from(table).delete().eq("id", id);
   return !error;
 }
+
+/**
+ * Wraps a user-supplied term as a quoted `ilike` pattern.
+ *
+ * PostgREST delimits `or=(…)` with commas and parentheses and reads `%` and `_`
+ * as wildcards, so interpolating a term raw lets the input rewrite the filter
+ * rather than be matched by it. Quoting keeps delimiters literal; escaping keeps
+ * an underscore in an email address from matching any character.
+ */
+export function ilikePattern(search: string): string {
+  const escaped = search.replace(/[\\%_"]/g, (char) => `\\${char}`);
+  return `"%${escaped}%"`;
+}

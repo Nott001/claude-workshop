@@ -1,4 +1,5 @@
 import type { DbClient } from "./types";
+import { ilikePattern } from "./helpers";
 import type { Ticket, TicketStatus, User } from "@/shared/types";
 
 interface TicketWithUser extends Ticket {
@@ -142,7 +143,9 @@ export async function getAttendees(
 
   let query = supabase
     .from("TICKET")
-    .select("USER:user_id(id, full_name, email), status, issued_at, updated_at", { count: "exact" })
+    // The embed is an inner join because the search below filters on its
+    // columns, and PostgREST can only filter an embedded resource it joins.
+    .select("USER:user_id!inner(id, full_name, email), status, issued_at, updated_at", { count: "exact" })
     .eq("event_id", eventId)
     .order("issued_at", { ascending: false });
 
@@ -153,7 +156,8 @@ export async function getAttendees(
   }
 
   if (search) {
-    query = query.or(`USER.full_name.ilike.%${search}%,USER.email.ilike.%${search}%`);
+    const pattern = ilikePattern(search);
+    query = query.or(`full_name.ilike.${pattern},email.ilike.${pattern}`, { referencedTable: "USER" });
   }
 
   query = query.range(offset, offset + limit - 1);

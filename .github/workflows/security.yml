@@ -63,9 +63,22 @@ jobs:
     timeout-minutes: 20
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
+    # A job-level block replaces the workflow-level one rather than merging with
+    # it, so this job never saw the pull-requests: read added there — and it does
+    # not need it. It does need actions: read, which GitHub documents as required
+    # for CodeQL on a private repository: the action calls the workflow-runs API
+    # after analysis and was failing with "Resource not accessible by integration"
+    # on /actions/runs/{id}. Analysis itself was fine; it got as far as
+    # "Interpreting code scanning results for javascript" before dying.
+    #
+    # This is not expected to make the job pass on its own. Uploading results
+    # needs code scanning enabled, which on a private repo requires GitHub
+    # Advanced Security. It removes one real blocker and makes the remaining
+    # failure state the plain one, instead of two tangled errors.
     permissions:
       contents: read
       security-events: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
 

@@ -4,7 +4,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao, courseDao } from "@/shared/db/dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
-import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage";
+import { deleteFromStorage, listStorageFolder, type StorageBucket } from "@/shared/integrations/storage";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -72,16 +72,16 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const event = await eventDao.findById(supabase, Number(id));
 
-  // Collect storage paths before deletion
-  const storagePaths: string[] = [];
+  // Collected before deletion, and kept per bucket: a path is only meaningful
+  // to the bucket it was listed from, so one flat list cannot be deleted from.
+  const pathsByBucket: Record<"event_images" | "course_assets" | "course_videos", string[]> = {
+    event_images: [],
+    course_assets: [],
+    course_videos: [],
+  };
 
   if (event?.cover_image_url) {
-    const imagePath = event.cover_image_url.split("/").pop();
-    if (imagePath) {
-      const { data: eventFiles } = await supabase.storage.from("event_images").list(`events/${id}`);
-      const paths = (eventFiles ?? []).map((f) => `events/${id}/${f.name}`);
-      storagePaths.push(...paths);
-    }
+    pathsByBucket.event_images.push(...(await listStorageFolder("event_images", `events/${id}`)));
   }
 
   if (event?.id) {
@@ -97,7 +97,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
             listStorageFolder("course_assets", folder),
             listStorageFolder("course_videos", folder),
           ]);
-          storagePaths.push(...assetPaths, ...videoPaths);
+          pathsByBucket.course_assets.push(...assetPaths);
+          pathsByBucket.course_videos.push(...videoPaths);
         }
       }
     }
@@ -111,15 +112,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   // Best-effort storage cleanup
-  if (storagePaths.length > 0) {
-    try {
-      await deleteFromStorage(
-        "event_images",
-        storagePaths.filter((p) => p.startsWith("events/")),
-      );
-    } catch {
-      // Storage cleanup is best-effort
-    }
+  try {
+    await Promise.all(
+      Object.entries(pathsByBucket).map(([bucket, paths]) => deleteFromStorage(bucket as StorageBucket, paths)),
+    );
+  } catch {
+    // Storage cleanup is best-effort
   }
 
   await logAuditEvent(supabase, guard.user.id, "event.deleted", "event", Number(id), {
