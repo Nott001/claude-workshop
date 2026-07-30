@@ -141,21 +141,27 @@ Everything admin does, plus:
 
 ## 4. API guard matrix
 
-| Method | Route                        | Current min role |      New min role       |
-| ------ | ---------------------------- | :--------------: | :---------------------: |
-| GET    | `/api/events`                |     attendee     |  attendee (unchanged)   |
-| POST   | `/api/events`                | **facilitator**  |        **admin**        |
-| GET    | `/api/events/[id]`           |     attendee     |  attendee (unchanged)   |
-| PATCH  | `/api/events/[id]`           |   facilitator    | facilitator (unchanged) |
-| DELETE | `/api/events/[id]`           |   facilitator    | facilitator (unchanged) |
-| GET    | `/api/organization`          | **facilitator**  |        **admin**        |
-| POST   | `/api/organization`          |      admin       |    admin (unchanged)    |
-| PATCH  | `/api/organization/[userId]` |      admin       |    admin (unchanged)    |
-| DELETE | `/api/organization/[userId]` |      admin       |    admin (unchanged)    |
-| GET    | `/api/courses`               |      admin       |    admin (unchanged)    |
-| POST   | `/api/courses`               |     speaker      |   speaker (unchanged)   |
-| GET    | `/api/logs`                  | **facilitator**  |        **admin**        |
-| GET    | `/api/audit-logs`            | **facilitator**  |        **admin**        |
+| Method | Route                             | Current min role |               New min role               |
+| ------ | --------------------------------- | :--------------: | :--------------------------------------: |
+| GET    | `/api/events`                     |     attendee     |           attendee (unchanged)           |
+| POST   | `/api/events`                     | **facilitator**  |                **admin**                 |
+| GET    | `/api/events/[id]`                |     attendee     |           attendee (unchanged)           |
+| PATCH  | `/api/events/[id]`                |   facilitator    |         facilitator (unchanged)          |
+| DELETE | `/api/events/[id]`                |   facilitator    |         facilitator (unchanged)          |
+| GET    | `/api/organization`               | **facilitator**  |                **admin**                 |
+| POST   | `/api/organization`               |      admin       |            admin (unchanged)             |
+| PATCH  | `/api/organization/[userId]`      |      admin       |            admin (unchanged)             |
+| DELETE | `/api/organization/[userId]`      |      admin       |            admin (unchanged)             |
+| GET    | `/api/courses`                    |      admin       |            admin (unchanged)             |
+| POST   | `/api/courses`                    |     speaker      |           speaker (unchanged)            |
+| GET    | `/api/logs`                       | **facilitator**  |                **admin**                 |
+| GET    | `/api/audit-logs`                 | **facilitator**  |                **admin**                 |
+| GET    | `/api/support` (general)          |        —         |    admin (already correct since #101)    |
+| POST   | `/api/support` (general)          |        —         |    admin (already correct since #101)    |
+| POST   | `/api/support` (event)            |        —         | facilitator (already correct since #101) |
+| GET    | `/api/support/sessions`           |   facilitator    |         facilitator (unchanged)          |
+| POST   | `/api/support/sessions` (general) |        —         |    admin (already correct since #101)    |
+| POST   | `/api/support/sessions` (event)   |        —         | facilitator (already correct since #101) |
 
 ---
 
@@ -177,20 +183,20 @@ user's role is insufficient. The guard must use `hasMinRole` from
 `@/shared/lib/role-hierarchy` (client components) or `requireRole` from
 `@/modules/auth/lib/role-guard` (server components).
 
-| Page                         | Guard mechanism                                                                         | Behaviour on denial                        |
-| ---------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `/staff/events`              | client: `hasMinRole(userRole, "facilitator")`                                           | Render "Access denied."                    |
-| `/staff/events/[id]`         | client: `hasMinRole(userRole, "facilitator")`                                           | Already exists at line 360-366 — unchanged |
-| `/staff/events/[id]/edit`    | server: `requireRole("facilitator")`                                                    | 401 / redirect to sign-in                  |
-| `/staff/events/[id]/room`    | client: `hasMinRole(userRole, "facilitator")`                                           | Redirect to `/events/[id]/room`            |
-| `/staff/events/[id]/kiosk`   | client: `hasMinRole(userRole, "facilitator")`                                           | Already exists at line 21-23 — unchanged   |
-| `/staff/events/[id]/support` | client: already behind `hasMinRole(userRole, "facilitator")` in parent page — unchanged |
-| `/staff/events/new`          | client: `hasMinRole(userRole, "admin")`                                                 | Redirect to `/staff/events`                |
-| `/staff/organization`        | client: `hasMinRole(userRole, "admin")`                                                 | Render "Access denied."                    |
-| `/staff/courses`             | client: `hasMinRole(userRole, "admin")`                                                 | Already exists at line 28, 52 — unchanged  |
-| `/staff/emails`              | client: `hasMinRole(userRole, "admin")`                                                 | Render "Access denied."                    |
-| `/staff/support`             | server: `requireRole("admin")`                                                          | 401 / redirect to sign-in                  |
-| `/staff/audit-logs`          | client: `hasMinRole(userRole, "admin")`                                                 | Render "Access denied."                    |
+| Page                         | Guard mechanism                               | Behaviour on denial                                             |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------- |
+| `/staff/events`              | client: `hasMinRole(userRole, "facilitator")` | Render "Access denied."                                         |
+| `/staff/events/[id]`         | client: `hasMinRole(userRole, "facilitator")` | Already exists at line 360-366 — unchanged                      |
+| `/staff/events/[id]/edit`    | server: `requireRole("facilitator")`          | 401 / redirect to sign-in                                       |
+| `/staff/events/[id]/room`    | client: `hasMinRole(userRole, "facilitator")` | Redirect to `/events/[id]/room`                                 |
+| `/staff/events/[id]/kiosk`   | client: `hasMinRole(userRole, "facilitator")` | Already exists at line 21-23 — unchanged                        |
+| `/staff/events/[id]/support` | client: `hasMinRole(userRole, "facilitator")` | Render "Access denied." (standalone page bypasses parent guard) |
+| `/staff/events/new`          | client: `hasMinRole(userRole, "admin")`       | Redirect to `/staff/events`                                     |
+| `/staff/organization`        | client: `hasMinRole(userRole, "admin")`       | Render "Access denied."                                         |
+| `/staff/courses`             | client: `hasMinRole(userRole, "admin")`       | Already exists at line 28, 52 — unchanged                       |
+| `/staff/emails`              | client: `hasMinRole(userRole, "admin")`       | Render "Access denied."                                         |
+| `/staff/support`             | client: `hasMinRole(userRole, "admin")`       | Render "Access denied."                                         |
+| `/staff/audit-logs`          | client: `hasMinRole(userRole, "admin")`       | Render "Access denied."                                         |
 
 ### 5.3 App-shell elements
 
