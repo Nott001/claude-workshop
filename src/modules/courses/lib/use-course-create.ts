@@ -242,6 +242,7 @@ export function useCourseCreate(eventId: string) {
     setCourseName,
     setCourseDescription,
     setLessonDialogModuleId,
+    setModules,
     handleCreateCourse,
     handleAddModule,
     handleAddQaModule,

@@ -5,6 +5,7 @@ import { EventCard } from "@/modules/events/components/event-card";
 import { Footer } from "@/shared/components/footer";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -32,6 +33,14 @@ export default function StaffEventsPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-destructive">{error}</div>
+      </div>
+    );
+  }
+
+  if (!hasMinRole(userRole, "facilitator")) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-error">Access denied.</div>
       </div>
     );
   }

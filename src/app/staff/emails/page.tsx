@@ -4,6 +4,7 @@ import { useSession } from "@/modules/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";
 type EmailStatus = "sent" | "failed";
@@ -39,6 +40,14 @@ export default function StaffEmailsPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!hasMinRole(userRole, "admin")) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-error">Access denied.</div>
       </div>
     );
   }

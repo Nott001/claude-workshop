@@ -85,7 +85,7 @@ export function useRoomAccess(eventId: string) {
       setCurrentUserId(user.id);
 
       const speakerAssigned = user.role === "speaker" ? accessData.isSpeakerAssigned : true;
-      const hasTicketOrBypass = hasMinRole(user.role, "facilitator") || accessData.hasTicket;
+      const hasTicketOrBypass = hasMinRole(user.role, "facilitator") || accessData.hasTicket || accessData.isSpeakerAssigned;
 
       if (!speakerAssigned) {
         if (!cancelled) setAccess("denied");

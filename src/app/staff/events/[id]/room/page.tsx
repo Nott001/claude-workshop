@@ -2,15 +2,26 @@
 
 import { useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { useRoomAccess } from "@/modules/events/lib/use-room-access";
 import type { UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export default function StaffEventRoomPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
+  const { user, loading } = useSession();
+  const sessionRole = user?.role ?? null;
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (!hasMinRole(sessionRole, "facilitator")) {
+      router.replace(`/events/${eventId}/room`);
+    }
+  }, [loading, user, sessionRole, eventId, router]);
 
   const {
     access,
@@ -49,6 +60,14 @@ export default function StaffEventRoomPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-foreground">Loading event room...</div>
+      </div>
+    );
+  }
+
+  if (!hasMinRole(sessionRole, "facilitator")) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-foreground">Redirecting...</div>
       </div>
     );
   }

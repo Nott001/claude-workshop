@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "@/modules/auth";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
@@ -45,7 +47,17 @@ function actionColor(action: string): string {
 
 export default function StaffAuditLogsPage() {
   const router = useRouter();
+  const { user } = useSession();
+  const userRole = user?.role ?? null;
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
+
+  if (!hasMinRole(userRole, "admin")) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-bg">
+        <div className="text-sm text-error">Access denied.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
