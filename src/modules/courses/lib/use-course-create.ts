@@ -6,7 +6,7 @@ import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/co
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "./types";
 
-export function useCourseCreate(eventId: string) {
+export function useCourseCreate(eventId: string, existingCourseId?: number) {
   const router = useRouter();
 
   const [courseName, setCourseName] = useState("");
@@ -45,7 +45,11 @@ export function useCourseCreate(eventId: string) {
 
   async function ensureCourseCreated(): Promise<number | null> {
     if (modules.length > 0) {
-      return modules[0].id;
+      return modules[0].course_id;
+    }
+
+    if (existingCourseId) {
+      return existingCourseId;
     }
 
     const res = await fetch("/api/courses", {

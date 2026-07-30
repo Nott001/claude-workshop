@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import type { UserRole } from "@/shared/types";
@@ -343,6 +344,13 @@ export default function StaffEventDashboardPage() {
 
   const isStaff = hasMinRole(userRole, "facilitator");
 
+  useEffect(() => {
+    if (loading || error || !event) return;
+    if (!isStaff) {
+      router.replace("/access-denied");
+    }
+  }, [isStaff, router, loading, error, event]);
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -359,13 +367,7 @@ export default function StaffEventDashboardPage() {
     );
   }
 
-  if (!isStaff) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-error">Access denied.</div>
-      </div>
-    );
-  }
+  if (!isStaff) return null;
 
   return (
     <div className="flex flex-1 flex-col bg-bg">

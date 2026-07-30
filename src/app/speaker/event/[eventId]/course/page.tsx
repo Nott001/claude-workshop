@@ -23,7 +23,7 @@ export default function SpeakerCoursePage() {
 
   const { event: speakerEvent, loading: speakerLoading, error: speakerError } = useSpeakerEvent(eventId);
   const { course, loading: courseLoading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate(eventId);
+  const courseBuilder = useCourseCreate(eventId, course?.id);
 
   const seededRef = useRef(false);
 
@@ -56,7 +56,7 @@ export default function SpeakerCoursePage() {
 
   useEffect(() => {
     if (!sessionLoading && !hasMinRole(userRole, "speaker")) {
-      router.replace("/speaker/dashboard");
+      router.replace("/access-denied");
     }
   }, [sessionLoading, userRole, router]);
 
@@ -80,44 +80,6 @@ export default function SpeakerCoursePage() {
 
   if (speakerError || !speakerEvent) return null;
 
-  async function handleAddModule() {
-    if (course) {
-      const order = courseBuilder.modules.filter((m) => m.module_type !== "qa").length + 1;
-      const res = await fetch(`/api/courses/${course.id}/modules`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          module_name: `Module ${order}`,
-          sequence_order: courseBuilder.modules.length + 1,
-        }),
-      });
-      if (!res.ok) return undefined;
-      const mod = await res.json();
-      courseBuilder.setModules([...courseBuilder.modules, { ...mod, LESSONS: [] }]);
-      return mod.id;
-    }
-    return courseBuilder.handleAddModule();
-  }
-
-  async function handleAddQaModule() {
-    if (course) {
-      const res = await fetch(`/api/courses/${course.id}/modules`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          module_name: "Q&A",
-          sequence_order: courseBuilder.modules.length + 1,
-          module_type: "qa",
-        }),
-      });
-      if (!res.ok) return undefined;
-      const mod = await res.json();
-      courseBuilder.setModules([...courseBuilder.modules, { ...mod, LESSONS: [] }]);
-      return mod.id;
-    }
-    return courseBuilder.handleAddQaModule();
-  }
-
   const noCourse = !course && courseBuilder.modules.length === 0;
 
   return (
@@ -137,7 +99,7 @@ export default function SpeakerCoursePage() {
           <div className="rounded-xl border border-border bg-surface p-8">
             <p className="text-sm text-muted-fg">No course yet for this event.</p>
             <button
-              onClick={() => handleAddModule()}
+              onClick={() => courseBuilder.handleAddModule()}
               className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
             >
               Create Course
@@ -147,8 +109,8 @@ export default function SpeakerCoursePage() {
           <div className="rounded-xl border border-border bg-surface p-6">
             <CurriculumBuilder
               modules={courseBuilder.modules}
-              onAddModule={handleAddModule}
-              onAddQaModule={handleAddQaModule}
+              onAddModule={courseBuilder.handleAddModule}
+              onAddQaModule={courseBuilder.handleAddQaModule}
               onRenameModule={courseBuilder.handleRenameModule}
               onDeleteModule={courseBuilder.handleDeleteModule}
               onDeleteLesson={courseBuilder.handleDeleteLesson}
