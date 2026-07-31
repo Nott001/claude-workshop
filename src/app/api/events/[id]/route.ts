@@ -104,7 +104,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  // Delete event row first (FK cascades handle payments, tickets)
+  // The FKs clear this event from its payments and tickets; the records
+  // themselves survive so purchase history is retained.
   const removed = await eventDao.remove(supabase, Number(id));
 
   if (!removed) {

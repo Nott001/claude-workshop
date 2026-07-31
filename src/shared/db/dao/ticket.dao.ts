@@ -183,8 +183,3 @@ export async function countByEvent(supabase: DbClient, eventId: number): Promise
     .neq("status", "cancelled");
   return count ?? 0;
 }
-
-export async function deleteByPaymentIds(supabase: DbClient, paymentIds: number[]): Promise<boolean> {
-  const { error } = await supabase.from("TICKET").delete().in("payment_id", paymentIds);
-  return !error;
-}

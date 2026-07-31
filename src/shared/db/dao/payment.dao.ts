@@ -75,17 +75,6 @@ export async function updateStatus(supabase: DbClient, id: number, status: Payme
   return !error;
 }
 
-export async function deleteByEvent(supabase: DbClient, eventId: number): Promise<number[]> {
-  const { data: payments } = await supabase.from("PAYMENT").select("id").eq("event_id", eventId);
-  const ids = (payments ?? []).map((p) => p.id);
-
-  if (ids.length > 0) {
-    await supabase.from("PAYMENT").delete().in("id", ids);
-  }
-
-  return ids;
-}
-
 export async function findByIdWithEvent(supabase: DbClient, id: number): Promise<Record<string, unknown> | null> {
   const { data } = await supabase
     .from("PAYMENT")
