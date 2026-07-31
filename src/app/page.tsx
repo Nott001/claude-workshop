@@ -4,6 +4,13 @@ import { eventDao } from "@/shared/db/dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import type { LandingEvent } from "@/shared/types";
 
+// This page lists upcoming events, which change whenever staff publish one.
+// Without this it was prerendered at build time (`○ /` in the build output) and
+// the list stayed frozen until the next deploy: a newly published event never
+// appeared, and a finished one never left. It also made the build itself depend
+// on a reachable database, which is what broke the Build and Lighthouse jobs.
+export const dynamic = "force-dynamic";
+
 async function getUpcomingEvents(): Promise<LandingEvent[]> {
   const supabase = getServiceClient();
   const data = await eventDao.getUpcomingForLanding(supabase);

@@ -15,6 +15,7 @@
 - QR check-in works again. Every scan returned "Invalid QR token" because the ticket lookup joined the user through the wrong column, so the query errored and the ticket was reported as missing.
 - Chat message senders, the event attendee list, and email log recipients load again — all four affected queries shared the same fault.
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
+- The landing page shows the current events. It was prerendered at build time, so its "upcoming events" list was a snapshot taken at deploy: a newly published event never appeared and a finished one never left, until someone redeployed. It now renders per request. This also removes the build's dependency on a reachable database, which is what was failing the Build and Lighthouse jobs.
 
 ### Added
 

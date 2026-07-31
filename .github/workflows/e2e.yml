@@ -30,6 +30,10 @@ jobs:
     # Secrets are not exposed to pull requests from forks, and these tests
     # cannot run without them. Skipping is honest; failing would not be.
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    # The Supabase credentials are environment secrets on `development`, so a job
+    # only sees them if it names the environment. Without this they resolve to
+    # empty and the credential check below fails the run.
+    environment: development
     env:
       NEXT_PUBLIC_APP_URL: http://localhost:3200
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

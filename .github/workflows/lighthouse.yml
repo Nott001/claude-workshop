@@ -31,12 +31,21 @@ jobs:
     name: Lighthouse
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The Supabase credentials are environment secrets on `development`, so a job
+    # only sees them if it names the environment. Without this they resolve to
+    # empty and every fallback below silently wins.
+    environment: development
     env:
       # Lighthouse audits the production build, so the app needs the same build
       # inputs as the CI build job. The anon key is a public client credential.
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+      # `/` renders on demand and builds a service client to list upcoming
+      # events. createClient throws on a missing key, so an unset value here is
+      # a 500 on the very page being audited — the placeholder keeps the render
+      # alive and the event list simply comes back empty.
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-key' }}
     steps:
       - uses: actions/checkout@v4
 
