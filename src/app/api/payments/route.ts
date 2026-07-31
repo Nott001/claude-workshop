@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { paymentDao, ticketDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { paymentInitSchema } from "@/modules/commerce";
 import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 
@@ -96,10 +97,10 @@ export async function GET() {
   const supabase = getServiceClient();
 
   let payments;
-  if (guard.user.role === "attendee") {
-    payments = await paymentDao.listByUser(supabase, guard.user.id);
-  } else {
+  if (hasMinRole(guard.user.role, "facilitator")) {
     payments = await paymentDao.listAll(supabase);
+  } else {
+    payments = await paymentDao.listByUser(supabase, guard.user.id);
   }
 
   return NextResponse.json(payments);

@@ -4,6 +4,7 @@
 
 ### Security
 
+- Tickets and payments are scoped to the requester again. The list and detail routes guarded themselves with a literal `role === "attendee"` check, but `requireRole` admits every role at or above attendee — a speaker cleared it and landed in the staff branch, listing all tickets and payments and reading any ticket by id, QR code included. Staff breadth is now decided by role level instead, so only facilitators and above see everyone's records.
 - Course material is no longer readable by any signed-in user. `/api/storage/[bucket]/[...path]` read any bucket and object key straight from the URL using the service client, bypassing row level security — paid course videos and assets were available to anyone with an account. Access now requires a live ticket to the event teaching the course, a speaker assignment to it, or the facilitator role.
 - Storage requests are answered `Cache-Control: private`. Entitlement is per user, and the previous `public` response could be served from a shared cache to someone not entitled to it.
 

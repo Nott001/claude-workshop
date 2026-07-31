@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { ticketDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET() {
   const guard = await requireRole("attendee", "facilitator");
@@ -12,10 +13,10 @@ export async function GET() {
   const supabase = getServiceClient();
 
   let tickets;
-  if (guard.user.role === "attendee") {
-    tickets = await ticketDao.listByUser(supabase, guard.user.id);
-  } else {
+  if (hasMinRole(guard.user.role, "facilitator")) {
     tickets = await ticketDao.listAll(supabase);
+  } else {
+    tickets = await ticketDao.listByUser(supabase, guard.user.id);
   }
 
   return NextResponse.json(tickets);

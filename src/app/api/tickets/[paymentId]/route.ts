@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { getServiceClient } from "@/shared/db/client";
 import { ticketDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { generateQRDataUrl } from "@/shared/integrations/qr";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
@@ -19,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  if (guard.user.role === "attendee" && (ticket as { user_id: number }).user_id !== guard.user.id) {
+  if (!hasMinRole(guard.user.role, "facilitator") && (ticket as { user_id: number }).user_id !== guard.user.id) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
