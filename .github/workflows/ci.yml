@@ -79,12 +79,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Next.js reads these at build time. The anon key is a public client
-      # credential by design; the placeholders keep the build hermetic when a
-      # fork's PR cannot access repository secrets.
+      # Deliberately fixed placeholders rather than the real project config.
+      # This job is a compile check, not a deployable artifact, and no page is
+      # prerendered against the database any more, so the build reaches nothing
+      # external. Keeping it hermetic means it also passes on a fork's pull
+      # request, which cannot read secrets at all.
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
     steps:
       - uses: actions/checkout@v4
 

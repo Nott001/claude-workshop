@@ -30,13 +30,19 @@ jobs:
     # Secrets are not exposed to pull requests from forks, and these tests
     # cannot run without them. Skipping is honest; failing would not be.
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
-    # The Supabase credentials are environment secrets on `development`, so a job
-    # only sees them if it names the environment. Without this they resolve to
-    # empty and the credential check below fails the run.
+    # The Supabase config lives on the `development` environment, so a job only
+    # sees it if it names the environment. Without this everything below
+    # resolves to empty and the credential check fails the run.
     environment: development
     env:
+      # Deliberately not the NEXT_PUBLIC_APP_URL environment variable. That one
+      # is an ngrok tunnel for local webhook testing; these tests drive a server
+      # on this runner, and payment-gateway.ts builds its redirect URLs from
+      # this value, so pointing it off-box would break the ticket specs.
       NEXT_PUBLIC_APP_URL: http://localhost:3200
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      # The project URL is public config, not a credential — it is an
+      # environment *variable*, so it reads from `vars`, not `secrets`.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
@@ -46,9 +52,11 @@ jobs:
 
       - name: Fail early if credentials are missing
         run: |
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
-            echo "::error::E2E needs NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and"
-            echo "::error::SUPABASE_SERVICE_ROLE_KEY as repository secrets."
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::E2E needs, on the 'development' environment:"
+            echo "::error::  secrets   - NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY"
+            echo "::error::  variables - NEXT_PUBLIC_SUPABASE_URL"
+            echo "::error::A name stored as a variable is not readable through 'secrets', or vice versa."
             exit 1
           fi
 
