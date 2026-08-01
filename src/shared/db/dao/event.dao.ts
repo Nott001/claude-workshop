@@ -60,13 +60,19 @@ export async function list(
 
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
   const today = new Date().toISOString().split("T")[0];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("EVENT")
     .select("*, COURSE!event_id(course_name)")
     .eq("status", "active")
     .gte("event_date", today)
     .order("event_date", { ascending: true })
     .limit(2);
+  // Without this the landing page renders "No upcoming events" identically
+  // whether there are none or the query failed — the COURSE!event_id join
+  // depends on an FK that has already been reversed once (migration 00004).
+  if (error) {
+    console.error("event.dao.getUpcomingForLanding failed:", error.message, error.code);
+  }
   return data ?? [];
 }
 
