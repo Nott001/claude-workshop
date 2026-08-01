@@ -1,5 +1,5 @@
 import { Footer } from "@/shared/components/footer";
-import { getServiceClient } from "@/shared/db/client";
+import { supabase } from "@/shared/db/client";
 import { eventDao } from "@/shared/db/dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import type { LandingEvent } from "@/shared/types";
@@ -11,8 +11,12 @@ import type { LandingEvent } from "@/shared/types";
 // on a reachable database, which is what broke the Build and Lighthouse jobs.
 export const dynamic = "force-dynamic";
 
+// The anon client, not the service client. The "Published events are public"
+// policy already grants anon SELECT on active events, which is exactly what
+// this query asks for. service_role would bypass RLS on a public page and,
+// now that the page renders per request, make every request depend on a
+// secret it does not need — a missing key would 500 the landing page.
 async function getUpcomingEvents(): Promise<LandingEvent[]> {
-  const supabase = getServiceClient();
   const data = await eventDao.getUpcomingForLanding(supabase);
   return data.map((e) => ({
     event_id: e.id,
