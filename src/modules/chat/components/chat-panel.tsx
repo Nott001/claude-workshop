@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { supabase } from "@/shared/db/client";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { getBrowserClient } from "@/shared/db/browser-client";
 import { chatDao } from "@/shared/db/dao";
 import type { ChatMessage } from "@/shared/types";
 
@@ -25,6 +25,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const supabase = useMemo(() => getBrowserClient(), []);
 
   const isStaff = userRole === "facilitator" || userRole === "admin" || userRole === "super_admin";
 
@@ -70,7 +71,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
     return () => {
       sub.unsubscribe();
     };
-  }, [eventId, supportType, currentUserId, isStaff]);
+  }, [eventId, supportType, currentUserId, isStaff, supabase]);
 
   useEffect(() => {
     if (isAtBottomRef.current) {

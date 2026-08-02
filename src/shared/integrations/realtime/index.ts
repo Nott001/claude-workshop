@@ -1,4 +1,4 @@
-import { supabase } from "@/shared/db/client";
+import { getBrowserClient } from "@/shared/db/browser-client";
 import type { Ticket, SupportSession, ChatMessage, QaMessage } from "@/shared/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -11,7 +11,7 @@ let counter = 0;
 
 export function subscribeToSupportSessions(onChange: SupportSessionCallback): RealtimeChannel {
   const channelName = `support-sessions-${++counter}`;
-  const sub = supabase
+  const sub = getBrowserClient()
     .channel(channelName)
     .on(
       "postgres_changes",
@@ -45,7 +45,7 @@ export function subscribeToSupportMessages(
 ): RealtimeChannel {
   const filter = `support_type=eq.${supportType}`;
   const channelName = `support-messages-${supportType}-${eventId ?? "general"}-${++counter}`;
-  const sub = supabase
+  const sub = getBrowserClient()
     .channel(channelName)
     .on(
       "postgres_changes",
@@ -69,7 +69,7 @@ export function subscribeToSupportMessages(
 
 export function subscribeToQaMessages(eventId: number, onChange?: QaMessageCallback): RealtimeChannel {
   const channelName = `qa-messages-${eventId}-${++counter}`;
-  const sub = supabase
+  const sub = getBrowserClient()
     .channel(channelName)
     .on(
       "postgres_changes",
@@ -92,7 +92,7 @@ export function subscribeToQaMessages(eventId: number, onChange?: QaMessageCallb
 
 export function subscribeToQaMessagesByModule(moduleId: number, onChange?: QaMessageCallback): RealtimeChannel {
   const channelName = `qa-module-messages-${moduleId}-${++counter}`;
-  const sub = supabase
+  const sub = getBrowserClient()
     .channel(channelName)
     .on(
       "postgres_changes",
@@ -115,7 +115,7 @@ export function subscribeToQaMessagesByModule(moduleId: number, onChange?: QaMes
 
 export function subscribeToCheckins(eventId: number, onCheckin: TicketCallback): RealtimeChannel {
   const channelName = `checkins-${eventId}-${++counter}`;
-  const sub = supabase
+  const sub = getBrowserClient()
     .channel(channelName)
     .on(
       "postgres_changes",
