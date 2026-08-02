@@ -14,6 +14,9 @@ importers:
       "@base-ui/react":
         specifier: ^1.6.0
         version: 1.6.0(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      "@cf-wasm/photon":
+        specifier: ^0.4.0
+        version: 0.4.0
       "@hookform/resolvers":
         specifier: ^5.4.0
         version: 5.5.7(@standard-schema/spec@1.1.0)(react-hook-form@7.83.0(react@19.2.4))(zod@4.4.3)
@@ -44,9 +47,6 @@ importers:
       react-hook-form:
         specifier: ^7.81.0
         version: 7.83.0(react@19.2.4)
-      sharp:
-        specifier: ^0.35.3
-        version: 0.35.3(@types/node@22.20.1)
       swr:
         specifier: ^2.2.0
         version: 2.4.2(react@19.2.4)
@@ -78,9 +78,6 @@ importers:
       "@types/react-dom":
         specifier: ^19
         version: 19.2.3(@types/react@19.2.17)
-      "@types/sharp":
-        specifier: ^0.32.0
-        version: 0.32.0(@types/node@22.20.1)
       "@vitejs/plugin-react":
         specifier: ^6.0.3
         version: 6.0.4(vite@8.1.5(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.0))
@@ -243,6 +240,12 @@ packages:
   "@bramus/specificity@2.4.2":
     resolution: { integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw== }
     hasBin: true
+
+  "@cf-wasm/internals@0.2.0":
+    resolution: { integrity: sha512-QwMNETkTCtrx0uCzjJPRCTyok0OZNvOry9alfG8a8TpHo7oPJ17htPMDG4ptudpwe9F0VtJHy9+nOzJmupteiQ== }
+
+  "@cf-wasm/photon@0.4.0":
+    resolution: { integrity: sha512-PQcN6sThZAR/V6SH2MQmeFndDDhGfOxvra6UStyaBbkDHrgTPKvB+WapAhh0/TA9LsRAUaX/rEEw6hvY9uphbQ== }
 
   "@csstools/color-helpers@6.1.0":
     resolution: { integrity: sha512-064IFJdjTfUqnjpCVpMOdbr8FLQBhinbZj6yRv2An2E41O/pLEXqfFRWqGq/SxlE5PEUYTlvWsG2r8MswAVvkg== }
@@ -1014,10 +1017,6 @@ packages:
 
   "@types/react@19.2.17":
     resolution: { integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw== }
-
-  "@types/sharp@0.32.0":
-    resolution: { integrity: sha512-OOi3kL+FZDnPhVzsfD37J88FNeZh6gQsGcLc95NbeURRGvmSjeXiDcyWzF2o3yh/gQAUn2uhh/e+CPCa5nwAxw== }
-    deprecated: This is a stub types definition. sharp provides its own type definitions, so you do not need this installed.
 
   "@typescript-eslint/eslint-plugin@8.65.0":
     resolution: { integrity: sha512-IEgob78X12rHpUmtcwFsXhZdVGJtwTVP8FiCLZkR6GlYVrl2PcuB+KhCE5BlVC/eQpQnu8WXRtkHZuPar+gCRA== }
@@ -3199,6 +3198,12 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
+  "@cf-wasm/internals@0.2.0": {}
+
+  "@cf-wasm/photon@0.4.0":
+    dependencies:
+      "@cf-wasm/internals": 0.2.0
+
   "@csstools/color-helpers@6.1.0": {}
 
   "@csstools/css-calc@3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)":
@@ -3349,7 +3354,8 @@ snapshots:
 
   "@humanwhocodes/retry@0.4.3": {}
 
-  "@img/colour@1.1.0": {}
+  "@img/colour@1.1.0":
+    optional: true
 
   "@img/sharp-darwin-arm64@0.35.3":
     optionalDependencies:
@@ -3761,12 +3767,6 @@ snapshots:
   "@types/react@19.2.17":
     dependencies:
       csstype: 3.2.3
-
-  "@types/sharp@0.32.0(@types/node@22.20.1)":
-    dependencies:
-      sharp: 0.35.3(@types/node@22.20.1)
-    transitivePeerDependencies:
-      - "@types/node"
 
   "@typescript-eslint/eslint-plugin@8.65.0(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)":
     dependencies:
@@ -5540,6 +5540,7 @@ snapshots:
       "@img/sharp-win32-ia32": 0.35.3
       "@img/sharp-win32-x64": 0.35.3
       "@types/node": 22.20.1
+    optional: true
 
   shebang-command@2.0.0:
     dependencies:

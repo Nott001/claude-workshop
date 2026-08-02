@@ -31,6 +31,7 @@
 
 ### Changed
 
+- Uploaded images are compressed with WebAssembly instead of sharp. sharp binds to libvips as a native Node addon, which cannot load in the V8 isolate Cloudflare Workers runs, so it blocked deployment there outright. JPEGs are still re-encoded at quality 80. **PNGs are now stored as uploaded** — sharp quantised their palette, and no WebAssembly codec that runs in both Node and a Worker replaces that today, so PNG uploads take more storage and more bandwidth than before.
 - Migrated from Clerk to Supabase Auth. All auth logic centralized in `src/modules/auth/`.
 - Old staff-related pages moved under `src/app/staff/` namespace; route protection updated accordingly.
 - All API routes updated: `auth()` from Clerk replaced with `requireAuth()`/`requireRole()` from auth module.

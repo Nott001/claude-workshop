@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@cf-wasm/photon": "^0.4.0",
     "@hookform/resolvers": "^5.4.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.0",
@@ -33,7 +34,6 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.81.0",
-    "sharp": "^0.35.3",
     "swr": "^2.2.0",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
@@ -46,7 +46,6 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/sharp": "^0.32.0",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",

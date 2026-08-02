@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import sharp from "sharp";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { PhotonImage } from "@cf-wasm/photon";
+import { toBlobPart } from "@/shared/integrations/storage/optimize";
 import {
   validateFileType,
   validateFileSize,
@@ -8,8 +9,19 @@ import {
   buildProfileImagePath,
   buildCourseAssetPath,
   buildCourseVideoPath,
+  isStorageBucket,
+  uploadToStorage,
+  deleteFromStorage,
+  listStorageFolder,
 } from "@/shared/integrations/storage";
 import type { Event, User } from "@/shared/types";
+
+const bucket = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn(), list: vi.fn() }));
+
+// The storage helpers import the service client lazily, inside each call.
+vi.mock("@/shared/db/client", () => ({
+  getServiceClient: () => ({ storage: { from: () => bucket } }),
+}));
 
 describe("Storage bucket validation", () => {
   describe("validateFileType", () => {
@@ -113,6 +125,52 @@ describe("Storage path builders", () => {
 });
 
 describe("optimizeImage", () => {
+  // Varied pixels rather than a flat fill: a solid colour compresses to almost
+  // nothing at any quality, so it cannot show that re-encoding did anything.
+  function sampleImage(): PhotonImage {
+    const width = 100;
+    const height = 100;
+    const raw = new Uint8Array(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      raw[i * 4] = i % 256;
+      raw[i * 4 + 1] = (i * 7) % 256;
+      raw[i * 4 + 2] = (i * 13) % 256;
+      raw[i * 4 + 3] = 255;
+    }
+    return new PhotonImage(raw, width, height);
+  }
+
+  const magicBytes = async (file: File, count: number) => Array.from(new Uint8Array(await file.arrayBuffer()).slice(0, count));
+
+  it("re-encodes a JPEG to a smaller file", async () => {
+    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+
+    const source = sampleImage();
+    const file = new File([toBlobPart(source.get_bytes_jpeg(100))], "test.jpg", { type: "image/jpeg" });
+    source.free();
+
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/jpeg");
+    // Still a JPEG: SOI marker.
+    expect(await magicBytes(optimized, 2)).toEqual([0xff, 0xd8]);
+    expect(optimized.size).toBeLessThan(file.size);
+  });
+
+  it("passes a PNG through unchanged", async () => {
+    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+
+    const source = sampleImage();
+    const file = new File([toBlobPart(source.get_bytes())], "test.png", { type: "image/png" });
+    source.free();
+
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/png");
+    expect(await magicBytes(optimized, 4)).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(optimized.size).toBe(file.size);
+  });
+
   it("passes non-image files through unchanged", async () => {
     const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
 
@@ -123,30 +181,73 @@ describe("optimizeImage", () => {
     expect(optimized.type).toBe("text/plain");
   });
 
-  it("compresses a JPEG image", async () => {
+  it("passes an image type it has no codec for through unchanged", async () => {
     const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
 
-    const buf = await sharp({ create: { width: 100, height: 100, channels: 3, background: { r: 255, g: 0, b: 0 } } })
-      .jpeg()
-      .toBuffer();
-    const file = new File([buf], "test.jpg", { type: "image/jpeg" });
+    const file = new File(["GIF89a"], "test.gif", { type: "image/gif" });
     const optimized = await optimizeImage(file);
 
-    expect(optimized.type).toBe("image/jpeg");
-    expect(optimized.size).toBeGreaterThan(0);
+    expect(optimized.size).toBe(file.size);
+    expect(optimized.type).toBe("image/gif");
+  });
+});
+
+describe("Storage operations", () => {
+  beforeEach(() => {
+    bucket.upload.mockReset();
+    bucket.remove.mockReset();
+    bucket.list.mockReset();
   });
 
-  it("compresses a PNG image", async () => {
-    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
+  it("isStorageBucket accepts a served bucket and rejects anything else", () => {
+    expect(isStorageBucket("event_images")).toBe(true);
+    expect(isStorageBucket("../secrets")).toBe(false);
+  });
 
-    const buf = await sharp({ create: { width: 100, height: 100, channels: 4, background: { r: 0, g: 255, b: 0, alpha: 1 } } })
-      .png()
-      .toBuffer();
-    const file = new File([buf], "test.png", { type: "image/png" });
-    const optimized = await optimizeImage(file);
+  it("uploadToStorage returns the proxy URL rather than a public one", async () => {
+    bucket.upload.mockResolvedValue({ error: null });
 
-    expect(optimized.type).toBe("image/png");
-    expect(optimized.size).toBeGreaterThan(0);
+    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
+    const result = await uploadToStorage("event_images", "events/1/cover.jpg", file);
+
+    // Entitlement is enforced by /api/storage, so a bypassable public URL would
+    // defeat the check the proxy exists to perform.
+    expect(result.url).toBe("/api/storage/event_images/events/1/cover.jpg");
+    expect(result.path).toBe("events/1/cover.jpg");
+  });
+
+  it("uploadToStorage throws when the upload fails", async () => {
+    bucket.upload.mockResolvedValue({ error: { message: "quota exceeded" } });
+
+    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
+    await expect(uploadToStorage("event_images", "events/1/cover.jpg", file)).rejects.toThrow("quota exceeded");
+  });
+
+  it("deleteFromStorage makes no call for an empty path list", async () => {
+    await deleteFromStorage("event_images", []);
+    expect(bucket.remove).not.toHaveBeenCalled();
+  });
+
+  it("deleteFromStorage removes every path given", async () => {
+    bucket.remove.mockResolvedValue({ error: null });
+
+    await deleteFromStorage("course_assets", ["a.pdf", "b.pdf"]);
+
+    expect(bucket.remove).toHaveBeenCalledWith(["a.pdf", "b.pdf"]);
+  });
+
+  it("listStorageFolder qualifies each entry with its folder", async () => {
+    bucket.list.mockResolvedValue({ data: [{ name: "one.pdf" }, { name: "two.pdf" }], error: null });
+
+    const files = await listStorageFolder("course_assets", "courses/1");
+
+    expect(files).toEqual(["courses/1/one.pdf", "courses/1/two.pdf"]);
+  });
+
+  it("listStorageFolder returns nothing when the listing fails", async () => {
+    bucket.list.mockResolvedValue({ data: null, error: { message: "no such folder" } });
+
+    expect(await listStorageFolder("course_assets", "courses/999")).toEqual([]);
   });
 });
 

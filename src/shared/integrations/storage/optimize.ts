@@ -1,22 +1,30 @@
-import sharp from "sharp";
+// The bare specifier is deliberate: photon's export map resolves it to the
+// workerd build on Cloudflare and the node build in dev and tests.
+import { PhotonImage } from "@cf-wasm/photon";
 
+/**
+ * Photon returns bytes typed as `ArrayBufferLike`, which `File` rejects because
+ * it could in principle be a SharedArrayBuffer. WASM linear memory never is, so
+ * this narrows the type without copying the bytes.
+ */
+export function toBlobPart(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength);
+}
+
+// Photon is WebAssembly. sharp bound to libvips as a native Node addon, which a
+// V8 isolate cannot load, so it ruled out Cloudflare Workers as a deployment
+// target for the three upload routes that call this.
 export async function optimizeImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/")) return file;
+  // PNG is returned untouched: photon re-encodes it byte-for-byte, so the work
+  // buys nothing. sharp used to quantise the palette here; no WASM codec that
+  // runs in both Node and a Worker replaces that today.
+  if (file.type !== "image/jpeg") return file;
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const pipeline = sharp(buffer);
-  let optimized: Buffer;
-
-  if (file.type === "image/png") {
-    optimized = await pipeline.png({ quality: 85, palette: true }).toBuffer();
-  } else {
-    optimized = await pipeline.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+  const image = PhotonImage.new_from_byteslice(new Uint8Array(await file.arrayBuffer()));
+  try {
+    return new File([toBlobPart(image.get_bytes_jpeg(80))], file.name, { type: file.type });
+  } finally {
+    // Photon allocates in WASM memory that the JS heap does not track.
+    image.free();
   }
-
-  // sharp returns a Node Buffer, typed as Uint8Array<ArrayBufferLike>, but File
-  // needs an ArrayBuffer-backed view. Node buffers are never backed by a
-  // SharedArrayBuffer, so this narrows the type without copying the bytes.
-  const bytes = new Uint8Array(optimized.buffer as ArrayBuffer, optimized.byteOffset, optimized.byteLength);
-
-  return new File([bytes], file.name, { type: file.type });
 }
