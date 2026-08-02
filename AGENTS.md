@@ -10,6 +10,7 @@
 - If you add or update a dependency, update the appropriate lockfile. Restart the development server so that Next.js reflects changes.
 - Create a new branch when tasked to write changes. Keep branch names short and concise.
 - **Never edit an existing migration script.** Always create a new numbered migration for schema changes.
+- **An embedded PostgREST select needs grants on every table it touches**, under the role the calling client uses. A missing grant fails the _whole_ query with `42501` and returns no rows at all, not partial ones — the landing page shipped empty this way, because it reads as anon and its `COURSE` embed was granted only to `authenticated`. Check the grants for the client you are actually using before adding an embed.
 
 ## Deployment
 

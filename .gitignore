@@ -47,6 +47,10 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 
+# session handoffs — a snapshot of in-flight work, stale as soon as it is written.
+# Durable rules belong in AGENTS.md instead, which is loaded every session.
+/.handoff/
+
 # playwright
 /test/e2e/.results
 /test/e2e/.report
