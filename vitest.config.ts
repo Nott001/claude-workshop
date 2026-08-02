@@ -22,10 +22,10 @@ export default defineConfig({
       // regress; raise these as the API-route and DAO gaps close.
       // See specs/SPEC-09-TEST-STRATEGY.md for the target trajectory.
       thresholds: {
-        statements: 11.4,
-        branches: 11.3,
-        functions: 10.5,
-        lines: 11.3,
+        statements: 12,
+        branches: 11.7,
+        functions: 10.9,
+        lines: 11.9,
       },
     },
   },

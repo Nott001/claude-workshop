@@ -127,9 +127,7 @@ describe("Storage path builders", () => {
 describe("optimizeImage", () => {
   // Varied pixels rather than a flat fill: a solid colour compresses to almost
   // nothing at any quality, so it cannot show that re-encoding did anything.
-  function sampleImage(): PhotonImage {
-    const width = 100;
-    const height = 100;
+  function sampleImage(width = 100, height = 100): PhotonImage {
     const raw = new Uint8Array(width * height * 4);
     for (let i = 0; i < width * height; i++) {
       raw[i * 4] = i % 256;
@@ -157,7 +155,25 @@ describe("optimizeImage", () => {
     expect(optimized.size).toBeLessThan(file.size);
   });
 
-  it("passes a PNG through unchanged", async () => {
+  it("scales an oversized JPEG down to the cap as well as re-encoding it", async () => {
+    const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
+
+    const source = sampleImage(MAX_IMAGE_DIMENSION * 2, MAX_IMAGE_DIMENSION);
+    const file = new File([toBlobPart(source.get_bytes_jpeg(100))], "big.jpg", { type: "image/jpeg" });
+    source.free();
+
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/jpeg");
+    expect(optimized.size).toBeLessThan(file.size);
+
+    const result = PhotonImage.new_from_byteslice(new Uint8Array(await optimized.arrayBuffer()));
+    expect(result.get_width()).toBe(MAX_IMAGE_DIMENSION);
+    expect(result.get_height()).toBe(MAX_IMAGE_DIMENSION / 2);
+    result.free();
+  });
+
+  it("leaves a PNG already within the cap untouched", async () => {
     const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
 
     const source = sampleImage();
@@ -168,7 +184,28 @@ describe("optimizeImage", () => {
 
     expect(optimized.type).toBe("image/png");
     expect(await magicBytes(optimized, 4)).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    // Re-encoding at the same size would cost CPU and return the same bytes.
     expect(optimized.size).toBe(file.size);
+  });
+
+  it("scales an oversized PNG down to the cap and keeps its aspect ratio", async () => {
+    const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
+
+    // 2:1, longest edge well past the cap.
+    const source = sampleImage(MAX_IMAGE_DIMENSION * 2, MAX_IMAGE_DIMENSION);
+    const file = new File([toBlobPart(source.get_bytes())], "big.png", { type: "image/png" });
+    source.free();
+
+    const optimized = await optimizeImage(file);
+
+    expect(optimized.type).toBe("image/png");
+    expect(await magicBytes(optimized, 4)).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(optimized.size).toBeLessThan(file.size);
+
+    const result = PhotonImage.new_from_byteslice(new Uint8Array(await optimized.arrayBuffer()));
+    expect(result.get_width()).toBe(MAX_IMAGE_DIMENSION);
+    expect(result.get_height()).toBe(MAX_IMAGE_DIMENSION / 2);
+    result.free();
   });
 
   it("passes non-image files through unchanged", async () => {

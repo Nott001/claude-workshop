@@ -11,6 +11,12 @@
 - Create a new branch when tasked to write changes. Keep branch names short and concise.
 - **Never edit an existing migration script.** Always create a new numbered migration for schema changes.
 
+## Deployment
+
+- The target is **Cloudflare Workers** — V8 isolates, not Node. Native addons cannot load there, so `sharp` and anything else shipping a `.node` binary is unusable. Reach for WebAssembly or a hosted service instead.
+- **Keep host-specific code behind a seam.** Codecs, caches, schedulers and realtime all differ per platform. Hide them behind a signature that does not, so changing host touches one file rather than every call site. `optimizeImage` is the reference: three upload routes never learn whether sharp or photon is underneath, which is why swapping them costs minutes.
+- Adopting a platform primitive (Durable Objects, KV, Cron Triggers) welds the app to that platform. Do it when it is genuinely the right tool, not by default — and say so in the commit body.
+
 ## Testing
 
 - Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
