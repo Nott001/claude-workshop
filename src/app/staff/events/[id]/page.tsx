@@ -11,6 +11,7 @@ import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
 import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import dynamic from "next/dynamic";
 
 const ChatPanel = dynamic(() => import("@/modules/chat/components/chat-panel"), { ssr: false });
@@ -310,6 +311,26 @@ function KioskSection({ eventId, userRole }: { eventId: string; userRole: UserRo
   );
 }
 
+function CoverImageSection({
+  eventId,
+  userRole,
+  coverImageUrl,
+}: {
+  eventId: string;
+  userRole: UserRole | null;
+  coverImageUrl: string | null;
+}) {
+  // Matches the facilitator floor that /api/upload/event-image enforces.
+  if (!hasMinRole(userRole, "facilitator")) return null;
+
+  return (
+    <SectionCard title="Cover image" icon="image">
+      <p className="mb-3 text-sm text-muted-fg">Shown on event cards across the site.</p>
+      <CoverImageUpload eventId={eventId} initialUrl={coverImageUrl} />
+    </SectionCard>
+  );
+}
+
 function SurveysSection({ userRole }: { userRole: UserRole | null }) {
   if (!hasMinRole(userRole, "facilitator")) return null;
 
@@ -394,6 +415,8 @@ export default function StaffEventDashboardPage() {
             handleDelete={handleDelete}
             attendeeCount={attendeesTotal}
           />
+
+          <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
           <CourseSection eventId={eventId} userRole={userRole} />
 
