@@ -1,30 +1,16 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useRoleGuard } from "@/modules/auth";
+import { EditEventForm } from "@/modules/events/components/edit-event-form";
 
 export default function StaffEditEventPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useSession();
-  const userRole = user?.role ?? null;
+  const { allowed, pending } = useRoleGuard("facilitator");
   const eventId = params.id as string;
-  const [initialData, setInitialData] = useState<{
-    title: string;
-    event_date: string;
-    start_time: string;
-    end_time: string;
-    venue_name: string;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!hasMinRole(userRole, "facilitator")) {
-      router.replace("/staff/events");
-    }
-  }, [userRole, router]);
+  const [initialData, setInitialData] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
@@ -33,21 +19,15 @@ export default function StaffEditEventPage() {
       .catch(() => router.replace("/staff/events"));
   }, [eventId, router]);
 
-  if (!hasMinRole(userRole, "facilitator")) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Redirecting...</div>
-      </div>
-    );
-  }
-
-  if (!initialData) {
+  if (pending || !initialData) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-foreground">Loading...</div>
       </div>
     );
   }
+
+  if (!allowed) return null;
 
   return <EditEventForm eventId={eventId} initialData={initialData} />;
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
 import { useTicketCard } from "@/modules/commerce/lib/use-ticket-card";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 
@@ -34,14 +35,8 @@ function ticketStatusLabel(status: string): string {
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const { qrUrl, qrLoading, payment } = useTicketCard(ticket.payment_id);
 
-  const venue = ticket.EVENTS.venue_address
-    ? `${ticket.EVENTS.venue_name}, ${ticket.EVENTS.venue_address}`
-    : ticket.EVENTS.venue_name;
-
-  const price =
-    ticket.EVENTS.price > 0
-      ? `${ticket.EVENTS.currency} ${ticket.EVENTS.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-      : null;
+  const venue = formatVenue(ticket.EVENTS.venue_name, ticket.EVENTS.venue_address);
+  const price = formatEventPrice(ticket.EVENTS.price, ticket.EVENTS.currency);
 
   const paidTime = payment?.paid_at
     ? new Date(payment.paid_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })

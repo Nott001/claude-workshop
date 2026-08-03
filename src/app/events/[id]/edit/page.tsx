@@ -16,16 +16,5 @@ export default async function EditEventPage({ params }: PageProps) {
     notFound();
   }
 
-  return (
-    <EditEventForm
-      eventId={id}
-      initialData={{
-        title: event.title ?? "",
-        event_date: event.event_date ?? "",
-        start_time: event.start_time ?? "",
-        end_time: event.end_time ?? "",
-        venue_name: event.venue_name ?? "",
-      }}
-    />
-  );
+  return <EditEventForm eventId={id} initialData={event} />;
 }

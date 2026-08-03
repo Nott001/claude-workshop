@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { Footer } from "@/shared/components/footer";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
+import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
 
 export default function EventDetailPage() {
   const router = useRouter();
@@ -35,6 +36,9 @@ export default function EventDetailPage() {
     );
   }
 
+  const venue = formatVenue(event.venue_name, event.venue_address);
+  const price = formatEventPrice(event.price, event.currency);
+
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[896px] px-5 py-12 sm:px-8">
@@ -47,7 +51,8 @@ export default function EventDetailPage() {
             <p className="mt-2 text-sm text-muted-fg">
               {event.event_date} &middot; {event.start_time} - {event.end_time}
             </p>
-            {event.venue_name && <p className="mt-1 text-sm text-muted-fg">{event.venue_name}</p>}
+            {venue && <p className="mt-1 text-sm text-muted-fg">{venue}</p>}
+            <p className="mt-1 text-sm font-semibold text-fg">{price ?? "Free"}</p>
           </div>
         </div>
 
