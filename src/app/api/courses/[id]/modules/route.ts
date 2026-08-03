@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { moduleSchema } from "@/modules/courses/lib/schemas";
@@ -9,7 +10,7 @@ import { requireCourseAccess } from "@/modules/courses/lib/course-access";
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("speaker");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { id } = await params;

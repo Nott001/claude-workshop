@@ -109,18 +109,23 @@ describe("ticketDao.findByQrToken", () => {
 });
 
 describe("ticketDao.updateStatus", () => {
+  // One updated row is what a successful write looks like through PostgREST's
+  // `select`-after-update.
+  const updated = { data: [{ id: 100 }], error: null };
+
   it("records who performed a check-in", async () => {
-    const { client, chain, calls } = queryStub({ error: null });
+    const { client, chain, calls } = queryStub(updated);
 
     const ok = await ticketDao.updateStatus(client, 100, "checked_in", 7);
 
     expect(ok).toBe(true);
     expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ status: "checked_in", checked_in_by: 7 }));
-    expect(filters(calls)).toEqual([["eq", ["payment_id", 100]]]);
+    // Keyed on the primary key, never on the nullable payment_id.
+    expect(filters(calls)).toEqual([["eq", ["id", 100]]]);
   });
 
   it("omits checked_in_by entirely when no actor is supplied", async () => {
-    const { client, chain } = queryStub({ error: null });
+    const { client, chain } = queryStub(updated);
 
     await ticketDao.updateStatus(client, 100, "cancelled");
 
@@ -128,7 +133,7 @@ describe("ticketDao.updateStatus", () => {
   });
 
   it("stamps updated_at on every write", async () => {
-    const { client, chain } = queryStub({ error: null });
+    const { client, chain } = queryStub(updated);
 
     await ticketDao.updateStatus(client, 100, "cancelled");
 
@@ -138,6 +143,34 @@ describe("ticketDao.updateStatus", () => {
   it("reports a failed write as false so callers do not report success", async () => {
     const { client } = queryStub({ error: { message: "conflict" } });
     await expect(ticketDao.updateStatus(client, 100, "checked_in", 7)).resolves.toBe(false);
+  });
+
+  // The regression this pins: an update whose filter matches nothing returns no
+  // error, so the old code reported success and check-in silently did nothing.
+  it("reports a write that matched no row as false", async () => {
+    const { client } = queryStub({ data: [], error: null });
+    await expect(ticketDao.updateStatus(client, 999, "checked_in", 7)).resolves.toBe(false);
+  });
+});
+
+describe("ticketDao.create", () => {
+  it("returns the stored row rather than echoing its input", async () => {
+    const stored = { id: 42, payment_id: 100, user_id: 5, event_id: 10, qr_token: "tok", status: "issued" };
+    const { client, chain } = queryStub({ data: stored });
+
+    const result = await ticketDao.create(client, { payment_id: 100, user_id: 5, event_id: 10, qr_token: "tok" });
+
+    // The input carries no id, status or issued_at; only the stored row does.
+    expect(result).toEqual(stored);
+    expect(chain.select).toHaveBeenCalled();
+  });
+
+  it("returns null when the insert fails", async () => {
+    const { client } = queryStub({ error: { message: "duplicate key", code: "23505" } });
+
+    const result = await ticketDao.create(client, { payment_id: 100, user_id: 5, event_id: 10, qr_token: "tok" });
+
+    expect(result).toBeNull();
   });
 });
 

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { paymentDao } from "@/shared/db/dao";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { id } = await params;
@@ -18,7 +20,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  if (guard.user.role === "attendee" && payment.user_id !== guard.user.id) {
+  // Anyone below facilitator — attendee and speaker alike — may only read their
+  // own payment. A literal "attendee" test let speakers read everyone's.
+  if (!hasMinRole(guard.user.role, "facilitator") && payment.user_id !== guard.user.id) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 

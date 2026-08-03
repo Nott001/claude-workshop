@@ -1,5 +1,6 @@
 import type { DbClient } from "./types";
-import type { Event, User, SpeakerProfile } from "@/shared/types";
+import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
@@ -44,7 +45,10 @@ export async function list(
 
   let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
 
-  if (role !== "facilitator") {
+  // Drafts are staff-only, and "staff" is facilitator *and up* — a literal
+  // inequality hid every draft from admins, who are the only role allowed to
+  // create one.
+  if (!hasMinRole((role ?? null) as UserRole | null, "facilitator")) {
     query = query.in("status", ["active", "complete"]);
   }
 

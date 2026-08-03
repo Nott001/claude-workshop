@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { isStorageBucket, COURSE_CONTENT_BUCKETS, type StorageBucket } from "@/shared/integrations/storage";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type Db = ReturnType<typeof getServiceClient>;
 
@@ -36,7 +37,9 @@ async function isEntitled(bucket: StorageBucket, segments: string[], supabase: D
 
   if (!COURSE_CONTENT_BUCKETS.includes(bucket)) return true;
 
-  if (user.role === "facilitator") return true;
+  // Facilitator *and up*: an equality test denied admins and super_admins the
+  // course material every facilitator can already read.
+  if (hasMinRole(user.role, "facilitator")) return true;
 
   const courseId = courseIdFromPath(segments);
   if (courseId === null) return false;

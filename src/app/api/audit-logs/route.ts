@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { auditDao } from "@/shared/db/dao";
 
 export async function GET(req: Request) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { searchParams } = new URL(req.url);

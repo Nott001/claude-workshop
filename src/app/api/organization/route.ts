@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
@@ -17,7 +18,7 @@ const inviteSchema = z.object({
 export async function GET(req: Request) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { searchParams } = new URL(req.url);
@@ -39,7 +40,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const body = await req.json();

@@ -9,6 +9,19 @@ type QaMessageCallback = (message: QaMessage) => void;
 
 let counter = 0;
 
+/**
+ * Tears a subscription down. `channel.unsubscribe()` closes the socket topic but
+ * leaves the channel registered on the client, so remounting accumulates dead
+ * channels until the connection hits its topic limit and new subscriptions
+ * silently stop arriving. `removeChannel` does both halves.
+ *
+ * Exported from here rather than called at each site because the caller should
+ * not have to know which client owns the channel it was handed.
+ */
+export function unsubscribe(channel: RealtimeChannel): void {
+  getBrowserClient().removeChannel(channel);
+}
+
 export function subscribeToSupportSessions(onChange: SupportSessionCallback): RealtimeChannel {
   const channelName = `support-sessions-${++counter}`;
   const sub = getBrowserClient()

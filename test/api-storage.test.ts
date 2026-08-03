@@ -120,6 +120,17 @@ describe("course entitlement", () => {
     expect(userHasCourseAccess).not.toHaveBeenCalled();
   });
 
+  // "Facilitator" here means facilitator *and up*. An equality test denied
+  // admins and super_admins the material every facilitator already reads.
+  it.each(["admin", "super_admin"])("gives %s the same access as a facilitator", async (role) => {
+    requireAuth.mockResolvedValue({ ...facilitator, role });
+
+    const res = await GET(req(), params("course_assets", lesson));
+
+    expect(res.status).toBe(200);
+    expect(userHasCourseAccess).not.toHaveBeenCalled();
+  });
+
   it("checks entitlement for a speaker like any other non-facilitator", async () => {
     requireAuth.mockResolvedValue(speaker);
     userHasCourseAccess.mockResolvedValue(false);

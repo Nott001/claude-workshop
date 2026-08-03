@@ -102,17 +102,26 @@ export async function create(
     qr_token: string;
   },
 ): Promise<Ticket | null> {
-  const { error } = await supabase.from("TICKET").insert(data);
+  // Returns the stored row, not the input: the caller needs the generated id,
+  // status and issued_at, and echoing the argument back fabricated a "Ticket"
+  // that had none of them.
+  const { data: ticket, error } = await supabase.from("TICKET").insert(data).select("*").single();
   if (error) {
     console.error("ticket.dao.create failed:", error.message, error.code);
     return null;
   }
-  return data as unknown as Ticket;
+  return ticket;
 }
 
+/**
+ * Keyed on the primary key. `payment_id` is nullable (ON DELETE SET NULL), so
+ * filtering on it addressed no rows once a payment was removed — the update
+ * matched nothing, PostgREST reported no error, and check-in claimed success
+ * while changing nothing.
+ */
 export async function updateStatus(
   supabase: DbClient,
-  paymentId: number,
+  ticketId: number,
   status: TicketStatus,
   checkedInBy?: number,
 ): Promise<boolean> {
@@ -124,8 +133,10 @@ export async function updateStatus(
     updateData.checked_in_by = checkedInBy;
   }
 
-  const { error } = await supabase.from("TICKET").update(updateData).eq("payment_id", paymentId);
-  return !error;
+  // `select` so a filter that matches nothing is a failure rather than a
+  // silent success; without it a no-op update is indistinguishable from a real one.
+  const { data, error } = await supabase.from("TICKET").update(updateData).eq("id", ticketId).select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
 export async function getAttendees(

@@ -74,7 +74,7 @@ describe("DELETE /api/events/[id] authorization", () => {
 
     const res = await del();
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(eventRemove).not.toHaveBeenCalled();
     expect(deleteFromStorage).not.toHaveBeenCalled();
   });

@@ -20,12 +20,11 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/shared/types/**", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
-      // See specs/SPEC-09-TEST-STRATEGY.md for the target trajectory.
       thresholds: {
-        statements: 12,
-        branches: 11.7,
-        functions: 10.9,
-        lines: 11.9,
+        statements: 17.4,
+        branches: 16.8,
+        functions: 15.5,
+        lines: 17.6,
       },
     },
   },
