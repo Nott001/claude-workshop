@@ -1,31 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ModuleWithLessons } from "@/modules/courses/lib/types";
+import type { Course } from "@/shared/types";
 
-interface CourseLesson {
-  id: number;
-  module_id: number;
-  description: string;
-  content_type: string;
-  content_url: string | null;
-  sequence_order: number;
-}
-
-interface CourseModule {
-  id: number;
-  course_id: number;
-  module_name: string;
-  sequence_order: number;
-  module_type: string;
-  is_locked: boolean;
-  LESSON: CourseLesson[];
-}
-
-export interface CourseWithContent {
-  id: number;
-  course_name: string;
-  course_description: string | null;
-  MODULE: CourseModule[];
+export interface CourseWithContent extends Course {
+  MODULE: ModuleWithLessons[];
 }
 
 export function useCourseByEvent(eventId: string) {

@@ -11,8 +11,6 @@ import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
 import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
-import type { ModuleWithLessons } from "@/modules/courses/lib/types";
-import type { ModuleType, ContentType } from "@/shared/types";
 
 export default function SpeakerCoursePage() {
   const params = useParams();
@@ -29,27 +27,7 @@ export default function SpeakerCoursePage() {
 
   useEffect(() => {
     if (course && !seededRef.current) {
-      const transformedModules: ModuleWithLessons[] = course.MODULE.map((m) => ({
-        id: m.id,
-        course_id: m.course_id,
-        module_name: m.module_name,
-        sequence_order: m.sequence_order,
-        module_type: m.module_type as ModuleType,
-        is_locked: m.is_locked,
-        created_at: "",
-        updated_at: "",
-        LESSONS: m.LESSON.map((l) => ({
-          id: l.id,
-          module_id: l.module_id,
-          description: l.description,
-          content_type: l.content_type as ContentType,
-          content_url: l.content_url,
-          sequence_order: l.sequence_order,
-          created_at: "",
-          updated_at: "",
-        })),
-      }));
-      courseBuilder.setModules(transformedModules);
+      courseBuilder.setModules(course.MODULE);
       seededRef.current = true;
     }
   }, [course, courseBuilder]);
