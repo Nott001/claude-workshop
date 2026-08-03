@@ -134,10 +134,12 @@ test("an attendee cannot author course content", async ({ page }) => {
   const mod = await page.request.post(`/api/courses/${course.courseId}/modules`, {
     data: { module_name: "e2e-should-not-exist", sequence_order: 9 },
   });
-  expect(mod.status()).toBe(401);
+  // 403, not 401: the caller signed in above, so this is a permission refusal
+  // rather than a missing session. See guardFailure.
+  expect(mod.status()).toBe(403);
 
   const list = await page.request.get("/api/courses");
-  expect(list.status()).toBe(401);
+  expect(list.status()).toBe(403);
 });
 
 test("a facilitator deleting a module removes its lessons", async ({ page }) => {
