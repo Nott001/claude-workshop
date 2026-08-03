@@ -6,3 +6,6 @@ out/**
 build/**
 next-env.d.ts
 coverage/**
+.open-next/**
+.wrangler/**
+cloudflare-env.d.ts

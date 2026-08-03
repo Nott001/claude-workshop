@@ -10,6 +10,13 @@
 - If you add or update a dependency, update the appropriate lockfile. Restart the development server so that Next.js reflects changes.
 - Create a new branch when tasked to write changes. Keep branch names short and concise.
 - **Never edit an existing migration script.** Always create a new numbered migration for schema changes.
+- **An embedded PostgREST select needs grants on every table it touches**, under the role the calling client uses. A missing grant fails the _whole_ query with `42501` and returns no rows at all, not partial ones — the landing page shipped empty this way, because it reads as anon and its `COURSE` embed was granted only to `authenticated`. Check the grants for the client you are actually using before adding an embed.
+
+## Deployment
+
+- The target is **Cloudflare Workers** — V8 isolates, not Node. Native addons cannot load there, so `sharp` and anything else shipping a `.node` binary is unusable. Reach for WebAssembly or a hosted service instead.
+- **Keep host-specific code behind a seam.** Codecs, caches, schedulers and realtime all differ per platform. Hide them behind a signature that does not, so changing host touches one file rather than every call site. `optimizeImage` is the reference: three upload routes never learn whether sharp or photon is underneath, which is why swapping them costs minutes.
+- Adopting a platform primitive (Durable Objects, KV, Cron Triggers) welds the app to that platform. Do it when it is genuinely the right tool, not by default — and say so in the commit body.
 
 ## Testing
 

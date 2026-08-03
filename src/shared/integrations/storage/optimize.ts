@@ -1,22 +1,71 @@
-import sharp from "sharp";
+// The bare specifier is deliberate: photon's export map resolves it to the
+// workerd build on Cloudflare and the node build in dev and tests.
+import { PhotonImage, SamplingFilter, resize } from "@cf-wasm/photon";
 
+/**
+ * Photon returns bytes typed as `ArrayBufferLike`, which `File` rejects because
+ * it could in principle be a SharedArrayBuffer. WASM linear memory never is, so
+ * this narrows the type without copying the bytes.
+ */
+export function toBlobPart(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength);
+}
+
+// Covers render around 350px wide and avatars smaller still, so this leaves
+// room for high-density displays while discarding the several thousand pixels a
+// phone camera adds. Byte size tracks pixel area, so halving the longest edge
+// quarters the file — far more than the palette quantisation sharp used to do.
+export const MAX_IMAGE_DIMENSION = 1600;
+
+// Photon is WebAssembly. sharp bound to libvips as a native Node addon, which a
+// V8 isolate cannot load, so it ruled out Cloudflare Workers as a deployment
+// target for the three upload routes that call this.
 export async function optimizeImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/")) return file;
+  if (file.type === "image/jpeg") return reencodeJpeg(file);
+  if (file.type === "image/png") return shrinkPng(file);
+  return file;
+}
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const pipeline = sharp(buffer);
-  let optimized: Buffer;
+/** The scaled image, or null when it already fits. The caller frees it. */
+function scaleToFit(image: PhotonImage): PhotonImage | null {
+  const width = image.get_width();
+  const height = image.get_height();
+  const longestEdge = Math.max(width, height);
 
-  if (file.type === "image/png") {
-    optimized = await pipeline.png({ quality: 85, palette: true }).toBuffer();
-  } else {
-    optimized = await pipeline.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+  if (longestEdge <= MAX_IMAGE_DIMENSION) return null;
+
+  const scale = MAX_IMAGE_DIMENSION / longestEdge;
+  return resize(image, Math.round(width * scale), Math.round(height * scale), SamplingFilter.Lanczos3);
+}
+
+/** Always re-encodes: cameras ship JPEG at quality 90-100, so dropping to 80 pays even when the dimensions already fit. */
+async function reencodeJpeg(file: File): Promise<File> {
+  const image = PhotonImage.new_from_byteslice(new Uint8Array(await file.arrayBuffer()));
+  try {
+    const scaled = scaleToFit(image);
+    try {
+      return new File([toBlobPart((scaled ?? image).get_bytes_jpeg(80))], file.name, { type: file.type });
+    } finally {
+      scaled?.free();
+    }
+  } finally {
+    // Photon allocates in WASM memory that the JS heap does not track.
+    image.free();
   }
+}
 
-  // sharp returns a Node Buffer, typed as Uint8Array<ArrayBufferLike>, but File
-  // needs an ArrayBuffer-backed view. Node buffers are never backed by a
-  // SharedArrayBuffer, so this narrows the type without copying the bytes.
-  const bytes = new Uint8Array(optimized.buffer as ArrayBuffer, optimized.byteOffset, optimized.byteLength);
-
-  return new File([bytes], file.name, { type: file.type });
+/** Only re-encodes when scaling: photon returns a same-size PNG byte-for-byte, so encoding one that already fits is pure waste. */
+async function shrinkPng(file: File): Promise<File> {
+  const image = PhotonImage.new_from_byteslice(new Uint8Array(await file.arrayBuffer()));
+  try {
+    const scaled = scaleToFit(image);
+    if (!scaled) return file;
+    try {
+      return new File([toBlobPart(scaled.get_bytes())], file.name, { type: file.type });
+    } finally {
+      scaled.free();
+    }
+  } finally {
+    image.free();
+  }
 }

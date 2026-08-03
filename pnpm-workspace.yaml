@@ -1,6 +1,11 @@
 allowBuilds:
+  # Both are build tooling for the Cloudflare target: esbuild bundles the worker
+  # and workerd is the runtime `wrangler dev` boots. Their install scripts only
+  # fetch the platform binary, and neither can run without one.
+  esbuild: true
   sharp: true
   unrs-resolver: false
+  workerd: true
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

@@ -1,0 +1,146 @@
+name: Deploy
+
+# There is no `push` trigger on purpose. A push-triggered deploy races the three
+# verification workflows and wins, which would put unverified code on the domain.
+# Instead every one of them reports here on completion, and the gate below only
+# lets the *last* one through — the run that finds all three already green.
+on:
+  workflow_run:
+    workflows: [CI, Security, E2E]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_gate:
+        description: "Deploy without checking CI/Security/E2E (rollbacks only)"
+        type: boolean
+        default: false
+
+# Never cancel a deploy in flight: a half-uploaded worker is worse than a stale
+# one, and the queued run will redeploy the newer commit a minute later anyway.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # The gate asks the Actions API about workflows other than this one.
+  actions: read
+
+jobs:
+  gate:
+    name: Verify checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # workflow_run reports the commit the *upstream* workflow tested, which
+          # is what must be deployed — not whatever main points at right now.
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SKIP_GATE: ${{ inputs.skip_gate }}
+        run: |
+          set -euo pipefail
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+          if [ "$SKIP_GATE" = "true" ]; then
+            echo "::warning::Gate skipped by manual dispatch. Deploying $SHA unverified."
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ready=true
+          for wf in ci.yml security.yml e2e.yml; do
+            run=$(gh api "repos/$REPO/actions/workflows/$wf/runs?head_sha=$SHA&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status) \(.conclusion)"' 2>/dev/null || echo "missing none")
+            status=${run%% *}
+            conclusion=${run##* }
+            echo "$wf: status=$status conclusion=$conclusion"
+
+            # `in_progress` is not a failure — it is the normal state while the
+            # other workflows are still running. That run will trigger this one
+            # again when it finishes, so stop quietly rather than deploying.
+            if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
+              ready=false
+            fi
+          done
+
+          if [ "$ready" = "true" ]; then
+            echo "All required workflows succeeded for $SHA."
+          else
+            echo "::notice::Not deploying $SHA yet — a required workflow is unfinished or not green."
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to Cloudflare
+    needs: gate
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Holds the Cloudflare credentials and the public Supabase config. Add a
+    # required reviewer on this environment to make deploys manual-approval.
+    environment:
+      name: production
+      url: ${{ vars.NEXT_PUBLIC_APP_URL }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Every NEXT_PUBLIC_* value is inlined into the bundle by the Next compiler,
+      # so these must be right *here*, at build time. Setting them as worker
+      # secrets afterwards changes nothing — the strings are already baked in.
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+
+      - uses: ./.github/actions/setup
+
+      - name: Fail early if configuration is missing
+        run: |
+          missing=""
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID NEXT_PUBLIC_APP_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing on the 'production' environment:$missing"
+            echo "::error::  secrets   - CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, NEXT_PUBLIC_SUPABASE_ANON_KEY"
+            echo "::error::  variables - NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SUPABASE_URL"
+            echo "::error::A name stored as a variable is not readable through 'secrets', or vice versa."
+            exit 1
+          fi
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.[jt]s', 'src/**/*.[jt]sx') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            next-${{ runner.os }}-
+
+      # Split from the deploy step so a bundling failure is not reported as a
+      # Cloudflare failure.
+      - name: Build worker
+        run: pnpm cf:build
+
+      - name: Deploy worker
+        run: pnpm exec wrangler deploy
+
+      - name: Summarise
+        if: success()
+        run: |
+          {
+            echo "### Deployed"
+            echo ""
+            echo "- commit \`${{ needs.gate.outputs.sha }}\`"
+            echo "- url ${{ vars.NEXT_PUBLIC_APP_URL }}"
+          } >> "$GITHUB_STEP_SUMMARY"

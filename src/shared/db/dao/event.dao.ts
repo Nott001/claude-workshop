@@ -62,14 +62,15 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWi
   const today = new Date().toISOString().split("T")[0];
   const { data, error } = await supabase
     .from("EVENT")
-    .select("*, COURSE!event_id(course_name)")
+    .select("*")
     .eq("status", "active")
     .gte("event_date", today)
     .order("event_date", { ascending: true })
     .limit(2);
   // Without this the landing page renders "No upcoming events" identically
-  // whether there are none or the query failed — the COURSE!event_id join
-  // depends on an FK that has already been reversed once (migration 00004).
+  // whether there are none or the query failed. It reads as anon, which is
+  // granted SELECT on EVENT and nothing else — an embed here (COURSE used to
+  // be one) fails the whole query with 42501 rather than returning partial rows.
   if (error) {
     console.error("event.dao.getUpcomingForLanding failed:", error.message, error.code);
   }

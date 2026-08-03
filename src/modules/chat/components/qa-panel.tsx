@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/shared/db/client";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { getBrowserClient } from "@/shared/db/browser-client";
 import type { QaMessage, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
@@ -26,6 +26,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
   const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const supabase = useMemo(() => getBrowserClient(), []);
 
   const isStaff = hasMinRole(userRole, "speaker");
 
@@ -76,7 +77,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
     return () => {
       sub.unsubscribe();
     };
-  }, [moduleId]);
+  }, [moduleId, supabase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

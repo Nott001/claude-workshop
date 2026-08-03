@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { supabase } from "@/shared/db/client";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { getBrowserClient } from "@/shared/db/browser-client";
 import { chatDao } from "@/shared/db/dao";
 import { useSession } from "@/modules/auth";
 import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
@@ -27,6 +27,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
   const [error, setError] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const supabase = useMemo(() => getBrowserClient(), []);
 
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
@@ -78,7 +79,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
       sub.unsubscribe();
       sessionSub.unsubscribe();
     };
-  }, [isOpen, supportType, eventId]);
+  }, [isOpen, supportType, eventId, supabase]);
 
   useEffect(() => {
     if (isOpen) {
