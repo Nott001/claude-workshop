@@ -22,9 +22,9 @@
 
 - Testing is done using **vitest**. Ensure that all tests are created in the `test` directory. Make one if it doesn't exist.
 - Add or update tests for the code you change, even if nobody asked.
-- Update `vitest.config.ts` if other depencies necessitate it.
+- Update `vitest.config.ts` if other dependencies necessitate it.
 - `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
-- **Assert on behaviour, not on type shapes.** A test that builds an object literal and asserts on that same literal executes no product code — TypeScript already checks the shape. Call the real function.
+- **Assert on behavior, not on type shapes.** A test that builds an object literal and asserts on that same literal executes no product code — TypeScript already checks the shape. Call the real function.
 - Coverage thresholds in `vitest.config.ts` are a ratchet. Raise them when you raise coverage; never lower them to make a build pass.
 - See `specs/SPEC-09-TEST-STRATEGY.md` for the current gaps and priorities.
 
@@ -48,5 +48,5 @@
   - Destructive data or migration changes.
 
 - **Never**
-  - Commit secrets, creditentials, or tokens.
+  - Commit secrets, credentials, or tokens.
   - Use destructive git operations unless explicitly requested.

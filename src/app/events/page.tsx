@@ -73,8 +73,8 @@ export default function EventsPage() {
           <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredEvents.map((event, index) => (
               <EventCard
-                key={event.event_id}
-                eventId={event.event_id}
+                key={event.id}
+                eventId={event.id}
                 title={event.title}
                 status={event.status}
                 date={event.event_date}

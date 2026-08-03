@@ -2,9 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const isProtectedRoute = (pathname: string) => {
+// Read-only event endpoints anonymous visitors may call. Their handlers already
+// restrict what they expose (published events only), so the middleware must let
+// the GET through and leave the guarding to them. Everything else stays gated.
+const isPublicApiGet = (req: NextRequest) => {
+  if (req.method !== "GET") return false;
+  const { pathname } = req.nextUrl;
+  return pathname === "/api/events" || /^\/api\/events\/\d+$/.test(pathname);
+};
+
+const isProtectedRoute = (req: NextRequest) => {
+  const { pathname } = req.nextUrl;
   if (pathname.startsWith("/staff")) return true;
-  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) return true;
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
+    return !isPublicApiGet(req);
+  }
   return false;
 };
 
@@ -38,7 +50,7 @@ export async function middleware(req: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
 
-  if (isProtectedRoute(req.nextUrl.pathname) && !user) {
+  if (isProtectedRoute(req) && !user) {
     const denied = req.nextUrl.pathname.startsWith("/api/")
       ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       : redirectToSignIn(req);

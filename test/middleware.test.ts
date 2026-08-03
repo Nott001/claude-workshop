@@ -23,8 +23,12 @@ vi.mock("@supabase/ssr", () => ({
 
 import { middleware } from "@/middleware";
 
-function request(pathname: string) {
-  return new NextRequest(new URL(pathname, "https://app.test"));
+// NextRequest's init is not the DOM RequestInit (different signal type), so
+// derive the exact type the constructor accepts instead of guessing.
+type NextRequestInit = NonNullable<ConstructorParameters<typeof NextRequest>[1]>;
+
+function request(pathname: string, init?: NextRequestInit) {
+  return new NextRequest(new URL(pathname, "https://app.test"), init);
 }
 
 const signedOut = { data: { user: null } };
@@ -35,20 +39,22 @@ beforeEach(() => {
 });
 
 describe("route protection", () => {
-  const protectedPaths = [
-    "/staff",
-    "/staff/events",
-    "/staff/events/new",
-    "/staff/organization",
-    "/staff/kiosk",
-    "/api/events",
-    "/api/tickets/1",
-    "/api/checkin",
+  // API paths are exercised as writes: anonymous GETs to the public event
+  // endpoints are allowed through, so a mutation is what must be refused.
+  const protectedPaths: [string, NextRequestInit | undefined][] = [
+    ["/staff", undefined],
+    ["/staff/events", undefined],
+    ["/staff/events/new", undefined],
+    ["/staff/organization", undefined],
+    ["/staff/kiosk", undefined],
+    ["/api/events", { method: "POST" }],
+    ["/api/tickets/1", undefined],
+    ["/api/checkin", undefined],
   ];
 
-  it.each(protectedPaths)("redirects signed-out users away from %s", async (path) => {
+  it.each(protectedPaths)("redirects signed-out users away from %s", async (path, init) => {
     getUser.mockResolvedValue(signedOut);
-    const res = await middleware(request(path));
+    const res = await middleware(request(path, init));
 
     if (path.startsWith("/api/")) {
       expect(res.status).toBe(401);
@@ -59,17 +65,17 @@ describe("route protection", () => {
     }
   });
 
-  it.each(protectedPaths)("lets signed-in users through to %s", async (path) => {
+  it.each(protectedPaths)("lets signed-in users through to %s", async (path, init) => {
     getUser.mockResolvedValue(signedIn);
-    const res = await middleware(request(path));
+    const res = await middleware(request(path, init));
     expect(res.status).toBe(200);
   });
 });
 
 describe("api responses", () => {
-  it("answers unauthenticated api calls with 401 json, never a redirect", async () => {
+  it("answers unauthenticated api writes with 401 json, never a redirect", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await middleware(request("/api/events"));
+    const res = await middleware(request("/api/events", { method: "POST" }));
 
     expect(res.status).toBe(401);
     expect(res.headers.get("location")).toBeNull();
@@ -81,6 +87,29 @@ describe("api responses", () => {
     const res = await middleware(request("/api/auth/callback"));
     expect(res.status).toBe(200);
   });
+});
+
+describe("public event reads", () => {
+  it.each(["/api/events", "/api/events/42"])("lets an anonymous GET on %s reach the handler", async (path) => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request(path));
+    expect(res.status).toBe(200);
+  });
+
+  it("still refuses anonymous writes to the event endpoints", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/events", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
+
+  it.each(["/api/events/1/register", "/api/events/1/attendees", "/api/events/1/publish"])(
+    "keeps %s behind the middleware",
+    async (path) => {
+      getUser.mockResolvedValue(signedOut);
+      const res = await middleware(request(path));
+      expect(res.status).toBe(401);
+    },
+  );
 });
 
 describe("sign-in redirect", () => {
@@ -156,7 +185,7 @@ describe("session cookie handling", () => {
       return signedOut;
     });
 
-    const res = await middleware(request("/api/events"));
+    const res = await middleware(request("/api/events", { method: "POST" }));
 
     expect(res.status).toBe(401);
     expect(res.cookies.get("sb-auth-token.0")?.value).toBe("");

@@ -9,7 +9,7 @@ interface Course {
 }
 
 interface Event {
-  event_id: number;
+  id: number;
   title: string;
   event_date: string;
   start_time: string;
