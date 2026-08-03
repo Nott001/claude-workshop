@@ -3,6 +3,13 @@
 Prerequisites: SPEC-01-D
 After this: (none — final spec in the sequence)
 
+> **As built.** The role check uses `useRoleGuard("speaker")`, so a failing role
+> redirects to `/access-denied` rather than to `/speaker/dashboard`. The
+> assignment check is as specified: it redirects to
+> `/speaker/event/[eventId]?error=not_assigned`. The "Known issue" below still
+> holds — `EVENT.course_id` is dead, so the event page always reads "Build
+> Course".
+
 ## Scope
 
 1 new file + 1 file update. Create a standalone course management page for

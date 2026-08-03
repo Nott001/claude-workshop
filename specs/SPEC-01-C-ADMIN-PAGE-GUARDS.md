@@ -3,6 +3,13 @@
 Prerequisites: SPEC-01-B
 After this: SPEC-01-D
 
+> **As built.** All six pages guard via `useRoleGuard(minRole)`
+> (`src/modules/auth/lib/use-role-guard.ts`), not the inline recipes below. A
+> denied user is redirected to `/access-denied` and the page returns `null` —
+> not to `/staff/events`, and not to the "Access denied." text. The edit page
+> did become a client component as §6 suggests. Read Verification as "is denied
+> access", not as a literal string or destination.
+
 ## Scope
 
 6 files — 5 client-component pages, 1 server-component page. Add guards that
