@@ -158,7 +158,10 @@ describe("optimizeImage", () => {
   it("scales an oversized JPEG down to the cap as well as re-encoding it", async () => {
     const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
 
-    const source = sampleImage(MAX_IMAGE_DIMENSION * 2, MAX_IMAGE_DIMENSION);
+    // Just over the cap, not double it. Encoding a 5-megapixel fixture took
+    // seconds and left little room under vitest's timeout on a loaded runner;
+    // scaling is exercised just as well by an image that barely exceeds it.
+    const source = sampleImage(MAX_IMAGE_DIMENSION + 100, (MAX_IMAGE_DIMENSION + 100) / 2);
     const file = new File([toBlobPart(source.get_bytes_jpeg(100))], "big.jpg", { type: "image/jpeg" });
     source.free();
 
@@ -192,7 +195,10 @@ describe("optimizeImage", () => {
     const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
 
     // 2:1, longest edge well past the cap.
-    const source = sampleImage(MAX_IMAGE_DIMENSION * 2, MAX_IMAGE_DIMENSION);
+    // Just over the cap, not double it. Encoding a 5-megapixel fixture took
+    // seconds and left little room under vitest's timeout on a loaded runner;
+    // scaling is exercised just as well by an image that barely exceeds it.
+    const source = sampleImage(MAX_IMAGE_DIMENSION + 100, (MAX_IMAGE_DIMENSION + 100) / 2);
     const file = new File([toBlobPart(source.get_bytes())], "big.png", { type: "image/png" });
     source.free();
 
