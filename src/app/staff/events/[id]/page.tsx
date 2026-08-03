@@ -139,7 +139,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
   }
 
   if (course) {
-    const totalLessons = course.MODULE.reduce((sum, m) => sum + m.LESSON.length, 0);
+    const totalLessons = course.MODULE.reduce((sum, m) => sum + m.LESSONS.length, 0);
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm font-semibold text-fg">{course.course_name}</p>

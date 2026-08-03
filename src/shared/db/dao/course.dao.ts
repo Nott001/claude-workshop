@@ -66,7 +66,36 @@ export async function findCourseById(supabase: DbClient, id: number): Promise<Co
   return data;
 }
 
-export async function findCourseWithDetails(supabase: DbClient, id: number): Promise<unknown> {
+export interface ModuleWithLessons extends Module {
+  LESSONS: Lesson[];
+}
+
+interface ModuleContent extends Module {
+  LESSON: Lesson[];
+}
+
+export interface CourseWithModules extends Course {
+  MODULE: ModuleWithLessons[];
+}
+
+export interface CourseWithDetails extends CourseWithModules {
+  EVENT: { id: number; title: string; event_date: string; status: string } | null;
+}
+
+// PostgREST keys an embedded relation by table name, so a `LESSON (*)` embed
+// arrives as `LESSON`. Consumers read `LESSONS`; normalise once here so the
+// rest of the app never sees the table-level name.
+function toLessonsKey<T extends { MODULE: ModuleContent[] }>(
+  course: T | null,
+): (Omit<T, "MODULE"> & { MODULE: ModuleWithLessons[] }) | null {
+  if (!course) return null;
+  return {
+    ...course,
+    MODULE: course.MODULE.map(({ LESSON, ...moduleFields }) => ({ ...moduleFields, LESSONS: LESSON })),
+  };
+}
+
+export async function findCourseWithDetails(supabase: DbClient, id: number): Promise<CourseWithDetails | null> {
   const { data } = await supabase
     .from("COURSE")
     .select(
@@ -92,10 +121,10 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
     })
     .maybeSingle();
 
-  return data;
+  return toLessonsKey(data as (Course & { MODULE: ModuleContent[]; EVENT: CourseWithDetails["EVENT"] }) | null);
 }
 
-export async function findCourseByEvent(supabase: DbClient, eventId: number): Promise<unknown> {
+export async function findCourseByEvent(supabase: DbClient, eventId: number): Promise<CourseWithModules | null> {
   const { data } = await supabase
     .from("COURSE")
     .select(
@@ -112,7 +141,7 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
     .order("sequence_order", { foreignTable: "MODULE.LESSON", ascending: true })
     .maybeSingle();
 
-  return data;
+  return toLessonsKey(data as (Course & { MODULE: ModuleContent[] }) | null);
 }
 
 export async function createCourse(

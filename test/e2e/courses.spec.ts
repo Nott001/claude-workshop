@@ -97,7 +97,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
     data: { description: "e2e-lesson-readback", content_type: "link", sequence_order: 1 },
   });
 
-  // The course detail endpoint nests MODULE -> LESSON, which is the join that
+  // The course detail endpoint nests MODULE -> LESSONS, which is the join that
   // would break silently if a relationship name were wrong.
   const detail = await page.request.get(`/api/courses/${course.courseId}`);
   expect(detail.status()).toBe(200);
@@ -105,7 +105,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
   const body = await detail.json();
   const found = (body.MODULE ?? []).find((m: { id: number }) => m.id === mod.id);
   expect(found, "the module just created should be in the course detail").toBeTruthy();
-  expect((found.LESSON ?? []).some((l: { description: string }) => l.description === "e2e-lesson-readback")).toBe(true);
+  expect((found.LESSONS ?? []).some((l: { description: string }) => l.description === "e2e-lesson-readback")).toBe(true);
 });
 
 test("an invalid module is refused without writing", async ({ page }) => {
