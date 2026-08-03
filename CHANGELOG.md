@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- The events listing and event detail pages load for signed-out visitors again. The middleware treated every `/api/*` route as protected, so an anonymous browser's fetch of `/api/events` was answered `401` before the handler ran, even though those handlers were built to serve published events to callers without a session. Public GETs on the event endpoints now pass through, with the handlers still filtering out drafts and every write staying behind the role guards.
 - Sessions survive a token refresh. The middleware rebuilt its response once per cookie, so each write discarded the one before it and the browser was left holding part of a chunked auth token — presenting as a random logout. Refusing a request no longer drops the cookies either, which is what cleared an expired session, so a stale token could previously fail the same way on every retry. Responses that carry a refreshed session are now marked uncacheable, since a shared cache could otherwise replay one visitor's session to the next.
 - Deleting an event now deletes its course material. Asset and video paths were collected and then discarded: the single cleanup call only ever targeted the `event_images` bucket, so every deleted event left its uploads orphaned in storage.
 - Attendee search returns matches again. The filter named embedded columns at the top level, which PostgREST does not apply, so searching a name or email quietly returned nothing. Search terms are now escaped as well — an underscore in an email address matched any character, and a comma silently split the filter.
