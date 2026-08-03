@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { chatDao, courseDao } from "@/shared/db/dao";
 import { qaMessageSchema } from "@/modules/chat/lib/schemas";
@@ -91,7 +92,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ module
   const { moduleId } = await params;
   const guard = await requireRole("speaker");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const supabase = getServiceClient();

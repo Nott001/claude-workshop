@@ -11,7 +11,7 @@ export default function StaffEventKioskPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
-  const { loading: isLoaded, isSignedIn, user } = useSession();
+  const { isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);

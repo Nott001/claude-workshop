@@ -37,11 +37,11 @@ export default function StaffEventSpeakersPage() {
           <ul>
             {assignments.map((a) => (
               <li key={a.speaker_profile_id}>
-                {a.SPEAKER_PROFILES ? (
+                {a.SPEAKER_PROFILE ? (
                   <>
                     <span>Profile #{a.speaker_profile_id}</span>
-                    {a.SPEAKER_PROFILES.designation && <span> - {a.SPEAKER_PROFILES.designation}</span>}
-                    {a.SPEAKER_PROFILES.bio && <p>{a.SPEAKER_PROFILES.bio}</p>}
+                    {a.SPEAKER_PROFILE.designation && <span> - {a.SPEAKER_PROFILE.designation}</span>}
+                    {a.SPEAKER_PROFILE.bio && <p>{a.SPEAKER_PROFILE.bio}</p>}
                   </>
                 ) : (
                   <span>Profile #{a.speaker_profile_id}</span>
@@ -64,8 +64,8 @@ export default function StaffEventSpeakersPage() {
               <select value={selectedProfileId} onChange={(e) => setSelectedProfileId(e.target.value)} required>
                 <option value="">Select a speaker...</option>
                 {availableProfiles.map((p) => (
-                  <option key={p.speaker_profile_id} value={p.speaker_profile_id}>
-                    {p.USERS?.full_name ?? `User #${p.user_id}`}
+                  <option key={p.id} value={p.id}>
+                    {p.USER?.full_name ?? `User #${p.user_id}`}
                     {p.designation ? ` (${p.designation})` : ""}
                   </option>
                 ))}

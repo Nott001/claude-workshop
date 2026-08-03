@@ -1,23 +1,28 @@
 import type { DbClient } from "./types";
 import type { Payment, PaymentStatus } from "@/shared/types";
 
-export async function findById(supabase: DbClient, id: number): Promise<Payment | null> {
+/** A PAYMENT row with the EVENT embed these reads select. Singular, not EVENTS. */
+export interface PaymentWithEvent extends Payment {
+  EVENT: { title: string } | null;
+}
+
+export async function findById(supabase: DbClient, id: number): Promise<PaymentWithEvent | null> {
   const { data } = await supabase.from("PAYMENT").select("*, EVENT(title)").eq("id", id).single();
   return data;
 }
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<Payment[]> {
+export async function listByUser(supabase: DbClient, userId: number): Promise<PaymentWithEvent[]> {
   const { data } = await supabase
     .from("PAYMENT")
     .select("*, EVENT(title)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  return (data ?? []) as Payment[];
+  return data ?? [];
 }
 
-export async function listAll(supabase: DbClient): Promise<Payment[]> {
+export async function listAll(supabase: DbClient): Promise<PaymentWithEvent[]> {
   const { data } = await supabase.from("PAYMENT").select("*, EVENT(title)").order("created_at", { ascending: false });
-  return (data ?? []) as Payment[];
+  return data ?? [];
 }
 
 export async function findPendingByUserAndEvent(

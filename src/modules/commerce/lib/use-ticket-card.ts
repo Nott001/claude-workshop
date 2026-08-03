@@ -15,7 +15,7 @@ export function useTicketCard(paymentId: number) {
       if (res.ok) {
         const data = await res.json();
         setQrUrl(data.qr_data_url);
-        const p = data.PAYMENTS;
+        const p = data.PAYMENT;
         setPayment(Array.isArray(p) ? (p[0] ?? null) : p);
       }
       setQrLoading(false);

@@ -6,18 +6,25 @@ interface TicketWithUser extends Ticket {
   USER: Pick<User, "full_name" | "email"> | null;
 }
 
-interface TicketWithPaymentAndEvent extends Ticket {
+/** The EVENT columns every ticket surface renders. Embedded under `EVENT`. */
+export interface TicketEvent {
+  title: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  venue_name: string;
+  venue_address: string | null;
+  price: number;
+  currency: string;
+}
+
+/** A TICKET row with the EVENT embed, as `listByUser` and `listAll` select it. */
+export interface TicketWithEvent extends Ticket {
+  EVENT: TicketEvent | null;
+}
+
+export interface TicketWithPaymentAndEvent extends TicketWithEvent {
   PAYMENT: { status: string; paid_at: string | null } | null;
-  EVENT: {
-    title: string;
-    event_date: string;
-    start_time: string;
-    end_time: string;
-    venue_name: string;
-    venue_address: string | null;
-    price: number;
-    currency: string;
-  } | null;
 }
 
 interface AttendeeRow {
@@ -62,21 +69,21 @@ export async function findActiveByUserAndEvent(supabase: DbClient, userId: numbe
   return (data ?? []) as Ticket[];
 }
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<Ticket[]> {
+export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithEvent[]> {
   const { data } = await supabase
     .from("TICKET")
     .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
     .eq("user_id", userId)
     .order("issued_at", { ascending: false });
-  return (data ?? []) as Ticket[];
+  return data ?? [];
 }
 
-export async function listAll(supabase: DbClient): Promise<Ticket[]> {
+export async function listAll(supabase: DbClient): Promise<TicketWithEvent[]> {
   const { data } = await supabase
     .from("TICKET")
     .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
     .order("issued_at", { ascending: false });
-  return (data ?? []) as Ticket[];
+  return data ?? [];
 }
 
 export async function findWithPaymentAndEvent(
@@ -102,17 +109,26 @@ export async function create(
     qr_token: string;
   },
 ): Promise<Ticket | null> {
-  const { error } = await supabase.from("TICKET").insert(data);
+  // Returns the stored row, not the input: the caller needs the generated id,
+  // status and issued_at, and echoing the argument back fabricated a "Ticket"
+  // that had none of them.
+  const { data: ticket, error } = await supabase.from("TICKET").insert(data).select("*").single();
   if (error) {
     console.error("ticket.dao.create failed:", error.message, error.code);
     return null;
   }
-  return data as unknown as Ticket;
+  return ticket;
 }
 
+/**
+ * Keyed on the primary key. `payment_id` is nullable (ON DELETE SET NULL), so
+ * filtering on it addressed no rows once a payment was removed — the update
+ * matched nothing, PostgREST reported no error, and check-in claimed success
+ * while changing nothing.
+ */
 export async function updateStatus(
   supabase: DbClient,
-  paymentId: number,
+  ticketId: number,
   status: TicketStatus,
   checkedInBy?: number,
 ): Promise<boolean> {
@@ -124,8 +140,10 @@ export async function updateStatus(
     updateData.checked_in_by = checkedInBy;
   }
 
-  const { error } = await supabase.from("TICKET").update(updateData).eq("payment_id", paymentId);
-  return !error;
+  // `select` so a filter that matches nothing is a failure rather than a
+  // silent success; without it a no-op update is indistinguishable from a real one.
+  const { data, error } = await supabase.from("TICKET").update(updateData).eq("id", ticketId).select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
 export async function getAttendees(

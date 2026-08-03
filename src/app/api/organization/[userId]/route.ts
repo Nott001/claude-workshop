@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import type { UserRole } from "@/shared/types";
@@ -14,7 +15,7 @@ const updateSchema = z.object({
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { userId } = await params;
@@ -46,7 +47,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { userId } = await params;

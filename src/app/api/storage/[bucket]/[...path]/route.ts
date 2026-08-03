@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
+import { eventDao } from "@/shared/db/dao";
 import { isStorageBucket, COURSE_CONTENT_BUCKETS, type StorageBucket } from "@/shared/integrations/storage";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type Db = ReturnType<typeof getServiceClient>;
 
@@ -28,20 +30,59 @@ function courseIdFromPath(segments: string[]): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-async function isEntitled(bucket: StorageBucket, segments: string[], supabase: Db): Promise<boolean> {
-  // The middleware already requires a session for /api/*. Re-checking here keeps
-  // the rule with the data it protects rather than in a matcher two files away.
+/** Covers live at `events/{eventId}/cover.{ext}` — see buildEventImagePath. */
+function eventIdFromPath(segments: string[]): number | null {
+  if (segments[0] !== "events") return null;
+  const id = Number(segments[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+interface Access {
+  allowed: boolean;
+  /** The bytes carry no per-user entitlement, so a shared cache may hold them. */
+  cacheable: boolean;
+}
+
+const DENY: Access = { allowed: false, cacheable: false };
+
+/**
+ * A published event's cover is public: it is rendered on `/` and `/events`,
+ * which anonymous visitors can read. `uploadToStorage` stores those covers as
+ * `/api/storage/...`, so requiring a session here 401'd every cover for a
+ * logged-out visitor and the landing page showed broken images.
+ *
+ * Draft covers stay behind the facilitator floor. Publishing is what makes an
+ * event visible, and a guessable `events/{id}/cover.png` must not be the way
+ * around that.
+ */
+async function resolveAccess(bucket: StorageBucket, segments: string[], supabase: Db): Promise<Access> {
   const user = await requireAuth(supabase);
-  if (!user) return false;
 
-  if (!COURSE_CONTENT_BUCKETS.includes(bucket)) return true;
+  if (bucket === "event_images") {
+    const eventId = eventIdFromPath(segments);
+    if (eventId === null) return DENY;
 
-  if (user.role === "facilitator") return true;
+    if (await eventDao.isPublished(supabase, eventId)) {
+      return { allowed: true, cacheable: true };
+    }
+    return { allowed: hasMinRole(user?.role ?? null, "facilitator"), cacheable: false };
+  }
+
+  // Everything else still needs a session. The middleware requires one for the
+  // rest of /api/*; re-checking here keeps the rule with the data it protects
+  // rather than in a matcher two files away.
+  if (!user) return DENY;
+
+  if (!COURSE_CONTENT_BUCKETS.includes(bucket)) return { allowed: true, cacheable: false };
+
+  // Facilitator *and up*: an equality test denied admins and super_admins the
+  // course material every facilitator can already read.
+  if (hasMinRole(user.role, "facilitator")) return { allowed: true, cacheable: false };
 
   const courseId = courseIdFromPath(segments);
-  if (courseId === null) return false;
+  if (courseId === null) return DENY;
 
-  return courseDao.userHasCourseAccess(supabase, user.id, courseId);
+  return { allowed: await courseDao.userHasCourseAccess(supabase, user.id, courseId), cacheable: false };
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ bucket: string; path: string[] }> }) {
@@ -52,7 +93,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ bucket:
 
   const supabase = getServiceClient();
 
-  if (!(await isEntitled(bucket, path, supabase))) return refuse();
+  const access = await resolveAccess(bucket, path, supabase);
+  if (!access.allowed) return refuse();
 
   const { data, error } = await supabase.storage.from(bucket).download(path.join("/"));
 
@@ -61,8 +103,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ bucket:
   return new NextResponse(data, {
     status: 200,
     headers: {
-      // Entitlement is per-user, so a shared cache must not serve this to anyone else.
-      "Cache-Control": "private, max-age=0, must-revalidate",
+      // Anything gated on who is asking must never reach a shared cache, or it
+      // gets replayed to whoever asks next. A published cover is the same bytes
+      // for everyone, so that one can be cached.
+      "Cache-Control": access.cacheable ? "public, max-age=3600" : "private, max-age=0, must-revalidate",
       "Content-Type": data.type || "application/octet-stream",
     },
   });

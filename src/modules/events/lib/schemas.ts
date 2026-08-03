@@ -19,7 +19,15 @@ export const eventSchema = eventBaseSchema.refine((data) => data.start_time < da
   message: "start_time must be before end_time",
 });
 
-export const eventPartialSchema = eventBaseSchema.partial();
+// `.partial()` drops the refinement, so a PATCH used to accept an inverted
+// range and let the DB's chk_event_time turn a 400 into a 500. Re-applied for
+// the case where the patch carries both ends; a patch that moves only one end
+// is checked against the stored event in the route, which has the other half.
+export const eventPartialSchema = eventBaseSchema
+  .partial()
+  .refine((data) => data.start_time === undefined || data.end_time === undefined || data.start_time < data.end_time, {
+    message: "start_time must be before end_time",
+  });
 
 export const speakerProfileSchema = z.object({
   user_id: z.coerce.number().int().positive(),

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao } from "@/shared/db/dao";
 import { optimizeImage } from "@/shared/integrations/storage/optimize";
@@ -8,7 +9,7 @@ import { uploadToStorage, buildCourseAssetPath, validateFileType, validateFileSi
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const formData = await req.formData();

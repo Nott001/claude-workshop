@@ -1,5 +1,17 @@
 import type { DbClient } from "./types";
-import type { SpeakerProfile } from "@/shared/types";
+import type { SpeakerProfile, User } from "@/shared/types";
+
+/** A SPEAKER_PROFILE row with the USER embed `list` selects. Note both are singular. */
+export interface SpeakerProfileWithUser extends SpeakerProfile {
+  USER: Pick<User, "full_name" | "email"> | null;
+}
+
+/** An EVENT_SPEAKER row as `listEventAssignments` selects it. */
+export interface EventSpeakerAssignment {
+  event_id: number;
+  speaker_profile_id: number;
+  SPEAKER_PROFILE: SpeakerProfile | null;
+}
 
 export async function findById(supabase: DbClient, id: number): Promise<SpeakerProfile | null> {
   const { data } = await supabase.from("SPEAKER_PROFILE").select("*").eq("id", id).single();
@@ -11,7 +23,7 @@ export async function findByUserId(supabase: DbClient, userId: number): Promise<
   return data;
 }
 
-export async function list(supabase: DbClient): Promise<unknown[]> {
+export async function list(supabase: DbClient): Promise<SpeakerProfileWithUser[]> {
   const { data } = await supabase.from("SPEAKER_PROFILE").select("*, USER(full_name, email)").order("id", { ascending: false });
   return data ?? [];
 }
@@ -65,7 +77,7 @@ export async function findByIdWithUser(
   return data;
 }
 
-export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<unknown[]> {
+export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventSpeakerAssignment[]> {
   const { data } = await supabase.from("EVENT_SPEAKER").select("*, SPEAKER_PROFILE(*)").eq("event_id", eventId);
   return data ?? [];
 }

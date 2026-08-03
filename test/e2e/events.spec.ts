@@ -67,7 +67,8 @@ test("an attendee cannot publish an event", async ({ page }) => {
   await signIn(page, attendee);
 
   const res = await page.request.post(`/api/events/${event.eventId}/publish`);
-  expect(res.status()).toBe(401);
+  // 403, not 401: the attendee is authenticated, just not permitted.
+  expect(res.status()).toBe(403);
 
   const { data } = await db.from("EVENT").select("status").eq("id", event.eventId).single();
   expect(data?.status).toBe("draft");
@@ -89,7 +90,8 @@ test("an attendee cannot create an event", async ({ page }) => {
     },
   });
 
-  expect(res.status()).toBe(401);
+  // 403, not 401: the attendee is authenticated, just not permitted.
+  expect(res.status()).toBe(403);
 });
 
 /**

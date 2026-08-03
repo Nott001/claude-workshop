@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao } from "@/shared/db/dao";
 import { eventSchema } from "@/modules/events/lib/schemas";
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const body = await req.json();

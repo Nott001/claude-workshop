@@ -1,5 +1,6 @@
 import type { DbClient } from "./types";
-import type { Event, User, SpeakerProfile } from "@/shared/types";
+import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
@@ -44,7 +45,10 @@ export async function list(
 
   let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
 
-  if (role !== "facilitator") {
+  // Drafts are staff-only, and "staff" is facilitator *and up* — a literal
+  // inequality hid every draft from admins, who are the only role allowed to
+  // create one.
+  if (!hasMinRole((role ?? null) as UserRole | null, "facilitator")) {
     query = query.in("status", ["active", "complete"]);
   }
 
@@ -131,6 +135,16 @@ export async function remove(supabase: DbClient, id: number): Promise<boolean> {
 export async function exists(supabase: DbClient, id: number): Promise<boolean> {
   const { data } = await supabase.from("EVENT").select("id").eq("id", id).single();
   return !!data;
+}
+
+/**
+ * Whether the event is visible to someone with no session — the same
+ * active/complete rule `list` applies to non-staff. Selects one column because
+ * the storage route calls it per cover image request.
+ */
+export async function isPublished(supabase: DbClient, id: number): Promise<boolean> {
+  const { data } = await supabase.from("EVENT").select("status").eq("id", id).single();
+  return data?.status === "active" || data?.status === "complete";
 }
 
 export async function getAttendeeCount(supabase: DbClient, eventId: number): Promise<number> {

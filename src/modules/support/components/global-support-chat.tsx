@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import { chatDao } from "@/shared/db/dao";
 import { useSession } from "@/modules/auth";
-import { subscribeToSupportSessions } from "@/shared/integrations/realtime";
+import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
@@ -76,8 +76,8 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
     });
 
     return () => {
-      sub.unsubscribe();
-      sessionSub.unsubscribe();
+      supabase.removeChannel(sub);
+      unsubscribe(sessionSub);
     };
   }, [isOpen, supportType, eventId, supabase]);
 

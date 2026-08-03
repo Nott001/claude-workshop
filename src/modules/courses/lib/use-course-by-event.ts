@@ -20,15 +20,20 @@ export function useCourseByEvent(eventId: string) {
       setLoading(true);
       setError(null);
       const res = await fetch(`/api/courses/event/${eventId}`);
+      // `loading` has to be cancelled with the rest: clearing it from a run whose
+      // result is discarded shows the "no course" state until the live run lands.
+      if (cancelled) return;
+
       if (!res.ok) {
-        if (!cancelled) setError("Failed to load course");
+        setError("Failed to load course");
         setLoading(false);
         return;
       }
+
       const data = await res.json();
-      if (!cancelled) {
-        setCourse(data?.id ? data : null);
-      }
+      if (cancelled) return;
+
+      setCourse(data?.id ? data : null);
       setLoading(false);
     }
 

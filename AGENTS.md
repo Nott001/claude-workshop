@@ -26,7 +26,6 @@
 - `pnpm test` runs once and exits. Use `pnpm test:watch` while iterating.
 - **Assert on behavior, not on type shapes.** A test that builds an object literal and asserts on that same literal executes no product code — TypeScript already checks the shape. Call the real function.
 - Coverage thresholds in `vitest.config.ts` are a ratchet. Raise them when you raise coverage; never lower them to make a build pass.
-- See `specs/SPEC-09-TEST-STRATEGY.md` for the current gaps and priorities.
 
 ## Commits and PRs
 
@@ -35,10 +34,6 @@
 - Always run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing. These are the same gates CI enforces.
 - Update `CHANGELOG.md` only for meaningful commits. Filter for commits that affect user-facing features, bug fixes, or breaking changes. Skip internal refactors, documentation tweaks, or minor code cleanup unless they're significant.
 - If the changes are huge enough on different commits.
-
-## Debug tools
-
-- **Session bypass** — Add `?debug_bypass_session=true` to the event detail page URL to enter the session room without a ticket.
 
 ## Boundaries
 

@@ -1,35 +1,33 @@
 "use client";
 
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useParams } from "next/navigation";
+import { useSession, useRoleGuard } from "@/modules/auth";
 import ChatPanel from "@/modules/chat/components/chat-panel";
-import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export default function StaffSupportPage() {
-  const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const userRole = (user?.role as UserRole) ?? null;
+  const { role, allowed, pending } = useRoleGuard("facilitator");
   const currentUserId = user?.id ?? null;
 
-  useEffect(() => {
-    if (!hasMinRole(userRole, "facilitator")) {
-      router.replace("/access-denied");
-    }
-  }, [userRole, router]);
+  if (pending) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-fg">Loading...</div>
+      </div>
+    );
+  }
 
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!allowed) return null;
 
   return (
     <>
       <div>
         <h1>Event Support Chat</h1>
         <p>Use this channel to communicate with event attendees.</p>
-        <ChatPanel eventId={eventId} supportType="event" userRole={userRole} currentUserId={currentUserId} />
+        <ChatPanel eventId={eventId} supportType="event" userRole={role} currentUserId={currentUserId} />
       </div>
       <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>

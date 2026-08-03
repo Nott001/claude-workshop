@@ -1,7 +1,12 @@
 import type { DbClient } from "./types";
-import type { EmailLog, EmailType, EmailStatus } from "@/shared/types";
+import type { EmailLog, EmailType, EmailStatus, User } from "@/shared/types";
 
-export async function findById(supabase: DbClient, id: number): Promise<EmailLog | null> {
+/** An EMAIL_LOG row with the USER embed both reads alias from user_id. */
+export interface EmailLogWithUser extends EmailLog {
+  USER: Pick<User, "full_name" | "email"> | null;
+}
+
+export async function findById(supabase: DbClient, id: number): Promise<EmailLogWithUser | null> {
   const { data } = await supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").eq("id", id).single();
   return data;
 }
@@ -15,7 +20,7 @@ export async function list(
     date_from?: string;
     date_to?: string;
   },
-): Promise<EmailLog[]> {
+): Promise<EmailLogWithUser[]> {
   let query = supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").order("sent_at", { ascending: false });
 
   if (filters?.email_type) {
@@ -35,7 +40,7 @@ export async function list(
   }
 
   const { data } = await query;
-  return (data ?? []) as EmailLog[];
+  return data ?? [];
 }
 
 export async function insert(

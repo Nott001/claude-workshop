@@ -145,7 +145,8 @@ test("an attendee cannot check in a ticket", async ({ page }) => {
 
   const res = await page.request.post("/api/checkin", { data: { qr_token: ticket!.qr_token } });
 
-  expect(res.status()).toBe(401);
+  // 403, not 401: the attendee is authenticated, just not a facilitator.
+  expect(res.status()).toBe(403);
 
   const { data: after } = await db
     .from("TICKET")

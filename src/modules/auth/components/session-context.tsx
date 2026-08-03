@@ -8,6 +8,14 @@ import type { AuthUser } from "../lib/types";
 interface SessionContextValue {
   user: AuthUser | null;
   loading: boolean;
+  /**
+   * `!loading`. Provided because consumers kept reaching for it by destructuring
+   * `loading` *as* `isLoaded`, which silently inverts the flag: every
+   * `if (!isLoaded) return` then bailed out precisely when the session was ready
+   * and ran only while it was not, so the fetch behind it never happened and the
+   * page span forever. Read this instead of renaming `loading`.
+   */
+  isLoaded: boolean;
   isSignedIn: boolean;
   signOut: () => Promise<void>;
 }
@@ -15,6 +23,7 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue>({
   user: null,
   loading: true,
+  isLoaded: false,
   isSignedIn: false,
   signOut: async () => {},
 });
@@ -48,15 +57,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         fetch("/api/auth/me")
           .then((r) => (r.ok ? r.json() : null))
           .then(setUser);
-      } else {
-        setUser(null);
+        router.refresh();
+        return;
       }
-      router.refresh();
+
+      setUser(null);
+      // Only a real sign-out navigates. Refreshing in place would re-request the
+      // current route without a session, and on a guarded one the middleware
+      // answers that with a sign-in redirect that races the trip home. The event
+      // check matters: subscribing emits INITIAL_SESSION with a null session, so
+      // reacting to "no session" alone would bounce every anonymous visitor.
+      if (event === "SIGNED_OUT") router.replace("/");
     });
 
     function onVisibilityChange() {
@@ -82,10 +98,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    router.push("/");
+    // replace, not push: the guarded page we are leaving must not sit one Back
+    // press away from a browser that no longer holds a session.
+    router.replace("/");
   };
 
-  return <SessionContext.Provider value={{ user, loading, isSignedIn: !!user, signOut }}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut }}>
+      {children}
+    </SessionContext.Provider>
+  );
 }
 
 export function useSession() {

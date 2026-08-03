@@ -140,7 +140,8 @@ test("an attendee cannot upload course material", async ({ page }) => {
     },
   });
 
-  expect(res.status()).toBe(401);
+  // 403, not 401: the attendee is authenticated, just not permitted.
+  expect(res.status()).toBe(403);
 });
 
 test("a file type the bucket does not accept is refused", async ({ page }) => {

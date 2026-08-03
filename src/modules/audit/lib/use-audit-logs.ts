@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface AuditLogEntry {
-  log_id: number;
-  action: string;
-  entity_type: string;
-  entity_id: number | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
-  ACTOR: { full_name: string; email: string } | null;
-}
+// The route serves auditDao.list's rows verbatim. The hand-written copy that
+// used to live here called the key `log_id`; AUDIT_LOG's primary key is `id`,
+// so every row's key was undefined.
+import type { AuditLogWithActor } from "@/shared/db/dao/audit.dao";
 
 export function useAuditLogs() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [logs, setLogs] = useState<AuditLogWithActor[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);

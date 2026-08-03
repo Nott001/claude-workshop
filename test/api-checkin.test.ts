@@ -34,6 +34,7 @@ const facilitator = { allowed: true, error: null, user: { id: 7, role: "facilita
 
 function ticket(status: TicketStatus = "issued") {
   return {
+    id: 42,
     payment_id: 100,
     user_id: 5,
     event_id: 10,
@@ -55,7 +56,8 @@ describe("authorization", () => {
 
     const res = await POST(post({ qr_token: "tok" }));
 
-    expect(res.status).toBe(401);
+    // Authenticated but not permitted is 403; 401 is reserved for "not signed in".
+    expect(res.status).toBe(403);
     await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
   });
 
@@ -127,7 +129,9 @@ describe("successful check-in", () => {
       status: "success",
       attendee: { full_name: "Jane Doe", email: "jane@example.com" },
     });
-    expect(updateStatus).toHaveBeenCalledWith({}, 100, "checked_in", 7);
+    // The ticket's own id, not its payment_id — payment_id is nullable, so a
+    // ticket whose payment was removed could never be checked in.
+    expect(updateStatus).toHaveBeenCalledWith({}, 42, "checked_in", 7);
   });
 
   it("notifies the attendee with the event details", async () => {

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession, useRoleGuard } from "@/modules/auth";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -12,6 +11,7 @@ import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
 import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import dynamic from "next/dynamic";
 
 const ChatPanel = dynamic(() => import("@/modules/chat/components/chat-panel"), { ssr: false });
@@ -234,13 +234,13 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
           {assignments.length > 0 && (
             <ul className="mb-4 space-y-2">
               {assignments.map((a) => {
-                const userInfo = allProfiles.find((p) => p.speaker_profile_id === a.speaker_profile_id);
+                const userInfo = allProfiles.find((p) => p.id === a.speaker_profile_id);
                 return (
                   <li
                     key={a.speaker_profile_id}
                     className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2"
                   >
-                    <span className="text-sm text-fg">{userInfo?.USERS?.full_name ?? `Speaker #${a.speaker_profile_id}`}</span>
+                    <span className="text-sm text-fg">{userInfo?.USER?.full_name ?? `Speaker #${a.speaker_profile_id}`}</span>
                     <button onClick={() => handleRemove(a.speaker_profile_id)} className="text-xs text-error hover:underline">
                       Remove
                     </button>
@@ -259,8 +259,8 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
               >
                 <option value="">Select a speaker...</option>
                 {availableProfiles.map((p) => (
-                  <option key={p.speaker_profile_id} value={p.speaker_profile_id}>
-                    {p.USERS?.full_name ?? `Speaker #${p.speaker_profile_id}`}
+                  <option key={p.id} value={p.id}>
+                    {p.USER?.full_name ?? `Speaker #${p.id}`}
                   </option>
                 ))}
               </select>
@@ -311,6 +311,26 @@ function KioskSection({ eventId, userRole }: { eventId: string; userRole: UserRo
   );
 }
 
+function CoverImageSection({
+  eventId,
+  userRole,
+  coverImageUrl,
+}: {
+  eventId: string;
+  userRole: UserRole | null;
+  coverImageUrl: string | null;
+}) {
+  // Matches the facilitator floor that /api/upload/event-image enforces.
+  if (!hasMinRole(userRole, "facilitator")) return null;
+
+  return (
+    <SectionCard title="Cover image" icon="image">
+      <p className="mb-3 text-sm text-muted-fg">Shown on event cards across the site.</p>
+      <CoverImageUpload eventId={eventId} initialUrl={coverImageUrl} />
+    </SectionCard>
+  );
+}
+
 function SurveysSection({ userRole }: { userRole: UserRole | null }) {
   if (!hasMinRole(userRole, "facilitator")) return null;
 
@@ -327,7 +347,7 @@ export default function StaffEventDashboardPage() {
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const userRole = user?.role ?? null;
+  const { role: userRole, allowed: isStaff, pending } = useRoleGuard("facilitator");
 
   const {
     event,
@@ -342,16 +362,7 @@ export default function StaffEventDashboardPage() {
     handleDelete,
   } = useEventDetail(eventId);
 
-  const isStaff = hasMinRole(userRole, "facilitator");
-
-  useEffect(() => {
-    if (loading || error || !event) return;
-    if (!isStaff) {
-      router.replace("/access-denied");
-    }
-  }, [isStaff, router, loading, error, event]);
-
-  if (loading) {
+  if (pending || loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-fg">Loading event...</div>
@@ -404,6 +415,8 @@ export default function StaffEventDashboardPage() {
             handleDelete={handleDelete}
             attendeeCount={attendeesTotal}
           />
+
+          <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
           <CourseSection eventId={eventId} userRole={userRole} />
 

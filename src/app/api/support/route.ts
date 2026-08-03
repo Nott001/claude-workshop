@@ -91,7 +91,12 @@ export async function POST(req: Request) {
     sessionId = existing.id;
   } else {
     const newSession = await chatDao.createSession(supabase, sessionUserId, supportType);
-    sessionId = newSession!.id;
+    // createSession returns null on failure; asserting non-null turned an
+    // insert error into a TypeError and a 500 with no usable message.
+    if (!newSession) {
+      return NextResponse.json({ error: "Failed to start a support session" }, { status: 500 });
+    }
+    sessionId = newSession.id;
   }
 
   const message = await chatDao.sendMessage(supabase, {

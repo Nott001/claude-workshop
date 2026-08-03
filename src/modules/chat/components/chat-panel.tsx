@@ -69,7 +69,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
       .subscribe();
 
     return () => {
-      sub.unsubscribe();
+      supabase.removeChannel(sub);
     };
   }, [eventId, supportType, currentUserId, isStaff, supabase]);
 

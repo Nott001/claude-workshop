@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import { courseDao, speakerDao } from "@/shared/db/dao";
@@ -9,7 +10,7 @@ import { logAuditEvent } from "@/modules/audit";
 export async function GET() {
   const guard = await requireRole("admin");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
@@ -21,7 +22,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const guard = await requireRole("speaker");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const body = await req.json();

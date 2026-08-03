@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { eventDao, courseDao } from "@/shared/db/dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
@@ -36,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { id } = await params;
@@ -47,6 +48,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
+
+  // A patch that moves only one end of the range still has to be checked
+  // against the end it leaves alone, otherwise chk_event_time rejects it in the
+  // database and the caller gets a 500 where a 400 belongs.
+  if (parsed.data.start_time !== undefined || parsed.data.end_time !== undefined) {
+    const current = await eventDao.findById(supabase, Number(id));
+    if (!current) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    const startTime = parsed.data.start_time ?? current.start_time;
+    const endTime = parsed.data.end_time ?? current.end_time;
+    if (startTime >= endTime) {
+      return NextResponse.json({ error: { message: "start_time must be before end_time" } }, { status: 400 });
+    }
+  }
 
   const event = await eventDao.update(supabase, Number(id), parsed.data);
 
@@ -64,7 +80,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { id } = await params;

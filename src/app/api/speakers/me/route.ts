@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { speakerDao } from "@/shared/db/dao";
@@ -36,7 +37,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const guard = await requireRole("speaker");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
   const supabase = getServiceClient();
 

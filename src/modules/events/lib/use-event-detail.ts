@@ -19,7 +19,7 @@ export interface AttendeeRow {
 
 export function useEventDetail(eventId: string) {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn, user } = useSession();
+  const { isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
   const [event, setEvent] = useState<EventWithCourse | null>(null);
   const [loading, setLoading] = useState(true);

@@ -87,7 +87,7 @@ describe("POST /api/events authorization", () => {
 
     const res = await POST(postEvent(validEvent));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -137,7 +137,7 @@ describe("POST /api/events/[id]/publish", () => {
 
     const res = await PUBLISH(req(), params("1"));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(updateField).not.toHaveBeenCalled();
   });
 

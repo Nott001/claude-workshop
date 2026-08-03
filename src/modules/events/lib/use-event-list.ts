@@ -24,9 +24,8 @@ interface Event {
 export type FilterTab = "upcoming" | "completed" | "drafts";
 
 export function useEventList() {
-  const { loading: isLoaded, user } = useSession();
-  const userRole = user?.role ?? null;
-  const isFacilitator = hasMinRole(userRole, "facilitator");
+  const { user } = useSession();
+  const isFacilitator = hasMinRole(user?.role ?? null, "facilitator");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +37,23 @@ export function useEventList() {
     async function fetchEvents() {
       setLoading(true);
       const res = await fetch("/api/events");
+      // Bail on everything, `loading` included. Guarding only the data write let
+      // a superseded run clear `loading` while the list was still empty, and the
+      // page rendered its "No events found" empty state until the live run
+      // landed. React's strict mode makes that the normal path in development:
+      // it mounts, cleans up, and remounts every effect.
+      if (cancelled) return;
+
       if (!res.ok) {
-        if (!cancelled) setError("Failed to load events");
+        setError("Failed to load events");
         setLoading(false);
         return;
       }
+
       const data = await res.json();
-      if (!cancelled) setEvents(data);
+      if (cancelled) return;
+
+      setEvents(data);
       setLoading(false);
     }
 
@@ -73,5 +82,5 @@ export function useEventList() {
     drafts: events.filter((e) => e.status === "draft").length,
   };
 
-  return { events, filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, userRole, isLoaded, tabCounts };
+  return { events, filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts };
 }

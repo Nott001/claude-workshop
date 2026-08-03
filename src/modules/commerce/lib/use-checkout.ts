@@ -6,7 +6,7 @@ import { useSession } from "@/modules/auth";
 
 export function useCheckout(paymentId: string) {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
+  const { isLoaded, isSignedIn } = useSession();
   const [status, setStatus] = useState<string>("loading");
   const [error, setError] = useState<string | null>(null);
 

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { ticketDao } from "@/shared/db/dao";
 import { generateQRDataUrl } from "@/shared/integrations/qr";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
   const guard = await requireRole("attendee", "facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const { paymentId } = await params;
@@ -19,7 +21,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  if (guard.user.role === "attendee" && (ticket as { user_id: number }).user_id !== guard.user.id) {
+  // The response renders the ticket's QR below, so a leak here is a usable
+  // check-in credential, not just a data disclosure. Everyone below facilitator
+  // is held to their own ticket.
+  if (!hasMinRole(guard.user.role, "facilitator") && (ticket as { user_id: number }).user_id !== guard.user.id) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 

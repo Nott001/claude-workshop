@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { ticketDao, eventDao } from "@/shared/db/dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
@@ -10,7 +11,7 @@ import { logAuditEvent } from "@/modules/audit";
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
-    return NextResponse.json({ error: guard.error }, { status: 401 });
+    return guardFailure(guard);
   }
 
   const body = await req.json();
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "rejected", reason: "invalid_status" });
   }
 
-  const ok = await ticketDao.updateStatus(supabase, ticket.payment_id, "checked_in", guard.user.id);
+  const ok = await ticketDao.updateStatus(supabase, ticket.id, "checked_in", guard.user.id);
 
   if (!ok) {
     return NextResponse.json({ error: "Failed to update ticket status" }, { status: 500 });

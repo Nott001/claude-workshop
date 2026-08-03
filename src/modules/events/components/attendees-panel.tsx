@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
-import { subscribeToCheckins } from "@/shared/integrations/realtime";
+import { subscribeToCheckins, unsubscribe } from "@/shared/integrations/realtime";
 
 interface Attendee {
   user_id: number;
@@ -83,7 +83,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
       setRefreshKey((k) => k + 1);
     });
     return () => {
-      sub.unsubscribe();
+      unsubscribe(sub);
     };
   }, [eventId]);
 

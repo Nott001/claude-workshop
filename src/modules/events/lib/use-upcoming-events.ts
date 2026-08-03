@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { LandingEvent } from "@/shared/types";
+import { toLandingEvent, type EventRow } from "./landing-event";
 
 export function useUpcomingEvents() {
   const [events, setEvents] = useState<LandingEvent[]>([]);
@@ -9,7 +10,9 @@ export function useUpcomingEvents() {
   useEffect(() => {
     fetch("/api/events?filter=upcoming")
       .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setEvents(Array.isArray(data) ? data.slice(0, 2) : []))
+      .then((data: unknown) => {
+        setEvents(Array.isArray(data) ? (data as EventRow[]).slice(0, 2).map(toLandingEvent) : []);
+      })
       .catch(() => {});
   }, []);
 

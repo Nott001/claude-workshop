@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useRoleGuard } from "@/modules/auth";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
@@ -48,17 +46,18 @@ function actionColor(action: string): string {
 
 export default function StaffAuditLogsPage() {
   const router = useRouter();
-  const { user } = useSession();
-  const userRole = user?.role ?? null;
+  const { allowed, pending } = useRoleGuard("admin");
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
 
-  useEffect(() => {
-    if (!hasMinRole(userRole, "admin")) {
-      router.replace("/access-denied");
-    }
-  }, [userRole, router]);
+  if (pending) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-fg">Loading...</div>
+      </div>
+    );
+  }
 
-  if (!hasMinRole(userRole, "admin")) return null;
+  if (!allowed) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -102,7 +101,7 @@ export default function StaffAuditLogsPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {logs.map((log) => (
-                    <tr key={log.log_id} className="hover:bg-muted">
+                    <tr key={log.id} className="hover:bg-muted">
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColor(log.action)}`}

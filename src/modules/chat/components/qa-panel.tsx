@@ -75,7 +75,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
       .subscribe();
 
     return () => {
-      sub.unsubscribe();
+      supabase.removeChannel(sub);
     };
   }, [moduleId, supabase]);
 

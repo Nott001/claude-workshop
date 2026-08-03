@@ -1,26 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface SpeakerProfile {
-  speaker_profile_id: number;
-  user_id: number;
-  bio: string | null;
-  designation: string | null;
-}
-
-interface Assignment {
-  speaker_profile_id: number;
-  SPEAKER_PROFILES: SpeakerProfile | null;
-}
-
-interface FullProfile extends SpeakerProfile {
-  USERS: { full_name: string } | null;
-}
+// The API serves these DAO rows verbatim, so the shapes come from the DAO
+// rather than a hand-written copy. The copy that used to live here had drifted:
+// it called the SPEAKER_PROFILE key `speaker_profile_id` (it is `id`) and the
+// embed `USERS` (it is `USER`), which is why every name rendered as
+// "Speaker #undefined" and no assigned speaker was ever filtered out.
+import type { SpeakerProfileWithUser, EventSpeakerAssignment } from "@/shared/db/dao/speaker.dao";
 
 export function useEventSpeakers(eventId: string) {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [allProfiles, setAllProfiles] = useState<FullProfile[]>([]);
+  const [assignments, setAssignments] = useState<EventSpeakerAssignment[]>([]);
+  const [allProfiles, setAllProfiles] = useState<SpeakerProfileWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -32,15 +22,21 @@ export function useEventSpeakers(eventId: string) {
     async function load() {
       setLoading(true);
       const [assignRes, profilesRes] = await Promise.all([fetch(`/api/events/${eventId}/speakers`), fetch("/api/speakers")]);
+      // `loading` too: this effect re-runs on every assign and remove, so a
+      // superseded run clearing it renders "no speakers" over live data.
+      if (cancelled) return;
 
       if (!assignRes.ok || !profilesRes.ok) {
-        if (!cancelled) setError("Failed to load data");
+        setError("Failed to load data");
         setLoading(false);
         return;
       }
 
-      if (!cancelled) setAssignments(await assignRes.json());
-      if (!cancelled) setAllProfiles(await profilesRes.json());
+      const [assignmentRows, profileRows] = await Promise.all([assignRes.json(), profilesRes.json()]);
+      if (cancelled) return;
+
+      setAssignments(assignmentRows);
+      setAllProfiles(profileRows);
       setLoading(false);
     }
 
@@ -73,7 +69,7 @@ export function useEventSpeakers(eventId: string) {
   }
 
   const assignedIds = new Set(assignments.map((a) => a.speaker_profile_id));
-  const availableProfiles = allProfiles.filter((p) => !assignedIds.has(p.speaker_profile_id));
+  const availableProfiles = allProfiles.filter((p) => !assignedIds.has(p.id));
 
   return {
     assignments,
