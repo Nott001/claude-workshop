@@ -5,10 +5,17 @@ import type { NextRequest } from "next/server";
 // Read-only event endpoints anonymous visitors may call. Their handlers already
 // restrict what they expose (published events only), so the middleware must let
 // the GET through and leave the guarding to them. Everything else stays gated.
+//
+// Cover images belong here for the same reason: `uploadToStorage` stores them as
+// `/api/storage/event_images/...`, and `/` and `/events` render them to visitors
+// with no session. The storage route still checks that the event is published
+// before serving one.
 const isPublicApiGet = (req: NextRequest) => {
   if (req.method !== "GET") return false;
   const { pathname } = req.nextUrl;
-  return pathname === "/api/events" || /^\/api\/events\/\d+$/.test(pathname);
+  return (
+    pathname === "/api/events" || /^\/api\/events\/\d+$/.test(pathname) || pathname.startsWith("/api/storage/event_images/")
+  );
 };
 
 const isProtectedRoute = (req: NextRequest) => {

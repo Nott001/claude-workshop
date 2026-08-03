@@ -137,6 +137,16 @@ export async function exists(supabase: DbClient, id: number): Promise<boolean> {
   return !!data;
 }
 
+/**
+ * Whether the event is visible to someone with no session — the same
+ * active/complete rule `list` applies to non-staff. Selects one column because
+ * the storage route calls it per cover image request.
+ */
+export async function isPublished(supabase: DbClient, id: number): Promise<boolean> {
+  const { data } = await supabase.from("EVENT").select("status").eq("id", id).single();
+  return data?.status === "active" || data?.status === "complete";
+}
+
 export async function getAttendeeCount(supabase: DbClient, eventId: number): Promise<number> {
   const { count } = await supabase
     .from("TICKET")

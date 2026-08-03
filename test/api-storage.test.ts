@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { download, from, requireAuth, userHasCourseAccess } = vi.hoisted(() => {
+const { download, from, requireAuth, userHasCourseAccess, isPublished } = vi.hoisted(() => {
   const download = vi.fn();
   return {
     download,
     from: vi.fn(() => ({ download })),
     requireAuth: vi.fn(),
     userHasCourseAccess: vi.fn(),
+    isPublished: vi.fn(),
   };
 });
 
@@ -14,7 +15,7 @@ vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ storage: { from } }),
 }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/shared/db/dao", () => ({ courseDao: { userHasCourseAccess } }));
+vi.mock("@/shared/db/dao", () => ({ courseDao: { userHasCourseAccess }, eventDao: { isPublished } }));
 
 import { GET } from "@/app/api/storage/[bucket]/[...path]/route";
 
@@ -26,17 +27,22 @@ const facilitator = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@
 const speaker = { id: 7, role: "speaker", full_name: "Sam", email: "sam@example.com" };
 
 const lesson = ["courses", "12", "modules", "3", "lessons", "8", "slides.pdf"];
+const cover = ["events", "1", "cover.png"];
+
+// event_images is keyed on the event in its path, so it takes a cover-shaped key.
+const keyFor = (bucket: string) => (bucket === "event_images" ? cover : lesson);
 
 beforeEach(() => {
   vi.clearAllMocks();
   requireAuth.mockResolvedValue(attendee);
   userHasCourseAccess.mockResolvedValue(true);
+  isPublished.mockResolvedValue(true);
   download.mockResolvedValue({ data: new Blob(["bytes"], { type: "application/pdf" }), error: null });
 });
 
 describe("bucket allowlist", () => {
   it.each(["event_images", "profile_images", "course_assets", "course_videos"])("serves the known bucket %s", async (b) => {
-    const res = await GET(req(), params(b, lesson));
+    const res = await GET(req(), params(b, keyFor(b)));
 
     expect(res.status).toBe(200);
     expect(from).toHaveBeenCalledWith(b);
@@ -84,10 +90,88 @@ describe("authentication", () => {
   });
 
   it("does not require an entitlement check for non-course buckets", async () => {
-    const res = await GET(req(), params("event_images", ["events", "1", "cover.png"]));
+    const res = await GET(req(), params("event_images", cover));
 
     expect(res.status).toBe(200);
     expect(userHasCourseAccess).not.toHaveBeenCalled();
+  });
+});
+
+// `uploadToStorage` stores covers as /api/storage/..., and `/` and `/events`
+// render them to visitors with no session. Requiring one here 401'd every cover
+// on the landing page.
+describe("public event covers", () => {
+  beforeEach(() => {
+    requireAuth.mockResolvedValue(null);
+  });
+
+  it("serves a published event's cover to a caller with no session", async () => {
+    isPublished.mockResolvedValue(true);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(res.status).toBe(200);
+    expect(isPublished).toHaveBeenCalledWith(expect.anything(), 1);
+  });
+
+  it("lets a shared cache hold a published cover, since it is the same for everyone", async () => {
+    isPublished.mockResolvedValue(true);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600");
+  });
+
+  it("refuses a draft cover, so a guessed path cannot preview an unpublished event", async () => {
+    isPublished.mockResolvedValue(false);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(res.status).toBe(404);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("still shows a draft cover to staff", async () => {
+    isPublished.mockResolvedValue(false);
+    requireAuth.mockResolvedValue(facilitator);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(res.status).toBe(200);
+    // Per-user verdict, so it must not be replayed out of a shared cache.
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=0, must-revalidate");
+  });
+
+  it("refuses a draft cover to a signed-in attendee", async () => {
+    isPublished.mockResolvedValue(false);
+    requireAuth.mockResolvedValue(attendee);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(res.status).toBe(404);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [["cover.png"]],
+    [["users", "5", "profile.png"]],
+    [["events", "abc", "cover.png"]],
+    [["events", "-1", "cover.png"]],
+  ])("refuses the event_images key %j that names no event", async (segments) => {
+    isPublished.mockResolvedValue(true);
+
+    const res = await GET(req(), params("event_images", segments));
+
+    expect(res.status).toBe(404);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("leaves the other buckets closed to an anonymous caller", async () => {
+    for (const bucket of ["profile_images", "course_assets", "course_videos"]) {
+      const res = await GET(req(), params(bucket, lesson));
+      expect(res.status).toBe(404);
+    }
+    expect(download).not.toHaveBeenCalled();
   });
 });
 

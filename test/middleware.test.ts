@@ -112,6 +112,38 @@ describe("public event reads", () => {
   );
 });
 
+// Covers are stored as /api/storage/event_images/... and rendered on `/` and
+// `/events`. While the matcher gated them, every cover 401'd for a logged-out
+// visitor. The route still decides whether the event is published.
+describe("public cover images", () => {
+  it("lets an anonymous GET on a cover reach the storage handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/storage/event_images/events/42/cover.png"));
+    expect(res.status).toBe(200);
+  });
+
+  it.each(["/api/storage/profile_images/users/5/profile.png", "/api/storage/course_videos/courses/1/m/2/l/3/v.mp4"])(
+    "keeps %s behind the middleware",
+    async (path) => {
+      getUser.mockResolvedValue(signedOut);
+      const res = await middleware(request(path));
+      expect(res.status).toBe(401);
+    },
+  );
+
+  it("refuses a write to the cover path — only reads are public", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/storage/event_images/events/42/cover.png", { method: "DELETE" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("does not open the bucket root by prefix match", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/storage/event_images_private/secrets.png"));
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("sign-in redirect", () => {
   it("preserves the target path so the user lands where they intended", async () => {
     getUser.mockResolvedValue(signedOut);
