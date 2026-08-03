@@ -37,13 +37,23 @@ export function useEventList() {
     async function fetchEvents() {
       setLoading(true);
       const res = await fetch("/api/events");
+      // Bail on everything, `loading` included. Guarding only the data write let
+      // a superseded run clear `loading` while the list was still empty, and the
+      // page rendered its "No events found" empty state until the live run
+      // landed. React's strict mode makes that the normal path in development:
+      // it mounts, cleans up, and remounts every effect.
+      if (cancelled) return;
+
       if (!res.ok) {
-        if (!cancelled) setError("Failed to load events");
+        setError("Failed to load events");
         setLoading(false);
         return;
       }
+
       const data = await res.json();
-      if (!cancelled) setEvents(data);
+      if (cancelled) return;
+
+      setEvents(data);
       setLoading(false);
     }
 

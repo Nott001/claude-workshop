@@ -22,15 +22,21 @@ export function useEventSpeakers(eventId: string) {
     async function load() {
       setLoading(true);
       const [assignRes, profilesRes] = await Promise.all([fetch(`/api/events/${eventId}/speakers`), fetch("/api/speakers")]);
+      // `loading` too: this effect re-runs on every assign and remove, so a
+      // superseded run clearing it renders "no speakers" over live data.
+      if (cancelled) return;
 
       if (!assignRes.ok || !profilesRes.ok) {
-        if (!cancelled) setError("Failed to load data");
+        setError("Failed to load data");
         setLoading(false);
         return;
       }
 
-      if (!cancelled) setAssignments(await assignRes.json());
-      if (!cancelled) setAllProfiles(await profilesRes.json());
+      const [assignmentRows, profileRows] = await Promise.all([assignRes.json(), profilesRes.json()]);
+      if (cancelled) return;
+
+      setAssignments(assignmentRows);
+      setAllProfiles(profileRows);
       setLoading(false);
     }
 
