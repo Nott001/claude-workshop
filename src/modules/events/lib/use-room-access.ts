@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
+import { canAccessRoom } from "@/modules/events/lib/room-access-policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export interface Lesson {
@@ -84,15 +85,9 @@ export function useRoomAccess(eventId: string) {
       setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
 
-      const speakerAssigned = user.role === "speaker" ? accessData.isSpeakerAssigned : true;
-      const hasTicketOrBypass = hasMinRole(user.role, "facilitator") || accessData.hasTicket || accessData.isSpeakerAssigned;
-
-      if (!speakerAssigned) {
-        if (!cancelled) setAccess("denied");
-        return;
-      }
-      if (!hasTicketOrBypass) {
-        if (!cancelled) setAccess("no_ticket");
+      const gate = canAccessRoom(user.role, accessData);
+      if (gate !== "allowed") {
+        if (!cancelled) setAccess(gate);
         return;
       }
 

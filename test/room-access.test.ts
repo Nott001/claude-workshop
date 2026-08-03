@@ -1,84 +1,46 @@
 import { describe, it, expect } from "vitest";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import type { UserRole } from "@/shared/types";
+import { canAccessRoom } from "@/modules/events/lib/room-access-policy";
 
-interface AccessData {
-  hasTicket: boolean;
-  isSpeakerAssigned: boolean;
-}
-
-function canAccessRoom(userRole: UserRole | null, accessData: AccessData): "allowed" | "no_ticket" | "denied" {
-  const speakerAssigned = userRole === "speaker" ? accessData.isSpeakerAssigned : true;
-  if (!speakerAssigned) return "denied";
-
-  const hasTicketOrBypass = hasMinRole(userRole, "facilitator") || accessData.hasTicket || accessData.isSpeakerAssigned;
-  if (!hasTicketOrBypass) return "no_ticket";
-
-  return "allowed";
-}
-
+// SPEC-00. This file used to re-declare `canAccessRoom` locally, so every case
+// below passed no matter what the product code did — deleting the speaker
+// bypass from `use-room-access.ts` left the suite green. It imports the real
+// rule now.
 describe("Room access — speaker ticket bypass", () => {
-  describe("speaker assigned to event (no ticket)", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: true };
-
-    it("allows access to assigned speaker without ticket", () => {
-      expect(canAccessRoom("speaker", data)).toBe("allowed");
-    });
+  it("allows an assigned speaker holding no ticket", () => {
+    expect(canAccessRoom("speaker", { hasTicket: false, isSpeakerAssigned: true })).toBe("allowed");
   });
 
-  describe("speaker NOT assigned to event", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: false };
-
-    it("denies access to unassigned speaker", () => {
-      expect(canAccessRoom("speaker", data)).toBe("denied");
-    });
+  it("denies an unassigned speaker", () => {
+    expect(canAccessRoom("speaker", { hasTicket: false, isSpeakerAssigned: false })).toBe("denied");
   });
 
-  describe("speaker assigned with ticket", () => {
-    const data: AccessData = { hasTicket: true, isSpeakerAssigned: true };
-
-    it("allows access via ticket", () => {
-      expect(canAccessRoom("speaker", data)).toBe("allowed");
-    });
+  it("allows an assigned speaker who also holds a ticket", () => {
+    expect(canAccessRoom("speaker", { hasTicket: true, isSpeakerAssigned: true })).toBe("allowed");
   });
 
-  describe("attendee with valid ticket", () => {
-    const data: AccessData = { hasTicket: true, isSpeakerAssigned: false };
+  it("denies an unassigned speaker even with a ticket — assignment gates the room", () => {
+    expect(canAccessRoom("speaker", { hasTicket: true, isSpeakerAssigned: false })).toBe("denied");
+  });
+});
 
-    it("allows access", () => {
-      expect(canAccessRoom("attendee", data)).toBe("allowed");
-    });
+describe("Room access — everyone else", () => {
+  it("allows an attendee with a valid ticket", () => {
+    expect(canAccessRoom("attendee", { hasTicket: true, isSpeakerAssigned: false })).toBe("allowed");
   });
 
-  describe("attendee without ticket", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: false };
-
-    it("shows no_ticket", () => {
-      expect(canAccessRoom("attendee", data)).toBe("no_ticket");
-    });
+  it("turns away an attendee without a ticket", () => {
+    expect(canAccessRoom("attendee", { hasTicket: false, isSpeakerAssigned: false })).toBe("no_ticket");
   });
 
-  describe("facilitator without ticket", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: false };
-
-    it("bypasses ticket check via role", () => {
-      expect(canAccessRoom("facilitator", data)).toBe("allowed");
-    });
+  it("lets a facilitator in on role alone", () => {
+    expect(canAccessRoom("facilitator", { hasTicket: false, isSpeakerAssigned: false })).toBe("allowed");
   });
 
-  describe("admin without ticket", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: false };
-
-    it("bypasses ticket check via role", () => {
-      expect(canAccessRoom("admin", data)).toBe("allowed");
-    });
+  it("lets an admin in on role alone", () => {
+    expect(canAccessRoom("admin", { hasTicket: false, isSpeakerAssigned: false })).toBe("allowed");
   });
 
-  describe("anonymous user", () => {
-    const data: AccessData = { hasTicket: false, isSpeakerAssigned: false };
-
-    it("is denied", () => {
-      expect(canAccessRoom(null, data)).toBe("no_ticket");
-    });
+  it("turns away a caller with no role", () => {
+    expect(canAccessRoom(null, { hasTicket: false, isSpeakerAssigned: false })).toBe("no_ticket");
   });
 });
