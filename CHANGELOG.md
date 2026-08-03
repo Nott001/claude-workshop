@@ -4,11 +4,20 @@
 
 ### Security
 
+- Draft event covers are no longer readable by every signed-in user. Covers are served through `/api/storage/event_images/...`, whose object keys are `events/{id}/cover.png` against sequential ids, so any account could fetch the cover of an unpublished event by guessing the path. Serving one now requires the event to be published, or the facilitator role — the same rule the event listing already applied to drafts.
 - Course material is no longer readable by any signed-in user. `/api/storage/[bucket]/[...path]` read any bucket and object key straight from the URL using the service client, bypassing row level security — paid course videos and assets were available to anyone with an account. Access now requires a live ticket to the event teaching the course, a speaker assignment to it, or the facilitator role.
 - Storage requests are answered `Cache-Control: private`. Entitlement is per user, and the previous `public` response could be served from a shared cache to someone not entitled to it.
 
 ### Fixed
 
+- The tickets page renders again. Ticket rows carry their event under `EVENT`, but the card read `EVENTS` and dereferenced it without a guard, so the page threw for anyone actually holding a ticket. The same drift between what the API returns and what the client expected left the payments page showing "Unknown" for every event, ticket cards never showing a paid time, and four list views keyed on columns that do not exist — audit logs, email logs, payments and tickets all key on `id`.
+- Assigning a speaker to an event works. The dropdown keyed its options on a column the API does not return, so the submitted value was not a number and every assignment was rejected as invalid. The same missing value meant speakers already on the event were never removed from the list, and every name displayed as "Speaker #undefined".
+- Pages no longer sit on a loading spinner that never resolves. `/staff/courses`, the check-in kiosk, payments, checkout, event registration and room access each gated their data fetch on a session flag renamed to its opposite, so the fetch ran only while the session was still loading and was skipped once it was ready.
+- The events list no longer flashes "No events found" before the events appear. A superseded request cleared the loading flag while the list was still empty, so the empty state rendered until the live request landed.
+- Event cover images load for signed-out visitors. Covers are stored as `/api/storage/...` URLs and the middleware required a session for all of `/api/*`, so every cover on the landing page and the events list was answered `401`.
+- Events can be created with a price, venue address, description and currency. The form collected five of the ten columns the API accepts, so every event created through the interface was free — and stayed free, because the edit form was missing the same five fields. A one-sided time range is now rejected in the form rather than arriving as an unexplained failure.
+- Signing out no longer reports "Access Denied". Guarded pages treated a missing session as a permission failure, so logging out while on a staff page redirected to the denial screen instead of home.
+- Event cards on the home page link to their event. The card read an id field the API does not return, so every link pointed at `/events/undefined`.
 - The events listing and event detail pages load for signed-out visitors again. The middleware treated every `/api/*` route as protected, so an anonymous browser's fetch of `/api/events` was answered `401` before the handler ran, even though those handlers were built to serve published events to callers without a session. Public GETs on the event endpoints now pass through, with the handlers still filtering out drafts and every write staying behind the role guards.
 - Sessions survive a token refresh. The middleware rebuilt its response once per cookie, so each write discarded the one before it and the browser was left holding part of a chunked auth token — presenting as a random logout. Refusing a request no longer drops the cookies either, which is what cleared an expired session, so a stale token could previously fail the same way on every retry. Responses that carry a refreshed session are now marked uncacheable, since a shared cache could otherwise replay one visitor's session to the next.
 - Deleting an event now deletes its course material. Asset and video paths were collected and then discarded: the single cleanup call only ever targeted the `event_images` bucket, so every deleted event left its uploads orphaned in storage.
@@ -20,6 +29,7 @@
 
 ### Added
 
+- Event cover images can be uploaded from the staff event page. The upload endpoint already existed but had no caller anywhere, so a cover could not be set from the interface at all. Type and size are checked before the upload starts, against the same rules the endpoint enforces.
 - Continuous integration. Four workflows run on every pull request: **CI** (format, lint, typecheck, unit tests with coverage, production build), **Security**, **Lighthouse**, and **E2E**. Each collapses into a single status check so branch protection needs no update when a job is added. The repository previously had no CI at all.
 - Security scanning on every pull request and weekly on a schedule, so advisories against unchanged code still surface: CodeQL static analysis, gitleaks secret scanning over full history, a dependency audit that blocks on production advisories and reports dev-only ones, and a check that every table in a migration enables row level security.
 - Lighthouse audits of the public routes (`/`, `/events`, `/sign-in`). Accessibility, best-practices, SEO and layout shift block on regression; performance and timing metrics warn, because they vary with CI runner load.
@@ -32,6 +42,8 @@
 
 ### Changed
 
+- Published event covers are served with a shared-cache lifetime, since they are the same bytes for every visitor and are rendered on pages anyone can read. Responses that depend on who is asking keep the `private` no-store header described above.
+- Creating and editing an event share one form, so a field can no longer be added to one and forgotten in the other — which is how the two drifted apart.
 - Uploaded images are compressed with WebAssembly instead of sharp. sharp binds to libvips as a native Node addon, which cannot load in the V8 isolate Cloudflare Workers runs, so it blocked deployment there outright. Uploads whose longest edge exceeds 1600px are now scaled to fit, which is invisible at the sizes the app displays — covers render around 350px wide — and is where most of the saving comes from: a 3200px camera JPEG drops from 393KB to 51KB, against 162KB for the quality change alone. JPEGs are still re-encoded at quality 80 on top of that. PNGs within the cap are stored as uploaded, since re-encoding one at its original size returns identical bytes; sharp used to quantise their palette instead. **Originals are not retained**, so a full-resolution upload cannot be recovered later.
 - Migrated from Clerk to Supabase Auth. All auth logic centralized in `src/modules/auth/`.
 - Old staff-related pages moved under `src/app/staff/` namespace; route protection updated accordingly.
