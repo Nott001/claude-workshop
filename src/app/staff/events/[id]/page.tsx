@@ -234,13 +234,13 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
           {assignments.length > 0 && (
             <ul className="mb-4 space-y-2">
               {assignments.map((a) => {
-                const userInfo = allProfiles.find((p) => p.speaker_profile_id === a.speaker_profile_id);
+                const userInfo = allProfiles.find((p) => p.id === a.speaker_profile_id);
                 return (
                   <li
                     key={a.speaker_profile_id}
                     className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2"
                   >
-                    <span className="text-sm text-fg">{userInfo?.USERS?.full_name ?? `Speaker #${a.speaker_profile_id}`}</span>
+                    <span className="text-sm text-fg">{userInfo?.USER?.full_name ?? `Speaker #${a.speaker_profile_id}`}</span>
                     <button onClick={() => handleRemove(a.speaker_profile_id)} className="text-xs text-error hover:underline">
                       Remove
                     </button>
@@ -259,8 +259,8 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
               >
                 <option value="">Select a speaker...</option>
                 {availableProfiles.map((p) => (
-                  <option key={p.speaker_profile_id} value={p.speaker_profile_id}>
-                    {p.USERS?.full_name ?? `Speaker #${p.speaker_profile_id}`}
+                  <option key={p.id} value={p.id}>
+                    {p.USER?.full_name ?? `Speaker #${p.id}`}
                   </option>
                 ))}
               </select>
