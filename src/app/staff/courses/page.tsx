@@ -17,7 +17,7 @@ interface CourseRow {
 }
 
 export default function StaffCoursesPage() {
-  const { loading: isLoaded, user } = useSession();
+  const { isLoaded, user } = useSession();
   const role = user?.role ?? null;
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);

@@ -51,9 +51,19 @@ describe("useRoleGuard", () => {
 
     const { result } = renderHook(() => useRoleGuard("admin"));
 
-    await waitFor(() => expect(result.current.pending).toBe(true));
+    await waitFor(() => expect(result.current.allowed).toBe(false));
     expect(replace).not.toHaveBeenCalled();
-    expect(result.current.allowed).toBe(false);
+  });
+
+  // "Resolved to nobody" is an answer, not a wait. Reporting it as pending left
+  // the page on its loading placeholder forever whenever /api/auth/me returned
+  // no user for a session the middleware had already accepted.
+  it("stops pending once the session resolves, even with no user", async () => {
+    sessionValue.mockReturnValue({ user: null, loading: false, isSignedIn: false, signOut: vi.fn() });
+
+    const { result } = renderHook(() => useRoleGuard("admin"));
+
+    await waitFor(() => expect(result.current.pending).toBe(false));
   });
 
   it("stays pending while the session is still resolving", async () => {

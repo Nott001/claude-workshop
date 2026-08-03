@@ -36,7 +36,7 @@ interface CourseData {
 export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "loading" | "denied";
 
 export function useRoomAccess(eventId: string) {
-  const { loading: isLoaded, isSignedIn, user } = useSession();
+  const { isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
   const [access, setAccess] = useState<AccessLevel>("loading");
   const [eventTitle, setEventTitle] = useState("");

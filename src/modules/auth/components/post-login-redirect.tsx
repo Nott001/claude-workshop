@@ -14,7 +14,7 @@ const ROLE_HOME: Record<string, string> = {
 
 export function PostLoginRedirect() {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
+  const { isLoaded, isSignedIn } = useSession();
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

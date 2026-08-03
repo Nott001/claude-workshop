@@ -21,7 +21,7 @@ interface RegisterPageData {
 
 export function useEventRegistration(eventId: string) {
   const router = useRouter();
-  const { loading: isLoaded, isSignedIn } = useSession();
+  const { isLoaded, isSignedIn } = useSession();
   const [data, setData] = useState<RegisterPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [agreed, setAgreed] = useState(false);

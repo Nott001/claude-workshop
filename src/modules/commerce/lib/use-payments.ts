@@ -12,7 +12,7 @@ interface Payment {
 }
 
 export function usePayments() {
-  const { loading: isLoaded, isSignedIn } = useSession();
+  const { isLoaded, isSignedIn } = useSession();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -8,6 +8,14 @@ import type { AuthUser } from "../lib/types";
 interface SessionContextValue {
   user: AuthUser | null;
   loading: boolean;
+  /**
+   * `!loading`. Provided because consumers kept reaching for it by destructuring
+   * `loading` *as* `isLoaded`, which silently inverts the flag: every
+   * `if (!isLoaded) return` then bailed out precisely when the session was ready
+   * and ran only while it was not, so the fetch behind it never happened and the
+   * page span forever. Read this instead of renaming `loading`.
+   */
+  isLoaded: boolean;
   isSignedIn: boolean;
   signOut: () => Promise<void>;
 }
@@ -15,6 +23,7 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue>({
   user: null,
   loading: true,
+  isLoaded: false,
   isSignedIn: false,
   signOut: async () => {},
 });
@@ -94,7 +103,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     router.replace("/");
   };
 
-  return <SessionContext.Provider value={{ user, loading, isSignedIn: !!user, signOut }}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut }}>
+      {children}
+    </SessionContext.Provider>
+  );
 }
 
 export function useSession() {

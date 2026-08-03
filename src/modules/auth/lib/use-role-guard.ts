@@ -10,7 +10,12 @@ export interface ClientRoleGuard {
   role: UserRole | null;
   /** The session resolved to a user who clears `minRole`. */
   allowed: boolean;
-  /** No verdict yet — render a placeholder, never a denial. */
+  /**
+   * The session has not resolved yet — render a placeholder, never a denial.
+   * Strictly `loading`: "resolved to nobody" is an answer, and treating it as
+   * pending leaves the page spinning forever when `/api/auth/me` returns no
+   * user for a session the middleware already let through.
+   */
   pending: boolean;
 }
 
@@ -38,5 +43,5 @@ export function useRoleGuard(minRole: UserRole): ClientRoleGuard {
     }
   }, [loading, user, minRole, router]);
 
-  return { role, allowed, pending: loading || !user };
+  return { role, allowed, pending: loading };
 }
