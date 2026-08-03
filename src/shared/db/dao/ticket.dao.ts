@@ -6,18 +6,25 @@ interface TicketWithUser extends Ticket {
   USER: Pick<User, "full_name" | "email"> | null;
 }
 
-interface TicketWithPaymentAndEvent extends Ticket {
+/** The EVENT columns every ticket surface renders. Embedded under `EVENT`. */
+export interface TicketEvent {
+  title: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  venue_name: string;
+  venue_address: string | null;
+  price: number;
+  currency: string;
+}
+
+/** A TICKET row with the EVENT embed, as `listByUser` and `listAll` select it. */
+export interface TicketWithEvent extends Ticket {
+  EVENT: TicketEvent | null;
+}
+
+export interface TicketWithPaymentAndEvent extends TicketWithEvent {
   PAYMENT: { status: string; paid_at: string | null } | null;
-  EVENT: {
-    title: string;
-    event_date: string;
-    start_time: string;
-    end_time: string;
-    venue_name: string;
-    venue_address: string | null;
-    price: number;
-    currency: string;
-  } | null;
 }
 
 interface AttendeeRow {
@@ -62,21 +69,21 @@ export async function findActiveByUserAndEvent(supabase: DbClient, userId: numbe
   return (data ?? []) as Ticket[];
 }
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<Ticket[]> {
+export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithEvent[]> {
   const { data } = await supabase
     .from("TICKET")
     .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
     .eq("user_id", userId)
     .order("issued_at", { ascending: false });
-  return (data ?? []) as Ticket[];
+  return data ?? [];
 }
 
-export async function listAll(supabase: DbClient): Promise<Ticket[]> {
+export async function listAll(supabase: DbClient): Promise<TicketWithEvent[]> {
   const { data } = await supabase
     .from("TICKET")
     .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
     .order("issued_at", { ascending: false });
-  return (data ?? []) as Ticket[];
+  return data ?? [];
 }
 
 export async function findWithPaymentAndEvent(

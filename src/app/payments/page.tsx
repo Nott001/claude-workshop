@@ -26,8 +26,8 @@ export default function PaymentsPage() {
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.payment_id}>
-                <td>{payment.EVENTS?.title ?? "Unknown"}</td>
+              <tr key={payment.id}>
+                <td>{payment.EVENT?.title ?? "Unknown"}</td>
                 <td>{payment.status}</td>
                 <td>{new Date(payment.created_at).toLocaleDateString()}</td>
                 <td>{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : "-"}</td>

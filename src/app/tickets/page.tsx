@@ -54,7 +54,7 @@ export default function TicketsPage() {
         ) : (
           <div className="flex flex-col gap-6">
             {tickets.map((ticket) => (
-              <TicketCard key={ticket.payment_id} ticket={ticket} />
+              <TicketCard key={ticket.id} ticket={ticket} />
             ))}
           </div>
         )}

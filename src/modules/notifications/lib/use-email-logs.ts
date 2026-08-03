@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface EmailLogEntry {
-  log_id: number;
-  email_type: "ticket_issued" | "check_in_confirmed";
-  status: "sent" | "failed";
-  sent_at: string | null;
-  USER: { full_name: string; email: string } | null;
-}
+// Same story as the audit logs: EMAIL_LOG's primary key is `id`, not `log_id`.
+import type { EmailLogWithUser } from "@/shared/db/dao/email.dao";
 
 export function useEmailLogs() {
-  const [logs, setLogs] = useState<EmailLogEntry[]>([]);
+  const [logs, setLogs] = useState<EmailLogWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [emailTypeFilter, setEmailTypeFilter] = useState<"" | "ticket_issued" | "check_in_confirmed">("");
   const [statusFilter, setStatusFilter] = useState<"" | "sent" | "failed">("");

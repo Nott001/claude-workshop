@@ -1,5 +1,10 @@
 import type { DbClient, PaginatedResult } from "./types";
-import type { AuditLog, AuditAction } from "@/shared/types";
+import type { AuditLog, AuditAction, User } from "@/shared/types";
+
+/** An AUDIT_LOG row with the ACTOR embed `list` aliases from actor_id. */
+export interface AuditLogWithActor extends AuditLog {
+  ACTOR: Pick<User, "id" | "full_name" | "email"> | null;
+}
 
 export async function log(
   supabase: DbClient,
@@ -18,7 +23,7 @@ export async function log(
   });
 }
 
-export async function list(supabase: DbClient, page: number, limit: number): Promise<PaginatedResult<AuditLog>> {
+export async function list(supabase: DbClient, page: number, limit: number): Promise<PaginatedResult<AuditLogWithActor>> {
   const offset = (page - 1) * limit;
 
   const { data, count } = await supabase
@@ -28,7 +33,7 @@ export async function list(supabase: DbClient, page: number, limit: number): Pro
     .range(offset, offset + limit - 1);
 
   return {
-    data: (data ?? []) as unknown as AuditLog[],
+    data: data ?? [],
     total: count ?? 0,
     page,
     limit,

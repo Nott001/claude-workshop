@@ -101,7 +101,7 @@ export default function StaffEmailsPage() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.log_id} className="border-b border-border last:border-0 hover:bg-muted">
+                  <tr key={log.id} className="border-b border-border last:border-0 hover:bg-muted">
                     <td className="px-4 py-3 text-foreground">
                       <div className="font-medium">{log.USER?.full_name ?? "Unknown"}</div>
                       <div className="text-xs text-muted-foreground">{log.USER?.email ?? ""}</div>

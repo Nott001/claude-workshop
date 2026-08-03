@@ -101,7 +101,7 @@ export default function StaffAuditLogsPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {logs.map((log) => (
-                    <tr key={log.log_id} className="hover:bg-muted">
+                    <tr key={log.id} className="hover:bg-muted">
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColor(log.action)}`}

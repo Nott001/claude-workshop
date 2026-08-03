@@ -35,8 +35,11 @@ function ticketStatusLabel(status: string): string {
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const { qrUrl, qrLoading, payment } = useTicketCard(ticket.payment_id);
 
-  const venue = formatVenue(ticket.EVENTS.venue_name, ticket.EVENTS.venue_address);
-  const price = formatEventPrice(ticket.EVENTS.price, ticket.EVENTS.currency);
+  // Nullable: PostgREST returns null for the embed if the row is gone. The old
+  // code read straight through it, which threw rather than degrading.
+  const event = ticket.EVENT;
+  const venue = formatVenue(event?.venue_name, event?.venue_address);
+  const price = formatEventPrice(event?.price, event?.currency);
 
   const paidTime = payment?.paid_at
     ? new Date(payment.paid_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -58,25 +61,31 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
               {ticketStatusLabel(ticket.status)}
             </span>
           </div>
-          <h2 className="mt-2 text-lg font-bold text-white">{ticket.EVENTS.title}</h2>
+          <h2 className="mt-2 text-lg font-bold text-white">{event?.title ?? "Event unavailable"}</h2>
         </div>
 
         <div className="flex-1 px-6 py-5">
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-brand">calendar_today</span>
-              <span className="text-sm text-fg">{formatEventDate(ticket.EVENTS.event_date)}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-brand">schedule</span>
-              <span className="text-sm text-fg">
-                {formatTime(ticket.EVENTS.start_time)} &ndash; {formatTime(ticket.EVENTS.end_time)}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-rounded text-[20px] text-brand">location_on</span>
-              <span className="text-sm text-fg">{venue}</span>
-            </div>
+            {event && (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-rounded text-[20px] text-brand">calendar_today</span>
+                  <span className="text-sm text-fg">{formatEventDate(event.event_date)}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-rounded text-[20px] text-brand">schedule</span>
+                  <span className="text-sm text-fg">
+                    {formatTime(event.start_time)} &ndash; {formatTime(event.end_time)}
+                  </span>
+                </div>
+              </>
+            )}
+            {venue && (
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-rounded text-[20px] text-brand">location_on</span>
+                <span className="text-sm text-fg">{venue}</span>
+              </div>
+            )}
             {price && (
               <div className="flex items-center gap-3">
                 <span className="material-symbols-rounded text-[20px] text-brand">payments</span>
