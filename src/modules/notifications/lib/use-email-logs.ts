@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "@/modules/auth";
 
 interface EmailLogEntry {
   log_id: number;
@@ -12,7 +11,6 @@ interface EmailLogEntry {
 }
 
 export function useEmailLogs() {
-  const { user } = useSession();
   const [logs, setLogs] = useState<EmailLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [emailTypeFilter, setEmailTypeFilter] = useState<"" | "ticket_issued" | "check_in_confirmed">("");
@@ -51,7 +49,5 @@ export function useEmailLogs() {
     statusFilter,
     setEmailTypeFilter,
     setStatusFilter,
-    userRole: user?.role ?? null,
-    isLoaded: true,
   };
 }

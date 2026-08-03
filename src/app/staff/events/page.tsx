@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { Footer } from "@/shared/components/footer";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { useRoleGuard } from "@/modules/auth";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -21,17 +19,10 @@ const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function StaffEventsPage() {
-  const router = useRouter();
-  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, userRole, tabCounts } = useEventList();
+  const { role: userRole, allowed, pending } = useRoleGuard("facilitator");
+  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts } = useEventList();
 
-  useEffect(() => {
-    if (loading || error) return;
-    if (!hasMinRole(userRole, "facilitator")) {
-      router.replace("/access-denied");
-    }
-  }, [userRole, router, loading, error]);
-
-  if (loading) {
+  if (pending || loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-foreground">Loading events...</div>
@@ -47,7 +38,7 @@ export default function StaffEventsPage() {
     );
   }
 
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!allowed) return null;
 
   const filterTabs = isFacilitator ? FACILITATOR_TABS : NON_FACILITATOR_TABS;
 

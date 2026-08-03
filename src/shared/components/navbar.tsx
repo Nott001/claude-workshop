@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth";
 import { cn } from "@/shared/lib/utils";
 import type { UserRole } from "@/shared/types";
@@ -55,7 +55,6 @@ function getInitials(fullName?: string | null): string {
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, isSignedIn, signOut } = useSession();
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
@@ -82,11 +81,6 @@ export function Navbar() {
     window.addEventListener("profile-photo-updated", handlePhotoUpdate);
     return () => window.removeEventListener("profile-photo-updated", handlePhotoUpdate);
   }, [isSignedIn, user?.profile_image_url, customPhoto]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
-  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-[202px] flex-col border-r border-border bg-surface px-5 py-7 lg:flex">
@@ -140,7 +134,7 @@ export function Navbar() {
               Settings
             </Link>
             <button
-              onClick={handleSignOut}
+              onClick={signOut}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-xs font-semibold tracking-[0.04em] text-muted-fg transition hover:border-error hover:text-error"
             >
               <span className="material-symbols-rounded text-[16px]">logout</span>

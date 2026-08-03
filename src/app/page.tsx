@@ -3,6 +3,7 @@ import { supabase } from "@/shared/db/client";
 import { eventDao } from "@/shared/db/dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import type { LandingEvent } from "@/shared/types";
+import { toLandingEvent } from "@/modules/events/lib/landing-event";
 
 // This page lists upcoming events, which change whenever staff publish one.
 // Without this it was prerendered at build time (`○ /` in the build output) and
@@ -18,17 +19,7 @@ export const dynamic = "force-dynamic";
 // secret it does not need — a missing key would 500 the landing page.
 async function getUpcomingEvents(): Promise<LandingEvent[]> {
   const data = await eventDao.getUpcomingForLanding(supabase);
-  return data.map((e) => ({
-    event_id: e.id,
-    title: e.title,
-    event_date: e.event_date,
-    start_time: e.start_time,
-    end_time: e.end_time,
-    venue_name: e.venue_name,
-    status: e.status,
-    course_name: e.COURSE?.course_name ?? null,
-    cover_image_url: e.cover_image_url ?? null,
-  }));
+  return data.map(toLandingEvent);
 }
 
 export default async function HomePage() {

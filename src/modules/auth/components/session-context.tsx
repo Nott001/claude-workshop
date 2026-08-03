@@ -48,15 +48,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         fetch("/api/auth/me")
           .then((r) => (r.ok ? r.json() : null))
           .then(setUser);
-      } else {
-        setUser(null);
+        router.refresh();
+        return;
       }
-      router.refresh();
+
+      setUser(null);
+      // Only a real sign-out navigates. Refreshing in place would re-request the
+      // current route without a session, and on a guarded one the middleware
+      // answers that with a sign-in redirect that races the trip home. The event
+      // check matters: subscribing emits INITIAL_SESSION with a null session, so
+      // reacting to "no session" alone would bounce every anonymous visitor.
+      if (event === "SIGNED_OUT") router.replace("/");
     });
 
     function onVisibilityChange() {
@@ -82,7 +89,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    router.push("/");
+    // replace, not push: the guarded page we are leaving must not sit one Back
+    // press away from a browser that no longer holds a session.
+    router.replace("/");
   };
 
   return <SessionContext.Provider value={{ user, loading, isSignedIn: !!user, signOut }}>{children}</SessionContext.Provider>;

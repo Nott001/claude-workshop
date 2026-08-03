@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Footer } from "@/shared/components/footer";
-import { useSession } from "@/modules/auth";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { useRoleGuard } from "@/modules/auth";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
@@ -16,8 +15,7 @@ export default function SpeakerCoursePage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
-  const { user, loading: sessionLoading } = useSession();
-  const userRole = user?.role ?? null;
+  const { allowed: isSpeaker, pending: sessionPending } = useRoleGuard("speaker");
 
   const { event: speakerEvent, loading: speakerLoading, error: speakerError } = useSpeakerEvent(eventId);
   const { course, loading: courseLoading } = useCourseByEvent(eventId);
@@ -33,20 +31,13 @@ export default function SpeakerCoursePage() {
   }, [course, courseBuilder]);
 
   useEffect(() => {
-    if (!sessionLoading && !hasMinRole(userRole, "speaker")) {
-      router.replace("/access-denied");
+    if (speakerLoading || sessionPending) return;
+    if (speakerError || !speakerEvent) {
+      router.replace(`/speaker/event/${eventId}?error=not_assigned`);
     }
-  }, [sessionLoading, userRole, router]);
+  }, [speakerLoading, sessionPending, speakerError, speakerEvent, eventId, router]);
 
-  useEffect(() => {
-    if (!speakerLoading && !sessionLoading) {
-      if (speakerError || !speakerEvent) {
-        router.replace(`/speaker/event/${eventId}?error=not_assigned`);
-      }
-    }
-  }, [speakerLoading, sessionLoading, speakerError, speakerEvent, eventId, router]);
-
-  if (sessionLoading || speakerLoading || courseLoading) {
+  if (sessionPending || speakerLoading || courseLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
         <div className="text-sm text-muted-fg">Loading...</div>
@@ -54,7 +45,7 @@ export default function SpeakerCoursePage() {
     );
   }
 
-  if (!hasMinRole(userRole, "speaker")) return null;
+  if (!isSpeaker) return null;
 
   if (speakerError || !speakerEvent) return null;
 

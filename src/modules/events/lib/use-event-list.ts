@@ -24,9 +24,8 @@ interface Event {
 export type FilterTab = "upcoming" | "completed" | "drafts";
 
 export function useEventList() {
-  const { loading: isLoaded, user } = useSession();
-  const userRole = user?.role ?? null;
-  const isFacilitator = hasMinRole(userRole, "facilitator");
+  const { user } = useSession();
+  const isFacilitator = hasMinRole(user?.role ?? null, "facilitator");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,5 +72,5 @@ export function useEventList() {
     drafts: events.filter((e) => e.status === "draft").length,
   };
 
-  return { events, filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, userRole, isLoaded, tabCounts };
+  return { events, filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts };
 }

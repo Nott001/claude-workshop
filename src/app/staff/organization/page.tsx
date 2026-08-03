@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession, useRoleGuard } from "@/modules/auth";
 import { Footer } from "@/shared/components/footer";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -30,17 +29,9 @@ const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "er
 const INVITE_ROLES: UserRole[] = ["speaker", "facilitator", "admin"];
 
 export default function StaffOrganizationPage() {
-  const router = useRouter();
   const { user } = useSession();
-  const userRole = user?.role ?? null;
-  const isAdmin = hasMinRole(userRole, "admin");
+  const { role: userRole, allowed: isAdmin, pending } = useRoleGuard("admin");
   const isSuperAdmin = hasMinRole(userRole, "super_admin");
-
-  useEffect(() => {
-    if (!isAdmin) {
-      router.replace("/access-denied");
-    }
-  }, [isAdmin, router]);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +105,14 @@ export default function StaffOrganizationPage() {
   }
 
   const allowedInviteRoles = isSuperAdmin ? INVITE_ROLES : INVITE_ROLES.filter((r) => r !== "admin");
+
+  if (pending) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-sm text-muted-fg">Loading...</div>
+      </div>
+    );
+  }
 
   if (!isAdmin) return null;
 

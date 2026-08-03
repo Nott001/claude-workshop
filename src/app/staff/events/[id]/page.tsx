@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession, useRoleGuard } from "@/modules/auth";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -327,7 +326,7 @@ export default function StaffEventDashboardPage() {
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const userRole = user?.role ?? null;
+  const { role: userRole, allowed: isStaff, pending } = useRoleGuard("facilitator");
 
   const {
     event,
@@ -342,16 +341,7 @@ export default function StaffEventDashboardPage() {
     handleDelete,
   } = useEventDetail(eventId);
 
-  const isStaff = hasMinRole(userRole, "facilitator");
-
-  useEffect(() => {
-    if (loading || error || !event) return;
-    if (!isStaff) {
-      router.replace("/access-denied");
-    }
-  }, [isStaff, router, loading, error, event]);
-
-  if (loading) {
+  if (pending || loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="text-sm text-muted-fg">Loading event...</div>
