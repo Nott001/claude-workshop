@@ -12,6 +12,12 @@ First, run the development server:
 pnpm dev
 ```
 
+## Deployment
+
+The app deploys to Cloudflare Workers. Merging to `main` deploys it, once CI,
+Security and E2E are green on that commit. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+for the required configuration, local Worker preview, and rollback.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

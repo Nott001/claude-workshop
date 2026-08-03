@@ -1,0 +1,45 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "claude-workshop",
+	"main": ".open-next/worker.js",
+	// Kept in step with the `workerd` version pnpm installs alongside wrangler.
+	// Raising it changes runtime behaviour, so raise it deliberately, not on drift.
+	"compatibility_date": "2026-07-30",
+	// `nodejs_compat` is not optional here: src/modules/commerce/index.ts imports
+	// the bare `crypto` specifier, and an isolate has no Node builtins without it.
+	// `global_fetch_strictly_public` makes a fetch to our own hostname leave the
+	// isolate and come back through the public internet, which is what the code
+	// building absolute URLs from NEXT_PUBLIC_APP_URL already assumes.
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	// Runtime logs, off by default. Cheap, and the only way to see a 500 that
+	// reproduces on Workers but not in `next dev`.
+	"observability": {
+		"enabled": true
+	}
+
+	// No `routes` yet, so a deploy lands on workers.dev. Adding the real domain
+	// is one entry here plus a matching NEXT_PUBLIC_APP_URL and Supabase auth
+	// redirect allowlist — all three, or sign-in redirects to the wrong host:
+	//
+	//   "routes": [{ "pattern": "events.example.com", "custom_domain": true }]
+	//
+	// See docs/DEPLOYMENT.md.
+	//
+	// Deliberately absent — every one of these welds the app to Cloudflare and
+	// none of them is load-bearing yet:
+	//
+	//   r2_buckets + WORKER_SELF_REFERENCE  the OpenNext incremental cache. Nothing
+	//     is incrementally cached: no route exports `revalidate` and no
+	//     `generateStaticParams` exists, so the cache would hold nothing.
+	//   images  Cloudflare Images, for next/image. No component imports next/image
+	//     (12 raw <img> tags — see the lint ratchet), so it would optimise nothing.
+	//     Add it with the <img> conversions, not before.
+	//
+	// Uploads are already resized in-process by @cf-wasm/photon and stored in
+	// Supabase Storage, which is host-independent. Keep it that way unless a
+	// measurement says otherwise.
+}

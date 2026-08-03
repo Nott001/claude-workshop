@@ -1,0 +1,9 @@
+# Runtime secrets for `wrangler dev` / `pnpm cf:preview`.
+# Copy to `.dev.vars` and fill in. `.dev.vars` is gitignored; never commit it.
+#
+# Only server-read values belong here. Every NEXT_PUBLIC_* variable is inlined
+# into the bundle by the Next compiler at build time, so it must be present in
+# the environment that runs `pnpm cf:build` — putting it here is too late to
+# have any effect. See docs/DEPLOYMENT.md.
+
+SUPABASE_SERVICE_ROLE_KEY=
