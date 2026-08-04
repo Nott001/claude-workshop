@@ -5,6 +5,16 @@ import { generateQRDataUrl } from "@/shared/integrations/qr";
 import type { CreatePaymentOptions, CreatePaymentResult, PaymentGateway } from "../index";
 import { generateQrToken } from "../index";
 
+/**
+ * NEXT_PUBLIC_APP_URL is hand-entered configuration, so it may or may not carry
+ * a trailing slash — the deployed value does, which produced `//checkout/123`.
+ * Normalising here keeps every caller from having to know that.
+ */
+export function buildCheckoutUrl(paymentId: number, appUrl = process.env.NEXT_PUBLIC_APP_URL): string {
+  const base = (appUrl?.trim() || "http://localhost:3000").replace(/\/+$/, "");
+  return `${base}/checkout/${paymentId}?success=true`;
+}
+
 export class SimulatedPaymentGateway implements PaymentGateway {
   async createPayment({
     payment_id,
@@ -51,7 +61,6 @@ export class SimulatedPaymentGateway implements PaymentGateway {
       }
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    return { checkout_url: `${appUrl}/checkout/${payment_id}?success=true` };
+    return { checkout_url: buildCheckoutUrl(payment_id) };
   }
 }
