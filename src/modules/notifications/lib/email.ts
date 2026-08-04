@@ -32,6 +32,11 @@ export async function sendEmailNotification(params: {
         eventDate,
         qrDataUrl: params.qrDataUrl,
       }),
+      textContent: template.buildText({
+        name: params.name,
+        eventTitle: params.eventTitle,
+        eventDate,
+      }),
     });
 
     if (!result.success && result.error) {

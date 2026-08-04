@@ -18,8 +18,12 @@ SMTP_HOST=
 SMTP_USER=
 SMTP_PASSWORD=
 
-# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 15000.
+# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 30000, 2.
+# SMTP_REPLY_TO is omitted unless set — a reply address nobody reads is worse
+# than none, so point it at a monitored mailbox or leave it blank.
 # SMTP_PORT=
 # SMTP_FROM_EMAIL=
 # SMTP_FROM_NAME=
+# SMTP_REPLY_TO=
 # SMTP_TIMEOUT_MS=
+# SMTP_ATTEMPTS=

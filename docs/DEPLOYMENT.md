@@ -64,9 +64,15 @@ back and shown in the run summary.
 
    Leave the three `SMTP_*` unset and email falls back to the console provider,
    which logs instead of sending — the app still works, nothing is delivered.
-   `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` and `SMTP_TIMEOUT_MS` are
-   optional overrides. None of these may be renamed to `NEXT_PUBLIC_*`: the
-   compiler inlines those into the client bundle, publishing the password.
+   `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
+   `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional overrides. None of these
+   may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
+   bundle, publishing the password.
+
+   Delivery runs after the response, so a slow send costs no request latency.
+   Deliverability depends on DNS the repository does not own — SPF, DKIM and
+   DMARC must all pass for `startuplab.center`, or mail lands in spam however
+   well-formed it is.
 
 3. **Create the GitHub `production` environment** (Settings → Environments) and
    add the secrets and variables from the table above. Add a required reviewer

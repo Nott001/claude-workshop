@@ -79,7 +79,26 @@ describe("buildMimeMessage", () => {
   });
 
   it("separates headers from the body with a blank line", () => {
-    expect(build("<p>Hello</p>")).toMatch(/MIME-Version: 1\.0\r\n[^\r]*\r\n\r\n/);
+    const message = build("<p>Hello</p>");
+    const [headers, ...body] = message.split("\r\n\r\n");
+
+    expect(headers).toContain("Content-Type: multipart/alternative");
+    expect(body.length).toBeGreaterThan(0);
+  });
+
+  it("declares itself auto-generated so filters read it as transactional", () => {
+    expect(build("<p>Hello</p>")).toContain("Auto-Submitted: auto-generated");
+  });
+
+  it("adds Reply-To only when one is configured", () => {
+    expect(build("<p>x</p>")).not.toContain("Reply-To:");
+    expect(build("<p>x</p>", { replyTo: "support@startuplab.center" })).toContain("Reply-To: <support@startuplab.center>");
+  });
+
+  it("prefers a written plain-text part over one derived from the HTML", () => {
+    const message = build("<h1>Ticket</h1><p>Details</p>", { text: "Ticket\n\nWritten by the template." });
+
+    expect(decodePart(message, 'text/plain; charset="UTF-8"')).toBe("Ticket\n\nWritten by the template.");
   });
 
   it("carries a plain-text alternative alongside the HTML", () => {
