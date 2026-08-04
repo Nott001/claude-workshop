@@ -13,9 +13,21 @@ interface CloudflareSocketsModule {
   ): CloudflareSocket;
 }
 
-// Held in a variable so no bundler tries to resolve `cloudflare:sockets` while
-// producing the Node build — the specifier only exists inside workerd.
 const SOCKETS_MODULE = "cloudflare:sockets";
+
+/**
+ * `cloudflare:sockets` exists only inside workerd, and the OpenNext build runs
+ * the server bundle through esbuild, which resolves dynamic imports statically
+ * and fails on it. The attached `.catch()` is esbuild's documented escape
+ * hatch: it downgrades the unresolved specifier from a build error to a
+ * runtime one, leaving the import in the output for workerd to satisfy.
+ * Removing it breaks `pnpm cf:build`, not just this module.
+ */
+async function loadSockets(): Promise<CloudflareSocketsModule> {
+  return (await import(/* webpackIgnore: true */ SOCKETS_MODULE).catch((cause: unknown) => {
+    throw new Error("cloudflare:sockets is unavailable in this runtime", { cause });
+  })) as CloudflareSocketsModule;
+}
 
 /** workerd identifies itself here; `next dev` and vitest do not. */
 export function isWorkerdRuntime(): boolean {
@@ -34,7 +46,7 @@ export async function connectSmtp(hostname: string, port: number): Promise<SmtpD
     );
   }
 
-  const { connect } = (await import(/* webpackIgnore: true */ SOCKETS_MODULE)) as CloudflareSocketsModule;
+  const { connect } = await loadSockets();
   const socket = connect({ hostname, port }, { secureTransport: "on", allowHalfOpen: false });
 
   return {
