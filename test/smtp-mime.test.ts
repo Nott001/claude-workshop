@@ -102,6 +102,18 @@ describe("buildMimeMessage", () => {
     expect(decodePart(message, 'text/html; charset="UTF-8"')).toContain(`src="cid:${cid}"`);
   });
 
+  it("carries the image bytes in the related part, not just its headers", () => {
+    // An empty part still parses and still shows the right Content-ID, so the
+    // structural assertions above pass while the recipient sees a broken image.
+    const payload = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const message = build(`<p><img src="data:image/png;base64,${payload}" alt="QR" /></p>`);
+
+    const imageSection = message.slice(message.indexOf("Content-ID:"));
+    const body = imageSection.split("\r\n\r\n")[1]?.split("\r\n--")[0] ?? "";
+
+    expect(body.replace(/\r\n/g, "")).toBe(payload);
+  });
+
   it("stays multipart/alternative when nothing is inlined", () => {
     const message = build("<p>Plain</p>");
     expect(message).toContain("Content-Type: multipart/alternative");
