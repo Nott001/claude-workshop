@@ -1,0 +1,43 @@
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+  timeoutMs: number;
+}
+
+const DEFAULT_PORT = 465;
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+function positiveInt(raw: string | undefined, fallback: number): number {
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * Returns null when the mailbox is not configured rather than throwing, so an
+ * unset password degrades to the console provider instead of failing every
+ * registration. Never name any of these `NEXT_PUBLIC_*`: the Next compiler
+ * inlines those into the client bundle, which would publish the password.
+ */
+export function readSmtpConfig(env: Record<string, string | undefined> = process.env): SmtpConfig | null {
+  const host = env.SMTP_HOST?.trim();
+  const username = env.SMTP_USER?.trim();
+  const password = env.SMTP_PASSWORD;
+
+  if (!host || !username || !password) return null;
+
+  return {
+    host,
+    port: positiveInt(env.SMTP_PORT, DEFAULT_PORT),
+    username,
+    password,
+    // cPanel rejects a MAIL FROM the authenticated account does not own, so the
+    // envelope sender defaults to the mailbox rather than to a display address.
+    fromEmail: env.SMTP_FROM_EMAIL?.trim() || username,
+    fromName: env.SMTP_FROM_NAME?.trim() || "Startup Lab",
+    timeoutMs: positiveInt(env.SMTP_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
+  };
+}
