@@ -9,7 +9,11 @@ export interface SmtpConfig {
 }
 
 const DEFAULT_PORT = 465;
-const DEFAULT_TIMEOUT_MS = 15_000;
+
+// A normal send against the live host takes ~4.5s, but the greeting sometimes
+// stalls well past that. Now that delivery happens after the response, waiting
+// longer costs nobody anything, where cutting it short loses the email.
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 function positiveInt(raw: string | undefined, fallback: number): number {
   const parsed = Number(raw);

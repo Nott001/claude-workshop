@@ -30,7 +30,9 @@ describe("readSmtpConfig", () => {
   });
 
   it("defaults to implicit-TLS SMTP with a bounded timeout", () => {
-    expect(readSmtpConfig(COMPLETE)).toMatchObject({ port: 465, timeoutMs: 15_000 });
+    // Generous on purpose: delivery runs after the response, so a slow greeting
+    // costs no one latency, while cutting it short loses the email outright.
+    expect(readSmtpConfig(COMPLETE)).toMatchObject({ port: 465, timeoutMs: 30_000 });
   });
 
   it("sends from the authenticated mailbox unless told otherwise", () => {
