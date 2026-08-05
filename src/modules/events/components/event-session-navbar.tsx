@@ -11,10 +11,6 @@ interface EventSessionNavbarProps {
   onExit?: () => void;
 }
 
-const imgLogo = "https://www.figma.com/api/mcp/asset/90f58a5a-a9a8-4a04-b906-4e4db8c1e19f";
-const imgName = "https://www.figma.com/api/mcp/asset/e4435c74-cf7b-49ed-b671-fb21ae21e4b2";
-const imgExit = "https://www.figma.com/api/mcp/asset/599c0b3c-da60-4dec-9ad9-adcf004c3fc5";
-
 export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, startTime, onExit }: EventSessionNavbarProps) {
   const [startsIn, setStartsIn] = useState("");
 
@@ -49,8 +45,10 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
     <div className="flex h-16 shrink-0 items-center border-b border-border bg-surface px-6">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <img src={imgLogo} alt="" className="size-8" />
-          <img src={imgName} alt="StartupLab" className="h-8 w-[56.88px]" />
+          <span className="grid size-8 place-items-center rounded-lg bg-brand text-white">
+            <span className="material-symbols-rounded text-[20px]">bolt</span>
+          </span>
+          <span className="text-base font-bold text-fg">StartupLab</span>
         </div>
         <div className="flex items-center pl-4">
           <span className="text-sm font-bold tracking-[0.7px] text-brand">{eventName}</span>
@@ -81,7 +79,7 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
         onClick={onExit}
         className="flex items-center gap-2 text-sm font-medium tracking-[0.7px] text-muted-fg transition-colors hover:text-fg"
       >
-        <img src={imgExit} alt="" className="size-3.5" />
+        <span className="material-symbols-rounded text-base">logout</span>
         EXIT EVENT ROOM
       </button>
     </div>

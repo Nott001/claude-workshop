@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Footer } from "@/shared/components/footer";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
@@ -39,7 +38,7 @@ export default function SpeakerCoursePage() {
 
   if (sessionPending || speakerLoading || courseLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg">
+      <div className="flex flex-1 items-center justify-center bg-bg">
         <div className="text-sm text-muted-fg">Loading...</div>
       </div>
     );
@@ -52,7 +51,7 @@ export default function SpeakerCoursePage() {
   const noCourse = !course && courseBuilder.modules.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <Link
           href={`/speaker/event/${eventId}`}
@@ -98,7 +97,6 @@ export default function SpeakerCoursePage() {
           </div>
         )}
       </div>
-      <Footer role="speaker" />
     </div>
   );
 }

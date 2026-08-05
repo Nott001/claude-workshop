@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
-import { Footer } from "@/shared/components/footer";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
@@ -430,7 +429,6 @@ export default function StaffEventDashboardPage() {
           <SurveysSection userRole={userRole} />
         </div>
       </div>
-      <Footer role={user?.role ?? null} />
     </div>
   );
 }

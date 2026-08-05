@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Footer } from "@/shared/components/footer";
 import { Toast } from "@/shared/components/toast";
-import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { EventForm, type EventPayload } from "@/modules/events/components/event-form";
 
 export default function StaffNewEventPage() {
   const router = useRouter();
-  const { user } = useSession();
   const { allowed, pending } = useRoleGuard("admin");
   const [showToast, setShowToast] = useState(false);
 
@@ -52,8 +49,6 @@ export default function StaffNewEventPage() {
           <Toast title="Event created successfully!" />
         </div>
       )}
-
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }

@@ -4,7 +4,6 @@ import { useParams } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import ChatPanel from "@/modules/chat/components/chat-panel";
-import { Footer } from "@/shared/components/footer";
 
 export default function StaffSupportPage() {
   const params = useParams();
@@ -30,7 +29,6 @@ export default function StaffSupportPage() {
         <p>Use this channel to communicate with event attendees.</p>
         <ChatPanel eventId={eventId} supportType="event" userRole={role} currentUserId={currentUserId} />
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }
