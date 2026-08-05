@@ -34,7 +34,8 @@ function post(body: unknown) {
 }
 
 const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: "speaker" };
-const TOKEN = "abc123def456abc123def456";
+// Low-entropy on purpose; see test/invite-redirect.test.ts.
+const TOKEN = "aaaabbbbccccddddeeeeffff";
 
 beforeEach(() => {
   vi.clearAllMocks();

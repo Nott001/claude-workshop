@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { GET } from "@/app/invite/route";
 
+/**
+ * Shaped like a real token but deliberately low-entropy: a random-looking
+ * 24-character string here is indistinguishable from a leaked key to the
+ * secret scanner, and failed the Security workflow as `generic-api-key`.
+ */
+const TOKEN = "aaaabbbbccccddddeeeeffff";
+
 const original = { ...process.env };
 
 beforeEach(() => {
@@ -18,19 +25,19 @@ function get(query: string) {
 
 describe("GET /invite", () => {
   it("forwards a valid token to Supabase's verification endpoint", async () => {
-    const res = await get("?token=abc123def456abc123def456");
+    const res = await get(`?token=${TOKEN}`);
     const location = new URL(res.headers.get("location") ?? "");
 
     expect(location.origin).toBe("https://proj.supabase.co");
     expect(location.pathname).toBe("/auth/v1/verify");
-    expect(location.searchParams.get("token")).toBe("abc123def456abc123def456");
+    expect(location.searchParams.get("token")).toBe(TOKEN);
     expect(location.searchParams.get("type")).toBe("invite");
   });
 
   it("returns the invitee to the auth callback, not the site root", async () => {
     // Supabase strips the path from a redirect target that is not allowlisted,
     // which is what left an earlier invite landing nowhere useful.
-    const res = await get("?token=abc123def456abc123def456");
+    const res = await get(`?token=${TOKEN}`);
     const location = new URL(res.headers.get("location") ?? "");
 
     expect(location.searchParams.get("redirect_to")).toBe("https://events.example.com/api/auth/callback");
@@ -51,7 +58,7 @@ describe("GET /invite", () => {
   it("cannot be used as an open redirect", async () => {
     // Only the token comes from the caller; both the destination and the return
     // address are built from configuration.
-    const res = await get("?token=abc123def456abc123def456&redirect_to=https://evil.example&next=https://evil.example");
+    const res = await get(`?token=${TOKEN}&redirect_to=https://evil.example&next=https://evil.example`);
     const location = new URL(res.headers.get("location") ?? "");
 
     expect(location.origin).toBe("https://proj.supabase.co");
