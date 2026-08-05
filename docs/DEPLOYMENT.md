@@ -77,8 +77,9 @@ back and shown in the run summary.
      on. A `redirectTo` that is not on the allowlist is silently replaced by the
      Site URL with its path stripped, which sends invitees somewhere that cannot
      complete their session.
-   - **Emails → Invite user** should use `docs/supabase-invite-template.html`.
-     The default is a bare heading and a link, which filters read as a fragment.
+     Organization invites no longer use a Supabase template: the worker builds
+     and sends that message itself, so it is edited in
+     `src/shared/integrations/email/templates.ts` like the ticket emails.
 
    Delivery runs after the response, so a slow send costs no request latency.
    Deliverability depends on DNS the repository does not own — SPF, DKIM and

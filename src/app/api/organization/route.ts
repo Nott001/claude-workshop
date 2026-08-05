@@ -8,6 +8,8 @@ import { logAuditEvent } from "@/modules/audit";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES, INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 import { appBaseUrl } from "@/shared/lib/app-url";
+import { getEmailService } from "@/shared/integrations/email";
+import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
 
 const PAGE_SIZE = 10;
 
@@ -63,37 +65,56 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
   }
 
-  // Supabase both creates the account and sends the invitation, so it goes out
-  // over the custom SMTP configured for this project rather than needing its
-  // own template and transport.
-  const { data: invited, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(parsed.data.email, {
-    // user_metadata, so the email template can render it. Display only — the
-    // copy that grants access lives in app_metadata below, because the account
-    // holder can rewrite this one.
-    data: { full_name: parsed.data.full_name, role: parsed.data.role },
-    redirectTo: `${appBaseUrl()}/api/auth/callback`,
+  // `generateLink` creates the account and returns the invitation token without
+  // sending anything, which leaves the message itself to this project: the same
+  // template, transport and mail server as the ticket emails, rather than a
+  // template that can only be edited in a dashboard.
+  const { data: link, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email: parsed.data.email,
+    options: { redirectTo: `${appBaseUrl()}/api/auth/callback` },
   });
 
-  if (inviteError || !invited?.user) {
-    const alreadyRegistered = /already|registered|exists/i.test(inviteError?.message ?? "");
+  if (linkError || !link?.user || !link.properties?.hashed_token) {
+    const alreadyRegistered = /already|registered|exists/i.test(linkError?.message ?? "");
     return NextResponse.json(
-      { error: { message: alreadyRegistered ? "A user with this email already exists" : "Failed to send the invitation" } },
+      { error: { message: alreadyRegistered ? "A user with this email already exists" : "Failed to create the invitation" } },
       { status: alreadyRegistered ? 409 : 502 },
     );
   }
 
-  // Written after the invite because the account does not exist until then. The
-  // role is only read once the invitee signs in, which cannot happen before
-  // they open the email, so the gap is not reachable in practice.
-  const { error: roleError } = await supabase.auth.admin.updateUserById(invited.user.id, {
+  const { error: roleError } = await supabase.auth.admin.updateUserById(link.user.id, {
     app_metadata: { [INVITED_ROLE_KEY]: parsed.data.role },
   });
 
   if (roleError) {
-    return NextResponse.json(
-      { error: { message: "Invitation sent, but the role could not be attached. Re-send the invite to retry." } },
-      { status: 500 },
-    );
+    await supabase.auth.admin.deleteUser(link.user.id);
+    return NextResponse.json({ error: { message: "Failed to prepare the invitation" } }, { status: 500 });
+  }
+
+  const template = memberInvitedTemplate;
+  const params = {
+    name: parsed.data.full_name,
+    role: parsed.data.role,
+    // Fronted by our own domain rather than linking straight to Supabase: see
+    // src/app/invite/route.ts.
+    acceptUrl: `${appBaseUrl()}/invite?token=${link.properties.hashed_token}`,
+  };
+
+  // Awaited rather than deferred: an admin needs to be told the invitation did
+  // not go out, which a response sent before the attempt cannot do.
+  const sent = await getEmailService().send({
+    to: { email: parsed.data.email, name: parsed.data.full_name },
+    subject: template.subject,
+    htmlContent: template.buildHtml(params),
+    textContent: template.buildText(params),
+  });
+
+  if (!sent.success) {
+    // The half-created account would otherwise block a retry with "already
+    // registered" while its owner has never heard of it.
+    await supabase.auth.admin.deleteUser(link.user.id);
+    return NextResponse.json({ error: { message: "Could not send the invitation email" } }, { status: 502 });
   }
 
   await logAuditEvent(supabase, guard.user.id, "organization.invited", "user", null, {

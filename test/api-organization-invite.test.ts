@@ -2,21 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireRole, findStaffByEmail, listStaff, logAuditEvent, inviteUserByEmail, updateUserById } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
-  findStaffByEmail: vi.fn(),
-  listStaff: vi.fn(),
-  logAuditEvent: vi.fn(),
-  inviteUserByEmail: vi.fn(),
-  updateUserById: vi.fn(),
-}));
+const { requireRole, findStaffByEmail, listStaff, logAuditEvent, generateLink, updateUserById, deleteUser, send } = vi.hoisted(
+  () => ({
+    requireRole: vi.fn(),
+    findStaffByEmail: vi.fn(),
+    listStaff: vi.fn(),
+    logAuditEvent: vi.fn(),
+    generateLink: vi.fn(),
+    updateUserById: vi.fn(),
+    deleteUser: vi.fn(),
+    send: vi.fn(),
+  }),
+);
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({
-  getServiceClient: () => ({ auth: { admin: { inviteUserByEmail, updateUserById } } }),
+  getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
 vi.mock("@/shared/db/dao", () => ({ userDao: { findStaffByEmail, listStaff } }));
 vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
 import { POST } from "@/app/api/organization/route";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
@@ -29,41 +34,55 @@ function post(body: unknown) {
 }
 
 const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: "speaker" };
+const TOKEN = "abc123def456abc123def456";
 
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(admin);
   findStaffByEmail.mockResolvedValue(null);
-  inviteUserByEmail.mockResolvedValue({ data: { user: { id: "auth-1" } }, error: null });
+  generateLink.mockResolvedValue({ data: { user: { id: "auth-1" }, properties: { hashed_token: TOKEN } }, error: null });
   updateUserById.mockResolvedValue({ error: null });
+  deleteUser.mockResolvedValue({ error: null });
+  send.mockResolvedValue({ success: true });
   logAuditEvent.mockResolvedValue(undefined);
 });
 
 describe("POST /api/organization", () => {
-  it("sends the invitation through Supabase", async () => {
+  it("sends the invitation itself rather than letting Supabase mail it", async () => {
     const res = await POST(post(INVITE));
 
     expect(res.status).toBe(201);
-    expect(inviteUserByEmail).toHaveBeenCalledWith(
-      "jane@example.com",
-      expect.objectContaining({ data: { full_name: "Jane Doe", role: "speaker" } }),
-    );
+    // generateLink creates the account without sending anything.
+    expect(generateLink).toHaveBeenCalledWith(expect.objectContaining({ type: "invite", email: "jane@example.com" }));
+    expect(send).toHaveBeenCalledOnce();
   });
 
-  it("carries the role into user_metadata for the template without granting it there", async () => {
+  it("addresses the message to the invitee and names their role", async () => {
     await POST(post(INVITE));
+    const sent = send.mock.calls[0][0];
 
-    // The template renders .Data.role; ensure-user ignores it and reads
-    // app_metadata, so a user rewriting their own metadata gains nothing.
-    expect(inviteUserByEmail.mock.calls[0][1].data.role).toBe("speaker");
-    expect(updateUserById).toHaveBeenCalledWith("auth-1", { app_metadata: { [INVITED_ROLE_KEY]: "speaker" } });
+    expect(sent.to).toEqual({ email: "jane@example.com", name: "Jane Doe" });
+    expect(sent.htmlContent).toContain("speaker");
+    expect(sent.textContent).toContain("speaker");
   });
 
-  it("points the invite link at the auth callback without doubling the slash", async () => {
+  it("carries a written plain-text alternative, not just HTML", async () => {
     await POST(post(INVITE));
+    const sent = send.mock.calls[0][0];
 
-    const { redirectTo } = inviteUserByEmail.mock.calls[0][1];
-    expect(redirectTo).toMatch(/^https?:\/\/[^/]+(\/[^/]+)*\/api\/auth\/callback$/);
+    expect(sent.textContent).toContain("Startup Lab");
+    expect(sent.textContent).not.toContain("<");
+  });
+
+  it("links to our own domain rather than straight to Supabase", async () => {
+    // A message from startuplab.center whose only link points at supabase.co is
+    // the shape of a phishing attempt, and filters weight it accordingly.
+    await POST(post(INVITE));
+    const sent = send.mock.calls[0][0];
+
+    expect(sent.htmlContent).toContain(`/invite?token=${TOKEN}`);
+    expect(sent.htmlContent).not.toContain("supabase.co");
+    expect(sent.textContent).not.toContain("supabase.co");
   });
 
   it("records the granted role where only the service role can write it", async () => {
@@ -74,8 +93,8 @@ describe("POST /api/organization", () => {
     expect(updateUserById).toHaveBeenCalledWith("auth-1", { app_metadata: { [INVITED_ROLE_KEY]: "speaker" } });
   });
 
-  it("writes the audit row only once the invite has actually gone out", async () => {
-    inviteUserByEmail.mockResolvedValue({ data: null, error: { message: "smtp unavailable" } });
+  it("writes the audit row only once the mail has actually gone out", async () => {
+    send.mockResolvedValue({ success: false, error: "SMTP session timed out" });
 
     const res = await POST(post(INVITE));
 
@@ -83,37 +102,49 @@ describe("POST /api/organization", () => {
     expect(logAuditEvent).not.toHaveBeenCalled();
   });
 
-  it("reports a duplicate as a conflict rather than a send failure", async () => {
-    inviteUserByEmail.mockResolvedValue({ data: null, error: { message: "User already registered" } });
+  it("removes the half-created account when the mail cannot be sent", async () => {
+    // Otherwise a retry hits "already registered" for an account whose owner
+    // has never heard of it.
+    send.mockResolvedValue({ success: false, error: "connection refused" });
 
-    const res = await POST(post(INVITE));
+    await POST(post(INVITE));
 
-    expect(res.status).toBe(409);
+    expect(deleteUser).toHaveBeenCalledWith("auth-1");
   });
 
-  it("does not claim success when the role could not be attached", async () => {
+  it("removes the account when the role could not be attached", async () => {
     updateUserById.mockResolvedValue({ error: { message: "metadata write failed" } });
 
     const res = await POST(post(INVITE));
 
     expect(res.status).toBe(500);
-    expect(await res.json()).toMatchObject({ error: { message: expect.stringContaining("role") } });
+    expect(deleteUser).toHaveBeenCalledWith("auth-1");
+    expect(send).not.toHaveBeenCalled();
   });
 
-  it("rejects an existing user before sending anything", async () => {
+  it("reports a duplicate as a conflict rather than a send failure", async () => {
+    generateLink.mockResolvedValue({ data: null, error: { message: "User already registered" } });
+
+    const res = await POST(post(INVITE));
+
+    expect(res.status).toBe(409);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects an existing user before creating anything", async () => {
     findStaffByEmail.mockResolvedValue({ id: 9 });
 
     const res = await POST(post(INVITE));
 
     expect(res.status).toBe(409);
-    expect(inviteUserByEmail).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   it("stops an admin from inviting another admin", async () => {
     const res = await POST(post({ ...INVITE, role: "admin" }));
 
     expect(res.status).toBe(403);
-    expect(inviteUserByEmail).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   it("lets a super admin invite an admin", async () => {
@@ -131,7 +162,7 @@ describe("POST /api/organization", () => {
     const res = await POST(post({ ...INVITE, role: "super_admin" }));
 
     expect(res.status).toBe(400);
-    expect(inviteUserByEmail).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   it("issues no invitation when the caller is not staff", async () => {
@@ -139,7 +170,7 @@ describe("POST /api/organization", () => {
 
     await POST(post(INVITE));
 
-    expect(inviteUserByEmail).not.toHaveBeenCalled();
-    expect(findStaffByEmail).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 });
