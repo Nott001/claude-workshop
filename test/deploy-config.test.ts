@@ -79,6 +79,15 @@ describe("wrangler configuration", () => {
     expect(gitignore).toMatch(/^\/\.open-next\/$/m);
     expect(gitignore).toMatch(/^\.dev\.vars\*$/m);
   });
+
+  it("ships an icon at both paths a browser asks for", () => {
+    // With neither present, `/favicon.ico` misses the ASSETS binding, falls
+    // through to the Worker and starts the server to render a 404 — which is
+    // enough to exhaust a cold isolate's CPU budget on its own.
+    const ico = readFileSync("src/app/favicon.ico");
+    expect(ico.subarray(0, 4)).toEqual(Buffer.from([0x00, 0x00, 0x01, 0x00]));
+    expect(readFileSync("src/app/icon.svg", "utf8")).toContain("<svg");
+  });
 });
 
 describe("continuous integration", () => {
