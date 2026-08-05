@@ -1,17 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, requireRole, list, create, eventFindById, updateField, findCourseById, logAuditEvent } = vi.hoisted(
-  () => ({
-    requireAuth: vi.fn(),
-    requireRole: vi.fn(),
-    list: vi.fn(),
-    create: vi.fn(),
-    eventFindById: vi.fn(),
-    updateField: vi.fn(),
-    findCourseById: vi.fn(),
-    logAuditEvent: vi.fn(),
-  }),
-);
+const {
+  requireAuth,
+  requireRole,
+  list,
+  create,
+  eventFindById,
+  updateField,
+  findCourseById,
+  logAuditEvent,
+  replaceEventAssignments,
+  speakerReplaceEventAssignments,
+} = vi.hoisted(() => ({
+  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
+  list: vi.fn(),
+  create: vi.fn(),
+  eventFindById: vi.fn(),
+  updateField: vi.fn(),
+  findCourseById: vi.fn(),
+  logAuditEvent: vi.fn(),
+  replaceEventAssignments: vi.fn(),
+  speakerReplaceEventAssignments: vi.fn(),
+}));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
@@ -19,6 +30,8 @@ vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao", () => ({
   eventDao: { list, create, findById: eventFindById, updateField },
   courseDao: { findCourseById },
+  facilitatorDao: { replaceEventAssignments },
+  speakerDao: { replaceEventAssignments: speakerReplaceEventAssignments },
 }));
 vi.mock("@/modules/audit", () => ({ logAuditEvent }));
 
@@ -56,6 +69,8 @@ beforeEach(() => {
   create.mockResolvedValue({ id: 1, ...validEvent });
   eventFindById.mockResolvedValue({ id: 1, status: "draft" });
   updateField.mockResolvedValue(true);
+  replaceEventAssignments.mockResolvedValue(true);
+  speakerReplaceEventAssignments.mockResolvedValue(true);
 });
 
 describe("GET /api/events", () => {
@@ -125,6 +140,65 @@ describe("POST /api/events creation", () => {
     const res = await POST(postEvent(validEvent));
 
     expect(res.status).toBe(500);
+  });
+
+  it("records facilitator assignments passed at creation", async () => {
+    const res = await POST(postEvent({ ...validEvent, facilitator_ids: [2, 7] }));
+
+    expect(res.status).toBe(201);
+    expect(replaceEventAssignments).toHaveBeenCalledWith({}, 1, [2, 7], 9);
+    expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "event.created", "event", 1, {
+      title: "Launch Day",
+      facilitator_ids: [2, 7],
+      speaker_profile_ids: undefined,
+    });
+  });
+
+  it("skips assignment when no facilitator_ids are sent", async () => {
+    await POST(postEvent(validEvent));
+
+    expect(replaceEventAssignments).not.toHaveBeenCalled();
+    expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "event.created", "event", 1, {
+      title: "Launch Day",
+      facilitator_ids: undefined,
+      speaker_profile_ids: undefined,
+    });
+  });
+
+  it("returns 500 when the facilitator assignment fails", async () => {
+    replaceEventAssignments.mockResolvedValue(false);
+
+    const res = await POST(postEvent({ ...validEvent, facilitator_ids: [2] }));
+
+    expect(res.status).toBe(500);
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it("records speaker assignments passed at creation", async () => {
+    const res = await POST(postEvent({ ...validEvent, speaker_profile_ids: [4, 8] }));
+
+    expect(res.status).toBe(201);
+    expect(speakerReplaceEventAssignments).toHaveBeenCalledWith({}, 1, [4, 8]);
+    expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "event.created", "event", 1, {
+      title: "Launch Day",
+      facilitator_ids: undefined,
+      speaker_profile_ids: [4, 8],
+    });
+  });
+
+  it("skips speaker sync when no speaker_profile_ids are sent", async () => {
+    await POST(postEvent(validEvent));
+
+    expect(speakerReplaceEventAssignments).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when the speaker assignment fails", async () => {
+    speakerReplaceEventAssignments.mockResolvedValue(false);
+
+    const res = await POST(postEvent({ ...validEvent, speaker_profile_ids: [4] }));
+
+    expect(res.status).toBe(500);
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });
 

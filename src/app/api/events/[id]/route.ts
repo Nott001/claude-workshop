@@ -3,7 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { eventDao, courseDao } from "@/shared/db/dao";
+import { eventDao, courseDao, facilitatorDao, speakerDao } from "@/shared/db/dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage, listStorageFolder, type StorageBucket } from "@/shared/integrations/storage";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -28,7 +28,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   if (hasMinRole(userRole, "facilitator")) {
     const attendeeCount = await eventDao.getAttendeeCount(supabase, Number(id));
-    return NextResponse.json({ ...event, attendee_count: attendeeCount });
+    return NextResponse.json({
+      ...event,
+      attendee_count: attendeeCount,
+      facilitator_ids: (event.EVENT_FACILITATOR ?? []).map((f) => f.user_id),
+      speaker_profile_ids: (event.EVENT_SPEAKER ?? []).map((es) => es.speaker_profile_id),
+    });
   }
 
   return NextResponse.json(event);
@@ -64,7 +69,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  const event = await eventDao.update(supabase, Number(id), parsed.data);
+  // facilitator_ids and speaker_profile_ids are not EVENT columns; they are
+  // synced to their join tables so they must not reach the EVENT update.
+  const { facilitator_ids, speaker_profile_ids, ...eventFields } = parsed.data;
+
+  if (facilitator_ids !== undefined) {
+    const synced = await facilitatorDao.replaceEventAssignments(supabase, Number(id), facilitator_ids, guard.user.id);
+    if (!synced) {
+      return NextResponse.json({ error: { message: "Failed to update facilitators" } }, { status: 500 });
+    }
+  }
+
+  if (speaker_profile_ids !== undefined) {
+    const synced = await speakerDao.replaceEventAssignments(supabase, Number(id), speaker_profile_ids);
+    if (!synced) {
+      return NextResponse.json({ error: { message: "Failed to update speakers" } }, { status: 500 });
+    }
+  }
+
+  const event = await eventDao.update(supabase, Number(id), eventFields);
 
   if (!event) {
     return NextResponse.json({ error: { message: "Failed to update event" } }, { status: 500 });

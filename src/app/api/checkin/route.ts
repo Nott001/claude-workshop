@@ -6,6 +6,7 @@ import { ticketDao, eventDao } from "@/shared/db/dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
 import { canTransitionTicket } from "@/modules/commerce";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
+import { afterResponse } from "@/shared/lib/after-response";
 import { logAuditEvent } from "@/modules/audit";
 
 export async function POST(req: Request) {
@@ -48,14 +49,19 @@ export async function POST(req: Request) {
 
   const userInfo = ticket.USER;
   if (userInfo) {
-    const eventData = await eventDao.findById(supabase, ticket.event_id);
-    await sendEmailNotification({
-      user_id: ticket.user_id,
-      email: userInfo.email,
-      name: userInfo.full_name,
-      email_type: "check_in_confirmed",
-      eventTitle: eventData?.title ?? "",
-      eventDate: eventData?.event_date ?? "",
+    // Deferred for the same reason as the ticket email, and more sharply: a
+    // kiosk queue cannot wait several seconds per attendee on an SMTP round
+    // trip that has nothing to do with admitting them.
+    afterResponse(async () => {
+      const eventData = await eventDao.findById(supabase, ticket.event_id);
+      await sendEmailNotification({
+        user_id: ticket.user_id,
+        email: userInfo.email,
+        name: userInfo.full_name,
+        email_type: "check_in_confirmed",
+        eventTitle: eventData?.title ?? "",
+        eventDate: eventData?.event_date ?? "",
+      });
     });
   }
 

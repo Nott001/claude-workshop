@@ -13,6 +13,8 @@ const eventBaseSchema = z.object({
   currency: z.string().length(3).optional(),
   cover_image_url: z.string().nullable().optional(),
   status: z.enum(["draft", "active", "complete"]).optional(),
+  facilitator_ids: z.array(z.coerce.number().int().positive()).optional(),
+  speaker_profile_ids: z.array(z.coerce.number().int().positive()).optional(),
 });
 
 export const eventSchema = eventBaseSchema.refine((data) => data.start_time < data.end_time, {

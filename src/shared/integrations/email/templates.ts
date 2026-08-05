@@ -19,7 +19,8 @@ function checkInConfirmedHtml(params: { name: string; eventTitle: string }): str
 
 export const emailTemplates = {
   ticketIssued: {
-    subject: "Registration Confirmed &mdash; Your Ticket Is Ready",
+    // A Subject header is not HTML: an entity here reaches the inbox literally.
+    subject: "Registration Confirmed — Your Ticket Is Ready",
     buildHtml: ticketIssuedHtml,
   },
   checkInConfirmed: {

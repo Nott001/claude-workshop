@@ -3,7 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { eventDao } from "@/shared/db/dao";
+import { eventDao, facilitatorDao, speakerDao } from "@/shared/db/dao";
 import { eventSchema } from "@/modules/events/lib/schemas";
 import { logAuditEvent } from "@/modules/audit";
 
@@ -52,8 +52,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: "Failed to create event" } }, { status: 500 });
   }
 
+  const facilitatorIds = parsed.data.facilitator_ids ?? [];
+  if (facilitatorIds.length > 0) {
+    const assigned = await facilitatorDao.replaceEventAssignments(supabase, event.id, facilitatorIds, guard.user.id);
+    if (!assigned) {
+      return NextResponse.json({ error: { message: "Failed to assign facilitators" } }, { status: 500 });
+    }
+  }
+
+  const speakerProfileIds = parsed.data.speaker_profile_ids ?? [];
+  if (speakerProfileIds.length > 0) {
+    const assigned = await speakerDao.replaceEventAssignments(supabase, event.id, speakerProfileIds);
+    if (!assigned) {
+      return NextResponse.json({ error: { message: "Failed to assign speakers" } }, { status: 500 });
+    }
+  }
+
   await logAuditEvent(supabase, guard.user.id, "event.created", "event", event.id, {
     title: event.title,
+    facilitator_ids: facilitatorIds.length > 0 ? facilitatorIds : undefined,
+    speaker_profile_ids: speakerProfileIds.length > 0 ? speakerProfileIds : undefined,
   });
 
   return NextResponse.json(event, { status: 201 });

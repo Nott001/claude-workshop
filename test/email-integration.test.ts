@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { ConsoleEmailProvider } from "@/shared/integrations/email/providers/console";
-import { getEmailService, configureEmailService } from "@/shared/integrations/email";
+import { getEmailService, configureEmailService, createDefaultProvider, resetEmailService } from "@/shared/integrations/email";
 import type { EmailProvider } from "@/shared/integrations/email/types";
 
 describe("ConsoleEmailProvider", () => {
@@ -26,14 +26,46 @@ describe("ConsoleEmailProvider", () => {
   });
 });
 
+describe("createDefaultProvider", () => {
+  const original = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...original };
+    resetEmailService();
+  });
+
+  it("logs to the console when no mailbox is configured", () => {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+
+    expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
+  it("still logs off-workerd even with credentials, since no socket exists", () => {
+    // vitest runs on Node, which is exactly the `next dev` situation: the
+    // credentials are present but `cloudflare:sockets` is not.
+    process.env.SMTP_HOST = "mail.startuplab.center";
+    process.env.SMTP_USER = "no-reply@startuplab.center";
+    process.env.SMTP_PASSWORD = "s3cret";
+
+    expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+});
+
 describe("EmailService singleton", () => {
   afterEach(() => {
     configureEmailService(new ConsoleEmailProvider());
   });
 
   it("auto-initializes with ConsoleEmailProvider", () => {
-    const service = getEmailService();
-    expect(service).toBeInstanceOf(ConsoleEmailProvider);
+    resetEmailService();
+    expect(getEmailService()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
+  it("resolves the provider once and reuses it", () => {
+    resetEmailService();
+    expect(getEmailService()).toBe(getEmailService());
   });
 
   it("configureEmailService overrides the provider", () => {
@@ -56,5 +88,11 @@ describe("EmailService singleton", () => {
     };
     configureEmailService(mockB);
     expect(getEmailService()).toBe(mockB);
+  });
+
+  it("falls back to the default again after a reset", () => {
+    configureEmailService({ send: async () => ({ success: true }) });
+    resetEmailService();
+    expect(getEmailService()).toBeInstanceOf(ConsoleEmailProvider);
   });
 });

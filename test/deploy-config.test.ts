@@ -11,6 +11,7 @@ import { join } from "node:path";
  */
 const wranglerSource = readFileSync("wrangler.jsonc", "utf8");
 const deployWorkflow = readFileSync(".github/workflows/deploy.yml", "utf8");
+const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 
 /**
  * Minimal JSONC reader: strips comments and trailing commas. Sufficient for a
@@ -76,6 +77,17 @@ describe("wrangler configuration", () => {
     const gitignore = readFileSync(".gitignore", "utf8");
     expect(gitignore).toMatch(/^\/\.open-next\/$/m);
     expect(gitignore).toMatch(/^\.dev\.vars\*$/m);
+  });
+});
+
+describe("continuous integration", () => {
+  it("bundles the worker rather than only building Next", () => {
+    // `next build` cannot fail on a specifier that only esbuild resolves, so a
+    // change can pass format, lint, typecheck and the whole unit suite and still
+    // be undeployable. An SMTP provider importing `cloudflare:sockets` did
+    // exactly that. CI has to run the same command the deploy runs.
+    expect(ciWorkflow).toMatch(/^\s+- run: pnpm cf:build$/m);
+    expect(ciWorkflow, "pnpm build alone does not exercise the worker bundle").not.toMatch(/^\s+- run: pnpm build$/m);
   });
 });
 
