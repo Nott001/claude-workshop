@@ -9,11 +9,9 @@ const { requireAuth, eventFindById, findActiveByUserAndEvent, findPendingByUserA
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  eventDao: { findById: eventFindById },
-  ticketDao: { findActiveByUserAndEvent },
-  paymentDao: { findPendingByUserAndEvent },
-}));
+vi.mock("@/shared/db/dao/event.dao", () => ({ findById: eventFindById }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveByUserAndEvent }));
+vi.mock("@/shared/db/dao/payment.dao", () => ({ findPendingByUserAndEvent }));
 
 import { GET, POST } from "@/app/api/events/[id]/register/route";
 

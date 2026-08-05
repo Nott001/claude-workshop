@@ -3,9 +3,10 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao, speakerDao } from "@/shared/db/dao";
+import * as courseDao from "@/shared/db/dao/course.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET() {
   const guard = await requireRole("admin");

@@ -1,11 +1,11 @@
 "use client";
 
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 
 import { Footer } from "@/shared/components/footer";
 import { formatEventDate, formatTime, eventStatusLabel } from "@/shared/lib/date-utils";
 import { useUpcomingEvents } from "@/modules/events/lib/use-upcoming-events";
-import { EventGrid } from "@/modules/events/ui/event-grid";
+import { EventGrid } from "@/modules/events/components/event-grid";
 
 export default function HomePage() {
   const { user } = useSession();

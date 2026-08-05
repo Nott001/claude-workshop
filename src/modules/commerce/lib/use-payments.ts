@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 // The route serves paymentDao rows verbatim. The copy that used to live here
 // called the key `payment_id` (PAYMENT's key is `id`) and the embed `EVENTS`
 // (it is `EVENT`), so every row had an undefined key and an "Unknown" event.

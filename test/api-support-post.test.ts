@@ -10,8 +10,12 @@ const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMe
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  chatDao: { countRecentByUser, findActiveSession, createSession, sendMessage, listSupportMessages: vi.fn() },
+vi.mock("@/shared/db/dao/chat.dao", () => ({
+  countRecentByUser,
+  findActiveSession,
+  createSession,
+  sendMessage,
+  listSupportMessages: vi.fn(),
 }));
 
 import { POST } from "@/app/api/support/route";

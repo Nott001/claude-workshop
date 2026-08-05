@@ -54,20 +54,36 @@ function formatDate(date: Date): string {
  * all, so every message carries a plain-text alternative derived from the HTML.
  */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
-    .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, "$1")
-    .replace(/<img[^>]*>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&mdash;/g, "\u2014")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
+  let text = html;
+  let previous: string;
+
+  // Re-apply multi-character tag stripping until stable so dangerous sequences
+  // cannot reappear after intermediate removals.
+  do {
+    previous = text;
+    text = text
+      .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
+      .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, "$1")
+      .replace(/<img[^>]*>/gi, "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "");
+  } while (text !== previous);
+
+  // Decode entities to text; iterate to handle nested encodings.
+  do {
+    previous = text;
+    text = text
+      .replace(/&mdash;/g, "\u2014")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+  } while (text !== previous);
+
+  return text
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
-import { eventDao } from "@/shared/db/dao";
-import { isStorageBucket, COURSE_CONTENT_BUCKETS, type StorageBucket } from "@/shared/integrations/storage";
+import * as courseDao from "@/shared/db/dao/course.dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
+import { isStorageBucket, COURSE_CONTENT_BUCKETS } from "@/shared/integrations/storage/policy";
+import type { StorageBucket } from "@/shared/integrations/storage/policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 type Db = ReturnType<typeof getServiceClient>;

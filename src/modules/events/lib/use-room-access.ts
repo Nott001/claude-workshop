@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";

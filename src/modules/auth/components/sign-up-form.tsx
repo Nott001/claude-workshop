@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/ui/form";
+import { Button } from "@/shared/components/button";
+import { Input } from "@/shared/components/input";
+import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { VerifyEmailCard } from "./verify-email-card";
 
 export function SignUpForm() {

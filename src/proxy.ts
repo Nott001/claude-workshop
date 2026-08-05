@@ -27,7 +27,7 @@ const isProtectedRoute = (req: NextRequest) => {
   return false;
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next({ request: { headers: req.headers } });
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {

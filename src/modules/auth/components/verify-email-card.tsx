@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { Button } from "@/shared/components/ui/button";
+import { Button } from "@/shared/components/button";
 
 export function VerifyEmailCard({ email }: { email: string }) {
   const [resent, setResent] = useState(false);

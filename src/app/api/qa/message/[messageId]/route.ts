@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { chatDao } from "@/shared/db/dao";
+import * as chatDao from "@/shared/db/dao/chat.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {

@@ -9,10 +9,8 @@ const { updateStatus, findEventForPayment, ticketCreate, sendEmailNotification, 
 }));
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  paymentDao: { updateStatus, findEventForPayment },
-  ticketDao: { create: ticketCreate },
-}));
+vi.mock("@/shared/db/dao/payment.dao", () => ({ updateStatus, findEventForPayment }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ create: ticketCreate }));
 vi.mock("@/modules/notifications/lib/email", () => ({ sendEmailNotification }));
 vi.mock("@/shared/integrations/qr", () => ({ generateQRDataUrl }));
 // Run the deferred work inline so its effects are observable here.

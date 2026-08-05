@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input } from "@/shared/components/ui/input";
-import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/input";
+import { Button } from "@/shared/components/button";
 import { subscribeToCheckins, unsubscribe } from "@/shared/integrations/realtime";
 
 interface Attendee {

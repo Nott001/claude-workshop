@@ -1,5 +1,5 @@
 import { getServiceClient } from "@/shared/db/client";
-import { userDao } from "@/shared/db/dao";
+import * as userDao from "@/shared/db/dao/user.dao";
 import type { AuthUser } from "./types";
 import { readInvitedRole } from "./invited-role";
 

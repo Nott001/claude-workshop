@@ -1,6 +1,6 @@
 import { Footer } from "@/shared/components/footer";
 import { supabase } from "@/shared/db/client";
-import { eventDao } from "@/shared/db/dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import type { LandingEvent } from "@/shared/types";
 import { toLandingEvent } from "@/modules/events/lib/landing-event";

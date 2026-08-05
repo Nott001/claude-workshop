@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { Footer } from "@/shared/components/footer";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 

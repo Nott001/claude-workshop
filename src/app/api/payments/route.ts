@@ -3,8 +3,9 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { paymentDao, ticketDao } from "@/shared/db/dao";
-import { paymentInitSchema } from "@/modules/commerce";
+import * as paymentDao from "@/shared/db/dao/payment.dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 

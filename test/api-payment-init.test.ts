@@ -13,10 +13,9 @@ const { requireAuth, findEventForPayment, findLatestByUserAndEvent, findActiveBy
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  paymentDao: { findEventForPayment, findLatestByUserAndEvent, create },
-  ticketDao: { findActiveByUserAndEvent },
-}));
+vi.mock("@/shared/db/dao/payment.dao", () => ({ findEventForPayment, findLatestByUserAndEvent, create }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveByUserAndEvent }));
+
 vi.mock("@/modules/commerce/lib/payment-gateway", () => ({
   SimulatedPaymentGateway: class {
     createPayment = createPayment;

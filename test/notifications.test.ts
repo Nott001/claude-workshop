@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emailLogFilterSchema } from "@/modules/notifications";
+import { emailLogFilterSchema } from "@/modules/notifications/lib/email-log-schema";
 import type { EmailLog, EmailType, EmailStatus } from "@/shared/types";
 import { emailTemplates } from "@/shared/integrations/email/templates";
 

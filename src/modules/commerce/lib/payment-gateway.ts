@@ -1,11 +1,34 @@
 import { getServiceClient } from "@/shared/db/client";
-import { paymentDao, ticketDao } from "@/shared/db/dao";
+import * as paymentDao from "@/shared/db/dao/payment.dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
 import { afterResponse } from "@/shared/lib/after-response";
 import { appBaseUrl } from "@/shared/lib/app-url";
 import { generateQRDataUrl } from "@/shared/integrations/qr";
-import type { CreatePaymentOptions, CreatePaymentResult, PaymentGateway } from "../index";
-import { generateQrToken } from "../index";
+import { generateQrToken } from "./payment-state";
+
+export interface CreatePaymentOptions {
+  amount: number;
+  currency: string;
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  user_email: string;
+  user_name: string;
+  /**
+   * Supplied by the caller, which has already loaded the event to price the
+   * payment. Re-reading it here cost a second round trip for the same row.
+   */
+  event: { title: string; event_date: string };
+}
+
+export interface CreatePaymentResult {
+  checkout_url: string;
+}
+
+export interface PaymentGateway {
+  createPayment(options: CreatePaymentOptions): Promise<CreatePaymentResult>;
+}
 
 export function buildCheckoutUrl(paymentId: number, appUrl = process.env.NEXT_PUBLIC_APP_URL): string {
   return `${appBaseUrl(appUrl)}/checkout/${paymentId}?success=true`;

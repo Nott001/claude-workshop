@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
-import { chatDao } from "@/shared/db/dao";
-import { useSession } from "@/modules/auth";
+import * as chatDao from "@/shared/db/dao/chat.dao";
+import { useSession } from "@/modules/auth/components/session-context";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import type { ChatMessage, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";

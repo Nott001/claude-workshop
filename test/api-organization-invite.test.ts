@@ -19,8 +19,8 @@ vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
-vi.mock("@/shared/db/dao", () => ({ userDao: { findStaffByEmail, listStaff } }));
-vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listStaff }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
 import { POST } from "@/app/api/organization/route";

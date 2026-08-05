@@ -27,10 +27,17 @@ const {
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  ticketDao: { listByUser: ticketListByUser, listAll: ticketListAll, findWithPaymentAndEvent },
-  paymentDao: { listByUser: paymentListByUser, listAll: paymentListAll, findById: paymentFindById },
+vi.mock("@/shared/db/dao/ticket.dao", () => ({
+  listByUser: ticketListByUser,
+  listAll: ticketListAll,
+  findWithPaymentAndEvent,
 }));
+vi.mock("@/shared/db/dao/payment.dao", () => ({
+  listByUser: paymentListByUser,
+  listAll: paymentListAll,
+  findById: paymentFindById,
+}));
+
 vi.mock("@/shared/integrations/qr", () => ({ generateQRDataUrl }));
 
 import { GET as GET_TICKETS } from "@/app/api/tickets/route";
