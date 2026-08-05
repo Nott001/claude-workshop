@@ -8,8 +8,12 @@ on:
       - "LICENSE"
       - ".gitignore"
       - ".prettierignore"
+  # `development` too, for the same reason as main: a pull request exercises the
+  # branch being merged, not the merge result. The concurrency rule below
+  # already treats this correctly — it only cancels pull_request runs, so a
+  # development run is never killed mid-flight with its fixtures half torn down.
   push:
-    branches: [main]
+    branches: [main, development]
 
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}

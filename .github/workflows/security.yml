@@ -2,8 +2,10 @@ name: Security
 
 on:
   pull_request:
+  # `development` too: a pull request scans the branch being merged, never the
+  # result, so nothing looks at what actually lands there.
   push:
-    branches: [main]
+    branches: [main, development]
   schedule:
     # Weekly, so newly-disclosed advisories against unchanged code still surface.
     - cron: "0 3 * * 1"
