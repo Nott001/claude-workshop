@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
+import * as courseDao from "@/shared/db/dao/course.dao";
 import { lessonSchema } from "@/modules/courses/lib/schemas";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {

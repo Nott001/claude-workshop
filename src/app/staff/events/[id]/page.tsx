@@ -1,7 +1,8 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useSession, useRoleGuard } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
 import { Footer } from "@/shared/components/footer";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -9,8 +10,8 @@ import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
-import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
-import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
+import { LessonDialog } from "@/modules/courses/components/lesson-dialog";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import dynamic from "next/dynamic";
 

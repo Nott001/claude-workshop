@@ -3,8 +3,8 @@ import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { userDao } from "@/shared/db/dao";
-import { logAuditEvent } from "@/modules/audit";
+import * as userDao from "@/shared/db/dao/user.dao";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 const PAGE_SIZE = 10;

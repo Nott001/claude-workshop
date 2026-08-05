@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MultiSelectDropdown, type MultiSelectOption } from "@/shared/components/ui/multi-select";
+import { MultiSelectDropdown, type MultiSelectOption } from "@/shared/components/multi-select";
 
 export interface EventFormValues {
   title: string;

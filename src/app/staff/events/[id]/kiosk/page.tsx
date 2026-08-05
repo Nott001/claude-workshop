@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { Footer } from "@/shared/components/footer";
 import { useEffect, useState } from "react";

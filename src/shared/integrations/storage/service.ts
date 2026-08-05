@@ -1,9 +1,5 @@
 import type { StorageBucket } from "./policy";
 
-// Bucket rules and path naming live in ./policy — pure, and safe to import from
-// a client component. Re-exported here so server callers keep one import site.
-export * from "./policy";
-
 export async function uploadToStorage(bucket: StorageBucket, path: string, file: File): Promise<{ url: string; path: string }> {
   const { getServiceClient } = await import("@/shared/db/client");
   const supabase = getServiceClient();

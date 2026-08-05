@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { emailDao } from "@/shared/db/dao";
-import { emailLogFilterSchema } from "@/modules/notifications";
+import * as emailDao from "@/shared/db/dao/email.dao";
+import { emailLogFilterSchema } from "@/modules/notifications/lib/email-log-schema";
 
 export async function GET(req: Request) {
   const guard = await requireRole("admin");

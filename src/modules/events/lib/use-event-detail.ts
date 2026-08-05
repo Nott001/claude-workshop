@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { getBadgeProps } from "@/modules/events/lib/schemas";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";

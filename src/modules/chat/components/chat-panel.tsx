@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
-import { chatDao } from "@/shared/db/dao";
+import * as chatDao from "@/shared/db/dao/chat.dao";
 import type { ChatMessage } from "@/shared/types";
 
 interface ChatMessageWithUser extends ChatMessage {

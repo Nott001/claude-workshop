@@ -3,11 +3,15 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { eventDao, courseDao, facilitatorDao, speakerDao } from "@/shared/db/dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
+import * as courseDao from "@/shared/db/dao/course.dao";
+import * as facilitatorDao from "@/shared/db/dao/facilitator.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
-import { deleteFromStorage, listStorageFolder, type StorageBucket } from "@/shared/integrations/storage";
+import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
+import type { StorageBucket } from "@/shared/integrations/storage/policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

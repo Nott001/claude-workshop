@@ -5,7 +5,9 @@ import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 
-vi.mock("@/modules/auth", () => ({ useSession: () => ({ user: null, loading: false, isLoaded: true, isSignedIn: false }) }));
+vi.mock("@/modules/auth/components/session-context", () => ({
+  useSession: () => ({ user: null, loading: false, isLoaded: true, isSignedIn: false }),
+}));
 
 const events = [
   {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   useSession();

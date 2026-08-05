@@ -10,7 +10,7 @@ vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => new Response(JSON.stringify({ error: guard.error }), { status: 403 }),
 }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({ facilitatorDao: { listCandidates } }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ listCandidates }));
 
 import { GET } from "@/app/api/facilitators/route";
 

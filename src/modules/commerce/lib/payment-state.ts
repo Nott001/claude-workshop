@@ -37,21 +37,3 @@ export function generateQrToken(): string {
 export function isPaymentTerminal(status: PaymentStatus): boolean {
   return status === "paid" || status === "failed" || status === "refunded";
 }
-
-export interface CreatePaymentOptions {
-  amount: number;
-  currency: string;
-  payment_id: number;
-  user_id: number;
-  event_id: number;
-  user_email: string;
-  user_name: string;
-}
-
-export interface CreatePaymentResult {
-  checkout_url: string;
-}
-
-export interface PaymentGateway {
-  createPayment(options: CreatePaymentOptions): Promise<CreatePaymentResult>;
-}

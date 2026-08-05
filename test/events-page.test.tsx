@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import EventsPage from "@/app/events/page";
 
-vi.mock("@/modules/auth", () => ({ useSession: vi.fn() }));
+vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 
 const events = [
   {

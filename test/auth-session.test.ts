@@ -12,7 +12,8 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: cookieGet, set: vi.fn(), delete: vi.fn() }),
 }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({ tag: "service" }) }));
-vi.mock("@/shared/db/dao", () => ({ userDao: { findByAuthId } }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findByAuthId }));
+
 vi.mock("@/modules/auth/lib/ensure-user", () => ({ ensureUser }));
 
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";

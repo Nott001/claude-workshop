@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/shared/components/ui/button";
+import { Button } from "@/shared/components/button";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "../lib/types";
 

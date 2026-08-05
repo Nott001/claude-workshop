@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
-import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
+import { Button } from "@/shared/components/button";
+import { Input } from "@/shared/components/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/dialog";
+import { Form, FormField, FormLabel } from "@/shared/components/form";
 
 export function LessonDialog({
   open,

@@ -16,15 +16,16 @@ export default defineConfig({
       reportsDirectory: "coverage",
       include: ["src/**/*.{ts,tsx}"],
       // Type-only and view-composition files carry no branching logic worth gating on.
-      // Barrels are deliberately NOT excluded: several (commerce, kiosk) define logic directly.
-      exclude: ["src/**/*.d.ts", "src/shared/types/**", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
+      // Excluded here rather than in the coverage `include` so they still appear in
+      // reports but cannot fail the ratchet.
+      exclude: ["src/**/*.d.ts", "src/shared/types.ts", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
       thresholds: {
-        statements: 29,
-        branches: 26.3,
-        functions: 29.3,
-        lines: 29.3,
+        statements: 33.81,
+        branches: 30.27,
+        functions: 34.33,
+        lines: 34.11,
       },
     },
   },

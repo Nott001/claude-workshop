@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { findById, exists, findByField, deleteById, ilikePattern } from "@/shared/db/dao/helpers";
-import { ticketDao } from "@/shared/db/dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 /**

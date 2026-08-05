@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { chatDao } from "@/shared/db/dao";
+import * as chatDao from "@/shared/db/dao/chat.dao";
 import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
-import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(req: Request) {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { cn } from "@/shared/lib/utils";
 import type { UserRole } from "@/shared/types";
 
@@ -66,7 +66,7 @@ export function Navbar() {
     if (!isSignedIn) return;
 
     if (!user?.profile_image_url && !customPhoto) {
-      fetch("/api/speakers/me")
+      fetch("/api/auth/me")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.photo_url) setCustomPhoto(data.photo_url);
