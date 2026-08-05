@@ -79,7 +79,26 @@ describe("buildMimeMessage", () => {
   });
 
   it("separates headers from the body with a blank line", () => {
-    expect(build("<p>Hello</p>")).toMatch(/MIME-Version: 1\.0\r\n[^\r]*\r\n\r\n/);
+    const message = build("<p>Hello</p>");
+    const [headers, ...body] = message.split("\r\n\r\n");
+
+    expect(headers).toContain("Content-Type: multipart/alternative");
+    expect(body.length).toBeGreaterThan(0);
+  });
+
+  it("declares itself auto-generated so filters read it as transactional", () => {
+    expect(build("<p>Hello</p>")).toContain("Auto-Submitted: auto-generated");
+  });
+
+  it("adds Reply-To only when one is configured", () => {
+    expect(build("<p>x</p>")).not.toContain("Reply-To:");
+    expect(build("<p>x</p>", { replyTo: "support@startuplab.center" })).toContain("Reply-To: <support@startuplab.center>");
+  });
+
+  it("prefers a written plain-text part over one derived from the HTML", () => {
+    const message = build("<h1>Ticket</h1><p>Details</p>", { text: "Ticket\n\nWritten by the template." });
+
+    expect(decodePart(message, 'text/plain; charset="UTF-8"')).toBe("Ticket\n\nWritten by the template.");
   });
 
   it("carries a plain-text alternative alongside the HTML", () => {
@@ -100,6 +119,18 @@ describe("buildMimeMessage", () => {
     const cid = message.match(/Content-ID: <([^>]+)>/)?.[1];
     expect(cid).toBeTruthy();
     expect(decodePart(message, 'text/html; charset="UTF-8"')).toContain(`src="cid:${cid}"`);
+  });
+
+  it("carries the image bytes in the related part, not just its headers", () => {
+    // An empty part still parses and still shows the right Content-ID, so the
+    // structural assertions above pass while the recipient sees a broken image.
+    const payload = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const message = build(`<p><img src="data:image/png;base64,${payload}" alt="QR" /></p>`);
+
+    const imageSection = message.slice(message.indexOf("Content-ID:"));
+    const body = imageSection.split("\r\n\r\n")[1]?.split("\r\n--")[0] ?? "";
+
+    expect(body.replace(/\r\n/g, "")).toBe(payload);
   });
 
   it("stays multipart/alternative when nothing is inlined", () => {

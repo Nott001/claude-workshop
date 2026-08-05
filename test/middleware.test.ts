@@ -21,7 +21,7 @@ vi.mock("@supabase/ssr", () => ({
   },
 }));
 
-import { proxy } from "@/proxy";
+import { middleware } from "@/middleware";
 
 // NextRequest's init is not the DOM RequestInit (different signal type), so
 // derive the exact type the constructor accepts instead of guessing.
@@ -54,7 +54,7 @@ describe("route protection", () => {
 
   it.each(protectedPaths)("redirects signed-out users away from %s", async (path, init) => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request(path, init));
+    const res = await middleware(request(path, init));
 
     if (path.startsWith("/api/")) {
       expect(res.status).toBe(401);
@@ -67,7 +67,7 @@ describe("route protection", () => {
 
   it.each(protectedPaths)("lets signed-in users through to %s", async (path, init) => {
     getUser.mockResolvedValue(signedIn);
-    const res = await proxy(request(path, init));
+    const res = await middleware(request(path, init));
     expect(res.status).toBe(200);
   });
 });
@@ -75,7 +75,7 @@ describe("route protection", () => {
 describe("api responses", () => {
   it("answers unauthenticated api writes with 401 json, never a redirect", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/events", { method: "POST" }));
+    const res = await middleware(request("/api/events", { method: "POST" }));
 
     expect(res.status).toBe(401);
     expect(res.headers.get("location")).toBeNull();
@@ -84,7 +84,7 @@ describe("api responses", () => {
 
   it("leaves the auth callback reachable so sign-in can complete", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/auth/callback"));
+    const res = await middleware(request("/api/auth/callback"));
     expect(res.status).toBe(200);
   });
 });
@@ -92,13 +92,13 @@ describe("api responses", () => {
 describe("public event reads", () => {
   it.each(["/api/events", "/api/events/42"])("lets an anonymous GET on %s reach the handler", async (path) => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request(path));
+    const res = await middleware(request(path));
     expect(res.status).toBe(200);
   });
 
   it("still refuses anonymous writes to the event endpoints", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/events", { method: "POST" }));
+    const res = await middleware(request("/api/events", { method: "POST" }));
     expect(res.status).toBe(401);
   });
 
@@ -106,7 +106,7 @@ describe("public event reads", () => {
     "keeps %s behind the middleware",
     async (path) => {
       getUser.mockResolvedValue(signedOut);
-      const res = await proxy(request(path));
+      const res = await middleware(request(path));
       expect(res.status).toBe(401);
     },
   );
@@ -118,7 +118,7 @@ describe("public event reads", () => {
 describe("public cover images", () => {
   it("lets an anonymous GET on a cover reach the storage handler", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/storage/event_images/events/42/cover.png"));
+    const res = await middleware(request("/api/storage/event_images/events/42/cover.png"));
     expect(res.status).toBe(200);
   });
 
@@ -126,20 +126,20 @@ describe("public cover images", () => {
     "keeps %s behind the middleware",
     async (path) => {
       getUser.mockResolvedValue(signedOut);
-      const res = await proxy(request(path));
+      const res = await middleware(request(path));
       expect(res.status).toBe(401);
     },
   );
 
   it("refuses a write to the cover path — only reads are public", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/storage/event_images/events/42/cover.png", { method: "DELETE" }));
+    const res = await middleware(request("/api/storage/event_images/events/42/cover.png", { method: "DELETE" }));
     expect(res.status).toBe(401);
   });
 
   it("does not open the bucket root by prefix match", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/api/storage/event_images_private/secrets.png"));
+    const res = await middleware(request("/api/storage/event_images_private/secrets.png"));
     expect(res.status).toBe(401);
   });
 });
@@ -147,7 +147,7 @@ describe("public cover images", () => {
 describe("sign-in redirect", () => {
   it("preserves the target path so the user lands where they intended", async () => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request("/staff/events"));
+    const res = await middleware(request("/staff/events"));
 
     const location = new URL(res.headers.get("location")!);
     expect(location.pathname).toBe("/sign-in");
@@ -158,7 +158,7 @@ describe("sign-in redirect", () => {
 describe("public routes", () => {
   it.each(["/", "/events", "/sign-in", "/sign-up"])("serves %s without a session", async (path) => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request(path));
+    const res = await middleware(request(path));
     expect(res.status).toBe(200);
   });
 });
@@ -186,7 +186,7 @@ describe("session cookie handling", () => {
   it("keeps every cookie of a refreshed session, not just the last one", async () => {
     getUser.mockImplementation(refreshing(chunkedToken));
 
-    const res = await proxy(request("/events"));
+    const res = await middleware(request("/events"));
 
     expect(res.cookies.get("sb-auth-token.0")?.value).toBe("first-half");
     expect(res.cookies.get("sb-auth-token.1")?.value).toBe("second-half");
@@ -197,7 +197,7 @@ describe("session cookie handling", () => {
     const req = request("/events");
     req.cookies.set("sb-auth-token.0", "stored");
 
-    await proxy(req);
+    await middleware(req);
 
     expect(captured.cookies!.getAll()).toEqual(expect.arrayContaining([{ name: "sb-auth-token.0", value: "stored" }]));
   });
@@ -205,7 +205,7 @@ describe("session cookie handling", () => {
   it("marks a response carrying a new session as uncacheable", async () => {
     getUser.mockImplementation(refreshing(chunkedToken));
 
-    const res = await proxy(request("/events"));
+    const res = await middleware(request("/events"));
 
     expect(res.headers.get("cache-control")).toBe(noStore["Cache-Control"]);
     expect(res.headers.get("pragma")).toBe("no-cache");
@@ -217,7 +217,7 @@ describe("session cookie handling", () => {
       return signedOut;
     });
 
-    const res = await proxy(request("/api/events", { method: "POST" }));
+    const res = await middleware(request("/api/events", { method: "POST" }));
 
     expect(res.status).toBe(401);
     expect(res.cookies.get("sb-auth-token.0")?.value).toBe("");
@@ -229,7 +229,7 @@ describe("session cookie handling", () => {
       return signedOut;
     });
 
-    const res = await proxy(request("/staff/events"));
+    const res = await middleware(request("/staff/events"));
 
     expect(res.status).toBe(307);
     expect(res.cookies.get("sb-auth-token.0")?.value).toBe("");
@@ -241,7 +241,7 @@ describe("session cookie handling", () => {
 describe("routes the middleware does NOT protect", () => {
   it.each(["/events/1/edit", "/payments", "/tickets", "/speaker/dashboard"])("reaches %s without a session", async (path) => {
     getUser.mockResolvedValue(signedOut);
-    const res = await proxy(request(path));
+    const res = await middleware(request(path));
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
   });

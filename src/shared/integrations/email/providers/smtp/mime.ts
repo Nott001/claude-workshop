@@ -12,6 +12,9 @@ export interface MimeMessageParams {
   to: MimeAddress;
   subject: string;
   html: string;
+  /** Written by the caller; derived from the HTML when omitted. */
+  text?: string;
+  replyTo?: string;
   /** Injected by tests so the output is deterministic. */
   now?: Date;
   idSeed?: string;
@@ -103,13 +106,13 @@ export function hoistInlineImages(html: string, idSeed: string): { html: string;
   return { html: rewritten, images };
 }
 
-function alternativePart(boundary: string, html: string): string[] {
+function alternativePart(boundary: string, html: string, text: string): string[] {
   return [
     `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
     "",
-    foldBase64(utf8ToBase64(htmlToText(html))),
+    foldBase64(utf8ToBase64(text)),
     `--${boundary}`,
     'Content-Type: text/html; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
@@ -139,6 +142,7 @@ export function buildMimeMessage(params: MimeMessageParams): string {
 
   const { html, images } = hoistInlineImages(params.html, idSeed);
   const altBoundary = `alt.${idSeed}`;
+  const text = params.text ?? htmlToText(params.html);
 
   const headers = [
     `From: ${formatAddress(params.from)}`,
@@ -147,11 +151,16 @@ export function buildMimeMessage(params: MimeMessageParams): string {
     `Date: ${formatDate(now)}`,
     `Message-ID: <${idSeed}@${domain}>`,
     "MIME-Version: 1.0",
+    // Marks the message as machine-generated transactional mail rather than
+    // bulk, which is how filters are meant to tell the two apart.
+    "Auto-Submitted: auto-generated",
   ];
+
+  if (params.replyTo) headers.push(`Reply-To: <${params.replyTo}>`);
 
   if (images.length === 0) {
     headers.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`);
-    return [...headers, "", ...alternativePart(altBoundary, html), ""].join(CRLF);
+    return [...headers, "", ...alternativePart(altBoundary, html, text), ""].join(CRLF);
   }
 
   // multipart/related wraps the alternative so clients treat the images as part
@@ -163,7 +172,7 @@ export function buildMimeMessage(params: MimeMessageParams): string {
     `--${relBoundary}`,
     `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
     "",
-    ...alternativePart(altBoundary, html),
+    ...alternativePart(altBoundary, html, text),
     ...images.flatMap((image) => imagePart(relBoundary, image)),
     `--${relBoundary}--`,
   ];
