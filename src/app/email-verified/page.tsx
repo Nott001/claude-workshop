@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function EmailVerifiedPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-bg px-4">
+    <div className="flex flex-1 flex-col items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
         <span className="material-symbols-rounded mb-4 inline-flex size-14 items-center justify-center rounded-2xl bg-success/10 text-3xl text-success">
           check_circle
