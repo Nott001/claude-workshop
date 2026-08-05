@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
-import { resizeImage } from "@/shared/integrations/storage/resize-image";
+import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
+import { postUpload } from "@/shared/integrations/storage/upload-client";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "./types";
 
@@ -166,9 +166,6 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     setError(null);
 
     const contentType = detectContentType(data.file, data.url);
-    // Started before the lesson request, which it does not depend on: videos
-    // and PDFs pass straight through, but a phone photo takes real time.
-    const resized = data.file ? resizeImage(data.file) : null;
 
     const res = await fetch(`/api/modules/${moduleId}/lessons`, {
       method: "POST",
@@ -189,18 +186,14 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
 
     if (data.file) {
       const endpoint = getUploadEndpoint(contentType);
-      if (endpoint) {
-        const formData = new FormData();
-        formData.append("file", (await resized) ?? data.file);
-        formData.append("lesson_id", String(lesson.id));
-        formData.append("course_id", String(modules[0].id));
-        formData.append("module_id", String(moduleId));
-
-        const uploadRes = await fetch(endpoint, { method: "POST", body: formData });
-        if (!uploadRes.ok) {
-          const uploadData = await uploadRes.json().catch(() => null);
-          return uploadData?.error ?? "Lesson saved but file upload failed.";
-        }
+      const bucket = uploadBucket(contentType);
+      if (endpoint && bucket) {
+        const result = await postUpload(bucket, endpoint, data.file, {
+          lesson_id: String(lesson.id),
+          course_id: String(modules[0].id),
+          module_id: String(moduleId),
+        });
+        if (!result.ok) return `Lesson saved, but ${result.error.charAt(0).toLowerCase()}${result.error.slice(1)}`;
       }
     }
 
