@@ -57,17 +57,23 @@ const DENY: Access = { allowed: false, cacheable: false };
  * around that.
  */
 async function resolveAccess(bucket: StorageBucket, segments: string[], supabase: Db): Promise<Access> {
-  const user = await requireAuth(supabase);
-
   if (bucket === "event_images") {
     const eventId = eventIdFromPath(segments);
     if (eventId === null) return DENY;
 
+    // Publication is checked before the session, not after, because a published
+    // cover is public and that is the common case: every card on `/` and
+    // `/events` is one of these requests. Resolving the caller first spent an
+    // auth round trip and a user lookup per image on an answer only the draft
+    // branch below ever reads.
     if (await eventDao.isPublished(supabase, eventId)) {
       return { allowed: true, cacheable: true };
     }
-    return { allowed: hasMinRole(user?.role ?? null, "facilitator"), cacheable: false };
+    const viewer = await requireAuth(supabase);
+    return { allowed: hasMinRole(viewer?.role ?? null, "facilitator"), cacheable: false };
   }
+
+  const user = await requireAuth(supabase);
 
   // Everything else still needs a session. The middleware requires one for the
   // rest of /api/*; re-checking here keeps the rule with the data it protects
