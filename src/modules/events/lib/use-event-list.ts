@@ -36,25 +36,37 @@ export function useEventList() {
 
     async function fetchEvents() {
       setLoading(true);
-      const res = await fetch("/api/events");
-      // Bail on everything, `loading` included. Guarding only the data write let
-      // a superseded run clear `loading` while the list was still empty, and the
-      // page rendered its "No events found" empty state until the live run
-      // landed. React's strict mode makes that the normal path in development:
-      // it mounts, cleans up, and remounts every effect.
-      if (cancelled) return;
+      setError(null);
 
-      if (!res.ok) {
-        setError("Failed to load events");
-        setLoading(false);
-        return;
+      try {
+        const res = await fetch("/api/events");
+        // Bail on everything, `loading` included. Guarding only the data write let
+        // a superseded run clear `loading` while the list was still empty, and the
+        // page rendered its "No events found" empty state until the live run
+        // landed. React's strict mode makes that the normal path in development:
+        // it mounts, cleans up, and remounts every effect.
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setError("Failed to load events");
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        setEvents(data);
+      } catch {
+        // A rejected request — a dropped connection, a navigation aborting the
+        // fetch, a cold isolate timing out — used to escape as an unhandled
+        // rejection with nothing left to clear `loading`. The page then sat on
+        // "Loading events..." for the rest of its life, showing no error and
+        // never retrying, because only a reload could reset the flag.
+        if (!cancelled) setError("Failed to load events");
+      } finally {
+        // Not on a superseded run: that one leaves the flag to its replacement.
+        if (!cancelled) setLoading(false);
       }
-
-      const data = await res.json();
-      if (cancelled) return;
-
-      setEvents(data);
-      setLoading(false);
     }
 
     fetchEvents();
