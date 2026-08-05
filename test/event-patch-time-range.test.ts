@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 
-const { requireRole, findById, update, logAuditEvent } = vi.hoisted(() => ({
+const { requireRole, findById, update, logAuditEvent, facilitatorReplace, speakerReplace } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   findById: vi.fn(),
   update: vi.fn(),
   logAuditEvent: vi.fn(),
+  facilitatorReplace: vi.fn(),
+  speakerReplace: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
@@ -15,6 +17,8 @@ vi.mock("@/shared/db/dao", () => ({
   eventDao: { findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() },
   ticketDao: {},
   courseDao: {},
+  facilitatorDao: { replaceEventAssignments: facilitatorReplace },
+  speakerDao: { replaceEventAssignments: speakerReplace },
 }));
 vi.mock("@/modules/audit", () => ({ logAuditEvent }));
 
@@ -38,6 +42,8 @@ beforeEach(() => {
   requireRole.mockResolvedValue(facilitator);
   findById.mockResolvedValue(stored);
   update.mockResolvedValue({ ...stored });
+  facilitatorReplace.mockResolvedValue(true);
+  speakerReplace.mockResolvedValue(true);
 });
 
 describe("eventPartialSchema", () => {
@@ -93,5 +99,34 @@ describe("PATCH /api/events/[id] time range", () => {
 
     expect(res.status).toBe(200);
     expect(findById).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/events/[id] assignment sync", () => {
+  it("skips both join-table syncs when the patch carries neither roster", async () => {
+    const res = await patch({ title: "Renamed" });
+
+    expect(res.status).toBe(200);
+    expect(facilitatorReplace).not.toHaveBeenCalled();
+    expect(speakerReplace).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({}, 3, { title: "Renamed" });
+  });
+
+  it("syncs speaker_profile_ids and keeps them out of the EVENT update", async () => {
+    const res = await patch({ speaker_profile_ids: [4, 8] });
+
+    expect(res.status).toBe(200);
+    expect(speakerReplace).toHaveBeenCalledWith({}, 3, [4, 8]);
+    expect(update).toHaveBeenCalledWith({}, 3, {});
+  });
+
+  it("returns 500 and writes nothing when the speaker sync fails", async () => {
+    speakerReplace.mockResolvedValue(false);
+
+    const res = await patch({ speaker_profile_ids: [4] });
+
+    expect(res.status).toBe(500);
+    expect(update).not.toHaveBeenCalled();
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });

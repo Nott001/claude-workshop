@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MultiSelectDropdown, type MultiSelectOption } from "@/shared/components/ui/multi-select";
 
 export interface EventFormValues {
   title: string;
@@ -13,6 +14,8 @@ export interface EventFormValues {
   description: string;
   price: string;
   currency: string;
+  facilitator_ids: number[];
+  speaker_profile_ids: number[];
 }
 
 export const EMPTY_EVENT_FORM: EventFormValues = {
@@ -25,6 +28,8 @@ export const EMPTY_EVENT_FORM: EventFormValues = {
   description: "",
   price: "0",
   currency: "PHP",
+  facilitator_ids: [],
+  speaker_profile_ids: [],
 };
 
 /**
@@ -44,6 +49,8 @@ export function toFormValues(event: Partial<Record<keyof EventFormValues, unknow
     description: text(event.description),
     price: text(event.price, "0"),
     currency: text(event.currency, "PHP"),
+    facilitator_ids: Array.isArray(event.facilitator_ids) ? event.facilitator_ids : [],
+    speaker_profile_ids: Array.isArray(event.speaker_profile_ids) ? event.speaker_profile_ids : [],
   };
 }
 
@@ -61,6 +68,8 @@ export function toEventPayload(values: EventFormValues) {
     description: values.description.trim() || null,
     price: values.price.trim() === "" ? 0 : Number(values.price),
     currency: values.currency.trim().toUpperCase() || "PHP",
+    facilitator_ids: values.facilitator_ids,
+    speaker_profile_ids: values.speaker_profile_ids,
   };
 }
 
@@ -79,6 +88,19 @@ interface EventFormProps {
   onSubmit: (payload: EventPayload) => Promise<void>;
 }
 
+interface FacilitatorCandidate {
+  id: number;
+  full_name: string;
+  email: string;
+}
+
+interface SpeakerCandidate {
+  id: number;
+  user_id: number;
+  designation: string | null;
+  USER: { full_name: string; email: string } | null;
+}
+
 export function EventForm({
   heading,
   backHref,
@@ -92,9 +114,51 @@ export function EventForm({
   const [values, setValues] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [facilitators, setFacilitators] = useState<FacilitatorCandidate[]>([]);
+  const [facilitatorsError, setFacilitatorsError] = useState(false);
+  const [speakers, setSpeakers] = useState<SpeakerCandidate[]>([]);
+  const [speakersError, setSpeakersError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [facRes, spkRes] = await Promise.all([fetch("/api/facilitators"), fetch("/api/speakers?role=speaker")]);
+      if (cancelled) return;
+
+      if (facRes.ok) {
+        const rows: FacilitatorCandidate[] = await facRes.json();
+        if (!cancelled) setFacilitators(rows);
+      } else {
+        setFacilitatorsError(true);
+      }
+
+      if (spkRes.ok) {
+        const rows: SpeakerCandidate[] = await spkRes.json();
+        if (!cancelled) setSpeakers(rows);
+      } else {
+        setSpeakersError(true);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
+
+  const facilitatorOptions: MultiSelectOption[] = facilitators.map((f) => ({
+    id: f.id,
+    label: f.full_name,
+    sublabel: f.email,
+  }));
+
+  const speakerOptions: MultiSelectOption[] = speakers.map((s) => ({
+    id: s.id,
+    label: s.USER?.full_name ?? `User #${s.user_id}`,
+    sublabel: s.designation ?? s.USER?.email ?? undefined,
+  }));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -230,6 +294,24 @@ export function EventForm({
               className={FIELD_CLASS}
             />
           </div>
+
+          <MultiSelectDropdown
+            label="Facilitators"
+            options={facilitatorOptions}
+            selectedIds={values.facilitator_ids}
+            onChange={(ids) => set("facilitator_ids", ids)}
+            placeholder="Select facilitators..."
+            emptyLabel={facilitatorsError ? "Failed to load facilitators." : "No facilitators available."}
+          />
+
+          <MultiSelectDropdown
+            label="Speakers"
+            options={speakerOptions}
+            selectedIds={values.speaker_profile_ids}
+            onChange={(ids) => set("speaker_profile_ids", ids)}
+            placeholder="Select speakers..."
+            emptyLabel={speakersError ? "Failed to load speakers." : "No speakers available."}
+          />
 
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
