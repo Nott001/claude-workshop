@@ -7,3 +7,19 @@
 # have any effect. See docs/DEPLOYMENT.md.
 
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Transactional email. Unset any of the three and the app falls back to the
+# console provider, which logs instead of sending. SMTP also needs the Workers
+# runtime for its socket, so `next dev` logs regardless — use `pnpm cf:preview`.
+#
+# Never rename these to NEXT_PUBLIC_*: the compiler would inline the password
+# into the client bundle.
+SMTP_HOST=
+SMTP_USER=
+SMTP_PASSWORD=
+
+# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 15000.
+# SMTP_PORT=
+# SMTP_FROM_EMAIL=
+# SMTP_FROM_NAME=
+# SMTP_TIMEOUT_MS=

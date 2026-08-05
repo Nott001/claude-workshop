@@ -8,11 +8,13 @@ type UpdateEventInput = Partial<CreateEventInput>;
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
 type EventSpeakerJoin = {
+  speaker_profile_id: number;
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email"> };
 };
 type EventWithRelations = Event & {
   COURSE?: Record<string, unknown> | null;
   EVENT_SPEAKER?: EventSpeakerJoin[];
+  EVENT_FACILITATOR?: { user_id: number }[];
 };
 
 export async function findById(supabase: DbClient, id: number): Promise<Event | null> {
@@ -23,7 +25,9 @@ export async function findById(supabase: DbClient, id: number): Promise<Event | 
 export async function findByIdWithCourse(supabase: DbClient, id: number): Promise<EventWithRelations | null> {
   const { data } = await supabase
     .from("EVENT")
-    .select("*, COURSE!event_id(*), EVENT_SPEAKER(SPEAKER_PROFILE(*, USER(full_name, email)))")
+    .select(
+      "*, COURSE!event_id(*), EVENT_SPEAKER(speaker_profile_id, SPEAKER_PROFILE(*, USER(full_name, email))), EVENT_FACILITATOR(user_id)",
+    )
     .eq("id", id)
     .single();
   return data;
