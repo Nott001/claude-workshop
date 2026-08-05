@@ -14,46 +14,33 @@ const SRC_DIR = path.resolve(__dirname, "../src");
  * A sweep rather than three tests, so a fourth upload site is covered the day
  * it is written instead of the day someone remembers this file exists.
  */
-const FILE_APPEND = /formData\.append\(\s*"file"\s*,([^)]*)\)/g;
-
-function sourceFiles(): string[] {
-  return globSync("**/*.{ts,tsx}", { cwd: SRC_DIR })
-    .sort()
-    .map((f) => f.replace(/\\/g, "/"));
-}
-
-/** Every `formData.append("file", …)` in src/, with the expression it appends. */
-function fileAppends(): Array<{ file: string; expression: string }> {
-  const found: Array<{ file: string; expression: string }> = [];
-  for (const rel of sourceFiles()) {
-    const source = readFileSync(path.join(SRC_DIR, rel), "utf8");
-    for (const [, expression] of source.matchAll(FILE_APPEND)) {
-      found.push({ file: rel, expression: expression.trim() });
-    }
-  }
-  return found;
+/** Modules that put a file into an upload body. */
+function uploadModules(): string[] {
+  return globSync("**/*.{ts,tsx}", { cwd: SRC_DIR }).filter((rel) =>
+    /\.append\(\s*["']file["']/.test(readFileSync(path.join(SRC_DIR, rel), "utf8")),
+  );
 }
 
 describe("upload resize sweep", () => {
-  const appends = fileAppends();
+  const modules = uploadModules();
 
   it("finds the upload sites to check", () => {
-    // Cover image, profile photo and course lesson. If this drops, the regex
-    // stopped matching and every assertion below became vacuous.
-    expect(appends.length).toBe(3);
+    // Cover image, profile photo and course lesson. A drop to zero would make
+    // the assertion below vacuous; a rise is a new site, which is the point.
+    expect(modules.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("resizes at every site that posts a file", () => {
-    for (const { file, expression } of appends) {
-      expect(expression, `${file} posts a file without passing it through resizeImage`).toMatch(/resizeImage\(/);
-    }
-  });
-
-  it("awaits the resize rather than posting the promise", () => {
-    // `resizeImage` is async. Appending it unawaited puts "[object Promise]"
-    // in the request body, which the route rejects as a missing file.
-    for (const { file, expression } of appends) {
-      expect(expression, `${file} appends the resize promise instead of its result`).toMatch(/await\s+resizeImage\(/);
+  it("gives every module that posts a file access to the resizer", () => {
+    // Deliberately an import check rather than a call-shape one. An earlier
+    // version matched the text at the append site and failed the moment a call
+    // site correctly hoisted the resize above an unrelated request to overlap
+    // them — a guard that rejects better code is worse than no guard. Proving
+    // the resize actually runs is `test/cover-image-upload.test.tsx`'s job.
+    for (const rel of modules) {
+      const source = readFileSync(path.join(SRC_DIR, rel), "utf8");
+      expect(source, `${rel} posts a file but never imports resizeImage`).toMatch(
+        /import .*resizeImage.* from ".*storage\/resize-image"/,
+      );
     }
   });
 

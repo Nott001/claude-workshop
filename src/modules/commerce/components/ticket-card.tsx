@@ -130,7 +130,11 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
       <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-border bg-muted p-6">
-        {qrSvg ? (
+        {qrFailed ? (
+          <div className="grid size-44 place-items-center rounded-lg bg-surface">
+            <span className="text-sm text-muted-foreground">No QR</span>
+          </div>
+        ) : qrSvg ? (
           // The markup is produced locally by the qrcode library from this
           // ticket's own token, never from anything a user supplied.
           <div
@@ -139,13 +143,9 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             aria-label="Ticket QR code"
             dangerouslySetInnerHTML={{ __html: qrSvg }}
           />
-        ) : !qrFailed ? (
+        ) : (
           <div className="grid size-44 place-items-center">
             <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>
-          </div>
-        ) : (
-          <div className="grid size-44 place-items-center rounded-lg bg-surface">
-            <span className="text-sm text-muted-foreground">No QR</span>
           </div>
         )}
       </div>

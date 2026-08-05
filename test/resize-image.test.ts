@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { scaledDimensions, resizeImage, MAX_IMAGE_DIMENSION } from "@/shared/integrations/storage/resize-image";
 
 describe("scaledDimensions", () => {
@@ -30,6 +30,8 @@ describe("scaledDimensions", () => {
   });
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("resizeImage", () => {
   // Course lessons post videos and PDFs through the same upload call, so a
   // resizer that touched them would corrupt the file it was handed.
@@ -46,9 +48,13 @@ describe("resizeImage", () => {
   });
 
   // Refusing here would fail an upload the route would have accepted, so a
-  // decode failure has to degrade to the original bytes. Node has no
-  // createImageBitmap, which makes this the undecodable case.
+  // decode failure has to degrade to the original bytes. Stubbed rather than
+  // relying on Node having no createImageBitmap, which threw a ReferenceError
+  // and so proved nothing about the decode path.
   it("falls back to the original file when the image cannot be decoded", async () => {
+    vi.stubGlobal("createImageBitmap", async () => {
+      throw new Error("undecodable");
+    });
     const notReallyAPng = new File([new Uint8Array([0, 1, 2])], "broken.png", { type: "image/png" });
 
     await expect(resizeImage(notReallyAPng)).resolves.toBe(notReallyAPng);

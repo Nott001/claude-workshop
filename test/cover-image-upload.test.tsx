@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { acceptAttribute, maxSizeMb, validateFileSize, validateFileType } from "@/shared/integrations/storage/policy";
+import { resizeImage } from "@/shared/integrations/storage/resize-image";
+
+// Passthrough by default so every assertion below still sees the file it picked.
+vi.mock("@/shared/integrations/storage/resize-image", () => ({
+  resizeImage: vi.fn(async (file: File) => file),
+}));
 
 function pick(file: File) {
   const input = document.getElementById("event-cover-input") as HTMLInputElement;
@@ -43,6 +49,22 @@ describe("CoverImageUpload", () => {
     const body = init.body as FormData;
     expect(body.get("event_id")).toBe("7");
     expect((body.get("file") as File).name).toBe("cover.png");
+  });
+
+  it("posts the shrunk file, not the one the user picked", async () => {
+    // Resizing moved to the browser when the worker proved unable to do it, so
+    // the request must carry the resizer's output rather than the input.
+    const shrunk = new File(["s"], "shrunk.png", { type: "image/png" });
+    vi.mocked(resizeImage).mockResolvedValueOnce(shrunk);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ url: "/x" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CoverImageUpload eventId="7" initialUrl={null} />);
+    pick(imageFile());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect((body.get("file") as File).name).toBe("shrunk.png");
   });
 
   it("shows the uploaded cover and tells the page about it", async () => {

@@ -61,11 +61,9 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
     const eventId = eventIdFromPath(segments);
     if (eventId === null) return DENY;
 
-    // Publication is checked before the session, not after, because a published
-    // cover is public and that is the common case: every card on `/` and
-    // `/events` is one of these requests. Resolving the caller first spent an
-    // auth round trip and a user lookup per image on an answer only the draft
-    // branch below ever reads.
+    // Before the session, not after: a published cover is public and is the
+    // common case, so resolving the caller first spent an auth round trip per
+    // image on an answer only the draft branch reads.
     if (await eventDao.isPublished(supabase, eventId)) {
       return { allowed: true, cacheable: true };
     }

@@ -15,7 +15,8 @@
 ## Deployment
 
 - The target is **Cloudflare Workers** — V8 isolates, not Node. Native addons cannot load there, so `sharp` and anything else shipping a `.node` binary is unusable. Reach for WebAssembly or a hosted service instead.
-- **Keep host-specific code behind a seam.** Codecs, caches, schedulers and realtime all differ per platform. Hide them behind a signature that does not, so changing host touches one file rather than every call site. `optimizeImage` is the reference: three upload routes never learn whether sharp or photon is underneath, which is why swapping them costs minutes.
+- **Keep host-specific code behind a seam.** Codecs, caches, schedulers and realtime all differ per platform. Hide them behind a signature that does not, so changing host touches one file rather than every call site. `resizeImage` is the reference: the same `File → File` signature has now carried sharp, then photon, then the browser itself, after workerd turned out to forbid the runtime WebAssembly compilation photon depends on. Moving that work off the server entirely cost one import per call site.
+- **A seam is not a test.** It makes the swap cheap; it does not tell you the swap is needed. Photon shipped broken for weeks because nothing in CI runs on workerd — vitest is Node and `playwright.config.ts` serves the app with `pnpm start`. Only `pnpm cf:preview` answers "does this run in an isolate", so run it before shipping anything touching sockets, WebAssembly, timers or streams.
 - Adopting a platform primitive (Durable Objects, KV, Cron Triggers) welds the app to that platform. Do it when it is genuinely the right tool, not by default — and say so in the commit body.
 
 ## Testing

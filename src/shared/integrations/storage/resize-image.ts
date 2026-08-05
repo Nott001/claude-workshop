@@ -28,14 +28,26 @@ export function scaledDimensions(width: number, height: number): { width: number
 }
 
 /**
- * Shrinks an image before it is uploaded.
+ * The decoded image, or null if this browser cannot read it.
  *
- * This ran on the server until the resizer proved unshippable: photon compiles
- * its WebAssembly from base64 at request time, which workerd forbids, and no
- * Next bundler will hand the module to wrangler instead. Doing it here removes
- * the dependency rather than working around it, and the bytes that cross the
- * network are the small ones — the upload gets faster on exactly the phone
- * connections that produce the largest files.
+ * try/catch rather than `.catch()`: where `createImageBitmap` is absent
+ * entirely — jsdom, and anything old enough — calling it throws synchronously,
+ * before there is a promise to attach a handler to.
+ *
+ * Phone cameras record rotation in EXIF rather than in the pixels and a canvas
+ * draws the unrotated buffer, so without `imageOrientation` portrait photos
+ * upload on their side.
+ */
+async function decode(file: File): Promise<ImageBitmap | null> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shrinks an image before it is uploaded.
  *
  * Never throws. A browser that cannot decode the file uploads it untouched,
  * because the route's own type and size limits still apply and refusing here
@@ -44,15 +56,8 @@ export function scaledDimensions(width: number, height: number): { width: number
 export async function resizeImage(file: File): Promise<File> {
   if (!RESIZABLE.includes(file.type)) return file;
 
-  let bitmap: ImageBitmap;
-  try {
-    // Phone cameras record rotation in EXIF rather than in the pixels, and a
-    // canvas draws the unrotated buffer. Without this, portrait photos upload
-    // on their side.
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch {
-    return file;
-  }
+  const bitmap = await decode(file);
+  if (!bitmap) return file;
 
   try {
     const target = scaledDimensions(bitmap.width, bitmap.height);
@@ -60,9 +65,10 @@ export async function resizeImage(file: File): Promise<File> {
     // pixels, so it is pure work. A JPEG still gains from the quality drop.
     if (!target && file.type === "image/png") return file;
 
+    const size = target ?? bitmap;
     const canvas = document.createElement("canvas");
-    canvas.width = target?.width ?? bitmap.width;
-    canvas.height = target?.height ?? bitmap.height;
+    canvas.width = size.width;
+    canvas.height = size.height;
 
     const context = canvas.getContext("2d");
     if (!context) return file;

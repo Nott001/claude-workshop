@@ -1,6 +1,6 @@
 import type { DbClient } from "./types";
 import { ilikePattern } from "./helpers";
-import type { Ticket, TicketStatus, User } from "@/shared/types";
+import type { Payment, Ticket, TicketStatus, User } from "@/shared/types";
 
 interface TicketWithUser extends Ticket {
   USER: Pick<User, "full_name" | "email"> | null;
@@ -18,12 +18,9 @@ export interface TicketEvent {
   currency: string;
 }
 
-export interface TicketWithEvent extends Ticket {
+export interface TicketWithPaymentAndEvent extends Ticket {
   EVENT: TicketEvent | null;
-}
-
-export interface TicketWithPaymentAndEvent extends TicketWithEvent {
-  PAYMENT: { status: string; paid_at: string | null } | null;
+  PAYMENT: Pick<Payment, "status" | "paid_at"> | null;
 }
 
 interface AttendeeRow {
@@ -68,25 +65,21 @@ export async function findActiveByUserAndEvent(supabase: DbClient, userId: numbe
   return (data ?? []) as Ticket[];
 }
 
-// The PAYMENT embed rides along rather than being fetched per card. Without it
-// the tickets page issued one request per ticket for a status and a timestamp,
-// and each of those cost a role guard, a repeat of this same query and a QR
-// render — ten Worker invocations for one navigation, which is what pushed a
-// cold isolate over its CPU budget.
-const LIST_SELECT =
+// Everything a ticket card renders, so it never has to ask a second time.
+const TICKET_CARD_SELECT =
   "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";
 
 export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithPaymentAndEvent[]> {
   const { data } = await supabase
     .from("TICKET")
-    .select(LIST_SELECT)
+    .select(TICKET_CARD_SELECT)
     .eq("user_id", userId)
     .order("issued_at", { ascending: false });
   return data ?? [];
 }
 
 export async function listAll(supabase: DbClient): Promise<TicketWithPaymentAndEvent[]> {
-  const { data } = await supabase.from("TICKET").select(LIST_SELECT).order("issued_at", { ascending: false });
+  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).order("issued_at", { ascending: false });
   return data ?? [];
 }
 
@@ -94,13 +87,7 @@ export async function findWithPaymentAndEvent(
   supabase: DbClient,
   paymentId: number,
 ): Promise<TicketWithPaymentAndEvent | null> {
-  const { data } = await supabase
-    .from("TICKET")
-    .select(
-      "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)",
-    )
-    .eq("payment_id", paymentId)
-    .single();
+  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("payment_id", paymentId).single();
   return data;
 }
 

@@ -166,6 +166,9 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     setError(null);
 
     const contentType = detectContentType(data.file, data.url);
+    // Started before the lesson request, which it does not depend on: videos
+    // and PDFs pass straight through, but a phone photo takes real time.
+    const resized = data.file ? resizeImage(data.file) : null;
 
     const res = await fetch(`/api/modules/${moduleId}/lessons`, {
       method: "POST",
@@ -188,8 +191,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
       const endpoint = getUploadEndpoint(contentType);
       if (endpoint) {
         const formData = new FormData();
-        // Passes videos and PDFs straight through; only JPEG and PNG shrink.
-        formData.append("file", await resizeImage(data.file));
+        formData.append("file", (await resized) ?? data.file);
         formData.append("lesson_id", String(lesson.id));
         formData.append("course_id", String(modules[0].id));
         formData.append("module_id", String(moduleId));

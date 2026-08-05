@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as eventDao from "@/shared/db/dao/event.dao";
+import { fakePostgrest } from "./helpers/fake-postgrest";
 
 /**
  * `resolveAccess` now calls this before it resolves the caller, so what counts
@@ -7,29 +8,22 @@ import * as eventDao from "@/shared/db/dao/event.dao";
  * status wrongly treated as published would expose an unannounced event's
  * artwork; one wrongly treated as draft breaks every cover on the landing page.
  */
-function clientReturning(row: { status: string } | null) {
-  const builder = {
-    select: () => builder,
-    eq: () => builder,
-    single: async () => ({ data: row }),
-  };
-  return { from: () => builder } as never;
-}
+const eventWithStatus = (status: string | null) => fakePostgrest(status === null ? null : { status }).client;
 
 describe("event.dao isPublished", () => {
   it("treats an active event as published", async () => {
-    await expect(eventDao.isPublished(clientReturning({ status: "active" }), 1)).resolves.toBe(true);
+    await expect(eventDao.isPublished(eventWithStatus("active"), 1)).resolves.toBe(true);
   });
 
   it("treats a finished event as published, since its page stays readable", async () => {
-    await expect(eventDao.isPublished(clientReturning({ status: "complete" }), 1)).resolves.toBe(true);
+    await expect(eventDao.isPublished(eventWithStatus("complete"), 1)).resolves.toBe(true);
   });
 
   it("refuses a draft", async () => {
-    await expect(eventDao.isPublished(clientReturning({ status: "draft" }), 1)).resolves.toBe(false);
+    await expect(eventDao.isPublished(eventWithStatus("draft"), 1)).resolves.toBe(false);
   });
 
   it("refuses an event that does not exist rather than throwing", async () => {
-    await expect(eventDao.isPublished(clientReturning(null), 999)).resolves.toBe(false);
+    await expect(eventDao.isPublished(eventWithStatus(null), 999)).resolves.toBe(false);
   });
 });

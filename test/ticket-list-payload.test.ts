@@ -1,23 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
-
-/**
- * Records the select string each list builds, so the assertions below are about
- * the query actually sent rather than a fixture someone kept in step by hand.
- */
-function recordingClient(rows: unknown[]) {
-  const selects: string[] = [];
-  const result = { data: rows };
-  const builder = {
-    select(columns: string) {
-      selects.push(columns);
-      return builder;
-    },
-    eq: () => builder,
-    order: () => result,
-  };
-  return { selects, client: { from: () => builder } as never };
-}
+import { fakePostgrest } from "./helpers/fake-postgrest";
 
 const row = {
   id: 1,
@@ -32,7 +15,7 @@ describe("ticket list payload", () => {
   // If either stops arriving the page silently loses a field, so this is the
   // test that keeps the per-card request deleted.
   it("carries the payment embed for a user's own tickets", async () => {
-    const { selects, client } = recordingClient([row]);
+    const { client, selects } = fakePostgrest([row]);
 
     const tickets = await ticketDao.listByUser(client, 5);
 
@@ -41,7 +24,7 @@ describe("ticket list payload", () => {
   });
 
   it("carries the payment embed for the staff listing too", async () => {
-    const { selects, client } = recordingClient([row]);
+    const { client, selects } = fakePostgrest([row]);
 
     const tickets = await ticketDao.listAll(client);
 
@@ -50,7 +33,7 @@ describe("ticket list payload", () => {
   });
 
   it("keeps the event embed both lists already relied on", async () => {
-    const { selects, client } = recordingClient([row]);
+    const { client, selects } = fakePostgrest([row]);
 
     await ticketDao.listByUser(client, 5);
 
@@ -58,7 +41,7 @@ describe("ticket list payload", () => {
   });
 
   it("returns an empty list rather than null when the query yields nothing", async () => {
-    const { client } = recordingClient([]);
+    const { client } = fakePostgrest([]);
 
     await expect(ticketDao.listAll(client)).resolves.toEqual([]);
   });
