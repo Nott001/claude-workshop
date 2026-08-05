@@ -1,4 +1,28 @@
 /**
+ * Values interpolated into the HTML half of a message are user-controlled — a
+ * member's name, an event title someone else typed — and the message reaches
+ * inboxes other than the author's. Unescaped, a title carrying markup renders
+ * as markup inside mail that otherwise passes SPF and DKIM, which is the part
+ * that makes it worth injecting into.
+ *
+ * Escaping happens per value at the interpolation site rather than as a pass
+ * over the finished document, so the markup the templates own stays intact.
+ * `&` goes first; reversing that order would double-escape the entities the
+ * later replacements introduce.
+ *
+ * The text halves below are deliberately left alone: nothing parses them as
+ * markup, and an `&amp;` in a text/plain body reaches the reader literally.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * A bare fragment of `<h1>`/`<p>` scores worse with spam filters than a
  * complete document, so every message is wrapped in one: doctype, charset,
  * a title, and a footer saying who sent it and why it arrived.
@@ -9,7 +33,7 @@ function layout(title: string, body: string): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
+    <title>${escapeHtml(title)}</title>
   </head>
   <body style="margin:0;padding:24px;background:#f6f7f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2933">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px">
@@ -42,11 +66,11 @@ function ticketIssuedHtml(params: TicketIssuedParams): string {
   return layout(
     "Registration Confirmed",
     `      <h1 style="margin:0 0 16px;font-size:22px">Registration Confirmed — Ticket Issued</h1>
-      <p style="margin:0 0 12px">Hi ${params.name},</p>
-      <p style="margin:0 0 12px">You are registered for <strong>${params.eventTitle}</strong> on ${params.eventDate}.</p>
+      <p style="margin:0 0 12px">Hi ${escapeHtml(params.name)},</p>
+      <p style="margin:0 0 12px">You are registered for <strong>${escapeHtml(params.eventTitle)}</strong> on ${escapeHtml(params.eventDate)}.</p>
       <p style="margin:0 0 12px">Your payment has been confirmed and your ticket is ready. Present the QR code below at the event entrance to check in.</p>
       <p style="margin:0 0 12px">Keep this email — the code is your ticket. If it does not scan, staff can look you up by the name and email on this message.</p>
-      ${params.qrDataUrl ? `<p style="margin:0"><img src="${params.qrDataUrl}" alt="Your check-in QR code" width="200" height="200" style="display:block;margin:24px auto" /></p>` : ""}`,
+      ${params.qrDataUrl ? `<p style="margin:0"><img src="${escapeHtml(params.qrDataUrl)}" alt="Your check-in QR code" width="200" height="200" style="display:block;margin:24px auto" /></p>` : ""}`,
   );
 }
 
@@ -76,8 +100,8 @@ function checkInConfirmedHtml(params: CheckInConfirmedParams): string {
   return layout(
     "Check-In Confirmed",
     `      <h1 style="margin:0 0 16px;font-size:22px">Check-In Confirmed</h1>
-      <p style="margin:0 0 12px">Hi ${params.name},</p>
-      <p style="margin:0 0 12px">You have been checked in for <strong>${params.eventTitle}</strong>.</p>
+      <p style="margin:0 0 12px">Hi ${escapeHtml(params.name)},</p>
+      <p style="margin:0 0 12px">You have been checked in for <strong>${escapeHtml(params.eventTitle)}</strong>.</p>
       <p style="margin:0">Enjoy the event. No further action is needed — this message is your record of arrival.</p>`,
   );
 }
@@ -108,12 +132,12 @@ function memberInvitedHtml(params: MemberInvitedParams): string {
   return layout(
     "You have been invited to Startup Lab",
     `      <h1 style="margin:0 0 16px;font-size:22px">You have been invited to Startup Lab</h1>
-      <p style="margin:0 0 12px">Hi ${params.name},</p>
-      <p style="margin:0 0 12px">An administrator has invited you to join the Startup Lab team as a <strong>${params.role}</strong>. Accepting creates your account and gives you access to the events and course material for that role.</p>
+      <p style="margin:0 0 12px">Hi ${escapeHtml(params.name)},</p>
+      <p style="margin:0 0 12px">An administrator has invited you to join the Startup Lab team as a <strong>${escapeHtml(params.role)}</strong>. Accepting creates your account and gives you access to the events and course material for that role.</p>
       <p style="margin:0 0 24px">Use the button below to set your password and finish signing in.</p>
-      <p style="margin:0 0 24px"><a href="${params.acceptUrl}" style="display:inline-block;background:#1f2933;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600">Accept the invitation</a></p>
+      <p style="margin:0 0 24px"><a href="${escapeHtml(params.acceptUrl)}" style="display:inline-block;background:#1f2933;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600">Accept the invitation</a></p>
       <p style="margin:0 0 8px;font-size:13px;color:#6b7280">If the button does not work, copy this address into your browser:</p>
-      <p style="margin:0 0 24px;font-size:13px;word-break:break-all;color:#6b7280">${params.acceptUrl}</p>
+      <p style="margin:0 0 24px;font-size:13px;word-break:break-all;color:#6b7280">${escapeHtml(params.acceptUrl)}</p>
       <p style="margin:0;font-size:13px;color:#6b7280">This invitation can only be used once. If you were not expecting it, you can ignore this message.</p>`,
   );
 }
