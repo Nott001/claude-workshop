@@ -69,6 +69,17 @@ back and shown in the run summary.
    may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
    bundle, publishing the password.
 
+   Auth email — sign-up confirmation and organization invites — is sent by
+   Supabase, not by the worker, and is configured under **Authentication → SMTP
+   Settings** in the dashboard (port 587). Two settings there are not optional:
+
+   - **URL Configuration → Redirect URLs** must list every origin the app runs
+     on. A `redirectTo` that is not on the allowlist is silently replaced by the
+     Site URL with its path stripped, which sends invitees somewhere that cannot
+     complete their session.
+   - **Emails → Invite user** should use `docs/supabase-invite-template.html`.
+     The default is a bare heading and a link, which filters read as a fragment.
+
    Delivery runs after the response, so a slow send costs no request latency.
    Deliverability depends on DNS the repository does not own — SPF, DKIM and
    DMARC must all pass for `startuplab.center`, or mail lands in spam however

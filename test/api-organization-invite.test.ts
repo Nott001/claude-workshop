@@ -46,8 +46,17 @@ describe("POST /api/organization", () => {
     expect(res.status).toBe(201);
     expect(inviteUserByEmail).toHaveBeenCalledWith(
       "jane@example.com",
-      expect.objectContaining({ data: { full_name: "Jane Doe" } }),
+      expect.objectContaining({ data: { full_name: "Jane Doe", role: "speaker" } }),
     );
+  });
+
+  it("carries the role into user_metadata for the template without granting it there", async () => {
+    await POST(post(INVITE));
+
+    // The template renders .Data.role; ensure-user ignores it and reads
+    // app_metadata, so a user rewriting their own metadata gains nothing.
+    expect(inviteUserByEmail.mock.calls[0][1].data.role).toBe("speaker");
+    expect(updateUserById).toHaveBeenCalledWith("auth-1", { app_metadata: { [INVITED_ROLE_KEY]: "speaker" } });
   });
 
   it("points the invite link at the auth callback without doubling the slash", async () => {

@@ -67,7 +67,10 @@ export async function POST(req: Request) {
   // over the custom SMTP configured for this project rather than needing its
   // own template and transport.
   const { data: invited, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(parsed.data.email, {
-    data: { full_name: parsed.data.full_name },
+    // user_metadata, so the email template can render it. Display only — the
+    // copy that grants access lives in app_metadata below, because the account
+    // holder can rewrite this one.
+    data: { full_name: parsed.data.full_name, role: parsed.data.role },
     redirectTo: `${appBaseUrl()}/api/auth/callback`,
   });
 
