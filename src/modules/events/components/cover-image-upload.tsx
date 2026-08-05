@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { acceptAttribute, maxSizeMb, validateFileSize, validateFileType } from "@/shared/integrations/storage/policy";
+import { resizeImage } from "@/shared/integrations/storage/resize-image";
 
 interface CoverImageUploadProps {
   eventId: string;
@@ -36,7 +37,7 @@ export function CoverImageUpload({ eventId, initialUrl, onUploaded }: CoverImage
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", await resizeImage(file));
       formData.append("event_id", eventId);
 
       const res = await fetch("/api/upload/event-image", { method: "POST", body: formData });

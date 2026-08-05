@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { getBrowserClient } from "@/shared/db/browser-client";
+import { resizeImage } from "@/shared/integrations/storage/resize-image";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
 
@@ -93,7 +94,7 @@ export function useAccountSettings() {
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", await resizeImage(file));
 
       const res = await fetch("/api/upload/profile-image", { method: "POST", body: formData });
       if (!res.ok) {

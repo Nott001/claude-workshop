@@ -3,7 +3,6 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
-import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import { uploadToStorage } from "@/shared/integrations/storage/service";
 import { buildCourseAssetPath, validateFileType, validateFileSize } from "@/shared/integrations/storage/policy";
 
@@ -31,12 +30,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
   }
 
-  const optimizedFile = await optimizeImage(file);
   const filename = file.name || `asset.${file.type.split("/")[1]}`;
   const path = buildCourseAssetPath(Number(courseId), Number(moduleId), Number(lessonId), filename);
 
   try {
-    const result = await uploadToStorage("course_assets", path, optimizedFile);
+    const result = await uploadToStorage("course_assets", path, file);
 
     const supabase = getServiceClient();
     const updated = await courseDao.updateLesson(supabase, Number(lessonId), { content_url: result.url });

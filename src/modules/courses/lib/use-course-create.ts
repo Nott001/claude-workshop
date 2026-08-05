@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
+import { resizeImage } from "@/shared/integrations/storage/resize-image";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "./types";
 
@@ -187,7 +188,8 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
       const endpoint = getUploadEndpoint(contentType);
       if (endpoint) {
         const formData = new FormData();
-        formData.append("file", data.file);
+        // Passes videos and PDFs straight through; only JPEG and PNG shrink.
+        formData.append("file", await resizeImage(data.file));
         formData.append("lesson_id", String(lesson.id));
         formData.append("course_id", String(modules[0].id));
         formData.append("module_id", String(moduleId));
