@@ -85,6 +85,10 @@ export async function POST(req: Request) {
 
   const { error: roleError } = await supabase.auth.admin.updateUserById(link.user.id, {
     app_metadata: { [INVITED_ROLE_KEY]: parsed.data.role },
+    // ensure-user reads the display name from here when the account first signs
+    // in. Unlike the role, it is not an authorization input, so the account
+    // holder rewriting it later is their own business.
+    user_metadata: { full_name: parsed.data.full_name },
   });
 
   if (roleError) {

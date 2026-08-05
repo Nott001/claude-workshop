@@ -90,7 +90,21 @@ describe("POST /api/organization", () => {
 
     // app_metadata, never user_metadata: a user can rewrite the latter through
     // supabase.auth.updateUser and would be able to promote themselves.
-    expect(updateUserById).toHaveBeenCalledWith("auth-1", { app_metadata: { [INVITED_ROLE_KEY]: "speaker" } });
+    expect(updateUserById).toHaveBeenCalledWith(
+      "auth-1",
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "speaker" } }),
+    );
+  });
+
+  it("keeps the name the admin typed so the account is not created blank", async () => {
+    // ensure-user reads full_name from user_metadata on first sign-in; without
+    // this the invited member arrives with no name at all.
+    await POST(post(INVITE));
+
+    expect(updateUserById).toHaveBeenCalledWith(
+      "auth-1",
+      expect.objectContaining({ user_metadata: { full_name: "Jane Doe" } }),
+    );
   });
 
   it("writes the audit row only once the mail has actually gone out", async () => {
@@ -153,7 +167,10 @@ describe("POST /api/organization", () => {
     const res = await POST(post({ ...INVITE, role: "admin" }));
 
     expect(res.status).toBe(201);
-    expect(updateUserById).toHaveBeenCalledWith("auth-1", { app_metadata: { [INVITED_ROLE_KEY]: "admin" } });
+    expect(updateUserById).toHaveBeenCalledWith(
+      "auth-1",
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "admin" } }),
+    );
   });
 
   it("refuses to invite a super admin", async () => {
