@@ -6,13 +6,15 @@ import { getServiceClient } from "@/shared/db/client";
 import { userDao } from "@/shared/db/dao";
 import { logAuditEvent } from "@/modules/audit";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { INVITABLE_ROLES, INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
+import { appBaseUrl } from "@/shared/lib/app-url";
 
 const PAGE_SIZE = 10;
 
 const inviteSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
-  role: z.enum(["speaker", "facilitator", "admin"]),
+  role: z.enum(INVITABLE_ROLES),
 });
 
 export async function GET(req: Request) {
@@ -59,6 +61,36 @@ export async function POST(req: Request) {
 
   if (existing) {
     return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
+  }
+
+  // Supabase both creates the account and sends the invitation, so it goes out
+  // over the custom SMTP configured for this project rather than needing its
+  // own template and transport.
+  const { data: invited, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(parsed.data.email, {
+    data: { full_name: parsed.data.full_name },
+    redirectTo: `${appBaseUrl()}/api/auth/callback`,
+  });
+
+  if (inviteError || !invited?.user) {
+    const alreadyRegistered = /already|registered|exists/i.test(inviteError?.message ?? "");
+    return NextResponse.json(
+      { error: { message: alreadyRegistered ? "A user with this email already exists" : "Failed to send the invitation" } },
+      { status: alreadyRegistered ? 409 : 502 },
+    );
+  }
+
+  // Written after the invite because the account does not exist until then. The
+  // role is only read once the invitee signs in, which cannot happen before
+  // they open the email, so the gap is not reachable in practice.
+  const { error: roleError } = await supabase.auth.admin.updateUserById(invited.user.id, {
+    app_metadata: { [INVITED_ROLE_KEY]: parsed.data.role },
+  });
+
+  if (roleError) {
+    return NextResponse.json(
+      { error: { message: "Invitation sent, but the role could not be attached. Re-send the invite to retry." } },
+      { status: 500 },
+    );
   }
 
   await logAuditEvent(supabase, guard.user.id, "organization.invited", "user", null, {

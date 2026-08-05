@@ -2,18 +2,13 @@ import { getServiceClient } from "@/shared/db/client";
 import { paymentDao, ticketDao } from "@/shared/db/dao";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
 import { afterResponse } from "@/shared/lib/after-response";
+import { appBaseUrl } from "@/shared/lib/app-url";
 import { generateQRDataUrl } from "@/shared/integrations/qr";
 import type { CreatePaymentOptions, CreatePaymentResult, PaymentGateway } from "../index";
 import { generateQrToken } from "../index";
 
-/**
- * NEXT_PUBLIC_APP_URL is hand-entered configuration, so it may or may not carry
- * a trailing slash — the deployed value does, which produced `//checkout/123`.
- * Normalising here keeps every caller from having to know that.
- */
 export function buildCheckoutUrl(paymentId: number, appUrl = process.env.NEXT_PUBLIC_APP_URL): string {
-  const base = (appUrl?.trim() || "http://localhost:3000").replace(/\/+$/, "");
-  return `${base}/checkout/${paymentId}?success=true`;
+  return `${appBaseUrl(appUrl)}/checkout/${paymentId}?success=true`;
 }
 
 export class SimulatedPaymentGateway implements PaymentGateway {

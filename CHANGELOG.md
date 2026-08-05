@@ -27,6 +27,10 @@
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
 - The landing page shows the current events. It was prerendered at build time, so its "upcoming events" list was a snapshot taken at deploy: a newly published event never appeared and a finished one never left, until someone redeployed. It now renders per request. This also removes the build's dependency on a reachable database, which is what was failing the Build and Lighthouse jobs.
 
+### Fixed
+
+- Inviting a member now invites them. The organization invite validated the form, wrote an audit entry and returned success without contacting anybody or creating anything — the invited person was never told, and no account existed for them to use. An invitation email now goes out over the same mail server as the rest of the project, and accepting it grants the role they were invited as instead of dropping them in as an attendee.
+
 ### Added
 
 - Transactional email is actually delivered. Registration and check-in mail was written to the server console and never sent, so no attendee has ever received a ticket. Messages now go out from `no-reply@startuplab.center` through the organisation's own mail server, which the domain's existing SPF record already authorises — no DNS change was needed. The ticket QR travels as an inline attachment rather than a `data:` URI, which Gmail, Outlook desktop and Outlook.com all strip, and every message carries a plain-text alternative alongside the HTML. Delivery failures are recorded as a failed email-log row instead of breaking the registration that triggered them, and with no mailbox configured the app falls back to console logging as before. Sending happens after the response rather than during it, so checking out and scanning a ticket at the kiosk no longer wait several seconds on a mail server.
