@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
+import { EventListSkeleton } from "@/modules/events/components/event-list-skeleton";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
@@ -25,11 +26,7 @@ export default function EventsPage() {
   }, [user, router]);
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading events...</div>
-      </div>
-    );
+    return <EventListSkeleton />;
   }
 
   if (error) {
