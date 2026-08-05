@@ -69,19 +69,22 @@ back and shown in the run summary.
    may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
    bundle, publishing the password.
 
-   Auth email — sign-up confirmation and organization invites — is sent by
-   Supabase, not by the worker, and is configured under **Authentication → SMTP
-   Settings** in the dashboard (port 587). Two settings there are not optional:
+   Two senders exist, and which one is responsible decides where a fix goes:
 
-   - **URL Configuration → Redirect URLs** must list every origin the app runs
-     on. A `redirectTo` that is not on the allowlist is silently replaced by the
-     Site URL with its path stripped, which sends invitees somewhere that cannot
-     complete their session.
-     Organization invites no longer use a Supabase template: the worker builds
-     and sends that message itself, so it is edited in
-     `src/shared/integrations/email/templates.ts` like the ticket emails.
+   - **The worker** sends ticket, check-in and organization-invite mail through
+     the `SMTP_*` mailbox above. Those templates live in
+     `src/shared/integrations/email/templates.ts` and are edited here.
+   - **Supabase** sends sign-up confirmation and password recovery from its own
+     servers, configured under **Authentication → SMTP Settings** (port 587).
+     Those templates exist only in the dashboard.
 
-   Delivery runs after the response, so a slow send costs no request latency.
+   **URL Configuration → Redirect URLs** must list every origin the app runs on.
+   A `redirectTo` absent from that allowlist is silently replaced by the Site URL
+   with its path stripped, which strands anyone following an emailed link.
+
+   Ticket and check-in delivery runs after the response, so a slow send costs no
+   request latency. Invites are awaited instead: an administrator has to be told
+   the invitation did not go out.
    Deliverability depends on DNS the repository does not own — SPF, DKIM and
    DMARC must all pass for `startuplab.center`, or mail lands in spam however
    well-formed it is.
