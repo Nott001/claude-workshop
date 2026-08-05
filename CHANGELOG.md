@@ -23,13 +23,10 @@
 - Deleting an event now deletes its course material. Asset and video paths were collected and then discarded: the single cleanup call only ever targeted the `event_images` bucket, so every deleted event left its uploads orphaned in storage.
 - Attendee search returns matches again. The filter named embedded columns at the top level, which PostgREST does not apply, so searching a name or email quietly returned nothing. Search terms are now escaped as well — an underscore in an email address matched any character, and a comma silently split the filter.
 - QR check-in works again. Every scan returned "Invalid QR token" because the ticket lookup joined the user through the wrong column, so the query errored and the ticket was reported as missing.
+- Inviting a member now invites them. The organization invite validated the form, wrote an audit entry and reported success without contacting anybody or creating anything — the invited person was never told, and no account existed for them to use. An invitation now goes out over the same mail server as the ticket emails, and accepting it grants the role they were invited as instead of dropping them in as an attendee. The message is built by the application rather than by Supabase, so it matches the other emails and its link stays on the project's own domain.
 - Chat message senders, the event attendee list, and email log recipients load again — all four affected queries shared the same fault.
 - Course pages load again. Three modules deleted during an earlier refactor left their importers behind, which broke the production build outright.
 - The landing page shows the current events. It was prerendered at build time, so its "upcoming events" list was a snapshot taken at deploy: a newly published event never appeared and a finished one never left, until someone redeployed. It now renders per request. This also removes the build's dependency on a reachable database, which is what was failing the Build and Lighthouse jobs.
-
-### Fixed
-
-- Inviting a member now invites them. The organization invite validated the form, wrote an audit entry and returned success without contacting anybody or creating anything — the invited person was never told, and no account existed for them to use. An invitation email now goes out over the same mail server as the rest of the project, and accepting it grants the role they were invited as instead of dropping them in as an attendee.
 
 ### Added
 
