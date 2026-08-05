@@ -118,3 +118,48 @@ describe("useCourseByEvent when the event changes mid-flight", () => {
     expect(result.current.course?.course_name).toBe("Live");
   });
 });
+
+// A rejected request used to escape as an unhandled rejection, leaving
+// `loading` set with nothing to clear it and the page on its skeleton forever.
+describe("useEventList recovers from a failed request", () => {
+  it("clears loading and reports an error when the fetch rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
+
+    const { result } = renderHook(() => useEventList());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("Failed to load events");
+  });
+
+  it("clears loading when the response body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError("Unexpected token < in JSON");
+        },
+      })),
+    );
+
+    const { result } = renderHook(() => useEventList());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("Failed to load events");
+  });
+
+  it("clears loading on a non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),
+    );
+
+    const { result } = renderHook(() => useEventList());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("Failed to load events");
+  });
+});

@@ -40,15 +40,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function loadSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        fetch("/api/auth/me")
-          .then((r) => (r.ok ? r.json() : null))
-          .then(setUser)
-          .finally(() => setLoading(false));
-      } else {
+      // `loading` gates every guarded page, so it has to be cleared on the
+      // failing paths too. A rejected getSession — a corrupt stored session, a
+      // refresh that cannot reach the auth server — left it set with no second
+      // chance, and the page it was gating spun until a reload.
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        const res = await fetch("/api/auth/me");
+        setUser(res.ok ? await res.json() : null);
+      } catch {
+        setUser(null);
+      } finally {
         setLoading(false);
       }
     }
