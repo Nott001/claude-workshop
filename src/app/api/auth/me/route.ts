@@ -44,10 +44,11 @@ export async function PATCH(req: Request) {
   } = await req.json();
 
   // A speaker profile is the user's own row, so it lives on the same route —
-  // but only a speaker may write it. Guard before touching anything so a
-  // rejected attendee never leaves half a profile updated.
+  // but only a speaker may write it. The exact role is required, not a minimum,
+  // because facilitators and admins carry no speaker bio. Guard before touching
+  // anything so a rejected caller never leaves half a profile updated.
   const wantsSpeakerUpdate = body.designation !== undefined || body.bio !== undefined;
-  if (wantsSpeakerUpdate && !hasMinRole(guard.role, "speaker")) {
+  if (wantsSpeakerUpdate && guard.role !== "speaker") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

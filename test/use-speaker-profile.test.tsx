@@ -52,16 +52,23 @@ describe("useSpeakerProfile", () => {
     expect(result.current.bio).toBe("Leads the team.");
   });
 
-  it("does nothing for a non-speaker", () => {
-    sessionValue.mockReturnValue({ user: attendee });
+  it("does nothing for any non-speaker role", () => {
     const fetch = stubFetch();
     const notify = vi.fn();
 
-    const { result } = renderHook(() => useSpeakerProfile(notify));
+    // Facilitators and admins outrank speakers, but the speaker profile section
+    // belongs to the speaker row alone, so min-role must not admit them.
+    for (const role of ["attendee", "facilitator", "admin", "super_admin"]) {
+      sessionValue.mockReturnValue({ user: { ...attendee, role } });
+      const { result } = renderHook(() => useSpeakerProfile(notify));
+
+      expect(result.current.isSpeaker).toBe(false);
+      expect(result.current.speakerProfileId).toBeUndefined();
+
+      cleanup();
+    }
 
     expect(fetch).not.toHaveBeenCalled();
-    expect(result.current.isSpeaker).toBe(false);
-    expect(result.current.speakerProfileId).toBeUndefined();
   });
 
   it("saves designation and bio via PATCH /api/auth/me and notifies success", async () => {
