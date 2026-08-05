@@ -15,7 +15,9 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
 
   const [eventRes, speakerRes, ticketRes] = await Promise.all([
     fetch(`/api/events/${eventId}`),
-    role === "speaker" ? fetch("/api/speakers/me") : Promise.resolve(null),
+    // /api/auth/me carries the caller's own speaker_profile_id; a speaker is
+    // just a user, so there is no separate /api/speakers/me profile route.
+    role === "speaker" ? fetch("/api/auth/me") : Promise.resolve(null),
     role !== "facilitator" && role !== "speaker" ? fetch("/api/tickets") : Promise.resolve(null),
   ]);
 
@@ -25,7 +27,7 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
     ticketRes?.ok ? ticketRes.json() : Promise.resolve([]),
   ]);
 
-  const speakerProfileId: number | null = speakerData?.id ?? null;
+  const speakerProfileId: number | null = speakerData?.speaker_profile_id ?? null;
   const isSpeakerAssigned =
     !!speakerProfileId &&
     (event?.EVENT_SPEAKER?.some((es: EventSpeakerEntry) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);

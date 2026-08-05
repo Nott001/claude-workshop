@@ -15,7 +15,9 @@ const mockEvent = {
   COURSE: null,
 };
 
-const mockSpeakerProfile = { id: 99, user_id: 1 };
+// GET /api/auth/me carries the caller's own speaker_profile_id; a speaker is
+// just a user, so there is no separate /api/speakers/me profile route.
+const mockSpeakerProfile = { speaker_profile_id: 99, id: 1 };
 
 const mockTicket = { event_id: 42, status: "confirmed" };
 const mockCancelledTicket = { event_id: 42, status: "cancelled" };
@@ -63,7 +65,7 @@ describe("fetchEventAccess", () => {
   it("skips ticket fetch for speaker, hasTicket is false", async () => {
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/speakers/me": mockSpeakerProfile,
+      "/api/auth/me": mockSpeakerProfile,
     });
 
     const result = await fetchEventAccess(eventId, user("speaker"));
@@ -75,7 +77,7 @@ describe("fetchEventAccess", () => {
   it("marks speaker as assigned when profile matches event speaker", async () => {
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/speakers/me": mockSpeakerProfile,
+      "/api/auth/me": mockSpeakerProfile,
     });
 
     const result = await fetchEventAccess(eventId, user("speaker"));
@@ -84,10 +86,10 @@ describe("fetchEventAccess", () => {
   });
 
   it("marks speaker as not assigned when profile does not match", async () => {
-    const differentSpeaker = { id: 999, user_id: 1 };
+    const differentSpeaker = { speaker_profile_id: 999, id: 1 };
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/speakers/me": differentSpeaker,
+      "/api/auth/me": differentSpeaker,
     });
 
     const result = await fetchEventAccess(eventId, user("speaker"));

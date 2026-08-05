@@ -66,7 +66,7 @@ export function Navbar() {
     if (!isSignedIn) return;
 
     if (!user?.profile_image_url && !customPhoto) {
-      fetch("/api/speakers/me")
+      fetch("/api/auth/me")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.photo_url) setCustomPhoto(data.photo_url);
