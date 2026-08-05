@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Footer } from "@/shared/components/footer";
 import { EventForm, toFormValues, type EventPayload, type EventFormValues } from "./event-form";
 
 interface EditEventFormProps {
@@ -35,7 +34,6 @@ export function EditEventForm({ eventId, initialData }: EditEventFormProps) {
         initialValues={toFormValues(initialData)}
         onSubmit={saveEvent}
       />
-      <Footer role="facilitator" />
     </>
   );
 }
