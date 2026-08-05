@@ -44,7 +44,7 @@ function post(body: unknown) {
 }
 
 const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: "speaker" };
-// Low-entropy on purpose; see test/invite-redirect.test.ts.
+// Low-entropy on purpose; see test/invite-accept.test.ts.
 const TOKEN = "aaaabbbbccccddddeeeeffff";
 
 beforeEach(() => {
@@ -194,6 +194,19 @@ describe("POST /api/organization", () => {
       null,
       expect.objectContaining({ resent: true }),
     );
+  });
+
+  it("says so when the earlier invitation could not be cleared", async () => {
+    // Reporting the "already registered" that would follow would blame the
+    // address rather than the delete that actually failed.
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
+    deleteUser.mockResolvedValue({ error: { message: "service unavailable" } });
+
+    const res = await POST(post(INVITE));
+
+    expect(res.status).toBe(502);
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("refuses once the invitation has actually been accepted", async () => {

@@ -77,7 +77,14 @@ export async function POST(req: Request) {
   }
 
   if (account) {
-    await supabase.auth.admin.deleteUser(account.id);
+    const { error: staleError } = await supabase.auth.admin.deleteUser(account.id);
+
+    // Carrying on would ask Supabase for a link it cannot issue while the old
+    // account stands, and report the refusal as "already exists" — a confident
+    // wrong answer to an admin whose real problem is this delete.
+    if (staleError) {
+      return NextResponse.json({ error: { message: "Failed to clear the earlier invitation" } }, { status: 502 });
+    }
   }
 
   // `generateLink` creates the account and returns the invitation token without
@@ -87,7 +94,6 @@ export async function POST(req: Request) {
   const { data: link, error: linkError } = await supabase.auth.admin.generateLink({
     type: "invite",
     email: parsed.data.email,
-    options: { redirectTo: `${appBaseUrl()}/api/auth/callback` },
   });
 
   if (linkError || !link?.user || !link.properties?.hashed_token) {
@@ -116,7 +122,7 @@ export async function POST(req: Request) {
     name: parsed.data.full_name,
     role: parsed.data.role,
     // Fronted by our own domain rather than linking straight to Supabase: see
-    // src/app/invite/route.ts.
+    // src/app/invite/page.tsx.
     acceptUrl: `${appBaseUrl()}/invite?token=${link.properties.hashed_token}`,
   };
 

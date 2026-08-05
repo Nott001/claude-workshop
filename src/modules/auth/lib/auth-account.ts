@@ -1,3 +1,5 @@
+const LOOKUP_TIMEOUT_MS = 5_000;
+
 type AdminUser = { id: string; email: string | null; last_sign_in_at: string | null };
 
 export type AuthAccount = {
@@ -27,16 +29,24 @@ export async function findAuthAccountByEmail(email: string): Promise<AuthAccount
   url.searchParams.set("filter", email);
 
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
 
   // Reporting "no account" on a failed lookup costs nothing: the caller goes on
-  // to ask Supabase for an invitation link, which refuses for an address that
-  // is already taken and produces the same conflict the caller would have.
-  if (!res.ok) return null;
+  // to ask Supabase for an invitation link, which refuses an address that is
+  // already taken and produces the same conflict the caller would have. The
+  // deadline is what makes that true of a stalled endpoint too — an invite the
+  // admin is waiting on must not sit on an isolate until the platform kills it.
+  try {
+    const res = await fetch(url, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
 
-  const { users } = (await res.json()) as { users?: AdminUser[] };
-  const match = users?.find((user) => user.email?.toLowerCase() === email.toLowerCase());
-  if (!match) return null;
+    const { users } = (await res.json()) as { users?: AdminUser[] };
+    const match = users?.find((user) => user.email?.toLowerCase() === email.toLowerCase());
 
-  return { id: match.id, accepted: Boolean(match.last_sign_in_at) };
+    return match ? { id: match.id, accepted: Boolean(match.last_sign_in_at) } : null;
+  } catch {
+    return null;
+  }
 }

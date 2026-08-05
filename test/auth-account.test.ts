@@ -72,4 +72,11 @@ describe("findAuthAccountByEmail", () => {
 
     expect(await findAuthAccountByEmail("jane@example.com")).toBeNull();
   });
+
+  it("gives up rather than holding the invite open on a stalled endpoint", async () => {
+    fetchMock.mockRejectedValue(Object.assign(new Error("The operation was aborted"), { name: "TimeoutError" }));
+
+    expect(await findAuthAccountByEmail("jane@example.com")).toBeNull();
+    expect(fetchMock.mock.calls[0][1].signal).toBeDefined();
+  });
 });
