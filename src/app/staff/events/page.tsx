@@ -2,10 +2,9 @@
 
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
-import { Footer } from "@/shared/components/footer";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
-import { useRoleGuard } from "@/modules/auth";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -19,7 +18,7 @@ const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function StaffEventsPage() {
-  const { role: userRole, allowed, pending } = useRoleGuard("facilitator");
+  const { allowed, pending } = useRoleGuard("facilitator");
   const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts } = useEventList();
 
   if (pending || loading) {
@@ -91,7 +90,6 @@ export default function StaffEventsPage() {
           </div>
         )}
       </div>
-      <Footer role={userRole as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }

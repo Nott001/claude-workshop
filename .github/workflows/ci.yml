@@ -2,8 +2,12 @@ name: CI
 
 on:
   pull_request:
+  # `development` is here because a merge into it runs no workflow otherwise:
+  # `pull_request` covers the branch being merged, not the result. A rename to
+  # proxy.ts landed that way and left the app undeployable for two days, which
+  # nothing reported, because the last run predated it.
   push:
-    branches: [main]
+    branches: [main, development]
 
 # A new push to the same branch cancels the previous run.
 concurrency:
@@ -75,7 +79,7 @@ jobs:
           retention-days: 7
 
   build:
-    name: Build
+    name: Build worker
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -101,7 +105,12 @@ jobs:
             next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             next-${{ runner.os }}-
 
-      - run: pnpm build
+      # `pnpm cf:build`, not `pnpm build`: it runs the Next build and then
+      # bundles the worker, which is the step the deploy actually performs.
+      # `next build` alone cannot fail on an import that only esbuild resolves,
+      # so a change can pass every other gate here and still not deploy — an
+      # SMTP provider importing `cloudflare:sockets` did exactly that.
+      - run: pnpm cf:build
 
   # Single required status check. Branch protection targets this one job rather
   # than every matrix leg, so adding a check later needs no protection change.

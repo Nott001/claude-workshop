@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { paymentDao } from "@/shared/db/dao";
+import * as paymentDao from "@/shared/db/dao/payment.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

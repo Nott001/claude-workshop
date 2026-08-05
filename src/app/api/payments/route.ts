@@ -3,8 +3,9 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { paymentDao, ticketDao } from "@/shared/db/dao";
-import { paymentInitSchema } from "@/modules/commerce";
+import * as paymentDao from "@/shared/db/dao/payment.dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
@@ -24,70 +25,60 @@ export async function POST(req: Request) {
 
   const { event_id } = parsed.data;
 
-  const event = await paymentDao.findEventForPayment(supabase, event_id);
-  if (!event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
+  // None of these three depends on the others, so they are issued together
+  // rather than in series. The checks below still run in their original order,
+  // which is what the double-ticketing rule actually depends on. A missing
+  // event now costs two reads that used to be skipped — a rare path, traded for
+  // two fewer round trips on every real purchase.
+  const [event, activeTickets, existing] = await Promise.all([
+    paymentDao.findEventForPayment(supabase, event_id),
+    ticketDao.findActiveByUserAndEvent(supabase, user.id, event_id),
+    paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id),
+  ]);
 
-  if (event.status === "draft") {
+  if (!event || event.status === "draft") {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   // The active-ticket check has to come first. Resuming a stale pending payment
   // ahead of it let a user who already held a live ticket check out again and
   // receive a second one — nothing in the schema prevents the duplicate.
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, event_id);
-
   if (activeTickets.length > 0) {
     return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
   }
 
-  const existing = await paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id);
+  let payment_id: number;
 
   if (existing && existing.status === "pending") {
-    const gateway = new SimulatedPaymentGateway();
-    const result = await gateway.createPayment({
-      amount: event.price,
-      currency: event.currency,
-      payment_id: existing.id,
+    payment_id = existing.id;
+  } else {
+    const payment = await paymentDao.create(supabase, {
       user_id: user.id,
       event_id,
-      user_email: user.email,
-      user_name: user.full_name,
+      amount: event.price,
+      currency: event.currency,
     });
 
-    return NextResponse.json({
-      payment_id: existing.id,
-      checkout_url: result.checkout_url,
-    });
+    if (!payment) {
+      return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
+    }
+
+    payment_id = payment.id;
   }
 
-  const payment = await paymentDao.create(supabase, {
-    user_id: user.id,
-    event_id,
+  const result = await new SimulatedPaymentGateway().createPayment({
     amount: event.price,
     currency: event.currency,
-  });
-
-  if (!payment) {
-    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
-  }
-
-  const gateway = new SimulatedPaymentGateway();
-  const result = await gateway.createPayment({
-    amount: event.price,
-    currency: event.currency,
-    payment_id: payment.id,
+    payment_id,
     user_id: user.id,
     event_id,
     user_email: user.email,
     user_name: user.full_name,
+    // Already loaded above; the gateway used to re-read the same row.
+    event: { title: event.title, event_date: event.event_date },
   });
 
-  return NextResponse.json({
-    payment_id: payment.id,
-    checkout_url: result.checkout_url,
-  });
+  return NextResponse.json({ payment_id, checkout_url: result.checkout_url });
 }
 
 export async function GET() {

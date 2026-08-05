@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { speakerDao, eventDao } from "@/shared/db/dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
 
 export async function GET() {
   const supabase = getServiceClient();

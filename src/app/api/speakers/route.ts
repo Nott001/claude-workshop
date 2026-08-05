@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { speakerDao } from "@/shared/db/dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileSchema } from "@/modules/events/lib/schemas";
 
-export async function GET() {
+export async function GET(req: Request) {
   const guard = await requireRole("facilitator");
   if (!guard.allowed) {
     return guardFailure(guard);
@@ -13,7 +13,9 @@ export async function GET() {
 
   const supabase = getServiceClient();
 
-  const profiles = await speakerDao.list(supabase);
+  const { searchParams } = new URL(req.url);
+  const profiles =
+    searchParams.get("role") === "speaker" ? await speakerDao.listCandidates(supabase) : await speakerDao.list(supabase);
 
   return NextResponse.json(profiles);
 }

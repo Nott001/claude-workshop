@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { Navbar } from "@/shared/components/navbar";
 import { FloatingAssistButton } from "@/modules/support/components/floating-assist-button";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { ErrorBoundary } from "@/shared/components/ui/error-boundary";
+import { ErrorBoundary } from "@/shared/components/error-boundary";
+import { Footer } from "@/shared/components/footer";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
@@ -39,7 +40,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <Navbar />
       <ErrorBoundary>
-        <main className="flex flex-1 flex-col overflow-auto lg:pl-[202px]">{children}</main>
+        <main className="flex flex-1 flex-col overflow-auto lg:pl-[202px]">
+          {children}
+          <Footer />
+        </main>
       </ErrorBoundary>
       {showAssist && <FloatingAssistButton />}
     </div>

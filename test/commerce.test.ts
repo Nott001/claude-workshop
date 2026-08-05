@@ -10,7 +10,7 @@ import {
   canTransitionTicket,
   generateQrToken,
   isPaymentTerminal,
-} from "@/modules/commerce";
+} from "@/modules/commerce/lib/payment-state";
 import type { Payment, Ticket, PaymentStatus, TicketStatus } from "@/shared/types";
 
 describe("Payment and Ticket types", () => {
@@ -182,5 +182,34 @@ describe("PaymentGateway interface", () => {
     const gateway = new SimulatedPaymentGateway();
     expect(gateway.createPayment).toBeDefined();
     expect(typeof gateway.createPayment).toBe("function");
+  });
+});
+
+describe("buildCheckoutUrl", () => {
+  async function build(paymentId: number, appUrl?: string) {
+    const { buildCheckoutUrl } = await import("@/modules/commerce/lib/payment-gateway");
+    return buildCheckoutUrl(paymentId, appUrl);
+  }
+
+  it("joins the base and path with exactly one slash", async () => {
+    expect(await build(231, "https://events.example.com")).toBe("https://events.example.com/checkout/231?success=true");
+  });
+
+  it("does not double the slash when the base ends in one", async () => {
+    // The deployed NEXT_PUBLIC_APP_URL has a trailing slash, which produced
+    // `…dev//checkout/231` in a real purchase.
+    expect(await build(231, "https://events.example.com/")).toBe("https://events.example.com/checkout/231?success=true");
+  });
+
+  it("collapses several trailing slashes", async () => {
+    expect(await build(7, "https://events.example.com///")).toBe("https://events.example.com/checkout/7?success=true");
+  });
+
+  it("keeps a path prefix on the base intact", async () => {
+    expect(await build(7, "https://example.com/app/")).toBe("https://example.com/app/checkout/7?success=true");
+  });
+
+  it.each([undefined, "", "   "])("falls back to localhost for %j", async (appUrl) => {
+    expect(await build(1, appUrl)).toBe("http://localhost:3000/checkout/1?success=true");
   });
 });

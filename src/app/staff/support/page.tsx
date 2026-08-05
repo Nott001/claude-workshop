@@ -1,8 +1,8 @@
 "use client";
 
-import { useSession, useRoleGuard } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import ChatPanel from "@/modules/chat/components/chat-panel";
-import { Footer } from "@/shared/components/footer";
 
 export default function StaffSupportPage() {
   const { user } = useSession();
@@ -26,7 +26,6 @@ export default function StaffSupportPage() {
         <p>Handle general support requests from attendees.</p>
         <ChatPanel eventId="" supportType="general" userRole={role} currentUserId={currentUserId} />
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
     </>
   );
 }

@@ -2,8 +2,7 @@
  * What each bucket accepts, and how its paths are named. Pure — no database or
  * storage client — so a browser component can check a file against the same
  * rules the route enforces without dragging the service-role client into the
- * client bundle. `index.ts` re-exports all of it; import from here only when
- * you are in a "use client" module.
+ * client bundle.
  */
 
 export const STORAGE_BUCKETS = ["event_images", "profile_images", "course_assets", "course_videos"] as const;

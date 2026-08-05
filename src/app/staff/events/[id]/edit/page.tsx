@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useRoleGuard } from "@/modules/auth";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 
 export default function StaffEditEventPage() {

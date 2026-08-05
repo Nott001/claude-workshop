@@ -1,7 +1,6 @@
 "use client";
 
 import { EventCard } from "@/modules/events/components/event-card";
-import { Footer } from "@/shared/components/footer";
 import { useSpeakerEvents } from "@/modules/events/lib/use-speaker-events";
 
 export default function SpeakerDashboardPage() {
@@ -24,7 +23,7 @@ export default function SpeakerDashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Upcoming Engagements</h1>
@@ -55,7 +54,6 @@ export default function SpeakerDashboardPage() {
           </div>
         )}
       </div>
-      <Footer role="speaker" />
     </div>
   );
 }

@@ -3,6 +3,12 @@
 Prerequisites: SPEC-01-A
 After this: SPEC-01-C
 
+> **As built.** The inline `useSession` + `hasMinRole` recipe below was
+> centralised into `useRoleGuard(minRole)` (`src/modules/auth/lib/use-role-guard.ts`).
+> A denied user is redirected to `/access-denied` and the page returns `null`;
+> it does not render the "Access denied." text this spec describes. The gate is
+> equivalent — read Verification as "is denied access", not as a literal string.
+
 ## Scope
 
 3 client-component pages. Add `hasMinRole` guards that deny access to anyone

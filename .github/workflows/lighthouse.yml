@@ -13,11 +13,13 @@ on:
       - "LICENSE"
       - ".gitignore"
       - ".prettierignore"
-  # Also on main, because a pull request is audited against its own branch. Two
-  # changes that each pass alone can combine into a regression the merge result
-  # is the first thing to contain.
+  # Also on main and development, because a pull request is audited against its
+  # own branch. Two changes that each pass alone can combine into a regression
+  # the merge result is the first thing to contain — which is exactly how a
+  # 0.142 CLS reached development: pinning the footer in the app shell passed
+  # its own audit, and only collided with client-loaded pages once merged.
   push:
-    branches: [main]
+    branches: [main, development]
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}

@@ -1,5 +1,5 @@
 import { getServiceClient } from "@/shared/db/client";
-import { emailDao } from "@/shared/db/dao";
+import * as emailDao from "@/shared/db/dao/email.dao";
 import { getEmailService } from "@/shared/integrations/email";
 import { emailTemplates } from "@/shared/integrations/email/templates";
 import type { EmailType } from "@/shared/types";
@@ -31,6 +31,11 @@ export async function sendEmailNotification(params: {
         eventTitle: params.eventTitle,
         eventDate,
         qrDataUrl: params.qrDataUrl,
+      }),
+      textContent: template.buildText({
+        name: params.name,
+        eventTitle: params.eventTitle,
+        eventDate,
       }),
     });
 

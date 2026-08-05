@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
+import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import type { TicketStatus } from "@/shared/types";
 
 describe("checkinSchema", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { eventDao } from "@/shared/db/dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 /**
@@ -62,5 +62,69 @@ describe("eventDao.list draft visibility", () => {
     await eventDao.list(client, { role: "not_a_role" });
 
     expect(statusFilter(calls)).toEqual(["in", ["status", ["active", "complete"]]]);
+  });
+});
+
+describe("eventDao.list facilitator visibility", () => {
+  /** EVENT and EVENT_FACILITATOR need separate settled values per table. */
+  function listStub(assignedEventIds: number[] = []) {
+    const calls: Array<[string, unknown[]]> = [];
+    const eventChain: Record<string, unknown> = {};
+    for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit"]) {
+      eventChain[method] = vi.fn((...args: unknown[]) => {
+        calls.push([method, args]);
+        return eventChain;
+      });
+    }
+    eventChain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
+
+    const efChain: Record<string, unknown> = {};
+    for (const method of ["select", "eq"]) {
+      efChain[method] = vi.fn((...args: unknown[]) => {
+        calls.push([method, args]);
+        return efChain;
+      });
+    }
+    efChain.then = (resolve: (v: unknown) => unknown) =>
+      resolve({ data: assignedEventIds.map((event_id) => ({ event_id })), error: null });
+
+    const from = vi.fn((table: string) => (table === "EVENT_FACILITATOR" ? efChain : eventChain));
+    return { client: { from } as unknown as DbClient, calls };
+  }
+
+  it("limits a facilitator to the events assigned to them", async () => {
+    const { client, calls } = listStub([41, 42]);
+
+    await eventDao.list(client, { role: "facilitator", userId: 3 });
+
+    expect(calls).toContainEqual(["select", ["event_id"]]);
+    expect(calls).toContainEqual(["eq", ["user_id", 3]]);
+    expect(calls).toContainEqual(["in", ["id", [41, 42]]]);
+  });
+
+  it("lists nothing for a facilitator with no assignments", async () => {
+    const { client, calls } = listStub([]);
+
+    await eventDao.list(client, { role: "facilitator", userId: 3 });
+
+    // An empty in() is vacuous to PostgREST, so the sentinel id is what
+    // actually guarantees an empty list.
+    expect(calls).toContainEqual(["in", ["id", [-1]]]);
+  });
+
+  it.each(["admin", "super_admin"])("does not restrict %s to their own events", async (role) => {
+    const { client, calls } = listStub();
+
+    await eventDao.list(client, { role, userId: 3 });
+
+    expect(calls).not.toContainEqual(["select", ["event_id"]]);
+  });
+
+  it("never consults assignments for non-facilitator roles", async () => {
+    const { client, calls } = listStub();
+
+    await eventDao.list(client, { role: "attendee", userId: 3 });
+
+    expect(calls).not.toContainEqual(["select", ["event_id"]]);
   });
 });

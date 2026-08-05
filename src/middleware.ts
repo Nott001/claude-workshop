@@ -80,6 +80,17 @@ function redirectToSignIn(req: NextRequest) {
   return NextResponse.redirect(signInUrl);
 }
 
+/**
+ * Still `middleware.ts`, which Next 16 deprecates in favour of `proxy.ts`.
+ *
+ * The rename is not cosmetic: `proxy.ts` runs on the Node runtime with no edge
+ * opt-out, and the Cloudflare adapter can only bundle edge middleware, so it
+ * exits with "Node.js middleware is not currently supported". Renaming this
+ * file makes the application undeployable, which `pnpm cf:build` catches.
+ *
+ * Revisit when opennextjs-cloudflare ships Node middleware support:
+ * https://github.com/opennextjs/opennextjs-cloudflare/issues/1309
+ */
 export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",

@@ -3,9 +3,10 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { chatDao, courseDao } from "@/shared/db/dao";
+import * as chatDao from "@/shared/db/dao/chat.dao";
+import * as courseDao from "@/shared/db/dao/course.dao";
 import { qaMessageSchema } from "@/modules/chat/lib/schemas";
-import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat";
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;

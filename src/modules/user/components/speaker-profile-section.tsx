@@ -1,0 +1,61 @@
+"use client";
+
+import { Button } from "@/shared/components/button";
+import { Input } from "@/shared/components/input";
+import { Form, FormField, FormLabel } from "@/shared/components/form";
+
+interface SpeakerProfileSectionProps {
+  loading: boolean;
+  designation: string;
+  onDesignationChange: (value: string) => void;
+  bio: string;
+  onBioChange: (value: string) => void;
+  saving: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+}
+
+export function SpeakerProfileSection({
+  loading,
+  designation,
+  onDesignationChange,
+  bio,
+  onBioChange,
+  saving,
+  onSubmit,
+}: SpeakerProfileSectionProps) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-6">
+      <h2 className="text-sm font-bold text-fg">Professional Info</h2>
+      <p className="mt-1 text-xs text-muted-fg">Speaker designation and bio.</p>
+      {loading ? (
+        <p className="mt-4 text-xs text-muted-fg">Loading...</p>
+      ) : (
+        <Form onSubmit={onSubmit} className="mt-4 space-y-3">
+          <FormField>
+            <FormLabel htmlFor="designation">Designation</FormLabel>
+            <Input
+              id="designation"
+              value={designation}
+              onChange={(e) => onDesignationChange(e.target.value)}
+              placeholder="e.g. Senior Developer"
+            />
+          </FormField>
+          <FormField>
+            <FormLabel htmlFor="bio">Bio</FormLabel>
+            <textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => onBioChange(e.target.value)}
+              placeholder="Tell attendees about yourself..."
+              rows={3}
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring/20"
+            />
+          </FormField>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </Form>
+      )}
+    </div>
+  );
+}

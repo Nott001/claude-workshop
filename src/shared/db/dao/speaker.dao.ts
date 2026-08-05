@@ -28,6 +28,19 @@ export async function list(supabase: DbClient): Promise<SpeakerProfileWithUser[]
   return data ?? [];
 }
 
+/**
+ * Speaker profiles whose owner still holds the speaker role. A profile whose
+ * user was re-roled is not assignable, so the create/edit form must not offer it.
+ */
+export async function listCandidates(supabase: DbClient): Promise<SpeakerProfileWithUser[]> {
+  const { data } = await supabase
+    .from("SPEAKER_PROFILE")
+    .select("*, USER(full_name, email)")
+    .eq("USER.role", "speaker")
+    .order("id", { ascending: false });
+  return data ?? [];
+}
+
 export async function create(
   supabase: DbClient,
   data: {
@@ -85,6 +98,34 @@ export async function listEventAssignments(supabase: DbClient, eventId: number):
 export async function assignToEvent(supabase: DbClient, eventId: number, speakerProfileId: number): Promise<boolean> {
   const { error } = await supabase.from("EVENT_SPEAKER").insert({ event_id: eventId, speaker_profile_id: speakerProfileId });
   return !error;
+}
+
+/**
+ * Make the event's speaker set exactly `speakerProfileIds`. Ids that do not
+ * belong to a speaker-role profile are dropped, so a caller cannot grant a
+ * non-speaker an EVENT_SPEAKER row by id.
+ */
+export async function replaceEventAssignments(
+  supabase: DbClient,
+  eventId: number,
+  speakerProfileIds: number[],
+): Promise<boolean> {
+  const { data: valid } = await supabase
+    .from("SPEAKER_PROFILE")
+    .select("id, USER(role)")
+    .in("id", speakerProfileIds)
+    .eq("USER.role", "speaker");
+  const validIds = (valid ?? []).map((s: { id: number }) => s.id);
+
+  const { error: deleteError } = await supabase.from("EVENT_SPEAKER").delete().eq("event_id", eventId);
+  if (deleteError) return false;
+
+  if (validIds.length === 0) return true;
+
+  const { error: insertError } = await supabase
+    .from("EVENT_SPEAKER")
+    .insert(validIds.map((speaker_profile_id) => ({ event_id: eventId, speaker_profile_id })));
+  return !insertError;
 }
 
 export async function unassignFromEvent(supabase: DbClient, eventId: number, speakerProfileId: number): Promise<boolean> {

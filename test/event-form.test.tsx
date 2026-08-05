@@ -6,7 +6,10 @@ import { eventSchema } from "@/modules/events/lib/schemas";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("toEventPayload", () => {
   it("produces a body the API's eventSchema accepts", () => {
@@ -20,6 +23,8 @@ describe("toEventPayload", () => {
       description: "All about AI",
       price: "1500.50",
       currency: "php",
+      facilitator_ids: [2, 7],
+      speaker_profile_ids: [3, 9],
     });
 
     expect(eventSchema.safeParse(payload).success).toBe(true);
@@ -27,6 +32,8 @@ describe("toEventPayload", () => {
     expect(payload.currency).toBe("PHP");
     expect(payload.venue_address).toBe("123 Main St");
     expect(payload.description).toBe("All about AI");
+    expect(payload.facilitator_ids).toEqual([2, 7]);
+    expect(payload.speaker_profile_ids).toEqual([3, 9]);
   });
 
   it("sends null, not an empty string, for untouched nullable columns", () => {
@@ -67,7 +74,15 @@ describe("toFormValues", () => {
       description: "All about AI",
       price: "1500.5",
       currency: "PHP",
+      facilitator_ids: [],
+      speaker_profile_ids: [],
     });
+  });
+
+  it("seeds the selected facilitator ids from the stored event", () => {
+    const values = toFormValues({ title: "Alpha", facilitator_ids: [3, 9] });
+
+    expect(values.facilitator_ids).toEqual([3, 9]);
   });
 
   it("renders nullable columns as empty inputs rather than the string 'null'", () => {
@@ -94,7 +109,12 @@ describe("EventForm", () => {
     return onSubmit;
   }
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // The form fetches the facilitator roster on mount; return an empty one by
+    // default so the render helpers stay focused on the fields they assert on.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+  });
 
   const fill = (fields: Record<string, string>) => {
     for (const [label, value] of Object.entries(fields)) {
@@ -128,6 +148,56 @@ describe("EventForm", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
+    expect(screen.getByText(/Facilitators/)).toBeTruthy();
+    expect(screen.getByText(/Speakers/)).toBeTruthy();
+  });
+
+  it("lets an admin pick facilitators to assign at creation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL) =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            String(input).includes("/api/facilitators")
+              ? [{ id: 3, full_name: "Fay Facilitator", email: "fay@example.com" }]
+              : [],
+        }),
+      ),
+    );
+    const onSubmit = renderForm();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Select facilitators/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Fay Facilitator/ }));
+    fill(REQUIRED);
+    submit();
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ facilitator_ids: [3] });
+  });
+
+  it("lets an admin assign speakers at creation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL) =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            String(input).includes("/api/speakers?role=speaker")
+              ? [{ id: 4, user_id: 2, designation: "Author", USER: { full_name: "Sam Speaker", email: "sam@example.com" } }]
+              : [],
+        }),
+      ),
+    );
+    const onSubmit = renderForm();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Select speakers/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Sam Speaker/ }));
+    fill(REQUIRED);
+    submit();
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ speaker_profile_ids: [4] });
   });
 
   it("submits the venue address, description, price and currency the old form dropped", async () => {

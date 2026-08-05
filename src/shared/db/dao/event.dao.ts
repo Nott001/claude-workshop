@@ -8,11 +8,13 @@ type UpdateEventInput = Partial<CreateEventInput>;
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
 type EventSpeakerJoin = {
+  speaker_profile_id: number;
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email"> };
 };
 type EventWithRelations = Event & {
   COURSE?: Record<string, unknown> | null;
   EVENT_SPEAKER?: EventSpeakerJoin[];
+  EVENT_FACILITATOR?: { user_id: number }[];
 };
 
 export async function findById(supabase: DbClient, id: number): Promise<Event | null> {
@@ -23,7 +25,9 @@ export async function findById(supabase: DbClient, id: number): Promise<Event | 
 export async function findByIdWithCourse(supabase: DbClient, id: number): Promise<EventWithRelations | null> {
   const { data } = await supabase
     .from("EVENT")
-    .select("*, COURSE!event_id(*), EVENT_SPEAKER(SPEAKER_PROFILE(*, USER(full_name, email)))")
+    .select(
+      "*, COURSE!event_id(*), EVENT_SPEAKER(speaker_profile_id, SPEAKER_PROFILE(*, USER(full_name, email))), EVENT_FACILITATOR(user_id)",
+    )
     .eq("id", id)
     .single();
   return data;
@@ -38,12 +42,23 @@ export async function list(
   supabase: DbClient,
   options?: {
     role?: string | null;
+    userId?: number | null;
     filter?: string | null;
   },
 ): Promise<EventWithCourseName[]> {
-  const { role, filter } = options ?? {};
+  const { role, userId, filter } = options ?? {};
 
   let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
+
+  // A facilitator's dashboard shows only the events they are assigned to;
+  // admins and every other role keep the full listing.
+  if (role === "facilitator" && userId != null) {
+    const { data: assigned } = await supabase.from("EVENT_FACILITATOR").select("event_id").eq("user_id", userId);
+    const assignedIds = (assigned ?? []).map((row: { event_id: number }) => row.event_id);
+    // PostgREST treats an empty in() as vacuous, so an unassigned facilitator
+    // would otherwise get every event.
+    query = query.in("id", assignedIds.length > 0 ? assignedIds : [-1]);
+  }
 
   // Drafts are staff-only, and "staff" is facilitator *and up* — a literal
   // inequality hid every draft from admins, who are the only role allowed to

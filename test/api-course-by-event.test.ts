@@ -8,7 +8,7 @@ const { requireAuth, findCourseByEvent, userHasCourseAccess } = vi.hoisted(() =>
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/shared/db/dao", () => ({ courseDao: { findCourseByEvent, userHasCourseAccess } }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseByEvent, userHasCourseAccess }));
 
 import { GET } from "@/app/api/courses/event/[eventId]/route";
 

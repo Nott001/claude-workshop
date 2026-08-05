@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
-import { uploadToStorage, buildCourseVideoPath, validateFileType, validateFileSize } from "@/shared/integrations/storage";
+import * as courseDao from "@/shared/db/dao/course.dao";
+import { uploadToStorage } from "@/shared/integrations/storage/service";
+import { buildCourseVideoPath, validateFileType, validateFileSize } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");

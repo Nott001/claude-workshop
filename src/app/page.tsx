@@ -1,6 +1,5 @@
-import { Footer } from "@/shared/components/footer";
 import { supabase } from "@/shared/db/client";
-import { eventDao } from "@/shared/db/dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import type { LandingEvent } from "@/shared/types";
 import { toLandingEvent } from "@/modules/events/lib/landing-event";
@@ -28,7 +27,7 @@ export default async function HomePage() {
   return (
     <>
       <PostLoginRedirect />
-      <div className="min-h-screen bg-bg text-fg">
+      <div className="flex flex-1 flex-col bg-bg text-fg">
         <section className="relative overflow-hidden rounded-b-[40px] bg-brand px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="relative mx-auto max-w-[1110px]">
@@ -58,8 +57,6 @@ export default async function HomePage() {
             </div>
           )}
         </div>
-
-        <Footer role="attendee" />
       </div>
     </>
   );

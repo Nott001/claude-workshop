@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 import { getServiceClient } from "@/shared/db/client";
-import { courseDao } from "@/shared/db/dao";
+import * as courseDao from "@/shared/db/dao/course.dao";
 
 export async function requireModuleAccess(moduleId: number, userId: number, userRole: UserRole): Promise<NextResponse | null> {
   const supabase = getServiceClient();

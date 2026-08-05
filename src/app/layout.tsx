@@ -1,4 +1,4 @@
-import { SessionProvider } from "@/modules/auth";
+import { SessionProvider } from "@/modules/auth/components/session-context";
 import type { Metadata } from "next";
 import { AppShell } from "@/shared/components/app-shell";
 import "./fonts.css";

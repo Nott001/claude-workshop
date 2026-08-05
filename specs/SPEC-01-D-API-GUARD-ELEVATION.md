@@ -3,6 +3,11 @@
 Prerequisites: SPEC-01-C
 After this: SPEC-01-E
 
+> **As built.** The four changes landed as written. Verification below is stale
+> on one point: a signed-in caller who merely lacks the role gets **403**, not 401. `guardFailure` has answered that way since `bb4d6d4`, and it is correct
+> per RFC 9110 — 401 means unauthenticated. Commit `6cb89be` fixed the E2E specs
+> that asserted 401 here. Expect 403 for every "with a `facilitator` token" case.
+
 ## Scope
 
 4 files. Each change is a single-argument change to `requireRole()` inside an

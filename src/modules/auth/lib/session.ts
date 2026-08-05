@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getServiceClient } from "@/shared/db/client";
-import { userDao } from "@/shared/db/dao";
+import * as userDao from "@/shared/db/dao/user.dao";
 import { ensureUser } from "./ensure-user";
 import type { User } from "@/shared/types";
 import type { AuthUser } from "./types";

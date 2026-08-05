@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Footer } from "@/shared/components/footer";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 interface CourseRow {
@@ -134,7 +133,6 @@ export default function StaffCoursesPage() {
           )}
         </div>
       </div>
-      <Footer role={role} />
     </>
   );
 }
