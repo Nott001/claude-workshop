@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { getBrowserClient } from "@/shared/db/browser-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };

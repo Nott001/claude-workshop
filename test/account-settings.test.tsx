@@ -10,7 +10,7 @@ const hooks = vi.hoisted(() => ({
 vi.mock("@/modules/user/lib/use-account-settings", () => ({ useAccountSettings: hooks.useAccountSettings }));
 vi.mock("@/modules/user/lib/use-speaker-profile", () => ({ useSpeakerProfile: hooks.useSpeakerProfile }));
 
-import { AccountSettings } from "@/modules/user/ui/account-settings";
+import { AccountSettings } from "@/modules/user/components/account-settings";
 
 function settings(overrides: Record<string, unknown> = {}) {
   return {

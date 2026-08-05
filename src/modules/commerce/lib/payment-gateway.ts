@@ -1,9 +1,27 @@
 import { getServiceClient } from "@/shared/db/client";
-import { paymentDao, ticketDao } from "@/shared/db/dao";
+import * as paymentDao from "@/shared/db/dao/payment.dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
 import { generateQRDataUrl } from "@/shared/integrations/qr";
-import type { CreatePaymentOptions, CreatePaymentResult, PaymentGateway } from "../index";
-import { generateQrToken } from "../index";
+import { generateQrToken } from "./payment-state";
+
+export interface CreatePaymentOptions {
+  amount: number;
+  currency: string;
+  payment_id: number;
+  user_id: number;
+  event_id: number;
+  user_email: string;
+  user_name: string;
+}
+
+export interface CreatePaymentResult {
+  checkout_url: string;
+}
+
+export interface PaymentGateway {
+  createPayment(options: CreatePaymentOptions): Promise<CreatePaymentResult>;
+}
 
 export class SimulatedPaymentGateway implements PaymentGateway {
   async createPayment({

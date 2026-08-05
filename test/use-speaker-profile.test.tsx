@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 
 const sessionValue = vi.fn();
-vi.mock("@/modules/auth", () => ({
+vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => sessionValue(),
 }));
 

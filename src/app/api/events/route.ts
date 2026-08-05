@@ -3,9 +3,9 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { eventDao } from "@/shared/db/dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
 import { eventSchema } from "@/modules/events/lib/schemas";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

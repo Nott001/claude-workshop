@@ -1,7 +1,8 @@
 "use client";
 
-import { useSession, useRoleGuard } from "@/modules/auth";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { useSession } from "@/modules/auth/components/session-context";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
 

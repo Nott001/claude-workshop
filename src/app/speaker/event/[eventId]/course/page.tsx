@@ -4,11 +4,11 @@ import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Footer } from "@/shared/components/footer";
-import { useRoleGuard } from "@/modules/auth";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
-import { CurriculumBuilder } from "@/modules/courses/ui/curriculum-builder";
-import { LessonDialog } from "@/modules/courses/ui/lesson-dialog";
+import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
+import { LessonDialog } from "@/modules/courses/components/lesson-dialog";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 
 export default function SpeakerCoursePage() {

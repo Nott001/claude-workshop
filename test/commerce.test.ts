@@ -10,7 +10,7 @@ import {
   canTransitionTicket,
   generateQrToken,
   isPaymentTerminal,
-} from "@/modules/commerce";
+} from "@/modules/commerce/lib/payment-state";
 import type { Payment, Ticket, PaymentStatus, TicketStatus } from "@/shared/types";
 
 describe("Payment and Ticket types", () => {

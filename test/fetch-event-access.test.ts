@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
-import type { AuthUser } from "@/modules/auth";
+import type { AuthUser } from "@/modules/auth/lib/types";
 import type { UserRole } from "@/shared/types";
 
 const eventId = "42";

@@ -1,11 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { Navbar } from "@/shared/components/navbar";
 import { FloatingAssistButton } from "@/modules/support/components/floating-assist-button";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { ErrorBoundary } from "@/shared/components/ui/error-boundary";
+import { ErrorBoundary } from "@/shared/components/error-boundary";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 

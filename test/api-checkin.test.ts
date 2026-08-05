@@ -14,12 +14,11 @@ const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotificatio
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  ticketDao: { findByQrToken, updateStatus },
-  eventDao: { findById },
-}));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
+vi.mock("@/shared/db/dao/event.dao", () => ({ findById }));
+
 vi.mock("@/modules/notifications/lib/email", () => ({ sendEmailNotification }));
-vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { POST } from "@/app/api/checkin/route";
 

@@ -1,4 +1,4 @@
-import type { AuthUser } from "@/modules/auth";
+import type { AuthUser } from "@/modules/auth/lib/types";
 import type { EventWithCourse, EventSpeakerEntry } from "@/modules/events/lib/types";
 
 export interface EventAccessData {

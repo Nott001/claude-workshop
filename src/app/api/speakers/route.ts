@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { speakerDao } from "@/shared/db/dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileSchema } from "@/modules/events/lib/schemas";
 
 export async function GET() {

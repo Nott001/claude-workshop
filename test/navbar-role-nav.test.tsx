@@ -6,7 +6,7 @@ import type { UserRole } from "@/shared/types";
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
-vi.mock("@/modules/auth", () => ({ useSession }));
+vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 import { Navbar } from "@/shared/components/navbar";
 

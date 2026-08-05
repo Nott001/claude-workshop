@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { userDao, speakerDao } from "@/shared/db/dao";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import * as userDao from "@/shared/db/dao/user.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import type { SpeakerProfile } from "@/shared/types";
 
 export async function GET() {

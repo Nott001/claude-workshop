@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { ticketDao, eventDao } from "@/shared/db/dao";
-import { checkinSchema, formatCheckinResult } from "@/modules/kiosk";
-import { canTransitionTicket } from "@/modules/commerce";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import * as eventDao from "@/shared/db/dao/event.dao";
+import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
+import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator");

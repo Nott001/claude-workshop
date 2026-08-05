@@ -8,7 +8,7 @@ const { getUserById, upsertUser } = vi.hoisted(() => ({
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ tag: "service", auth: { admin: { getUserById } } }),
 }));
-vi.mock("@/shared/db/dao", () => ({ userDao: { upsertUser } }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ upsertUser }));
 
 import { ensureUser } from "@/modules/auth/lib/ensure-user";
 

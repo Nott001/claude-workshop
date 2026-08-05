@@ -10,10 +10,8 @@ import {
   buildCourseAssetPath,
   buildCourseVideoPath,
   isStorageBucket,
-  uploadToStorage,
-  deleteFromStorage,
-  listStorageFolder,
-} from "@/shared/integrations/storage";
+} from "@/shared/integrations/storage/policy";
+import { uploadToStorage, deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import type { Event, User } from "@/shared/types";
 
 const bucket = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn(), list: vi.fn() }));

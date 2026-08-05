@@ -3,10 +3,10 @@ import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { userDao } from "@/shared/db/dao";
+import * as userDao from "@/shared/db/dao/user.dao";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { logAuditEvent } from "@/modules/audit";
+import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 const updateSchema = z.object({
   role: z.enum(["speaker", "facilitator", "admin"]),

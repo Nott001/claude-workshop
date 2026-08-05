@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/modules/auth/lib/session";
-import { AccountSettings } from "@/modules/user";
+import { AccountSettings } from "@/modules/user/components/account-settings";
 
 export default async function UserSettingsPage() {
   const user = await requireAuth();

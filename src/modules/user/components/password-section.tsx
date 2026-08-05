@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Form, FormField, FormLabel } from "@/shared/components/ui/form";
+import { Button } from "@/shared/components/button";
+import { Input } from "@/shared/components/input";
+import { Form, FormField, FormLabel } from "@/shared/components/form";
 
 interface PasswordSectionProps {
   currentPassword: string;

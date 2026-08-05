@@ -42,11 +42,12 @@ function publicEnvNames(dir = "src"): Set<string> {
 
 describe("wrangler configuration", () => {
   it("enables nodejs_compat while the source imports a Node builtin", () => {
-    // src/modules/commerce/index.ts imports the bare `crypto` specifier. An
-    // isolate has no Node builtins without the flag, so dropping either one
-    // without the other is a runtime failure on the first signed payment.
+    // src/modules/commerce/lib/payment-state.ts imports the bare `crypto`
+    // specifier. An isolate has no Node builtins without the flag, so dropping
+    // either one without the other is a runtime failure on the first signed
+    // payment.
     const importsNodeBuiltin = /^import\s+\w+\s+from\s+"(node:)?crypto"/m.test(
-      readFileSync("src/modules/commerce/index.ts", "utf8"),
+      readFileSync("src/modules/commerce/lib/payment-state.ts", "utf8"),
     );
     const flags = readWranglerConfig().compatibility_flags as string[];
 

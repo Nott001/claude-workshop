@@ -16,11 +16,10 @@ const { requireAuth, requireRole, list, create, eventFindById, updateField, find
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  eventDao: { list, create, findById: eventFindById, updateField },
-  courseDao: { findCourseById },
-}));
-vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/shared/db/dao/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseById }));
+
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { GET, POST } from "@/app/api/events/route";
 import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";

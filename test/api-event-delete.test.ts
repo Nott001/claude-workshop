@@ -27,12 +27,11 @@ vi.mock("@/modules/auth/lib/session", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }) }),
 }));
-vi.mock("@/shared/db/dao", () => ({
-  eventDao: { findById: eventFindById, remove: eventRemove },
-  courseDao: { findModulesByCourse, findLessonsByModule },
-}));
-vi.mock("@/shared/integrations/storage", () => ({ listStorageFolder, deleteFromStorage }));
-vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/shared/db/dao/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule }));
+
+vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { DELETE } from "@/app/api/events/[id]/route";
 

@@ -11,7 +11,7 @@ const { redirect, requireAuth } = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/user", () => ({
+vi.mock("@/modules/user/components/account-settings", () => ({
   AccountSettings: () => <div>Account Settings stub</div>,
 }));
 

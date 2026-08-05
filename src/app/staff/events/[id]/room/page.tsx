@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { useRoomAccess } from "@/modules/events/lib/use-room-access";

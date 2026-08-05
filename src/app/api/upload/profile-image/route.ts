@@ -3,17 +3,15 @@ import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { userDao } from "@/shared/db/dao";
+import * as userDao from "@/shared/db/dao/user.dao";
 import { optimizeImage } from "@/shared/integrations/storage/optimize";
+import { uploadToStorage, listStorageFolder, deleteFromStorage } from "@/shared/integrations/storage/service";
 import {
-  uploadToStorage,
   buildProfileImagePath,
   validateFileType,
   validateFileSize,
   getExtensionFromMimeType,
-  listStorageFolder,
-  deleteFromStorage,
-} from "@/shared/integrations/storage";
+} from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
   const guard = await requireRole("facilitator", "speaker", "attendee");

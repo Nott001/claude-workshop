@@ -1,6 +1,7 @@
 "use client";
 
-import { useSession, useRoleGuard } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import ChatPanel from "@/modules/chat/components/chat-panel";
 import { Footer } from "@/shared/components/footer";
 

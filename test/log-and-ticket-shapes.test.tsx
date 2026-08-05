@@ -7,7 +7,7 @@ import { usePayments } from "@/modules/commerce/lib/use-payments";
 import { TicketCard } from "@/modules/commerce/components/ticket-card";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 
-vi.mock("@/modules/auth", () => ({
+vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => ({ user: null, loading: false, isLoaded: true, isSignedIn: true }),
 }));
 vi.mock("@/modules/commerce/lib/use-ticket-card", () => ({

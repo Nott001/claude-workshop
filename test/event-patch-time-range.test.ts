@@ -11,12 +11,11 @@ const { requireRole, findById, update, logAuditEvent } = vi.hoisted(() => ({
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao", () => ({
-  eventDao: { findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() },
-  ticketDao: {},
-  courseDao: {},
-}));
-vi.mock("@/modules/audit", () => ({ logAuditEvent }));
+vi.mock("@/shared/db/dao/event.dao", () => ({ findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({}));
+vi.mock("@/shared/db/dao/course.dao", () => ({}));
+
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { PATCH } from "@/app/api/events/[id]/route";
 

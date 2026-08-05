@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRoleGuard } from "@/modules/auth";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
 
 function actionLabel(action: string): string {

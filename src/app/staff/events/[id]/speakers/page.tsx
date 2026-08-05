@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { useSession } from "@/modules/auth";
+import { useSession } from "@/modules/auth/components/session-context";
 import { Footer } from "@/shared/components/footer";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 
