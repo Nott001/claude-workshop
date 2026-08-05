@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
-import { useTicketCard } from "@/modules/commerce/lib/use-ticket-card";
+import { renderQrSvg } from "@/shared/integrations/qr/svg";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 
 function ticketStatusStyle(status: string): string {
@@ -33,11 +34,23 @@ function ticketStatusLabel(status: string): string {
 }
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {
-  const { qrUrl, qrLoading, payment } = useTicketCard(ticket.payment_id);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrFailed, setQrFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    renderQrSvg(ticket.qr_token)
+      .then((svg) => !cancelled && setQrSvg(svg))
+      .catch(() => !cancelled && setQrFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket.qr_token]);
 
   // Nullable: PostgREST returns null for the embed if the row is gone. The old
   // code read straight through it, which threw rather than degrading.
   const event = ticket.EVENT;
+  const payment = ticket.PAYMENT;
   const venue = formatVenue(event?.venue_name, event?.venue_address);
   const price = formatEventPrice(event?.price, event?.currency);
 
@@ -117,12 +130,19 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
       <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-border bg-muted p-6">
-        {qrLoading ? (
+        {qrSvg ? (
+          // The markup is produced locally by the qrcode library from this
+          // ticket's own token, never from anything a user supplied.
+          <div
+            className="size-44 overflow-hidden rounded-lg [&>svg]:size-full"
+            role="img"
+            aria-label="Ticket QR code"
+            dangerouslySetInnerHTML={{ __html: qrSvg }}
+          />
+        ) : !qrFailed ? (
           <div className="grid size-44 place-items-center">
             <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>
           </div>
-        ) : qrUrl ? (
-          <img src={qrUrl} alt="QR Code" className="size-44 rounded-lg" />
         ) : (
           <div className="grid size-44 place-items-center rounded-lg bg-surface">
             <span className="text-sm text-muted-foreground">No QR</span>
