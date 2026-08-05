@@ -7,6 +7,7 @@ import * as userDao from "@/shared/db/dao/user.dao";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES, INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
+import { findAuthAccountByEmail } from "@/modules/auth/lib/auth-account";
 import { appBaseUrl } from "@/shared/lib/app-url";
 import { getEmailService } from "@/shared/integrations/email";
 import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
@@ -63,6 +64,20 @@ export async function POST(req: Request) {
 
   if (existing) {
     return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
+  }
+
+  // An auth account outlives an invitation nobody accepted, and Supabase then
+  // refuses to issue a second one for that address. Since such an account holds
+  // nothing — never signed in, no USER row, no history — it is cleared out so
+  // the invitation can be sent again, possibly for a different role.
+  const account = await findAuthAccountByEmail(parsed.data.email);
+
+  if (account?.accepted) {
+    return NextResponse.json({ error: { message: "A user with this email already exists" } }, { status: 409 });
+  }
+
+  if (account) {
+    await supabase.auth.admin.deleteUser(account.id);
   }
 
   // `generateLink` creates the account and returns the invitation token without
@@ -124,6 +139,7 @@ export async function POST(req: Request) {
   await logAuditEvent(supabase, guard.user.id, "organization.invited", "user", null, {
     email: parsed.data.email,
     role: parsed.data.role,
+    resent: Boolean(account),
   });
 
   return NextResponse.json({ email: parsed.data.email, role: parsed.data.role }, { status: 201 });
