@@ -62,8 +62,12 @@ back and shown in the run summary.
    pnpm exec wrangler secret put SMTP_PASSWORD
    ```
 
-   Leave the three `SMTP_*` unset and email falls back to the console provider,
-   which logs instead of sending — the app still works, nothing is delivered.
+   Leave the three `SMTP_*` unset and the Worker refuses to send rather than
+   pretending to: `EMAIL_LOG` records `failed` and an invite answers `502`.
+   That is deliberate. Reporting success for mail that never left the isolate
+   is how these three secrets stayed unset here for weeks while every invitation
+   read as delivered. `next dev` still logs to the console instead — it has no
+   socket either way, so there the fallback means nothing is wrong.
    `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
    `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional overrides. None of these
    may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
