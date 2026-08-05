@@ -112,7 +112,7 @@ export async function replaceEventAssignments(
 ): Promise<boolean> {
   const { data: valid } = await supabase
     .from("SPEAKER_PROFILE")
-    .select("id")
+    .select("id, USER(role)")
     .in("id", speakerProfileIds)
     .eq("USER.role", "speaker");
   const validIds = (valid ?? []).map((s: { id: number }) => s.id);

@@ -30,6 +30,7 @@ describe("speaker.dao replaceEventAssignments", () => {
     const ok = await replaceEventAssignments(client, 10, [2, 7, 999]);
 
     expect(ok).toBe(true);
+    expect(profileChain.select).toHaveBeenCalledWith("id, USER(role)");
     expect(profileChain.in).toHaveBeenCalledWith("id", [2, 7, 999]);
     expect(esChain.delete).toHaveBeenCalled();
     expect(esChain.insert).toHaveBeenCalledWith([
