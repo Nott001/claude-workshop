@@ -37,6 +37,38 @@ describe("htmlToText", () => {
   it("does not leak script or style bodies", () => {
     expect(htmlToText("<style>p{color:red}</style><script>alert(1)</script><p>Body</p>")).toBe("Body");
   });
+
+  // Removing a substring can leave its neighbours adjacent and spelling a tag
+  // that was not in the input, which is what a single scan rules out.
+  it("does not reassemble a tag out of the pieces left by an earlier removal", () => {
+    const text = htmlToText("<p><scr<script>ipt>alert(1)</script>Body</p>");
+
+    // The leftover characters are inert prose in a text/plain part; what has
+    // to be gone is the markup, and a `<` is the only way any of it comes back.
+    expect(text).not.toContain("<");
+    expect(text).toContain("Body");
+  });
+
+  it("keeps a lone angle bracket as prose", () => {
+    expect(htmlToText("<p>5 < 7 and 9 > 2</p>")).toBe("5 < 7 and 9 > 2");
+  });
+
+  // `&amp;lt;` is an author writing the characters `&lt;`, not a second layer
+  // of encoding to peel off.
+  it("decodes an entity once", () => {
+    expect(htmlToText("<p>&amp;lt; stays written out</p>")).toBe("&lt; stays written out");
+  });
+
+  it("does not end a tag on a bracket inside an attribute", () => {
+    expect(htmlToText('<p><img src="x" alt="a > b" />After</p>')).toBe("a > bAfter");
+  });
+
+  it("drops the remainder of an unterminated script", () => {
+    const text = htmlToText("<p>Body</p><script>alert(1)");
+
+    expect(text).toBe("Body");
+    expect(text).not.toContain("alert(1)");
+  });
 });
 
 describe("hoistInlineImages", () => {

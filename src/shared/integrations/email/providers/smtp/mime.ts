@@ -49,41 +49,133 @@ function formatDate(date: Date): string {
   return date.toUTCString().replace(/GMT$/, "+0000");
 }
 
+const ENTITIES: Record<string, string> = {
+  "&mdash;": "\u2014",
+  // The footer in `layout` separates the two halves of its byline with one.
+  "&middot;": "\u00b7",
+  "&nbsp;": " ",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&amp;": "&",
+};
+
+/** Elements whose content is styling or code, never prose. */
+const OPAQUE_ELEMENTS = new Set(["script", "style"]);
+
+/** Elements whose close ends a run of prose, so the text wants a blank line. */
+const BLOCK_ELEMENTS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr"]);
+
+/**
+ * One pass, so `&amp;lt;` yields the literal `&lt;` an author typed rather
+ * than being decoded a second time into `<`.
+ */
+function decodeEntities(text: string): string {
+  return text.replace(/&(?:mdash|middot|nbsp|quot|#39|lt|gt|amp);/g, (entity) => ENTITIES[entity] ?? entity);
+}
+
+/**
+ * `>` inside an attribute value does not close the tag, so quoted runs are
+ * skipped rather than scanned for the delimiter.
+ */
+function findTagEnd(html: string, start: number): number {
+  let quote: string | null = null;
+
+  for (let i = start + 1; i < html.length; i++) {
+    const char = html[i];
+
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === ">") {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
 /**
  * Spam filters score HTML-only mail worse and some clients render nothing at
  * all, so every message carries a plain-text alternative derived from the HTML.
+ *
+ * Written as a single left-to-right scan rather than a set of `replace` calls
+ * applied until the string stops changing. Stripping a substring can leave its
+ * neighbours adjacent and spell out a new tag \u2014 `<scr<script>ipt>` survives one
+ * removal pass \u2014 and looping until stable answers that only for the cases the
+ * expressions already match. Emitted text is never re-examined here, so a `<`
+ * in the prose cannot pair with a later one to form a tag that was not in the
+ * input to begin with.
  */
 export function htmlToText(html: string): string {
-  let text = html;
-  let previous: string;
+  const out: string[] = [];
+  let cursor = 0;
 
-  // Re-apply multi-character tag stripping until stable so dangerous sequences
-  // cannot reappear after intermediate removals.
-  do {
-    previous = text;
-    text = text
-      .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
-      .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, "$1")
-      .replace(/<img[^>]*>/gi, "")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n\n")
-      .replace(/<[^>]+>/g, "");
-  } while (text !== previous);
+  while (cursor < html.length) {
+    const open = html.indexOf("<", cursor);
 
-  // Decode entities to text; iterate to handle nested encodings.
-  do {
-    previous = text;
-    text = text
-      .replace(/&mdash;/g, "\u2014")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&amp;/g, "&");
-  } while (text !== previous);
+    if (open === -1) {
+      out.push(decodeEntities(html.slice(cursor)));
+      break;
+    }
 
-  return text
+    out.push(decodeEntities(html.slice(cursor, open)));
+
+    // A comment ends at `-->`, not at the first `>`, which may sit inside it.
+    if (html.startsWith("<!--", open)) {
+      const end = html.indexOf("-->", open + 4);
+      cursor = end === -1 ? html.length : end + 3;
+      continue;
+    }
+
+    const close = findTagEnd(html, open);
+    if (close === -1) {
+      // A `<` with no `>` after it is prose the author wrote, not a tag.
+      out.push(decodeEntities(html.slice(open)));
+      break;
+    }
+
+    const tag = html.slice(open + 1, close);
+    const name = /^\/?\s*([a-zA-Z][a-zA-Z0-9]*)/.exec(tag)?.[1]?.toLowerCase();
+    const isClosing = tag.startsWith("/");
+    cursor = close + 1;
+
+    // The doctype and processing instructions carry nothing to read.
+    if (tag.startsWith("!") || tag.startsWith("?")) continue;
+
+    // `<` before anything but a letter opens no element — `5 < 7` is arithmetic
+    // the author wrote, and a browser reads it that way too. Dropping to the
+    // next `>` would eat the words in between.
+    if (!name) {
+      out.push(decodeEntities(html.slice(open, cursor)));
+      continue;
+    }
+
+    if (!isClosing && OPAQUE_ELEMENTS.has(name)) {
+      const end = new RegExp(`</\\s*${name}\\s*>`, "i").exec(html.slice(cursor));
+      // An unterminated script or style swallows the rest of the document,
+      // which is the safe reading: none of it was meant to be read.
+      cursor = end ? cursor + end.index + end[0].length : html.length;
+      continue;
+    }
+
+    if (name === "img" && !isClosing) {
+      const alt = /\balt\s*=\s*"([^"]*)"/i.exec(tag)?.[1] ?? /\balt\s*=\s*'([^']*)'/i.exec(tag)?.[1];
+      if (alt) out.push(decodeEntities(alt));
+      continue;
+    }
+
+    if (name === "br") {
+      out.push("\n");
+    } else if (isClosing && BLOCK_ELEMENTS.has(name)) {
+      out.push("\n\n");
+    }
+  }
+
+  return out
+    .join("")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
