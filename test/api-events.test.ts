@@ -76,7 +76,7 @@ describe("GET /api/events", () => {
   it("passes the caller's role to the query so listings can be filtered by it", async () => {
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: null });
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
@@ -85,13 +85,27 @@ describe("GET /api/events", () => {
     const res = await GET(new Request("https://app.test/api/events"));
 
     expect(res.status).toBe(200);
-    expect(list).toHaveBeenCalledWith({}, { role: null, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null });
   });
 
   it("forwards the filter query parameter", async () => {
     await GET(new Request("https://app.test/api/events?filter=upcoming"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", filter: "upcoming" });
+    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: "upcoming" });
+  });
+
+  it("passes the caller's id so a facilitator is filtered to their own events", async () => {
+    requireAuth.mockResolvedValue({
+      id: 7,
+      role: "facilitator",
+      full_name: "Fay",
+      email: "fay@example.com",
+      profile_image_url: null,
+    });
+
+    await GET(new Request("https://app.test/api/events"));
+
+    expect(list).toHaveBeenCalledWith({}, { role: "facilitator", userId: 7, filter: null });
   });
 });
 

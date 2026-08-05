@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const user = await requireAuth(supabase);
   const userRole = user?.role ?? null;
 
-  const events = await eventDao.list(supabase, { role: userRole, filter });
+  const events = await eventDao.list(supabase, { role: userRole, userId: user?.id ?? null, filter });
 
   return NextResponse.json(events);
 }

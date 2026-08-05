@@ -26,6 +26,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  // A facilitator's detail view is restricted to the events they are assigned
+  // to, so a direct URL cannot bypass the dashboard's filtering.
+  if (userRole === "facilitator" && user?.id != null) {
+    const assigned = await facilitatorDao.isAssigned(supabase, Number(id), user.id);
+    if (!assigned) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+  }
+
   if (event.status === "draft" && !hasMinRole(userRole, "facilitator")) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }

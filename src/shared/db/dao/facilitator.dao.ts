@@ -22,6 +22,16 @@ export async function listCandidates(supabase: DbClient): Promise<FacilitatorCan
   return data ?? [];
 }
 
+export async function isAssigned(supabase: DbClient, eventId: number, userId: number): Promise<boolean> {
+  const { data } = await supabase
+    .from("EVENT_FACILITATOR")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventFacilitatorAssignment[]> {
   const { data } = await supabase
     .from("EVENT_FACILITATOR")
