@@ -8,6 +8,10 @@
 - Course material is no longer readable by any signed-in user. `/api/storage/[bucket]/[...path]` read any bucket and object key straight from the URL using the service client, bypassing row level security — paid course videos and assets were available to anyone with an account. Access now requires a live ticket to the event teaching the course, a speaker assignment to it, or the facilitator role.
 - Storage requests are answered `Cache-Control: private`. Entitlement is per user, and the previous `public` response could be served from a shared cache to someone not entitled to it.
 
+### Known issues
+
+- **Image uploads fail on Cloudflare.** Every upload route — event covers, profile photos, course assets and videos — returns an error, because the image resizer's WebAssembly is compiled at request time and the Workers runtime only permits that during startup. No cover image has ever uploaded successfully on the deployed site. The build gives no warning, which is why it went unnoticed. Three ways out, none of them a one-line change: pre-compile the WebAssembly through a bundler that hands the module to wrangler rather than instantiating it itself; move resizing to the browser before upload, which removes the server cost entirely; or drop server-side resizing and store what the client sends. The first keeps today's behaviour, the second is the cheapest to run, the third is the least code.
+
 ### Fixed
 
 - Pages no longer fail outright in the minutes after a deploy. A freshly started isolate spends its CPU budget loading the application before any handler runs, so a page that fans out into many requests at once could exhaust it and return nothing — `/tickets` was the worst, issuing ten server requests for one navigation, and even `/favicon.ico` failed because the project had no icon and each request booted the server to render a 404. The ticket list now arrives complete in a single request and each ticket's QR is drawn by the browser from data it already holds, cover images on `/` and `/events` no longer look up who is asking before serving a published one, and an icon exists. Warm isolates were never affected, which is why this came and went.

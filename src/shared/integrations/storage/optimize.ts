@@ -1,5 +1,21 @@
-// The bare specifier is deliberate: photon's export map resolves it to the
-// workerd build on Cloudflare and the node build in dev and tests.
+// KNOWN BROKEN ON WORKERS. Every upload route 500s in production with:
+//
+//   CompileError: WebAssembly.Module(): Wasm code generation disallowed by embedder
+//
+// Photon's export map carries a `workerd` condition, but the Next build never
+// asks for it and resolves `node`, which inlines the WASM as base64 and calls
+// `new WebAssembly.Module()` on it. Turbopack makes that chunk lazy, so the
+// call happens inside a request — the one place workerd forbids it.
+//
+// The obvious fix, importing `@cf-wasm/photon/workerd`, does not build. That
+// entry imports a real `.wasm` expecting the bundler to hand back a
+// `WebAssembly.Module` as the default export, which is wrangler's convention.
+// Turbopack fails to resolve it at all; webpack with `asyncWebAssembly`
+// instantiates the module itself and exposes its exports, so the default is
+// still missing. Both Next bundlers insist on owning the instantiation.
+//
+// Fixing this needs a different route to the bytes, not a different import.
+// See the options recorded alongside this in CHANGELOG.md.
 import { PhotonImage, SamplingFilter, resize } from "@cf-wasm/photon";
 
 /**
