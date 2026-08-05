@@ -92,3 +92,46 @@ describe("checkout", () => {
     expect(createPayment).not.toHaveBeenCalled();
   });
 });
+
+describe("round trips on the purchase path", () => {
+  it("hands the event to the gateway instead of making it re-read the row", async () => {
+    findEventForPayment.mockResolvedValue({ ...event, title: "Founder Workshop", event_date: "2026-09-01" });
+
+    await POST(post());
+
+    expect(createPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ event: { title: "Founder Workshop", event_date: "2026-09-01" } }),
+    );
+  });
+
+  it("issues the three independent reads together rather than in series", async () => {
+    let releaseEvent!: () => void;
+    findEventForPayment.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseEvent = () => resolve(event);
+        }),
+    );
+
+    const pending = POST(post());
+
+    // Run in series, these would never be reached while the event read hangs.
+    await vi.waitFor(() => {
+      expect(findActiveByUserAndEvent).toHaveBeenCalled();
+      expect(findLatestByUserAndEvent).toHaveBeenCalled();
+    });
+
+    releaseEvent();
+    await pending;
+  });
+
+  it("returns the resumed payment id, not a newly created one", async () => {
+    findLatestByUserAndEvent.mockResolvedValue({ id: 42, status: "pending" });
+
+    const res = await POST(post());
+
+    await expect(res.json()).resolves.toMatchObject({ payment_id: 42 });
+    expect(create).not.toHaveBeenCalled();
+    expect(createPayment).toHaveBeenCalledWith(expect.objectContaining({ payment_id: 42 }));
+  });
+});

@@ -18,6 +18,7 @@ export class SimulatedPaymentGateway implements PaymentGateway {
     event_id,
     user_email,
     user_name,
+    event,
   }: CreatePaymentOptions): Promise<CreatePaymentResult> {
     const supabase = getServiceClient();
 
@@ -38,25 +39,21 @@ export class SimulatedPaymentGateway implements PaymentGateway {
       throw new Error(`Failed to issue ticket`);
     }
 
-    const eventData = await paymentDao.findEventForPayment(supabase, event_id);
-
-    if (eventData) {
-      // Deferred: the SMTP round trip runs about four seconds and occasionally
-      // stalls until the session timeout, none of which a buyer waiting on
-      // their ticket should be made to sit through. The QR is rendered here too
-      // because nothing but the email needs it.
-      afterResponse(async () => {
-        await sendEmailNotification({
-          user_id,
-          email: user_email,
-          name: user_name,
-          email_type: "ticket_issued",
-          eventTitle: eventData.title,
-          eventDate: eventData.event_date,
-          qrDataUrl: await generateQRDataUrl(qrToken),
-        });
+    // Deferred: the SMTP round trip runs a couple of seconds and occasionally
+    // stalls until the session timeout, none of which a buyer waiting on their
+    // ticket should be made to sit through. The QR is rendered here too because
+    // nothing but the email needs it.
+    afterResponse(async () => {
+      await sendEmailNotification({
+        user_id,
+        email: user_email,
+        name: user_name,
+        email_type: "ticket_issued",
+        eventTitle: event.title,
+        eventDate: event.event_date,
+        qrDataUrl: await generateQRDataUrl(qrToken),
       });
-    }
+    });
 
     return { checkout_url: buildCheckoutUrl(payment_id) };
   }

@@ -46,6 +46,11 @@ export interface CreatePaymentOptions {
   event_id: number;
   user_email: string;
   user_name: string;
+  /**
+   * Supplied by the caller, which has already loaded the event to price the
+   * payment. Re-reading it here cost a second round trip for the same row.
+   */
+  event: { title: string; event_date: string };
 }
 
 export interface CreatePaymentResult {
