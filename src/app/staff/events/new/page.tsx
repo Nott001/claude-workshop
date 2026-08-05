@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Footer } from "@/shared/components/footer";
 import { Toast } from "@/shared/components/toast";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { EventForm, type EventPayload } from "@/modules/events/components/event-form";
@@ -50,8 +49,6 @@ export default function StaffNewEventPage() {
           <Toast title="Event created successfully!" />
         </div>
       )}
-
-      <Footer />
     </>
   );
 }

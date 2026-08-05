@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
-import { Footer } from "@/shared/components/footer";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
 
@@ -73,7 +72,6 @@ export default function EventDetailPage() {
           </button>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }

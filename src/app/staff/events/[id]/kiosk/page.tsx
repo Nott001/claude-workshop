@@ -3,7 +3,6 @@
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { Footer } from "@/shared/components/footer";
 import { useEffect, useState } from "react";
 import type { Event } from "@/shared/types";
 
@@ -37,7 +36,7 @@ export default function StaffEventKioskPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <span className="material-symbols-rounded animate-spin text-4xl text-brand">progress_activity</span>
       </div>
     );
@@ -46,7 +45,7 @@ export default function StaffEventKioskPage() {
   if (!hasMinRole(userRole, "facilitator")) return null;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-[20px] text-brand">bolt</span>
@@ -72,8 +71,6 @@ export default function StaffEventKioskPage() {
           </>
         )}
       </div>
-
-      <Footer />
     </div>
   );
 }

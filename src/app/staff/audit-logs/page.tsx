@@ -60,7 +60,7 @@ export default function StaffAuditLogsPage() {
   if (!allowed) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[1024px] px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
           <div>

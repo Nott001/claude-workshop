@@ -5,7 +5,6 @@ import Link from "next/link";
 
 import { StatusBadge } from "@/modules/events/components/status-badge";
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
-import { Footer } from "@/shared/components/footer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 
@@ -18,7 +17,7 @@ export default function SpeakerEventDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg">
+      <div className="flex flex-1 items-center justify-center bg-bg">
         <div className="text-sm text-muted-fg">Loading event details...</div>
       </div>
     );
@@ -26,7 +25,7 @@ export default function SpeakerEventDetailsPage() {
 
   if (error || !event || !badge) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-bg">
+      <div className="flex flex-1 flex-col items-center justify-center bg-bg">
         <div className="text-sm text-error">{error ?? "Event not found"}</div>
         <button
           onClick={() => router.push("/speaker/dashboard")}
@@ -39,7 +38,7 @@ export default function SpeakerEventDetailsPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <button
           onClick={() => router.push("/speaker/dashboard")}
@@ -157,8 +156,6 @@ export default function SpeakerEventDetailsPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

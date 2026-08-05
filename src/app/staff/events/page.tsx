@@ -2,7 +2,6 @@
 
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
-import { Footer } from "@/shared/components/footer";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
@@ -91,7 +90,6 @@ export default function StaffEventsPage() {
           </div>
         )}
       </div>
-      <Footer />
     </>
   );
 }

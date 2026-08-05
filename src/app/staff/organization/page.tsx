@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
-import { Footer } from "@/shared/components/footer";
 import { Button } from "@/shared/components/button";
 import { Badge } from "@/shared/components/badge";
 import { Input } from "@/shared/components/input";
@@ -118,7 +117,7 @@ export default function StaffOrganizationPage() {
   if (!isAdmin) return null;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-1 flex-col">
       <div className="mx-auto max-w-4xl flex-1 p-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-bold">Manage staff</h1>
@@ -216,7 +215,6 @@ export default function StaffOrganizationPage() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 }

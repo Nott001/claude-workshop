@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { Footer } from "@/shared/components/footer";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 
 export default function StaffEventSpeakersPage() {
@@ -73,7 +72,6 @@ export default function StaffEventSpeakersPage() {
           </form>
         )}
       </div>
-      <Footer />
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useSession } from "@/modules/auth/components/session-context";
 
-import { Footer } from "@/shared/components/footer";
 import { formatEventDate, formatTime, eventStatusLabel } from "@/shared/lib/date-utils";
 import { useUpcomingEvents } from "@/modules/events/lib/use-upcoming-events";
 import { EventGrid } from "@/modules/events/components/event-grid";
@@ -16,7 +15,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-bg text-fg">
+      <div className="flex flex-1 flex-col bg-bg text-fg">
         <section className="relative overflow-hidden rounded-b-[40px] bg-brand px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="relative mx-auto grid max-w-[1110px] items-center gap-10 lg:min-h-[427px] lg:grid-cols-[1.1fr_.8fr] lg:gap-12">
@@ -58,8 +57,6 @@ export default function HomePage() {
         </section>
 
         <EventGrid events={events} />
-
-        <Footer />
       </div>
     </>
   );

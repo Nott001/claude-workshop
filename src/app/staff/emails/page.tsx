@@ -2,7 +2,6 @@
 
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
-import { Footer } from "@/shared/components/footer";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";
@@ -123,7 +122,6 @@ export default function StaffEmailsPage() {
           </div>
         )}
       </div>
-      <Footer />
     </>
   );
 }
