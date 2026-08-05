@@ -158,7 +158,7 @@ export default function SpeakerEventDetailsPage() {
         </div>
       </div>
 
-      <Footer role="speaker" />
+      <Footer />
     </div>
   );
 }

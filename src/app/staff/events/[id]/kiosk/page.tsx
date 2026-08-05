@@ -73,7 +73,7 @@ export default function StaffEventKioskPage() {
         )}
       </div>
 
-      <Footer role={userRole ?? "facilitator"} />
+      <Footer />
     </div>
   );
 }

@@ -155,7 +155,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-      <Footer role="attendee" />
+      <Footer />
     </>
   );
 }

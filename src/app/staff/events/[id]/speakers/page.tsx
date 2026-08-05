@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { useSession } from "@/modules/auth/components/session-context";
 import { Footer } from "@/shared/components/footer";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 
@@ -9,7 +8,6 @@ export default function StaffEventSpeakersPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-  const { user } = useSession();
   const {
     assignments,
     loading,
@@ -75,7 +73,7 @@ export default function StaffEventSpeakersPage() {
           </form>
         )}
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
+      <Footer />
     </>
   );
 }

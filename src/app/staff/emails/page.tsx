@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { Footer } from "@/shared/components/footer";
@@ -32,7 +31,6 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
-  const { user } = useSession();
   const { allowed, pending } = useRoleGuard("admin");
   const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } = useEmailLogs();
 
@@ -125,7 +123,7 @@ export default function StaffEmailsPage() {
           </div>
         )}
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
+      <Footer />
     </>
   );
 }

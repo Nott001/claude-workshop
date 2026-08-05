@@ -430,7 +430,7 @@ export default function StaffEventDashboardPage() {
           <SurveysSection userRole={userRole} />
         </div>
       </div>
-      <Footer role={user?.role ?? null} />
+      <Footer />
     </div>
   );
 }

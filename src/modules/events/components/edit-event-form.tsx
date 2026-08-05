@@ -35,7 +35,7 @@ export function EditEventForm({ eventId, initialData }: EditEventFormProps) {
         initialValues={toFormValues(initialData)}
         onSubmit={saveEvent}
       />
-      <Footer role="facilitator" />
+      <Footer />
     </>
   );
 }

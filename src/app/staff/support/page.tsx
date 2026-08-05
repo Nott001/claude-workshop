@@ -27,7 +27,7 @@ export default function StaffSupportPage() {
         <p>Handle general support requests from attendees.</p>
         <ChatPanel eventId="" supportType="general" userRole={role} currentUserId={currentUserId} />
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
+      <Footer />
     </>
   );
 }

@@ -59,7 +59,7 @@ export default async function HomePage() {
           )}
         </div>
 
-        <Footer role="attendee" />
+        <Footer />
       </div>
     </>
   );

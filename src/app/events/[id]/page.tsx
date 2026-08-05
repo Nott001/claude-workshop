@@ -73,7 +73,7 @@ export default function EventDetailPage() {
           </button>
         </div>
       </div>
-      <Footer role="attendee" />
+      <Footer />
     </div>
   );
 }

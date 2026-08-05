@@ -59,7 +59,7 @@ export default function HomePage() {
 
         <EventGrid events={events} />
 
-        <Footer role="attendee" />
+        <Footer />
       </div>
     </>
   );

@@ -55,7 +55,7 @@ export default function SpeakerDashboardPage() {
           </div>
         )}
       </div>
-      <Footer role="speaker" />
+      <Footer />
     </div>
   );
 }

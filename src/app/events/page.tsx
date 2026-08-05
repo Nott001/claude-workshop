@@ -88,7 +88,7 @@ export default function EventsPage() {
           </div>
         )}
       </div>
-      <Footer role="attendee" />
+      <Footer />
     </>
   );
 }

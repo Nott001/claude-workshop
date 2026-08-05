@@ -30,7 +30,7 @@ export default function StaffSupportPage() {
         <p>Use this channel to communicate with event attendees.</p>
         <ChatPanel eventId={eventId} supportType="event" userRole={role} currentUserId={currentUserId} />
       </div>
-      <Footer role={user?.role as "facilitator" | "speaker" | "attendee"} />
+      <Footer />
     </>
   );
 }

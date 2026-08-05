@@ -134,7 +134,7 @@ export default function StaffCoursesPage() {
           )}
         </div>
       </div>
-      <Footer role={role} />
+      <Footer />
     </>
   );
 }

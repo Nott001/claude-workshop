@@ -216,7 +216,7 @@ export default function StaffOrganizationPage() {
           </div>
         )}
       </div>
-      <Footer role={userRole} />
+      <Footer />
     </div>
   );
 }

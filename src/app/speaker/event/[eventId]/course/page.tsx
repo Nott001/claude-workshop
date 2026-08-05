@@ -98,7 +98,7 @@ export default function SpeakerCoursePage() {
           </div>
         )}
       </div>
-      <Footer role="speaker" />
+      <Footer />
     </div>
   );
 }
