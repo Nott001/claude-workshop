@@ -2,8 +2,12 @@ name: CI
 
 on:
   pull_request:
+  # `development` is here because a merge into it runs no workflow otherwise:
+  # `pull_request` covers the branch being merged, not the result. A rename to
+  # proxy.ts landed that way and left the app undeployable for two days, which
+  # nothing reported, because the last run predated it.
   push:
-    branches: [main]
+    branches: [main, development]
 
 # A new push to the same branch cancels the previous run.
 concurrency:
