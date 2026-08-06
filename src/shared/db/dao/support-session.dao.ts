@@ -79,7 +79,10 @@ export async function createSession(
     insertData.event_id = eventId;
   }
   const { data, error } = await supabase.from("SUPPORT_SESSION").insert(insertData).select("*").single();
-  if (error) return null;
+  if (error) {
+    console.error("support-session.dao.createSession failed:", error.message, error.code);
+    return null;
+  }
   return data;
 }
 
@@ -128,9 +131,12 @@ export async function endSession(
   eventId?: number,
   opts?: { ownerId?: number | null },
 ): Promise<SupportSession | null> {
+  // Ending a case removes it and its message history outright: the attendee
+  // should start fresh, with no old conversation to continue. Deleting the
+  // session cascades to its CHAT_MESSAGE rows via ON DELETE CASCADE.
   let query = supabase
     .from("SUPPORT_SESSION")
-    .update({ status: "ended_by_facilitator", updated_at: new Date().toISOString() })
+    .delete()
     .eq("user_id", userId)
     .eq("support_type", supportType)
     .eq("status", "active");

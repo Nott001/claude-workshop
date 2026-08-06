@@ -112,7 +112,9 @@ export function useSupportCases() {
       if (!selected) return;
       if (
         action === "end" &&
-        !confirm(`End case CASE-${selected.case_number}? ${selected.full_name} can start a new one later.`)
+        !confirm(
+          `End case CASE-${selected.case_number}? This deletes the conversation history; ${selected.full_name} can start a new one later.`,
+        )
       ) {
         return;
       }

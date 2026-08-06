@@ -94,8 +94,9 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
 
     const sessionSub = subscribeToSupportSessions((session) => {
       // A case number or handler change on the user's own session: refetch so
-      // the header shows the fresh number and the handler's name.
-      setSessionActive(session.status === "active");
+      // the header shows the fresh number and the handler's name. A purged
+      // session (the case was ended) arrives with payload.new null.
+      setSessionActive(session?.status === "active");
       load(false);
     });
 

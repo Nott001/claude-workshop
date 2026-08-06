@@ -73,7 +73,10 @@ export async function sendMessage(
     .select("*, USER:user_id(full_name, role)")
     .single();
 
-  if (error) return null;
+  if (error) {
+    console.error("chat-message.dao.sendMessage failed:", error.message, error.code);
+    return null;
+  }
   return message;
 }
 
