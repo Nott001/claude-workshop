@@ -48,6 +48,15 @@ export async function GET(req: Request) {
     messages: result.messages,
     nextCursor: result.nextCursor,
     session_active: result.sessionActive,
+    session: result.session
+      ? {
+          id: result.session.id,
+          status: result.session.status,
+          case_number: result.session.case_number,
+          assigned_to: result.session.assigned_to,
+          assigned_staff_name: result.session.ASSIGNED?.full_name ?? null,
+        }
+      : null,
   });
 }
 
@@ -74,12 +83,8 @@ export async function POST(req: Request) {
   const isStaff = hasMinRole(user.role, supportType === "general" ? "admin" : "facilitator");
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const sessionUserId = isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
 
-  const [rateLimitCount, existing] = await Promise.all([
-    chatDao.countRecentByUser(supabase, user.id, supportType, windowStart),
-    chatDao.findActiveSession(supabase, sessionUserId, supportType),
-  ]);
+  const [rateLimitCount] = await Promise.all([chatDao.countRecentByUser(supabase, user.id, supportType, windowStart)]);
 
   if (rateLimitCount >= RATE_LIMIT_MAX) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
@@ -87,16 +92,36 @@ export async function POST(req: Request) {
 
   let sessionId: number;
 
-  if (existing) {
-    sessionId = existing.id;
-  } else {
-    const newSession = await chatDao.createSession(supabase, sessionUserId, supportType);
-    // createSession returns null on failure; asserting non-null turned an
-    // insert error into a TypeError and a 500 with no usable message.
-    if (!newSession) {
-      return NextResponse.json({ error: "Failed to start a support session" }, { status: 500 });
+  if (supportType === "general" && isStaff && parsed.data.recipient_user_id) {
+    // A staff reply lands in the asker's active case, and only the handler
+    // assigned to that case may send it — otherwise two admins talk at once.
+    const active = await chatDao.findActiveSession(supabase, parsed.data.recipient_user_id, "general");
+    if (!active) {
+      return NextResponse.json({ error: "No active case for this user" }, { status: 404 });
     }
-    sessionId = newSession.id;
+    if (active.assigned_to === null) {
+      return NextResponse.json({ error: "Claim this case before replying" }, { status: 409 });
+    }
+    if (active.assigned_to !== user.id) {
+      return NextResponse.json({ error: "This case is being handled by another staff member" }, { status: 403 });
+    }
+    sessionId = active.id;
+  } else {
+    const sessionUserId = isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
+
+    const existing = await chatDao.findActiveSession(supabase, sessionUserId, supportType);
+
+    if (existing) {
+      sessionId = existing.id;
+    } else {
+      const newSession = await chatDao.createSession(supabase, sessionUserId, supportType);
+      // createSession returns null on failure; asserting non-null turned an
+      // insert error into a TypeError and a 500 with no usable message.
+      if (!newSession) {
+        return NextResponse.json({ error: "Failed to start a support session" }, { status: 500 });
+      }
+      sessionId = newSession.id;
+    }
   }
 
   const message = await chatDao.sendMessage(supabase, {

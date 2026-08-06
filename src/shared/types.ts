@@ -179,6 +179,8 @@ export interface SupportSession {
   status: SupportSessionStatus;
   support_type: SupportType;
   event_id: number | null;
+  case_number: number;
+  assigned_to: number | null;
   created_at: string;
   updated_at: string;
 }

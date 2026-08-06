@@ -63,3 +63,53 @@ describe("session creation failure", () => {
     expect(sendMessage).toHaveBeenCalledWith({}, expect.objectContaining({ session_id: 12 }));
   });
 });
+
+describe("staff ownership of a general case", () => {
+  const admin = { id: 1, role: "admin", full_name: "Admin", email: "admin@example.com" };
+  const staffPost = (body: Record<string, unknown>) =>
+    new Request("https://app.test/api/support", {
+      method: "POST",
+      body: JSON.stringify({ message: "hello", ...body }),
+    });
+
+  beforeEach(() => {
+    requireAuth.mockResolvedValue(admin);
+  });
+
+  it("lets the assigned handler reply to the asker's case", async () => {
+    findActiveSession.mockResolvedValue({ id: 31, case_number: 100, assigned_to: 1 });
+
+    const res = await POST(staffPost({ recipient_user_id: 5 }));
+
+    expect(res.status).toBe(201);
+    expect(sendMessage).toHaveBeenCalledWith({}, expect.objectContaining({ session_id: 31, recipient_user_id: 5 }));
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses a reply to a case that has not been claimed", async () => {
+    findActiveSession.mockResolvedValue({ id: 31, case_number: 100, assigned_to: null });
+
+    const res = await POST(staffPost({ recipient_user_id: 5 }));
+
+    expect(res.status).toBe(409);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("refuses a reply to a case owned by another staff member", async () => {
+    findActiveSession.mockResolvedValue({ id: 31, case_number: 100, assigned_to: 2 });
+
+    const res = await POST(staffPost({ recipient_user_id: 5 }));
+
+    expect(res.status).toBe(403);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("reports when the reply targets a user with no active case", async () => {
+    findActiveSession.mockResolvedValue(null);
+
+    const res = await POST(staffPost({ recipient_user_id: 5 }));
+
+    expect(res.status).toBe(404);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+});
