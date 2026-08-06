@@ -58,6 +58,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ session });
   }
 
+  if (action === "claim" || action === "relinquish") {
+    // Case ownership is a general-support concept for now; event support keeps
+    // its current free-for-all until it gets the same overhaul.
+    if (supportType !== "general" || isOwn) {
+      return NextResponse.json({ error: "Not supported for this session" }, { status: 400 });
+    }
+
+    if (action === "claim") {
+      const session = await chatDao.claimSession(supabase, targetUserId, supportType, user.id);
+      if (!session) {
+        return NextResponse.json({ error: "This case is already claimed or has no active session" }, { status: 409 });
+      }
+      return NextResponse.json({ session });
+    }
+
+    const session = await chatDao.relinquishSession(supabase, targetUserId, supportType, user.id);
+    if (!session) {
+      return NextResponse.json({ error: "You are not the assigned handler of this case" }, { status: 409 });
+    }
+    return NextResponse.json({ session });
+  }
+
+  // end
+  if (supportType === "general" && !isOwn) {
+    // Ending somebody else's case is reserved for its handler; an unclaimed
+    // case can be closed by any staff member so the queue stays cleanable.
+    const active = await chatDao.findActiveSession(supabase, targetUserId, supportType);
+    if (!active) {
+      return NextResponse.json({ error: "No active case for this user" }, { status: 404 });
+    }
+    if (active.assigned_to !== null && active.assigned_to !== user.id) {
+      return NextResponse.json({ error: "Only the assigned handler can end this case" }, { status: 403 });
+    }
+    const session = await chatDao.endSession(supabase, targetUserId, supportType, undefined, {
+      ownerId: active.assigned_to,
+    });
+    return NextResponse.json({ session: session ?? null });
+  }
+
   const session = await chatDao.endSession(supabase, targetUserId, supportType);
 
   return NextResponse.json({ session: session ?? null });

@@ -8,7 +8,7 @@ export async function findMessageWithUser(
   const { data } = await supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("id", messageId).single();
   return data as unknown as (ChatMessage & { USER: { full_name: string; role: UserRole } }) | null;
 }
-import { findLatestSession } from "./support-session.dao";
+import { findLatestSession, type LatestSession } from "./support-session.dao";
 
 export async function listMessages(
   supabase: DbClient,
@@ -140,11 +140,13 @@ export async function listSupportMessages(
   messages: ChatMessage[];
   nextCursor: string | null;
   sessionActive: boolean;
+  session: LatestSession | null;
 }> {
   const { userId, role, supportType, eventId, before, after, limit, filterUserId } = options;
 
   let sessionActive = false;
   let sessionId: number | null = null;
+  let session: LatestSession | null = null;
 
   let query = supabase
     .from("CHAT_MESSAGE")
@@ -163,7 +165,7 @@ export async function listSupportMessages(
   if (role !== "facilitator" && role !== "admin" && role !== "super_admin" && userId) {
     query = query.or(`user_id.eq.${userId},recipient_user_id.eq.${userId}`);
 
-    const session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);
+    session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);
     if (session) {
       sessionActive = session.status === "active";
       sessionId = session.id;
@@ -171,9 +173,10 @@ export async function listSupportMessages(
   } else if (filterUserId && userId) {
     query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${userId},recipient_user_id.eq.${filterUserId})`);
 
-    const session = await findLatestSession(supabase, Number(filterUserId), supportType, eventId ?? undefined);
+    session = await findLatestSession(supabase, Number(filterUserId), supportType, eventId ?? undefined);
     if (session) {
       sessionId = session.id;
+      sessionActive = session.status === "active";
     }
   }
 
@@ -202,7 +205,7 @@ export async function listSupportMessages(
 
   if (!after) result.reverse();
 
-  return { messages: result, nextCursor, sessionActive };
+  return { messages: result, nextCursor, sessionActive, session };
 }
 
 export async function listRecentSupportMessages(supabase: DbClient, since: string): Promise<unknown[]> {

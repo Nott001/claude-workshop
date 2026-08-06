@@ -8,6 +8,8 @@ const { requireAuth, chatDao } = vi.hoisted(() => ({
     listActiveSessions: vi.fn(),
     findActiveSession: vi.fn(),
     createSession: vi.fn(),
+    claimSession: vi.fn(),
+    relinquishSession: vi.fn(),
     endSession: vi.fn(),
   },
 }));
@@ -35,6 +37,8 @@ beforeEach(() => {
   chatDao.listActiveSessions.mockResolvedValue([]);
   chatDao.findActiveSession.mockResolvedValue(null);
   chatDao.createSession.mockResolvedValue({ id: 50, status: "active" });
+  chatDao.claimSession.mockResolvedValue({ id: 50, status: "active" });
+  chatDao.relinquishSession.mockResolvedValue({ id: 50, status: "active" });
   chatDao.endSession.mockResolvedValue({ id: 50, status: "ended" });
 });
 
@@ -233,12 +237,44 @@ describe("POST /api/support/sessions", () => {
     expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "event");
   });
 
-  it("lets an admin end a general conversation for someone else", async () => {
+  it("lets an admin end an unclaimed general conversation for someone else", async () => {
     requireAuth.mockResolvedValue(ADMIN);
+    // An unclaimed case can be closed by any admin so the queue stays cleanable.
+    chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: null });
 
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(200);
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: null });
+  });
+
+  it("lets the assigned handler end a claimed general conversation", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+    chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: 1 });
+
+    const res = await sessionAction(action({ action: "end", user_id: 99 }));
+
+    expect(res.status).toBe(200);
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: 1 });
+  });
+
+  it("stops an admin ending a case that belongs to another handler", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+    chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: 2 });
+
+    const res = await sessionAction(action({ action: "end", user_id: 99 }));
+
+    expect(res.status).toBe(403);
+    expect(chatDao.endSession).not.toHaveBeenCalled();
+  });
+
+  it("reports when the target has no active case to end", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+
+    const res = await sessionAction(action({ action: "end", user_id: 99 }));
+
+    expect(res.status).toBe(404);
+    expect(chatDao.endSession).not.toHaveBeenCalled();
   });
 
   it("refuses to start a conversation on somebody else's behalf", async () => {
@@ -258,5 +294,68 @@ describe("POST /api/support/sessions", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ session: null });
+  });
+
+  it("lets an admin claim an unclaimed general case", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+
+    const res = await sessionAction(action({ action: "claim", user_id: 99 }));
+
+    expect(res.status).toBe(200);
+    expect(chatDao.claimSession).toHaveBeenCalledWith({}, 99, "general", 1);
+  });
+
+  it("refuses an attendee claiming a case", async () => {
+    requireAuth.mockResolvedValue(ATTENDEE);
+
+    const res = await sessionAction(action({ action: "claim", user_id: 99 }));
+
+    expect(res.status).toBe(403);
+    expect(chatDao.claimSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses to claim your own session", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+
+    const res = await sessionAction(action({ action: "claim", user_id: 1 }));
+
+    expect(res.status).toBe(400);
+    expect(chatDao.claimSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses case claiming for event support until it gets the same overhaul", async () => {
+    requireAuth.mockResolvedValue(FACILITATOR);
+
+    const res = await sessionAction(action({ action: "claim", user_id: 99, support_type: "event" }));
+
+    expect(res.status).toBe(400);
+    expect(chatDao.claimSession).not.toHaveBeenCalled();
+  });
+
+  it("reports a case that somebody else already claimed", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+    chatDao.claimSession.mockResolvedValue(null);
+
+    const res = await sessionAction(action({ action: "claim", user_id: 99 }));
+
+    expect(res.status).toBe(409);
+  });
+
+  it("lets the assigned handler relinquish a case", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+
+    const res = await sessionAction(action({ action: "relinquish", user_id: 99 }));
+
+    expect(res.status).toBe(200);
+    expect(chatDao.relinquishSession).toHaveBeenCalledWith({}, 99, "general", 1);
+  });
+
+  it("refuses to relinquish a case the caller does not own", async () => {
+    requireAuth.mockResolvedValue(ADMIN);
+    chatDao.relinquishSession.mockResolvedValue(null);
+
+    const res = await sessionAction(action({ action: "relinquish", user_id: 99 }));
+
+    expect(res.status).toBe(409);
   });
 });
