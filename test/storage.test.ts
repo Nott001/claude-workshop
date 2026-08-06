@@ -14,6 +14,33 @@ import type { Event, User } from "@/shared/types";
 
 const bucket = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn(), list: vi.fn() }));
 
+/** A JPEG carrying an EXIF block, since uploads now have their metadata removed. */
+const EXIF = Array.from("Exif\0\0GPSLatitude 14.5995", (c) => c.charCodeAt(0));
+const JPEG_WITH_EXIF = Uint8Array.from([
+  0xff,
+  0xd8,
+  0xff,
+  0xe1,
+  ((EXIF.length + 2) >> 8) & 0xff,
+  (EXIF.length + 2) & 0xff,
+  ...EXIF,
+  0xff,
+  0xda,
+  0x00,
+  0x08,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x3f,
+  0x00,
+  0x12,
+  0xff,
+  0xd9,
+]);
+
+const jpegFile = () => new File([JPEG_WITH_EXIF as BlobPart], "cover.jpg", { type: "image/jpeg" });
+
 // The storage helpers import the service client lazily, inside each call.
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ storage: { from: () => bucket } }),
@@ -135,8 +162,7 @@ describe("Storage operations", () => {
   it("uploadToStorage returns the proxy URL rather than a public one", async () => {
     bucket.upload.mockResolvedValue({ error: null });
 
-    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
-    const result = await uploadToStorage("event_images", "events/1/cover.jpg", file);
+    const result = await uploadToStorage("event_images", "events/1/cover.jpg", jpegFile());
 
     // Entitlement is enforced by /api/storage, so a bypassable public URL would
     // defeat the check the proxy exists to perform.
@@ -147,8 +173,51 @@ describe("Storage operations", () => {
   it("uploadToStorage throws when the upload fails", async () => {
     bucket.upload.mockResolvedValue({ error: { message: "quota exceeded" } });
 
-    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
-    await expect(uploadToStorage("event_images", "events/1/cover.jpg", file)).rejects.toThrow("quota exceeded");
+    await expect(uploadToStorage("event_images", "events/1/cover.jpg", jpegFile())).rejects.toThrow("quota exceeded");
+  });
+
+  it("uploadToStorage strips metadata before the bytes reach the bucket", async () => {
+    // The seam every upload passes through, so a bucket added later cannot be
+    // wired up in a way that forgets this.
+    bucket.upload.mockResolvedValue({ error: null });
+
+    await uploadToStorage("profile_images", "users/1/profile.jpg", jpegFile());
+
+    const stored = bucket.upload.mock.calls[0][1] as File;
+    const bytes = new TextDecoder("latin1").decode(new Uint8Array(await stored.arrayBuffer()));
+    expect(bytes).not.toContain("GPSLatitude");
+    expect(stored.type).toBe("image/jpeg");
+  });
+
+  it("uploadToStorage still stores a file whose bytes are not the image it claims", async () => {
+    // Stripping must not become a second gate on what may be uploaded; the
+    // route's own type and size checks decide that.
+    bucket.upload.mockResolvedValue({ error: null });
+    const lying = new File(["not really a jpeg" as BlobPart], "cover.jpg", { type: "image/jpeg" });
+
+    const result = await uploadToStorage("event_images", "events/1/cover.jpg", lying);
+
+    expect(result.path).toBe("events/1/cover.jpg");
+    expect(bucket.upload.mock.calls[0][1]).toBe(lying);
+  });
+
+  it("deleteFromStorage reports a failed removal without throwing", async () => {
+    // Cleanup runs while deleting an event or course; throwing here would fail
+    // the delete itself over files that are merely left behind.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    bucket.remove.mockResolvedValue({ error: { message: "object not found" } });
+
+    await expect(deleteFromStorage("course_assets", ["a.pdf"])).resolves.toBeUndefined();
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it("listStorageFolder answers with no files when the listing fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    bucket.list.mockResolvedValue({ data: null, error: { message: "bucket missing" } });
+
+    await expect(listStorageFolder("course_assets", "courses/1")).resolves.toEqual([]);
+    logged.mockRestore();
   });
 
   it("deleteFromStorage makes no call for an empty path list", async () => {
