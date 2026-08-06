@@ -1,5 +1,8 @@
 "use client";
 
+// The only coupling to the events module is the eventId scope parameter feeding
+// event_id into POST /api/courses — the 1:1 contract from SPEC-01. Keep it that
+// way: anything else a course author does is owned by this module.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
@@ -189,8 +192,6 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
         const formData = new FormData();
         formData.append("file", data.file);
         formData.append("lesson_id", String(lesson.id));
-        formData.append("course_id", String(modules[0].id));
-        formData.append("module_id", String(moduleId));
 
         const uploadRes = await fetch(endpoint, { method: "POST", body: formData });
         if (!uploadRes.ok) {
