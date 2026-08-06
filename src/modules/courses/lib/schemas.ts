@@ -33,5 +33,7 @@ export const lessonSchema = z.object({
   description: z.string().min(1, "Description is required"),
   content_type: contentTypeEnum,
   content_url: z.string().optional(),
+  // Present only when a lesson is moved to another module.
+  module_id: z.coerce.number().int().positive().optional(),
   sequence_order: z.coerce.number().int().positive("Must be at least 1"),
 });

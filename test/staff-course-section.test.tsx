@@ -21,14 +21,13 @@ function emptyBuilder() {
     handleCreateCourse: noop,
     handleAddModule: noop,
     handleAddQaModule: noop,
-    handleToggleModuleLock: noop,
     handleRenameModule: noop,
     handleDeleteModule: noop,
     handleDeleteLesson: noop,
     openLessonDialog: noop,
     handleAddLesson: noop,
     handleReorderModules: noop,
-    handleReorderLessons: noop,
+    handleMoveLesson: noop,
   };
 }
 

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Reordering course modules and lessons no longer relies on drag and drop. Dragging was unavailable to keyboard and touch users, and the drag affordances were easy to trigger by accident while scrolling. Modules and lessons now move with explicit up/down buttons: a module's buttons reorder it among the others, and a lesson's buttons reorder it within its module or, at either end of the module, across into the neighbouring content module — lessons never land in a Q&A module, which has no content of its own. The cross-module move is persisted in the same request, so a course reloads with the lesson in the module it was dropped next to.
+- The Q&A module lock control has been removed from the course builder entirely. The lock's only purpose was guarding a staff-facing moderation flow that no longer exists in this interface, so the toggle and its badge no longer appear.
+- The course builder's move buttons now say where a lesson will land. Hovering an arrow highlights the exact spot — the row it swaps with inside a module, or a "drops in as the first/last lesson" handle on the neighbouring content module for a crossing move — and every button's accessible label names the destination. A moved lesson briefly glows, and a move across modules announces its new home and scrolls it into view, so a reorder registers even when the target is off-screen. The drop indicator is an overlay rather than a row in the document flow, so hovering an up-arrow no longer shifts the layout beneath the cursor and makes the preview blink between modules.
+
 ### Security
 
 - Draft event covers are no longer readable by every signed-in user. Covers are served through `/api/storage/event_images/...`, whose object keys are `events/{id}/cover.png` against sequential ids, so any account could fetch the cover of an unpublished event by guessing the path. Serving one now requires the event to be published, or the facilitator role — the same rule the event listing already applied to drafts.

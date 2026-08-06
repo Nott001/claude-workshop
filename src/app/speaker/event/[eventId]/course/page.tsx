@@ -86,8 +86,7 @@ export default function SpeakerCoursePage() {
               onDeleteLesson={courseBuilder.handleDeleteLesson}
               onAddLessonClick={courseBuilder.openLessonDialog}
               onReorderModules={courseBuilder.handleReorderModules}
-              onReorderLessons={courseBuilder.handleReorderLessons}
-              onToggleModuleLock={courseBuilder.handleToggleModuleLock}
+              onMoveLesson={courseBuilder.handleMoveLesson}
             />
             <LessonDialog
               open={courseBuilder.lessonDialogModuleId !== null}

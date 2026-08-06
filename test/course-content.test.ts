@@ -148,4 +148,28 @@ describe("lessonSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("accepts an optional module_id, used when a lesson moves to another module", () => {
+    const result = lessonSchema.safeParse({
+      description: "Lesson",
+      content_type: "pdf",
+      content_url: "https://example.com/doc",
+      sequence_order: "2",
+      module_id: "3",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.module_id).toBe(3);
+    }
+  });
+
+  it("rejects an invalid module_id", () => {
+    const result = lessonSchema.safeParse({
+      description: "Lesson",
+      content_type: "pdf",
+      sequence_order: "2",
+      module_id: "not-a-number",
+    });
+    expect(result.success).toBe(false);
+  });
 });
