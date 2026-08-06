@@ -63,14 +63,16 @@ export function SessionTimePicker({
         aria-haspopup="listbox"
         aria-label={`Session time for ${modName}`}
         className={cn(
-          "flex items-center gap-1.5 rounded-md border bg-surface px-2 py-1 text-xs text-fg outline-none focus:ring-2",
+          "flex min-w-[160px] items-center gap-2 rounded-md border bg-surface px-2.5 py-1.5 text-xs text-fg outline-none focus:ring-2",
           invalid
             ? "border-error/70 focus:border-error focus:ring-error/20"
             : "border-border focus:border-brand focus:ring-ring/20",
         )}
       >
         <span className="material-symbols-rounded text-[14px] text-muted-fg">schedule</span>
-        <span className={cn(!startValue && !endValue && "text-muted-fg")}>{displayTimes(startValue, endValue)}</span>
+        <span className={cn("flex-1 text-left", !startValue && !endValue && "text-muted-fg")}>
+          {displayTimes(startValue, endValue)}
+        </span>
         <span className="material-symbols-rounded text-[14px] text-muted-fg">expand_more</span>
       </button>
 

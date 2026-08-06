@@ -229,6 +229,12 @@ describe("CurriculumBuilder schedule editing", () => {
     expect(screen.getAllByText("Not scheduled")).toHaveLength(modules.length);
   });
 
+  it("labels the session field so it reads as a control, one per module", () => {
+    renderStatic();
+
+    expect(screen.getAllByText("Session time")).toHaveLength(modules.length);
+  });
+
   it("shows Start and End columns side by side in one open, each with Not scheduled", () => {
     renderStatic();
     openPicker("Module 1");
