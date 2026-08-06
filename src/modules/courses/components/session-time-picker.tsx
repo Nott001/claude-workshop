@@ -14,6 +14,7 @@ interface SessionTimePickerProps {
   startOptions: TimeOption[];
   endOptions: TimeOption[];
   invalid: boolean;
+  issueMessage?: string | null;
   onChange: (field: TimeField, value: string) => void;
 }
 
@@ -31,6 +32,7 @@ export function SessionTimePicker({
   startOptions,
   endOptions,
   invalid,
+  issueMessage,
   onChange,
 }: SessionTimePickerProps) {
   const [open, setOpen] = useState(false);
@@ -63,7 +65,7 @@ export function SessionTimePicker({
         aria-haspopup="listbox"
         aria-label={`Session time for ${modName}`}
         className={cn(
-          "flex min-w-[160px] items-center gap-2 rounded-md border bg-surface px-2.5 py-1.5 text-xs text-fg outline-none focus:ring-2",
+          "flex items-center gap-1.5 rounded-md border bg-surface px-2.5 py-1 text-xs text-fg outline-none focus:ring-2",
           invalid
             ? "border-error/70 focus:border-error focus:ring-error/20"
             : "border-border focus:border-brand focus:ring-ring/20",
@@ -94,6 +96,7 @@ export function SessionTimePicker({
               onSelect={(value) => onChange("end", value)}
             />
           </div>
+          {issueMessage && <p className={cn("text-xs", invalid ? "text-error" : "text-muted-fg")}>{issueMessage}</p>}
           <button
             type="button"
             onClick={() => setOpen(false)}

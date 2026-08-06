@@ -9,7 +9,6 @@ import type { RowIssue, ScheduleWindow } from "../lib/scheduling";
 import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
 import { LessonRow } from "./lesson-row";
 import { ModuleHeader } from "./module-header";
-import { ModuleScheduleEditor } from "./module-schedule-editor";
 import type { TimeField } from "./session-time-picker";
 
 export type PreviewState = { type: "module" | "lesson"; id: number; direction: MoveDirection } | null;
@@ -112,12 +111,6 @@ export function ModuleCard({
       onPreviewMoveEnd={onPreviewMoveEnd}
       onMove={onMoveModule}
       onDelete={onDeleteModule}
-    />
-  );
-
-  const scheduleEditor = (
-    <ModuleScheduleEditor
-      mod={mod}
       working={working}
       eventSpeakers={eventSpeakers}
       eventStartTime={eventStartTime}
@@ -140,7 +133,6 @@ export function ModuleCard({
         )}
       >
         {header}
-        {scheduleEditor}
       </div>
     );
   }
@@ -155,7 +147,6 @@ export function ModuleCard({
       )}
     >
       <div className="mb-3">{header}</div>
-      {scheduleEditor}
 
       {dropSlot !== null && (
         <div

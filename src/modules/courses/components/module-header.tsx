@@ -3,8 +3,11 @@
 import type { RefObject } from "react";
 import { cn } from "@/shared/lib/utils";
 import type { ModuleMoveInfo, MoveDirection } from "../lib/reorder";
-import type { ModuleWithLessons } from "../lib/types";
+import type { RowIssue, ScheduleWindow } from "../lib/scheduling";
+import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
 import { moduleMoveLabel, MoveButton } from "./move-button";
+import { ModuleScheduleEditor } from "./module-schedule-editor";
+import type { TimeField } from "./session-time-picker";
 
 interface ModuleHeaderProps {
   mod: ModuleWithLessons;
@@ -23,6 +26,15 @@ interface ModuleHeaderProps {
   onPreviewMoveEnd: () => void;
   onMove: (direction: MoveDirection) => void;
   onDelete: () => void;
+  working: ScheduleWindow[];
+  eventSpeakers: CourseSpeaker[];
+  eventStartTime?: string | null;
+  eventEndTime?: string | null;
+  startValue: string;
+  endValue: string;
+  issue: RowIssue | null;
+  onTimeChange: (field: TimeField, value: string) => void;
+  onSpeakerChange: (speakerProfileId: number | null) => void;
 }
 
 export function ModuleHeader({
@@ -42,9 +54,18 @@ export function ModuleHeader({
   onPreviewMoveEnd,
   onMove,
   onDelete,
+  working,
+  eventSpeakers,
+  eventStartTime,
+  eventEndTime,
+  startValue,
+  endValue,
+  issue,
+  onTimeChange,
+  onSpeakerChange,
 }: ModuleHeaderProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className={cn("material-symbols-rounded text-lg", isQa ? "text-warning" : "text-info")}>
         {isQa ? "forum" : "menu_book"}
       </span>
@@ -80,6 +101,19 @@ export function ModuleHeader({
       >
         {isQa ? "Q&A Module" : `${mod.LESSONS.length} ${mod.LESSONS.length === 1 ? "lesson" : "lessons"}`}
       </span>
+
+      <ModuleScheduleEditor
+        mod={mod}
+        working={working}
+        eventSpeakers={eventSpeakers}
+        eventStartTime={eventStartTime}
+        eventEndTime={eventEndTime}
+        startValue={startValue}
+        endValue={endValue}
+        issue={issue}
+        onTimeChange={onTimeChange}
+        onSpeakerChange={onSpeakerChange}
+      />
 
       {conflicting && (
         <span className="material-symbols-rounded text-[16px] text-warning" title="Session overlaps another module">

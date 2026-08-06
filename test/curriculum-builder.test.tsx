@@ -219,6 +219,53 @@ describe("CurriculumBuilder move affordances", () => {
     expect(next.map((m) => m.id)).toEqual([1, 3, 2]);
     expect(next.map((m) => m.sequence_order)).toEqual([1, 2, 3]);
   });
+
+  it("moves a module down with its down arrow", () => {
+    const onReorderModules = vi.fn();
+    render(<Harness initial={modules} onMoveLesson={noop} onReorderModules={onReorderModules} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Move module below Q&A" }));
+
+    const next = onReorderModules.mock.calls[0][0] as ModuleWithLessons[];
+    expect(next.map((m) => m.id)).toEqual([2, 1, 3]);
+    expect(next.map((m) => m.sequence_order)).toEqual([1, 2, 3]);
+  });
+
+  it("highlights the target module while previewing a module move", () => {
+    renderStatic();
+
+    const upButton = screen.getByRole("button", { name: "Move module above Q&A" });
+    fireEvent.mouseEnter(upButton);
+    expect(screen.getByText("Q&A Module").closest(".ring-2")).toBeTruthy();
+
+    fireEvent.mouseLeave(upButton);
+    expect(screen.getByText("Q&A Module").closest(".ring-2")).toBeNull();
+  });
+});
+
+describe("CurriculumBuilder module header", () => {
+  it("renames a module from the header on Enter", () => {
+    const onRenameModule = vi.fn(async () => {});
+    renderStatic({ onRenameModule });
+
+    fireEvent.click(screen.getAllByTitle("Rename module")[0]);
+    fireEvent.change(screen.getByDisplayValue("Module 1"), { target: { value: "Intro" } });
+    fireEvent.keyDown(screen.getByDisplayValue("Intro"), { key: "Enter" });
+
+    expect(onRenameModule).toHaveBeenCalledWith(1, "Intro");
+    expect(screen.queryByDisplayValue("Intro")).toBeNull();
+  });
+
+  it("cancels a rename on Escape without committing", () => {
+    const onRenameModule = vi.fn(async () => {});
+    renderStatic({ onRenameModule });
+
+    fireEvent.click(screen.getAllByTitle("Rename module")[0]);
+    fireEvent.change(screen.getByDisplayValue("Module 1"), { target: { value: "Intro" } });
+    fireEvent.keyDown(screen.getByDisplayValue("Intro"), { key: "Escape" });
+
+    expect(onRenameModule).not.toHaveBeenCalled();
+  });
 });
 
 describe("CurriculumBuilder schedule editing", () => {
@@ -229,10 +276,13 @@ describe("CurriculumBuilder schedule editing", () => {
     expect(screen.getAllByText("Not scheduled")).toHaveLength(modules.length);
   });
 
-  it("labels the session field so it reads as a control, one per module", () => {
-    renderStatic();
+  it("shows committed session times on the header chip", () => {
+    renderStatic({ modules: scheduledModules });
 
-    expect(screen.getAllByText("Session time")).toHaveLength(modules.length);
+    const module1 = screen.getByRole("button", { name: "Session time for Module 1" });
+    expect(module1.textContent).toContain("9:00 AM");
+    expect(module1.textContent).toContain("10:00 AM");
+    expect(screen.getByRole("button", { name: "Session time for Module 2" }).textContent).toContain("11:00 AM");
   });
 
   it("shows Start and End columns side by side in one open, each with Not scheduled", () => {
@@ -392,11 +442,11 @@ describe("CurriculumBuilder schedule editing", () => {
     ];
     renderStatic({ modules: overlapping, onUpdateModuleSchedule });
 
+    openPicker("Module 2");
     expect(screen.getByText('Overlaps "Module 1" (9:00 AM – 10:30 AM).')).toBeTruthy();
 
     // Editing the end to a non-conflicting value keeps the overlap in place
     // (the start still clashes), so nothing commits.
-    openPicker("Module 2");
     fireEvent.click(within(endColumn("Module 2")).getByRole("option", { name: "12:00 PM" }));
     expect(onUpdateModuleSchedule).not.toHaveBeenCalled();
   });
