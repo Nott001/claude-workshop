@@ -1,9 +1,14 @@
 -- Realtime callbacks enrich an inserted CHAT_MESSAGE with "*, USER:user_id(full_name, role)"
 -- through the browser client. USER has RLS on and no grants, so that embed fails with 42501
--- and the new message is dropped until the page reloads. Grant the two public columns to
+-- and the new message is dropped until the page reloads. Grant the public columns to
 -- authenticated and let rows through for users the caller could already reach through a
 -- CHAT_MESSAGE or QA_MESSAGE they can read, so names resolve in realtime without exposing
--- email or auth ids.
+-- email.
+--
+-- auth_user_id is in the grant because it is not cosmetic: the existing CHAT_MESSAGE,
+-- QA_MESSAGE and SUPPORT_SESSION policies (00008) resolve the caller with
+-- `u.auth_user_id = auth.uid()`, and Realtime evaluates those policies before it will
+-- deliver an event. Without SELECT on that one column every event is silently dropped.
 --
 -- The membership check must live in a SECURITY DEFINER function. The existing
 -- CHAT_MESSAGE/QA_MESSAGE policies already reference USER, so a USER policy that references
@@ -12,7 +17,7 @@
 
 DROP POLICY IF EXISTS "Users read conversation participants" ON "USER";
 
-GRANT SELECT (id, full_name, role) ON "USER" TO authenticated;
+GRANT SELECT (id, auth_user_id, full_name, role) ON "USER" TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.conversation_participant(target_user_id integer)
 RETURNS boolean
