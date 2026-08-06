@@ -68,6 +68,11 @@ describe("courseSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a null description, as the create flow sends when it is empty", () => {
+    const result = courseSchema.safeParse({ course_name: "Intro", course_description: null, event_id: 1 });
+    expect(result.success).toBe(true);
+  });
+
   it("rejects empty name", () => {
     const result = courseSchema.safeParse({ course_name: "", event_id: 1 });
     expect(result.success).toBe(false);

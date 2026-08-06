@@ -205,7 +205,8 @@ test("an assigned facilitator can create a course through the API", async ({ pag
   await signIn(page, facilitator);
 
   const res = await page.request.post("/api/courses", {
-    data: { course_name: "e2e-created-course", course_description: "made by an e2e run", event_id: event.eventId },
+    // course_description: null is what the UI sends when the field is empty.
+    data: { course_name: "e2e-created-course", course_description: null, event_id: event.eventId },
   });
 
   expect(res.status()).toBe(201);

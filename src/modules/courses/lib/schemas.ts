@@ -11,7 +11,9 @@ const contentTypeEnum = z.enum(["pdf", "video", "image", "link"]);
 
 export const courseSchema = z.object({
   course_name: z.string().min(1, "Name is required").max(255, "Name too long"),
-  course_description: z.string().optional(),
+  // The DAO stores no description as null, and the create flow sends null when
+  // the description is empty — so null is as valid as a string here.
+  course_description: z.string().optional().nullable(),
   event_id: z.coerce.number().int().positive(),
 });
 

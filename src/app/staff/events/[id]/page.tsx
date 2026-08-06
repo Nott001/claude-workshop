@@ -158,6 +158,7 @@ export function CourseSection({
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm text-muted-fg">No course yet for this event.</p>
+        {courseBuilder.error && <p className="mt-3 text-sm text-error">{courseBuilder.error}</p>}
         <button
           onClick={() => courseBuilder.handleAddModule()}
           className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
@@ -171,6 +172,7 @@ export function CourseSection({
   if (canManageCourse && courseBuilder.modules.length > 0) {
     return (
       <SectionCard title="Course" icon="school">
+        {courseBuilder.error && <p className="mb-4 text-sm text-error">{courseBuilder.error}</p>}
         <CurriculumBuilder
           modules={courseBuilder.modules}
           onAddModule={courseBuilder.handleAddModule}
