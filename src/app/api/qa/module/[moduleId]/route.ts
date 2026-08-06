@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import * as courseDao from "@/shared/db/dao/course.dao";
@@ -70,7 +71,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  const course = await courseDao.findCourseOwner(supabase, mod.course_id);
+  const course = await courseDao.findCourseEvent(supabase, mod.course_id);
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
@@ -94,6 +95,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ module
   const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return guardFailure(guard);
+  }
+
+  const access = await requireModuleAccess(Number(moduleId), guard.user.id, guard.user.role);
+  if (access) {
+    return access;
   }
 
   const supabase = getServiceClient();

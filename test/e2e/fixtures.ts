@@ -99,8 +99,8 @@ export interface SeededCourse {
 }
 
 /**
- * A course belongs to an event in the live schema (COURSE.event_id), which is
- * the reverse of what the migration file describes. See SPEC-09-TEST-STRATEGY §9.
+ * A course belongs to exactly one event (COURSE.event_id) — the 1:1 contract
+ * the course-ownership series is built on. See SPEC-01-COURSE-OWNERSHIP.
  */
 export async function createCourse(db: SupabaseClient, eventId: number): Promise<SeededCourse> {
   const name = `${E2E_PREFIX}course-${RUN}-${randomUUID().slice(0, 6)}`;
@@ -109,6 +109,33 @@ export async function createCourse(db: SupabaseClient, eventId: number): Promise
   if (error || !data) throw new Error(`COURSE insert failed: ${error?.message}`);
 
   return { courseId: data.id, name };
+}
+
+/**
+ * Makes a facilitator part of an event's team. Under the ownership series the
+ * authoring routes 403 unless the caller is on the event, so every facilitator
+ * the suites author with must be assigned first.
+ */
+export async function assignFacilitator(db: SupabaseClient, userId: number, eventId: number): Promise<void> {
+  const { error } = await db.from("EVENT_FACILITATOR").insert({ event_id: eventId, user_id: userId, assigned_by: userId });
+  if (error) throw new Error(`EVENT_FACILITATOR insert failed: ${error.message}`);
+}
+
+/**
+ * Makes a speaker part of an event's team, the way the app does: a profile row
+ * first, then an EVENT_SPEAKER row against that profile. The authoring routes
+ * resolve a speaker by user id, so both rows must exist.
+ */
+export async function assignSpeaker(db: SupabaseClient, userId: number, eventId: number): Promise<void> {
+  const { data: profile, error } = await db
+    .from("SPEAKER_PROFILE")
+    .insert({ user_id: userId, designation: "E2E Speaker" })
+    .select("id")
+    .single();
+  if (error || !profile) throw new Error(`SPEAKER_PROFILE insert failed: ${error?.message}`);
+
+  const { error: esError } = await db.from("EVENT_SPEAKER").insert({ event_id: eventId, speaker_profile_id: profile.id });
+  if (esError) throw new Error(`EVENT_SPEAKER insert failed: ${esError.message}`);
 }
 
 /**

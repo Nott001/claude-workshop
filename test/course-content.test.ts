@@ -19,7 +19,6 @@ describe("Course content types", () => {
       event_id: 1,
       course_name: "Test Course",
       course_description: "A description",
-      created_by: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -66,6 +65,11 @@ describe("courseSchema", () => {
 
   it("accepts course with description", () => {
     const result = courseSchema.safeParse({ course_name: "Intro", course_description: "Desc", event_id: 1 });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a null description, as the create flow sends when it is empty", () => {
+    const result = courseSchema.safeParse({ course_name: "Intro", course_description: null, event_id: 1 });
     expect(result.success).toBe(true);
   });
 
@@ -143,5 +147,29 @@ describe("lessonSchema", () => {
       sequence_order: "1",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts an optional module_id, used when a lesson moves to another module", () => {
+    const result = lessonSchema.safeParse({
+      description: "Lesson",
+      content_type: "pdf",
+      content_url: "https://example.com/doc",
+      sequence_order: "2",
+      module_id: "3",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.module_id).toBe(3);
+    }
+  });
+
+  it("rejects an invalid module_id", () => {
+    const result = lessonSchema.safeParse({
+      description: "Lesson",
+      content_type: "pdf",
+      sequence_order: "2",
+      module_id: "not-a-number",
+    });
+    expect(result.success).toBe(false);
   });
 });

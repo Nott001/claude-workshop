@@ -21,7 +21,6 @@ export interface Course {
   event_id: number;
   course_name: string;
   course_description: string | null;
-  created_by: number | null;
   created_at: string;
   updated_at: string;
 }

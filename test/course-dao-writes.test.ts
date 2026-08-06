@@ -39,24 +39,23 @@ beforeEach(() => {
 });
 
 describe("course.dao listCoursesWithEvents", () => {
-  it("attaches each course's event and creator", async () => {
+  it("attaches each course's event", async () => {
     const { client } = stub({
-      COURSE: { data: [{ id: 1, event_id: 9, created_by: 3 }] },
+      COURSE: { data: [{ id: 1, event_id: 9 }] },
       EVENT: { data: [{ id: 9, title: "Demo Day", event_date: "2026-09-01" }] },
-      USER: { data: [{ id: 3, full_name: "Ana" }] },
     });
 
     const [course] = await dao.listCoursesWithEvents(client);
 
-    expect(course).toMatchObject({ event_title: "Demo Day", event_date: "2026-09-01", creator_name: "Ana" });
+    expect(course).toMatchObject({ event_title: "Demo Day", event_date: "2026-09-01" });
   });
 
-  it("renders a course whose event or creator is missing rather than dropping it", async () => {
-    const { client } = stub({ COURSE: { data: [{ id: 1, event_id: 9, created_by: null }] }, EVENT: { data: [] } });
+  it("renders a course whose event is missing rather than dropping it", async () => {
+    const { client } = stub({ COURSE: { data: [{ id: 1, event_id: 9 }] }, EVENT: { data: [] } });
 
     const [course] = await dao.listCoursesWithEvents(client);
 
-    expect(course).toMatchObject({ event_title: null, event_date: null, creator_name: null });
+    expect(course).toMatchObject({ event_title: null, event_date: null });
   });
 
   it("does not go looking for events when there are no courses", async () => {
@@ -78,16 +77,14 @@ describe("course.dao writes", () => {
     const { client } = stub({ COURSE: { data: { id: 4 }, error: null } });
 
     await expect(
-      dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9, created_by: 3 }),
+      dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 }),
     ).resolves.toMatchObject({ id: 4 });
   });
 
   it("reports a rejected insert as no course", async () => {
     const { client } = stub({ COURSE: { data: null, error: { message: "violates foreign key", code: "23503" } } });
 
-    await expect(
-      dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9, created_by: 3 }),
-    ).resolves.toBeNull();
+    await expect(dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 })).resolves.toBeNull();
   });
 
   it("defaults a new module to lessons rather than leaving its type unset", async () => {
