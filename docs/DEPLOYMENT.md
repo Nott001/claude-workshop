@@ -2,8 +2,11 @@
 
 The app runs as a single Worker, adapted from the Next.js build by
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Workers are V8
-isolates, not Node processes — that constraint is why `sharp` was replaced with
-`@cf-wasm/photon`, and why `nodejs_compat` is not optional in `wrangler.jsonc`.
+isolates, not Node processes — that constraint is why `sharp` could not come
+along, and why `nodejs_compat` is not optional in `wrangler.jsonc`. Its
+WebAssembly replacement did not survive either: workerd compiles WebAssembly
+only at startup, and no Next bundler will hand the module to wrangler instead,
+so images are now resized by the browser before they are uploaded.
 
 ## Files
 
@@ -62,11 +65,36 @@ back and shown in the run summary.
    pnpm exec wrangler secret put SMTP_PASSWORD
    ```
 
-   Leave the three `SMTP_*` unset and email falls back to the console provider,
-   which logs instead of sending — the app still works, nothing is delivered.
-   `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` and `SMTP_TIMEOUT_MS` are
-   optional overrides. None of these may be renamed to `NEXT_PUBLIC_*`: the
-   compiler inlines those into the client bundle, publishing the password.
+   Leave the three `SMTP_*` unset and the Worker refuses to send rather than
+   pretending to: `EMAIL_LOG` records `failed` and an invite answers `502`.
+   That is deliberate. Reporting success for mail that never left the isolate
+   is how these three secrets stayed unset here for weeks while every invitation
+   read as delivered. `next dev` still logs to the console instead — it has no
+   socket either way, so there the fallback means nothing is wrong.
+   `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
+   `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional overrides. None of these
+   may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
+   bundle, publishing the password.
+
+   Two senders exist, and which one is responsible decides where a fix goes:
+
+   - **The worker** sends ticket, check-in and organization-invite mail through
+     the `SMTP_*` mailbox above. Those templates live in
+     `src/shared/integrations/email/templates.ts` and are edited here.
+   - **Supabase** sends sign-up confirmation and password recovery from its own
+     servers, configured under **Authentication → SMTP Settings** (port 587).
+     Those templates exist only in the dashboard.
+
+   **URL Configuration → Redirect URLs** must list every origin the app runs on.
+   A `redirectTo` absent from that allowlist is silently replaced by the Site URL
+   with its path stripped, which strands anyone following an emailed link.
+
+   Ticket and check-in delivery runs after the response, so a slow send costs no
+   request latency. Invites are awaited instead: an administrator has to be told
+   the invitation did not go out.
+   Deliverability depends on DNS the repository does not own — SPF, DKIM and
+   DMARC must all pass for `startuplab.center`, or mail lands in spam however
+   well-formed it is.
 
 3. **Create the GitHub `production` environment** (Settings → Environments) and
    add the secrets and variables from the table above. Add a required reviewer
@@ -106,8 +134,16 @@ cp .dev.vars.example .dev.vars   # then fill it in
 pnpm cf:preview                  # builds, then serves on workerd
 ```
 
-Passing vitest does not answer that question. Vitest resolves `@cf-wasm/photon`
-through vite's `node` condition; only `workerd` exercises the `workerd` one.
+Passing vitest does not answer that question, and neither does passing E2E.
+Both run on Node — `playwright.config.ts` serves the app with `pnpm start` —
+so neither can observe a restriction that only workerd applies. The image
+resizer proved it: every upload route failed in production for weeks with all
+four workflows green, because the WebAssembly it compiled per request is
+disallowed on workerd and permitted everywhere the tests run.
+
+Until something in CI exercises `workerd`, `pnpm cf:preview` is the only place
+that answer exists. Run it before shipping anything that touches a runtime
+boundary — sockets, WebAssembly, timers, streams.
 
 ## Scripts
 
@@ -152,6 +188,7 @@ reasons are recorded in `wrangler.jsonc` next to where they would go:
 - **The `images` binding** — no component imports `next/image` yet.
 - **Durable Objects, KV, Cron Triggers** — no need has appeared.
 
-Uploads are resized in-process by photon and stored in Supabase Storage, both
-host-independent. If the host ever changes, `optimizeImage` keeps a `File → File`
-signature and the swap is one file plus a dependency.
+Uploads are resized by the browser and stored in Supabase Storage, so neither
+step depends on the host at all. `resizeImage` keeps the `File → File` signature
+the server-side resizer had, which is why moving the work across the network
+touched one import per call site and nothing else.

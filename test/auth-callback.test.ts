@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const exchangeCodeForSession = vi.fn();
-const cookieGet = vi.fn();
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({ auth: { exchangeCodeForSession } }),
 }));
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: cookieGet, set: vi.fn(), delete: vi.fn() }),
+  cookies: async () => ({ getAll: () => [], set: vi.fn() }),
 }));
 
 import { GET } from "@/app/api/auth/callback/route";

@@ -4,7 +4,6 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { requireLessonAccess } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
-import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import { uploadToStorage } from "@/shared/integrations/storage/service";
 import {
   buildCourseAssetPath,
@@ -57,12 +56,11 @@ export async function POST(req: Request) {
     return access;
   }
 
-  const optimizedFile = await optimizeImage(file);
   const filename = sanitizeObjectName(file.name, `asset.${file.type.split("/")[1]}`);
   const path = buildCourseAssetPath(mod.course_id, lesson.module_id, Number(lessonId), filename);
 
   try {
-    const result = await uploadToStorage("course_assets", path, optimizedFile);
+    const result = await uploadToStorage("course_assets", path, file);
 
     const updated = await courseDao.updateLesson(supabase, Number(lessonId), { content_url: result.url });
 

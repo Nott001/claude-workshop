@@ -87,3 +87,31 @@ describe("a consumer gated on isLoaded", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/payments");
   });
 });
+
+// `loading` gates every guarded page. Left set on a failing path it spins the
+// page it was gating, so the failure has to resolve to "nobody", not to limbo.
+describe("SessionProvider settles on a failing session", () => {
+  it("finishes loading when getSession rejects", async () => {
+    getSession.mockRejectedValue(new Error("refresh token is invalid"));
+
+    render(
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("flags").textContent).toBe("isLoaded=true loading=false"));
+  });
+
+  it("finishes loading when /api/auth/me rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("flags").textContent).toBe("isLoaded=true loading=false"));
+  });
+});

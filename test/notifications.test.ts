@@ -64,9 +64,93 @@ describe("emailTemplates", () => {
     expect(html).toContain("Meetup");
   });
 
+  it("emits a complete HTML document, not a fragment", () => {
+    // Filters score a bare run of <h1>/<p> worse than a real document.
+    const html = emailTemplates.ticketIssued.buildHtml({ name: "Bob", eventTitle: "Conference", eventDate: "2026-08-15" });
+
+    expect(html.startsWith("<!doctype html>")).toBe(true);
+    expect(html).toContain('<meta charset="utf-8" />');
+    expect(html).toContain("<title>Registration Confirmed</title>");
+    expect(html).toContain("</html>");
+  });
+
+  it("says who sent it and why it arrived", () => {
+    const html = emailTemplates.checkInConfirmed.buildHtml({ name: "Carol", eventTitle: "Meetup" });
+
+    expect(html).toContain("startuplab.center");
+    expect(html).toContain("You received this because you registered");
+  });
+
+  it("builds a plain-text part that stands on its own", () => {
+    const text = emailTemplates.ticketIssued.buildText({ name: "Bob", eventTitle: "Conference", eventDate: "2026-08-15" });
+
+    expect(text).toContain("Registration Confirmed");
+    expect(text).toContain("Hi Bob,");
+    expect(text).toContain("Conference");
+    expect(text).toContain("2026-08-15");
+    expect(text).toContain("startuplab.center");
+    expect(text).not.toContain("<");
+  });
+
+  it("builds check-in text without leaving the reader mid-sentence", () => {
+    const text = emailTemplates.checkInConfirmed.buildText({ name: "Carol", eventTitle: "Meetup" });
+
+    expect(text).toContain("Check-In Confirmed");
+    expect(text).toContain("Carol");
+    expect(text).toContain("Meetup");
+    expect(text).not.toContain("<");
+  });
+
   it("has correct subject lines", () => {
     expect(emailTemplates.ticketIssued.subject).toContain("Registration Confirmed");
     expect(emailTemplates.checkInConfirmed.subject).toBe("Check-In Confirmed");
+  });
+
+  // An event title is written by whoever created the event and then mailed to
+  // every attendee who registers, so it carries one user's input into other
+  // people's inboxes.
+  it("escapes markup in the values the HTML part interpolates", () => {
+    const html = emailTemplates.ticketIssued.buildHtml({
+      name: '<img src=x onerror="alert(1)">',
+      eventTitle: "<script>alert(1)</script>",
+      eventDate: "2026-08-15",
+    });
+
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+  });
+
+  it("escapes a title that would otherwise close its attribute", () => {
+    const html = emailTemplates.checkInConfirmed.buildHtml({
+      name: "Carol",
+      eventTitle: '" onmouseover="alert(1)',
+    });
+
+    expect(html).toContain("&quot; onmouseover=&quot;alert(1)");
+  });
+
+  it("escapes ampersands once, not twice", () => {
+    const html = emailTemplates.checkInConfirmed.buildHtml({
+      name: "Carol",
+      eventTitle: "Design & Build",
+    });
+
+    expect(html).toContain("Design &amp; Build");
+    expect(html).not.toContain("&amp;amp;");
+  });
+
+  // Nothing parses the text half as markup, and an entity there reaches the
+  // reader literally.
+  it("leaves the plain-text part unescaped", () => {
+    const text = emailTemplates.checkInConfirmed.buildText({
+      name: "Carol",
+      eventTitle: "Design & Build",
+    });
+
+    expect(text).toContain("Design & Build");
+    expect(text).not.toContain("&amp;");
   });
 });
 

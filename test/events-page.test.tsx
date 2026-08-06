@@ -98,3 +98,32 @@ describe("EventsPage for a signed-out visitor", () => {
     expect(await screen.findByText("Failed to load events")).toBeTruthy();
   });
 });
+
+describe("events page loading state", () => {
+  it("reserves the list's height instead of collapsing to a one-line message", async () => {
+    // The app shell renders the footer with `mt-auto`. A short loading state
+    // parks it inside the viewport, and the arriving list then shoves it down —
+    // 0.141 of the 0.142 CLS Lighthouse measured on this page.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+
+    render(<EventsPage />);
+
+    expect(screen.getByLabelText("Loading events")).toBeTruthy();
+    expect(screen.queryByText("Loading events...")).toBeNull();
+  });
+
+  it("shows enough placeholders to push the footer past the fold", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+
+    const { container } = render(<EventsPage />);
+
+    // Six cards at the real card height clears any realistic viewport.
+    expect(container.querySelectorAll(".h-48").length).toBe(6);
+  });
+});

@@ -1,7 +1,14 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { ConsoleEmailProvider } from "@/shared/integrations/email/providers/console";
+import { UnconfiguredEmailProvider } from "@/shared/integrations/email/providers/unconfigured";
+import { SmtpEmailProvider } from "@/shared/integrations/email/providers/smtp";
 import { getEmailService, configureEmailService, createDefaultProvider, resetEmailService } from "@/shared/integrations/email";
 import type { EmailProvider } from "@/shared/integrations/email/types";
+
+/** workerd is identified by its user agent; vitest runs on Node, which is not. */
+function pretendWorkerd() {
+  vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+}
 
 describe("ConsoleEmailProvider", () => {
   it("logs and returns success", async () => {
@@ -26,12 +33,52 @@ describe("ConsoleEmailProvider", () => {
   });
 });
 
+describe("UnconfiguredEmailProvider", () => {
+  it("refuses the send and says which secrets are missing", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await new UnconfiguredEmailProvider().send({
+      to: { email: "invitee@example.com", name: "Invitee" },
+      subject: "S",
+      htmlContent: "<p>c</p>",
+    });
+
+    // The invite route deletes the half-created account on `!success`, so this
+    // is the difference between a retryable failure and an admin being told an
+    // invitation went out that never left the isolate.
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/SMTP_HOST/);
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});
+
 describe("createDefaultProvider", () => {
   const original = { ...process.env };
 
   afterEach(() => {
     process.env = { ...original };
+    vi.unstubAllGlobals();
     resetEmailService();
+  });
+
+  it("refuses to send on workerd when no mailbox is configured", () => {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+    pretendWorkerd();
+
+    // Production forgetting `wrangler secret put` must not degrade to a
+    // provider that reports success.
+    expect(createDefaultProvider()).toBeInstanceOf(UnconfiguredEmailProvider);
+  });
+
+  it("speaks SMTP on workerd once the mailbox is configured", () => {
+    process.env.SMTP_HOST = "mail.startuplab.center";
+    process.env.SMTP_USER = "no-reply@startuplab.center";
+    process.env.SMTP_PASSWORD = "s3cret";
+    pretendWorkerd();
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
   });
 
   it("logs to the console when no mailbox is configured", () => {

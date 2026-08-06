@@ -42,12 +42,23 @@ export async function list(
   supabase: DbClient,
   options?: {
     role?: string | null;
+    userId?: number | null;
     filter?: string | null;
   },
 ): Promise<EventWithCourseName[]> {
-  const { role, filter } = options ?? {};
+  const { role, userId, filter } = options ?? {};
 
   let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
+
+  // A facilitator's dashboard shows only the events they are assigned to;
+  // admins and every other role keep the full listing.
+  if (role === "facilitator" && userId != null) {
+    const { data: assigned } = await supabase.from("EVENT_FACILITATOR").select("event_id").eq("user_id", userId);
+    const assignedIds = (assigned ?? []).map((row: { event_id: number }) => row.event_id);
+    // PostgREST treats an empty in() as vacuous, so an unassigned facilitator
+    // would otherwise get every event.
+    query = query.in("id", assignedIds.length > 0 ? assignedIds : [-1]);
+  }
 
   // Drafts are staff-only, and "staff" is facilitator *and up* — a literal
   // inequality hid every draft from admins, who are the only role allowed to

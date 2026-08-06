@@ -11,6 +11,7 @@ const CONFIG: SmtpConfig = {
   fromEmail: "no-reply@startuplab.center",
   fromName: "Startup Lab",
   timeoutMs: 5_000,
+  attempts: 1,
 };
 
 const MESSAGE = {
@@ -81,6 +82,44 @@ describe("SmtpEmailProvider", () => {
     });
 
     await expect(provider.send(MESSAGE)).resolves.toEqual({ success: false, error: "connection refused" });
+  });
+
+  it("retries a transient failure and succeeds on the second connection", async () => {
+    // The observed production failure: a greeting that never arrived on an
+    // otherwise healthy server.
+    const servers = [fakeSmtpServer(["421 Service temporarily unavailable\r\n"]), fakeSmtpServer(acceptingScript())];
+    let opened = 0;
+    const provider = new SmtpEmailProvider({ ...CONFIG, attempts: 2 }, async () => servers[opened++].duplex);
+
+    await expect(provider.send(MESSAGE)).resolves.toEqual({ success: true });
+    expect(opened).toBe(2);
+  });
+
+  it("does not retry a permanent rejection", async () => {
+    const servers = [
+      fakeSmtpServer([...ESMTP_GREETING, "535 5.7.8 Authentication failed\r\n"]),
+      fakeSmtpServer(acceptingScript()),
+    ];
+    let opened = 0;
+    const provider = new SmtpEmailProvider({ ...CONFIG, attempts: 2 }, async () => servers[opened++].duplex);
+
+    const result = await provider.send(MESSAGE);
+
+    expect(result.success).toBe(false);
+    // A second attempt would be rejected identically and only adds load.
+    expect(opened).toBe(1);
+  });
+
+  it("sends the identical message on a retry rather than a new one", async () => {
+    const servers = [fakeSmtpServer(["421 try later\r\n"]), fakeSmtpServer(acceptingScript())];
+    let opened = 0;
+    const provider = new SmtpEmailProvider({ ...CONFIG, attempts: 2 }, async () => servers[opened++].duplex);
+
+    await provider.send(MESSAGE);
+    const idOf = (body: string) => body.match(/Message-ID: <([^>]+)>/)?.[1];
+
+    expect(idOf(servers[1].written())).toBeTruthy();
+    expect(servers[1].written()).toContain("Auto-Submitted: auto-generated");
   });
 
   it("gives up on a server that never replies", async () => {

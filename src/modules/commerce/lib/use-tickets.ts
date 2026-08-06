@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 // The route serves ticketDao rows verbatim. The copy that used to live here
 // named the embeds `EVENTS` and `PAYMENTS`; the selects alias neither, so both
 // arrive singular. `ticket.EVENTS.title` was reading through `undefined`.
-import type { TicketWithEvent } from "@/shared/db/dao/ticket.dao";
+import type { TicketWithPaymentAndEvent } from "@/shared/db/dao/ticket.dao";
 
-export type Ticket = TicketWithEvent;
-export type PaymentInfo = { status: string; paid_at: string | null };
+export type Ticket = TicketWithPaymentAndEvent;
 
 export function useTickets() {
-  const [tickets, setTickets] = useState<TicketWithEvent[]>([]);
+  const [tickets, setTickets] = useState<TicketWithPaymentAndEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { listCandidates, listEventAssignments, replaceEventAssignments } from "@/shared/db/dao/facilitator.dao";
+import { isAssigned, listCandidates, listEventAssignments, replaceEventAssignments } from "@/shared/db/dao/facilitator.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 function replaceStub({
@@ -59,6 +59,32 @@ describe("facilitator.dao replaceEventAssignments", () => {
     const { client } = replaceStub({ validIds: [2], insertError: { message: "nope" } });
 
     await expect(replaceEventAssignments(client, 10, [2], 9)).resolves.toBe(false);
+  });
+});
+
+describe("facilitator.dao isAssigned", () => {
+  it("is true when the user is on the event's facilitator roster", async () => {
+    const maybeSingle = vi.fn(() => Promise.resolve({ data: { user_id: 9 } }));
+    const eq = vi.fn(() => ({ eq, maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const client = { from } as unknown as DbClient;
+
+    await expect(isAssigned(client, 10, 9)).resolves.toBe(true);
+
+    expect(select).toHaveBeenCalledWith("user_id");
+    expect(eq).toHaveBeenCalledWith("event_id", 10);
+    expect(eq).toHaveBeenCalledWith("user_id", 9);
+    expect(maybeSingle).toHaveBeenCalledOnce();
+  });
+
+  it("is false when the user is not assigned", async () => {
+    const maybeSingle = vi.fn(() => Promise.resolve({ data: null }));
+    const eq = vi.fn(() => ({ eq, maybeSingle }));
+    const from = vi.fn(() => ({ select: () => ({ eq }) }));
+    const client = { from } as unknown as DbClient;
+
+    await expect(isAssigned(client, 10, 9)).resolves.toBe(false);
   });
 });
 

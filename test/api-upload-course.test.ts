@@ -10,7 +10,6 @@ const {
   findCourseByLesson,
   updateLesson,
   uploadToStorage,
-  optimizeImage,
   validateFileSize,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -21,7 +20,6 @@ const {
   findCourseByLesson: vi.fn(),
   updateLesson: vi.fn(),
   uploadToStorage: vi.fn(),
-  optimizeImage: vi.fn(),
   validateFileSize: vi.fn(),
 }));
 
@@ -36,7 +34,6 @@ vi.mock("@/shared/db/dao/course.dao", () => ({
   updateLesson,
 }));
 vi.mock("@/shared/integrations/storage/service", () => ({ uploadToStorage }));
-vi.mock("@/shared/integrations/storage/optimize", () => ({ optimizeImage }));
 // validateFileType stays real; only the size gate is stubbed so an oversized
 // file can be simulated without allocating 50 MB of fixture bytes.
 vi.mock("@/shared/integrations/storage/policy", async (importOriginal) => {
@@ -96,7 +93,6 @@ beforeEach(() => {
   findCourseEvent.mockResolvedValue(course);
   updateLesson.mockResolvedValue({ id: 3 });
   uploadToStorage.mockResolvedValue({ url: "/api/storage/course_assets/x", path: "x" });
-  optimizeImage.mockImplementation(async (f: File) => f);
   validateFileSize.mockReturnValue(true);
 });
 
@@ -108,7 +104,7 @@ describe("POST /api/upload/course-asset", () => {
 
     expect(res.status).toBe(200);
     const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "slides.pdf");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.any(File));
     expect(updateLesson).toHaveBeenCalledWith(expect.anything(), 3, { content_url: expect.any(String) });
   });
 
@@ -116,21 +112,21 @@ describe("POST /api/upload/course-asset", () => {
     await assetUpload({ file: pdf(), lesson_id: "3", course_id: "999", module_id: "888" });
 
     const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "slides.pdf");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.any(File));
   });
 
   it("reduces a traversal filename to its basename so it cannot escape the lesson", async () => {
     await assetUpload({ file: pdf("../../1/lessons/2/evil.pdf"), lesson_id: "3" });
 
     const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "evil.pdf");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.any(File));
   });
 
   it("falls back to the extension name when the filename is only dots", async () => {
     await assetUpload({ file: pdf(".."), lesson_id: "3" });
 
     const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "asset.pdf");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.any(File));
   });
 
   it("resolves the course once and never re-queries the lesson's chain", async () => {
@@ -218,14 +214,14 @@ describe("POST /api/upload/course-video", () => {
 
     expect(res.status).toBe(200);
     const expected = buildCourseVideoPath(mod.course_id, lesson.module_id, 3, "lecture.mp4");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.any(File));
   });
 
   it("reduces a traversal filename to its basename for videos too", async () => {
     await videoUpload({ file: mp4("../../../2/lessons/3/leak.mp4"), lesson_id: "3" });
 
     const expected = buildCourseVideoPath(mod.course_id, lesson.module_id, 3, "leak.mp4");
-    expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.anything());
+    expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.any(File));
   });
 
   it("403s an unassigned facilitator without uploading", async () => {

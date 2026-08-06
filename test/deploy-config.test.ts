@@ -79,6 +79,32 @@ describe("wrangler configuration", () => {
     expect(gitignore).toMatch(/^\/\.open-next\/$/m);
     expect(gitignore).toMatch(/^\.dev\.vars\*$/m);
   });
+
+  it("ships an icon at both paths a browser asks for", () => {
+    // With neither present, `/favicon.ico` misses the ASSETS binding, falls
+    // through to the Worker and starts the server to render a 404 — which is
+    // enough to exhaust a cold isolate's CPU budget on its own.
+    //
+    // They sit in public/ rather than the src/app/ convention because only
+    // public/ is copied verbatim into .open-next/assets. Under the convention
+    // Next compiled them to route handlers and icon.svg never reached the
+    // assets directory at all, so every page load revalidated it against the
+    // Worker — `max-age=0, must-revalidate` is what the manifest gave them.
+    const ico = readFileSync("public/favicon.ico");
+    expect(ico.subarray(0, 4)).toEqual(Buffer.from([0x00, 0x00, 0x01, 0x00]));
+    expect(readFileSync("public/icon.svg", "utf8")).toContain("<svg");
+  });
+
+  it("advertises both icons from the root layout", () => {
+    // Leaving the src/app/ convention means Next no longer emits the icon link
+    // tags, and nothing about that fails loudly: browsers request /favicon.ico
+    // by path regardless, so a tab icon still appears and the scalable SVG is
+    // simply never used. This is the assertion that makes the omission visible.
+    const layout = readFileSync("src/app/layout.tsx", "utf8");
+    expect(layout).toMatch(/icons:\s*{/);
+    expect(layout).toContain('url: "/favicon.ico"');
+    expect(layout).toContain('url: "/icon.svg"');
+  });
 });
 
 describe("continuous integration", () => {

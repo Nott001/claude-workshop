@@ -19,7 +19,7 @@ export async function canManageEvent(
   eventId: number,
 ): Promise<boolean> {
   if (hasMinRole(userRole, "admin")) return true;
-  if (userRole === "facilitator") return facilitatorDao.checkAssignment(supabase, userId, eventId);
+  if (userRole === "facilitator") return facilitatorDao.isAssigned(supabase, eventId, userId);
   if (userRole === "speaker") return speakerDao.isAssignedByUserId(supabase, userId, eventId);
   return false;
 }

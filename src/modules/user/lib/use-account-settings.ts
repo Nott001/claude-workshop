@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { getBrowserClient } from "@/shared/db/browser-client";
+import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
 
@@ -92,21 +93,15 @@ export function useAccountSettings() {
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const result = await postUpload("profile_images", "/api/upload/profile-image", file);
 
-      const res = await fetch("/api/upload/profile-image", { method: "POST", body: formData });
-      if (!res.ok) {
-        const data = await res.json();
-        notify({ title: "Upload failed", description: data.error ?? "Could not upload image.", type: "error" });
+      if (!result.ok) {
+        notify({ title: "Upload failed", description: result.error, type: "error" });
         return;
       }
 
-      const data = await res.json();
-      window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl: data.url } }));
+      window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl: result.url } }));
       notify({ title: "Photo updated", description: "Your profile photo has been changed.", type: "success" });
-    } catch {
-      notify({ title: "Upload failed", description: "Could not upload image.", type: "error" });
     } finally {
       setUploading(false);
     }

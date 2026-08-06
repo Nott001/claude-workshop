@@ -8,7 +8,7 @@ const {
   findCourseEvent,
   findCourseByModule,
   setModuleLock,
-  checkAssignment,
+  isAssigned,
   listQuestionsByModule,
   sendQuestion,
 } = vi.hoisted(() => ({
@@ -18,7 +18,7 @@ const {
   findCourseEvent: vi.fn(),
   findCourseByModule: vi.fn(),
   setModuleLock: vi.fn(),
-  checkAssignment: vi.fn(),
+  isAssigned: vi.fn(),
   listQuestionsByModule: vi.fn(),
   sendQuestion: vi.fn(),
 }));
@@ -30,7 +30,7 @@ vi.mock("@/modules/auth/lib/guard-response", () => ({
 }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findModuleById, findCourseEvent, findCourseByModule, setModuleLock }));
-vi.mock("@/shared/db/dao/facilitator.dao", () => ({ checkAssignment }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId: vi.fn() }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({ qaMessageDao: { listQuestionsByModule, sendQuestion } }));
 
@@ -62,7 +62,7 @@ beforeEach(() => {
   findCourseEvent.mockResolvedValue(course);
   findCourseByModule.mockResolvedValue(course);
   setModuleLock.mockResolvedValue({ ...qaModule, is_locked: true });
-  checkAssignment.mockResolvedValue(false);
+  isAssigned.mockResolvedValue(false);
   listQuestionsByModule.mockResolvedValue({ messages: [] });
   sendQuestion.mockResolvedValue({ id: 9, module_id: 2, message: "hello" });
 });
@@ -125,7 +125,7 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
       error: null,
       user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
     });
-    checkAssignment.mockResolvedValue(true);
+    isAssigned.mockResolvedValue(true);
 
     const res = await PATCH(jsonRequest("PATCH", {}), { params: Promise.resolve({ moduleId: "2" }) });
 
@@ -139,7 +139,7 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
       error: null,
       user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
     });
-    checkAssignment.mockResolvedValue(true);
+    isAssigned.mockResolvedValue(true);
 
     const res = await PATCH(jsonRequest("PATCH", { is_locked: true }), {
       params: Promise.resolve({ moduleId: "2" }),

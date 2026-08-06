@@ -39,7 +39,8 @@
 	//     (12 raw <img> tags — see the lint ratchet), so it would optimise nothing.
 	//     Add it with the <img> conversions, not before.
 	//
-	// Uploads are already resized in-process by @cf-wasm/photon and stored in
-	// Supabase Storage, which is host-independent. Keep it that way unless a
-	// measurement says otherwise.
+	// Uploads are already resized by the browser and stored in Supabase Storage,
+	// so nothing about images depends on this host. Keep it that way unless a
+	// measurement says otherwise — the worker cannot resize anyway, since it
+	// compiles no WebAssembly outside startup.
 }

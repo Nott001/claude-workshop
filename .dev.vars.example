@@ -8,9 +8,10 @@
 
 SUPABASE_SERVICE_ROLE_KEY=
 
-# Transactional email. Unset any of the three and the app falls back to the
-# console provider, which logs instead of sending. SMTP also needs the Workers
-# runtime for its socket, so `next dev` logs regardless — use `pnpm cf:preview`.
+# Transactional email. SMTP needs the Workers runtime for its socket, so
+# `next dev` logs to the console regardless — use `pnpm cf:preview` to send.
+# Under that runtime, leaving any of the three unset makes a send fail rather
+# than log: on workerd a missing mailbox is a misconfiguration, not a fallback.
 #
 # Never rename these to NEXT_PUBLIC_*: the compiler would inline the password
 # into the client bundle.
@@ -18,8 +19,12 @@ SMTP_HOST=
 SMTP_USER=
 SMTP_PASSWORD=
 
-# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 15000.
+# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 30000, 2.
+# SMTP_REPLY_TO is omitted unless set — a reply address nobody reads is worse
+# than none, so point it at a monitored mailbox or leave it blank.
 # SMTP_PORT=
 # SMTP_FROM_EMAIL=
 # SMTP_FROM_NAME=
+# SMTP_REPLY_TO=
 # SMTP_TIMEOUT_MS=
+# SMTP_ATTEMPTS=

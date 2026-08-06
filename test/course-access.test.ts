@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { findCourseEvent, findCourseByModule, findCourseByLesson, checkAssignment, isAssignedByUserId } = vi.hoisted(() => ({
+const { findCourseEvent, findCourseByModule, findCourseByLesson, isAssigned, isAssignedByUserId } = vi.hoisted(() => ({
   findCourseEvent: vi.fn(),
   findCourseByModule: vi.fn(),
   findCourseByLesson: vi.fn(),
-  checkAssignment: vi.fn(),
+  isAssigned: vi.fn(),
   isAssignedByUserId: vi.fn(),
 }));
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseEvent, findCourseByModule, findCourseByLesson }));
-vi.mock("@/shared/db/dao/facilitator.dao", () => ({ checkAssignment }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId }));
 
 import {
@@ -32,7 +32,7 @@ beforeEach(() => {
   findCourseEvent.mockResolvedValue(assigned);
   findCourseByModule.mockResolvedValue(assigned);
   findCourseByLesson.mockResolvedValue(assigned);
-  checkAssignment.mockResolvedValue(false);
+  isAssigned.mockResolvedValue(false);
   isAssignedByUserId.mockResolvedValue(false);
 });
 
@@ -40,14 +40,14 @@ describe("canManageEvent", () => {
   it("admits admins globally without consulting assignments", async () => {
     expect(await canManageEvent(client, 1, "admin", 100)).toBe(true);
     expect(await canManageEvent(client, 1, "super_admin", 100)).toBe(true);
-    expect(checkAssignment).not.toHaveBeenCalled();
+    expect(isAssigned).not.toHaveBeenCalled();
     expect(isAssignedByUserId).not.toHaveBeenCalled();
   });
 
   it("admits a facilitator assigned to the event", async () => {
-    checkAssignment.mockResolvedValue(true);
+    isAssigned.mockResolvedValue(true);
     expect(await canManageEvent(client, 7, "facilitator", 100)).toBe(true);
-    expect(checkAssignment).toHaveBeenCalledWith(client, 7, 100);
+    expect(isAssigned).toHaveBeenCalledWith(client, 100, 7);
   });
 
   it("admits a speaker assigned to the event", async () => {
@@ -63,7 +63,7 @@ describe("canManageEvent", () => {
 
   it("denies an attendee without querying assignments", async () => {
     expect(await canManageEvent(client, 5, "attendee", 100)).toBe(false);
-    expect(checkAssignment).not.toHaveBeenCalled();
+    expect(isAssigned).not.toHaveBeenCalled();
     expect(isAssignedByUserId).not.toHaveBeenCalled();
   });
 });
@@ -81,7 +81,7 @@ describe("author-content access (course / module / lesson)", () => {
     });
 
     it(`${name} allows an assigned facilitator`, async () => {
-      checkAssignment.mockResolvedValue(true);
+      isAssigned.mockResolvedValue(true);
       expect(await fn(id, 7, "facilitator")).toBeNull();
     });
 
@@ -107,14 +107,14 @@ describe("author-content access (course / module / lesson)", () => {
     });
 
     it(`${name} uses a course and client passed in without re-querying`, async () => {
-      checkAssignment.mockResolvedValue(true);
+      isAssigned.mockResolvedValue(true);
       const passed = {} as unknown as Parameters<typeof canManageEvent>[0];
       const res = await fn(id, 7, "facilitator", { supabase: passed, course: assigned });
       expect(res).toBeNull();
       expect(findCourseByModule).not.toHaveBeenCalled();
       expect(findCourseByLesson).not.toHaveBeenCalled();
       expect(findCourseEvent).not.toHaveBeenCalled();
-      expect(checkAssignment).toHaveBeenCalledWith(passed, 7, 100);
+      expect(isAssigned).toHaveBeenCalledWith(passed, 100, 7);
     });
 
     it(`${name} treats a passed null course as a 404 without querying`, async () => {
@@ -131,13 +131,13 @@ describe("requireCourseDeleteAccess", () => {
   it("allows an admin even when unassigned", async () => {
     expect(await requireCourseDeleteAccess(1, 1, "admin")).toBeNull();
     expect(await requireCourseDeleteAccess(1, 1, "super_admin")).toBeNull();
-    expect(checkAssignment).not.toHaveBeenCalled();
+    expect(isAssigned).not.toHaveBeenCalled();
   });
 
   it("allows a facilitator assigned to the event", async () => {
-    checkAssignment.mockResolvedValue(true);
+    isAssigned.mockResolvedValue(true);
     expect(await requireCourseDeleteAccess(1, 7, "facilitator")).toBeNull();
-    expect(checkAssignment).toHaveBeenCalledWith(client, 7, 100);
+    expect(isAssigned).toHaveBeenCalledWith(client, 100, 7);
   });
 
   it("403s an unassigned facilitator", async () => {
@@ -152,7 +152,7 @@ describe("requireCourseDeleteAccess", () => {
 
   it("403s an attendee without querying", async () => {
     expect(await requireCourseDeleteAccess(1, 5, "attendee")).toMatchObject({ status: 403 });
-    expect(checkAssignment).not.toHaveBeenCalled();
+    expect(isAssigned).not.toHaveBeenCalled();
   });
 
   it("404s an unknown course rather than 403", async () => {
