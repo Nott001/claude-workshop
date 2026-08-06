@@ -2,8 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/button";
+import { Toast } from "@/shared/components/toast";
+import { cn } from "@/shared/lib/utils";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "../lib/types";
+import {
+  describeLessonMove,
+  describeModuleMove,
+  moveLesson,
+  moveModule,
+  type LessonMoveInfo,
+  type LessonMove,
+  type ModuleMoveInfo,
+  type MoveDirection,
+} from "../lib/reorder";
 
 interface CurriculumBuilderProps {
   modules: ModuleWithLessons[];
@@ -14,8 +26,62 @@ interface CurriculumBuilderProps {
   onDeleteLesson: (lessonId: number, moduleId: number) => Promise<void> | void;
   onAddLessonClick: (moduleId: number) => void;
   onReorderModules: (modules: ModuleWithLessons[]) => Promise<void>;
-  onReorderLessons: (moduleId: number, lessons: Lesson[]) => Promise<void>;
-  onToggleModuleLock: (moduleId: number, currentLocked: boolean) => Promise<void>;
+  onMoveLesson: (modules: ModuleWithLessons[], updates: LessonMove[]) => Promise<void>;
+}
+
+type PreviewState = { type: "module" | "lesson"; id: number; direction: MoveDirection } | null;
+
+interface MoveButtonProps {
+  direction: MoveDirection;
+  label: string;
+  disabled?: boolean;
+  onPreview: () => void;
+  onPreviewEnd: () => void;
+  onClick: () => void;
+}
+
+function MoveButton({ direction, label, disabled = false, onPreview, onPreviewEnd, onClick }: MoveButtonProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      onMouseEnter={onPreview}
+      onMouseLeave={onPreviewEnd}
+      onFocus={onPreview}
+      onBlur={onPreviewEnd}
+      onClick={onClick}
+      className={cn(
+        "flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-fg transition-colors",
+        "hover:border-brand hover:bg-brand/5 hover:text-brand",
+        "disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-muted-fg",
+      )}
+    >
+      <span className="material-symbols-rounded text-[14px]">
+        {direction === "up" ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+      </span>
+    </button>
+  );
+}
+
+function lessonMoveLabel(lesson: Lesson, info: LessonMoveInfo): string {
+  if (!info.possible) {
+    return `Cannot move lesson ${info.direction}`;
+  }
+  if (info.kind === "within") {
+    return `Move "${lesson.description}" ${info.direction} one position`;
+  }
+  return info.direction === "up"
+    ? `Move "${lesson.description}" to end of ${info.targetModuleName}`
+    : `Move "${lesson.description}" to start of ${info.targetModuleName}`;
+}
+
+function moduleMoveLabel(info: ModuleMoveInfo): string {
+  if (!info.possible) {
+    return `Cannot move module ${info.direction}`;
+  }
+  return info.direction === "up" ? `Move module above ${info.targetModuleName}` : `Move module below ${info.targetModuleName}`;
 }
 
 export function CurriculumBuilder({
@@ -27,14 +93,19 @@ export function CurriculumBuilder({
   onDeleteLesson,
   onAddLessonClick,
   onReorderModules,
-  onReorderLessons,
-  onToggleModuleLock,
+  onMoveLesson,
 }: CurriculumBuilderProps) {
   const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
-  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
+
+  const [preview, setPreview] = useState<PreviewState>(null);
+  const [flash, setFlash] = useState<{ lessons: number[]; modules: number[] }>({ lessons: [], modules: [] });
+  const flashTimerRef = useRef<number | null>(null);
+  const [toast, setToast] = useState<{ title: string; description?: string } | null>(null);
+
+  const lessonPreviewInfo = preview?.type === "lesson" ? describeLessonMove(modules, preview.id, preview.direction) : null;
+  const modulePreviewInfo = preview?.type === "module" ? describeModuleMove(modules, preview.id, preview.direction) : null;
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -42,6 +113,18 @@ export function CurriculumBuilder({
       renameInputRef.current.select();
     }
   }, [renamingModuleId]);
+
+  function flashRows(lessons: number[], moduleIds: number[]) {
+    setFlash({ lessons, modules: moduleIds });
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash({ lessons: [], modules: [] }), 1000);
+  }
+
+  function scrollLessonIntoView(lessonId: number) {
+    window.setTimeout(() => {
+      document.querySelector(`[data-lesson-id="${lessonId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  }
 
   async function handleAddModuleClick() {
     const newModuleId = await onAddModule();
@@ -59,58 +142,37 @@ export function CurriculumBuilder({
     }
   }
 
-  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(moduleId));
+  function handleMoveModule(moduleId: number, direction: MoveDirection) {
+    const info = describeModuleMove(modules, moduleId, direction);
+    if (!info.possible) return;
+    const next = moveModule(modules, moduleId, direction);
+    if (!next) return;
+    void onReorderModules(next);
+    setPreview(null);
+    flashRows([], [moduleId]);
   }
 
-  async function handleModuleDragOver(e: React.DragEvent, moduleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(moduleId);
-  }
+  function handleMoveLesson(lesson: Lesson, direction: MoveDirection) {
+    const info = describeLessonMove(modules, lesson.id, direction);
+    if (!info.possible) return;
+    const next = moveLesson(modules, lesson.id, direction);
+    if (!next) return;
+    void onMoveLesson(next.modules, next.updates);
+    setPreview(null);
 
-  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetModuleId) return;
+    if (info.kind === "within" && info.swapLessonId !== null) {
+      flashRows([lesson.id, info.swapLessonId], []);
+    } else {
+      flashRows([lesson.id], []);
+    }
 
-    const draggedIdx = modules.findIndex((m) => m.id === draggedId);
-    const targetIdx = modules.findIndex((m) => m.id === targetModuleId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const next = [...modules];
-    const [moved] = next.splice(draggedIdx, 1);
-    next.splice(targetIdx, 0, moved);
-    const reordered = next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
-
-    await onReorderModules(reordered);
-  }
-
-  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(lessonId));
-  }
-
-  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
-    e.preventDefault();
-    setDragOverLessonId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetLessonId) return;
-
-    const mod = modules.find((m) => m.id === moduleId);
-    if (!mod) return;
-
-    const lessons = [...mod.LESSONS];
-    const draggedIdx = lessons.findIndex((l) => l.id === draggedId);
-    const targetIdx = lessons.findIndex((l) => l.id === targetLessonId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const [moved] = lessons.splice(draggedIdx, 1);
-    lessons.splice(targetIdx, 0, moved);
-    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
-
-    await onReorderLessons(moduleId, reordered);
+    if (info.kind === "cross" && info.targetModuleName) {
+      setToast({
+        title: `Lesson moved to ${info.targetModuleName}`,
+        description: `It is now the ${info.slot === "start" ? "first" : "last"} lesson in that module.`,
+      });
+      scrollLessonIntoView(lesson.id);
+    }
   }
 
   return (
@@ -143,60 +205,83 @@ export function CurriculumBuilder({
         </div>
       ) : (
         <div className="space-y-3">
-          {modules.map((mod) =>
-            mod.module_type === "qa" ? (
-              <div key={mod.id} className="rounded-lg border border-warning/30 bg-warning/5 p-5">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-rounded text-lg text-warning">forum</span>
-                  {renamingModuleId === mod.id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onRenameModule(mod.id, renameValue.trim());
-                          setRenamingModuleId(null);
-                        }
-                        if (e.key === "Escape") setRenamingModuleId(null);
-                      }}
-                      onBlur={() => {
-                        if (renameValue.trim()) {
-                          onRenameModule(mod.id, renameValue.trim());
-                        }
+          {modules.map((mod) => {
+            const isQa = mod.module_type === "qa";
+            const upInfo = describeModuleMove(modules, mod.id, "up");
+            const downInfo = describeModuleMove(modules, mod.id, "down");
+            const isModuleMoveSource = preview?.type === "module" && preview.id === mod.id;
+            const isModuleSwapTarget = modulePreviewInfo?.possible === true && modulePreviewInfo.targetModuleId === mod.id;
+            const isModuleFlash = flash.modules.includes(mod.id);
+            const dropSlot =
+              lessonPreviewInfo?.kind === "cross" && lessonPreviewInfo.targetModuleId === mod.id
+                ? lessonPreviewInfo.slot
+                : null;
+            const header = (
+              <div className="flex items-center gap-2">
+                <span className={cn("material-symbols-rounded text-lg", isQa ? "text-warning" : "text-info")}>
+                  {isQa ? "forum" : "menu_book"}
+                </span>
+                {renamingModuleId === mod.id ? (
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        onRenameModule(mod.id, renameValue.trim());
                         setRenamingModuleId(null);
-                      }}
-                      className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setRenamingModuleId(mod.id);
-                      setRenameValue(mod.module_name);
+                      }
+                      if (e.key === "Escape") setRenamingModuleId(null);
                     }}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Rename module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">edit</span>
-                  </button>
+                    onBlur={() => {
+                      if (renameValue.trim()) {
+                        onRenameModule(mod.id, renameValue.trim());
+                      }
+                      setRenamingModuleId(null);
+                    }}
+                    className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
+                )}
 
-                  <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">Q&A Module</span>
+                <button
+                  onClick={() => {
+                    setRenamingModuleId(mod.id);
+                    setRenameValue(mod.module_name);
+                  }}
+                  className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
+                  title="Rename module"
+                >
+                  <span className="material-symbols-rounded text-[14px]">edit</span>
+                </button>
 
-                  <button
-                    onClick={() => onToggleModuleLock(mod.id, mod.is_locked)}
-                    className={`ml-auto flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
-                      mod.is_locked
-                        ? "border border-error/30 text-error hover:bg-error/10"
-                        : "border border-success/30 text-success hover:bg-success/10"
-                    }`}
-                  >
-                    <span className="material-symbols-rounded text-xs">{mod.is_locked ? "lock" : "lock_open"}</span>
-                    {mod.is_locked ? "Locked" : "Unlocked"}
-                  </button>
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    isQa ? "bg-warning/10 text-warning" : "bg-info/10 text-info",
+                  )}
+                >
+                  {isQa ? "Q&A Module" : `${mod.LESSONS.length} ${mod.LESSONS.length === 1 ? "lesson" : "lessons"}`}
+                </span>
 
+                <div className="ml-auto flex items-center gap-1">
+                  <MoveButton
+                    direction="up"
+                    label={moduleMoveLabel(upInfo)}
+                    disabled={!upInfo.possible}
+                    onPreview={() => setPreview({ type: "module", id: mod.id, direction: "up" })}
+                    onPreviewEnd={() => setPreview(null)}
+                    onClick={() => handleMoveModule(mod.id, "up")}
+                  />
+                  <MoveButton
+                    direction="down"
+                    label={moduleMoveLabel(downInfo)}
+                    disabled={!downInfo.possible}
+                    onPreview={() => setPreview({ type: "module", id: mod.id, direction: "down" })}
+                    onPreviewEnd={() => setPreview(null)}
+                    onClick={() => handleMoveModule(mod.id, "down")}
+                  />
                   <button
                     onClick={() => onDeleteModule(mod.id)}
                     className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
@@ -206,117 +291,114 @@ export function CurriculumBuilder({
                   </button>
                 </div>
               </div>
-            ) : (
+            );
+
+            if (isQa) {
+              return (
+                <div
+                  key={mod.id}
+                  className={cn(
+                    "rounded-lg border border-warning/30 bg-warning/5 p-5",
+                    isModuleSwapTarget && "ring-2 ring-brand/50",
+                    isModuleFlash && "curriculum-flash",
+                  )}
+                >
+                  {header}
+                </div>
+              );
+            }
+
+            return (
               <div
                 key={mod.id}
-                draggable
-                onDragStart={(e) => handleModuleDragStart(e, mod.id)}
-                onDragOver={(e) => handleModuleDragOver(e, mod.id)}
-                onDragLeave={() => setDragOverModuleId(null)}
-                onDrop={(e) => handleModuleDrop(e, mod.id)}
-                onDragEnd={() => setDragOverModuleId(null)}
-                className={`rounded-lg border bg-muted p-5 transition-shadow ${
-                  dragOverModuleId === mod.id ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]" : "border-border"
-                }`}
+                className={cn(
+                  "relative rounded-lg border border-border bg-muted p-5",
+                  (isModuleSwapTarget || dropSlot !== null) && "border-brand/60 ring-2 ring-brand/40",
+                  isModuleMoveSource && "bg-brand/5",
+                  isModuleFlash && "curriculum-flash",
+                )}
               >
-                <div className="mb-3 flex items-center gap-2">
-                  {renamingModuleId === mod.id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onRenameModule(mod.id, renameValue.trim());
-                          setRenamingModuleId(null);
-                        }
-                        if (e.key === "Escape") setRenamingModuleId(null);
-                      }}
-                      onBlur={() => {
-                        if (renameValue.trim()) {
-                          onRenameModule(mod.id, renameValue.trim());
-                        }
-                        setRenamingModuleId(null);
-                      }}
-                      className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                  )}
+                <div className="mb-3">{header}</div>
 
-                  <button
-                    onClick={() => {
-                      setRenamingModuleId(mod.id);
-                      setRenameValue(mod.module_name);
-                    }}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Rename module"
+                {dropSlot !== null && (
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-brand/60 bg-surface px-3 py-1 text-[11px] font-semibold text-brand shadow-md",
+                      dropSlot === "start" ? "-top-3" : "-bottom-3",
+                    )}
                   >
-                    <span className="material-symbols-rounded text-[14px]">edit</span>
-                  </button>
-
-                  <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
-                    {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
-                  </span>
-
-                  <button
-                    onClick={() => onDeleteModule(mod.id)}
-                    className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                    title="Delete module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">delete</span>
-                  </button>
-                </div>
+                    <span className="material-symbols-rounded mr-1 align-middle text-[12px]">
+                      {dropSlot === "start" ? "vertical_align_top" : "vertical_align_bottom"}
+                    </span>
+                    Drops in as the {dropSlot === "start" ? "first" : "last"} lesson
+                  </div>
+                )}
 
                 {mod.LESSONS.length > 0 && (
                   <div className="mb-3 space-y-1.5">
-                    {mod.LESSONS.map((lesson) => (
-                      <div
-                        key={lesson.id}
-                        draggable
-                        onDragStart={(e) => handleLessonDragStart(e, lesson.id)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDragOverLessonId(lesson.id);
-                        }}
-                        onDragLeave={() => setDragOverLessonId(null)}
-                        onDrop={(e) => handleLessonDrop(e, lesson.id, mod.id)}
-                        onDragEnd={() => setDragOverLessonId(null)}
-                        className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
-                          dragOverLessonId === lesson.id
-                            ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                            : "border-border bg-surface"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xs font-medium text-muted-fg">
-                            {mod.sequence_order}.{lesson.sequence_order}
-                          </span>
-                          <span className="text-sm text-fg">{lesson.description}</span>
-                          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                            {lesson.content_type}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {lesson.content_url && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}
-                            >
-                              View
-                            </Button>
+                    {mod.LESSONS.map((lesson) => {
+                      const upMove = describeLessonMove(modules, lesson.id, "up");
+                      const downMove = describeLessonMove(modules, lesson.id, "down");
+                      const isLessonSource = preview?.type === "lesson" && preview.id === lesson.id;
+                      const isSwapTarget = lessonPreviewInfo?.kind === "within" && lessonPreviewInfo.swapLessonId === lesson.id;
+                      const isLessonFlash = flash.lessons.includes(lesson.id);
+                      return (
+                        <div
+                          key={lesson.id}
+                          data-lesson-id={lesson.id}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 transition-all",
+                            isLessonSource && "border-brand/50 bg-brand/5",
+                            isSwapTarget && "border-brand/60 ring-2 ring-brand/40",
+                            isLessonFlash && "curriculum-flash",
                           )}
-                          <button
-                            onClick={() => onDeleteLesson(lesson.id, mod.id)}
-                            className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                            title="Delete lesson"
-                          >
-                            <span className="material-symbols-rounded text-[14px]">delete</span>
-                          </button>
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xs font-medium text-muted-fg">
+                              {mod.sequence_order}.{lesson.sequence_order}
+                            </span>
+                            <span className="text-sm text-fg">{lesson.description}</span>
+                            <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                              {lesson.content_type}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MoveButton
+                              direction="up"
+                              label={lessonMoveLabel(lesson, upMove)}
+                              disabled={!upMove.possible}
+                              onPreview={() => setPreview({ type: "lesson", id: lesson.id, direction: "up" })}
+                              onPreviewEnd={() => setPreview(null)}
+                              onClick={() => handleMoveLesson(lesson, "up")}
+                            />
+                            <MoveButton
+                              direction="down"
+                              label={lessonMoveLabel(lesson, downMove)}
+                              disabled={!downMove.possible}
+                              onPreview={() => setPreview({ type: "lesson", id: lesson.id, direction: "down" })}
+                              onPreviewEnd={() => setPreview(null)}
+                              onClick={() => handleMoveLesson(lesson, "down")}
+                            />
+                            {lesson.content_url && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}
+                              >
+                                View
+                              </Button>
+                            )}
+                            <button
+                              onClick={() => onDeleteLesson(lesson.id, mod.id)}
+                              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
+                              title="Delete lesson"
+                            >
+                              <span className="material-symbols-rounded text-[14px]">delete</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -325,8 +407,14 @@ export function CurriculumBuilder({
                   Add lesson to topic
                 </Button>
               </div>
-            ),
-          )}
+            );
+          })}
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Toast title={toast.title} description={toast.description} onClose={() => setToast(null)} />
         </div>
       )}
     </div>

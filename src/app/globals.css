@@ -97,3 +97,20 @@
     "GRAD" 0,
     "opsz" 20;
 }
+
+/* Briefly glows the row or module that just moved in the curriculum builder so
+   the reorder registers even when the target is off-screen. */
+@keyframes curriculum-flash {
+  from {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--brand) 40%, transparent),
+      0 0 16px 0 color-mix(in srgb, var(--brand) 35%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 0%, transparent);
+  }
+}
+
+.curriculum-flash {
+  animation: curriculum-flash 1s ease-out;
+}

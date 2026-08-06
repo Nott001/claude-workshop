@@ -27,6 +27,7 @@ export interface EventWithCourse {
   description: string | null;
   COURSE: { id: number; course_name: string; course_description: string | null } | null;
   EVENT_SPEAKER: EventSpeakerEntry[];
+  EVENT_FACILITATOR?: { user_id: number }[];
   attendee_count?: number;
   payment_count?: number;
 }

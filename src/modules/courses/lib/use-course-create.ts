@@ -1,11 +1,14 @@
 "use client";
 
+// The only coupling to the events module is the eventId scope parameter feeding
+// event_id into POST /api/courses — the 1:1 contract from SPEC-01. Keep it that
+// way: anything else a course author does is owned by this module.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
-import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "./types";
+import type { LessonMove } from "./reorder";
 
 export function useCourseCreate(eventId: string, existingCourseId?: number) {
   const router = useRouter();
@@ -108,15 +111,6 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     return mod.id;
   }
 
-  async function handleToggleModuleLock(moduleId: number, currentLocked: boolean) {
-    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, is_locked: !currentLocked } : m)));
-    await fetch(`/api/qa/module/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_locked: !currentLocked }),
-    });
-  }
-
   async function handleRenameModule(moduleId: number, newName: string) {
     const trimmed = newName.trim();
     if (!trimmed) return;
@@ -190,7 +184,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
       if (endpoint && bucket) {
         const result = await postUpload(bucket, endpoint, data.file, {
           lesson_id: String(lesson.id),
-          course_id: String(modules[0].id),
+          course_id: String(modules[0].course_id),
           module_id: String(moduleId),
         });
         if (!result.ok) return `Lesson saved, but ${result.error.charAt(0).toLowerCase()}${result.error.slice(1)}`;
@@ -215,21 +209,24 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     );
   }
 
-  async function handleReorderLessons(_moduleId: number, lessons: Lesson[]) {
-    setModules((prev) => prev.map((m) => (m.id === _moduleId ? { ...m, LESSONS: lessons } : m)));
+  async function handleMoveLesson(nextModules: ModuleWithLessons[], updates: LessonMove[]) {
+    setModules(nextModules);
     await Promise.all(
-      lessons.map((l) =>
-        fetch(`/api/lessons/${l.id}`, {
+      updates.map((u) => {
+        const lesson = nextModules.find((m) => m.id === u.module_id)?.LESSONS.find((l) => l.id === u.id);
+        if (!lesson) return Promise.resolve();
+        return fetch(`/api/lessons/${u.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            description: l.description,
-            content_type: l.content_type,
-            content_url: l.content_url,
-            sequence_order: l.sequence_order,
+            description: lesson.description,
+            content_type: lesson.content_type,
+            content_url: lesson.content_url,
+            sequence_order: u.sequence_order,
+            module_id: u.module_id,
           }),
-        }),
-      ),
+        });
+      }),
     );
   }
 
@@ -247,13 +244,12 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     handleCreateCourse,
     handleAddModule,
     handleAddQaModule,
-    handleToggleModuleLock,
     handleRenameModule,
     handleDeleteModule,
     handleDeleteLesson,
     openLessonDialog,
     handleAddLesson,
     handleReorderModules,
-    handleReorderLessons,
+    handleMoveLesson,
   };
 }

@@ -1,9 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, requireRole, courseDao, listQuestionsByModule, sendQuestion } = vi.hoisted(() => ({
+const {
+  requireAuth,
+  requireRole,
+  courseDao,
+  facilitatorIsAssigned,
+  speakerIsAssignedByUserId,
+  listQuestionsByModule,
+  sendQuestion,
+} = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
-  courseDao: { findModuleById: vi.fn(), findCourseOwner: vi.fn(), setModuleLock: vi.fn() },
+  courseDao: {
+    findModuleById: vi.fn(),
+    findCourseByModule: vi.fn(),
+    findCourseEvent: vi.fn(),
+    setModuleLock: vi.fn(),
+  },
+  facilitatorIsAssigned: vi.fn(),
+  speakerIsAssignedByUserId: vi.fn(),
   listQuestionsByModule: vi.fn(),
   sendQuestion: vi.fn(),
 }));
@@ -12,6 +27,8 @@ vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
+vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId: speakerIsAssignedByUserId }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({ qaMessageDao: { listQuestionsByModule, sendQuestion } }));
 
 import { GET, POST, PATCH } from "@/app/api/qa/module/[moduleId]/route";
@@ -31,8 +48,11 @@ beforeEach(() => {
   requireAuth.mockResolvedValue(ATTENDEE);
   requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 3, role: "speaker" } });
   courseDao.findModuleById.mockResolvedValue(QA_MODULE);
-  courseDao.findCourseOwner.mockResolvedValue({ created_by: 3, event_id: 9 });
+  courseDao.findCourseByModule.mockResolvedValue({ id: 7, event_id: 9 });
+  courseDao.findCourseEvent.mockResolvedValue({ id: 7, event_id: 9 });
   courseDao.setModuleLock.mockResolvedValue({ id: 4, is_locked: true });
+  facilitatorIsAssigned.mockResolvedValue(false);
+  speakerIsAssignedByUserId.mockResolvedValue(true);
   listQuestionsByModule.mockResolvedValue({ messages: [] });
   sendQuestion.mockResolvedValue({ id: 88, message: "How do I start?" });
 });
@@ -119,7 +139,7 @@ describe("POST /api/qa/module/[moduleId]", () => {
   });
 
   it("answers 404 when the module points at a course that is gone", async () => {
-    courseDao.findCourseOwner.mockResolvedValue(null);
+    courseDao.findCourseEvent.mockResolvedValue(null);
 
     const res = await POST(post(QUESTION), params);
 

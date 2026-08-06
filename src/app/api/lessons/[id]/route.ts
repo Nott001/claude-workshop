@@ -55,6 +55,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (parsed.data.content_url !== undefined) {
     updateData.content_url = parsed.data.content_url;
   }
+  if (parsed.data.module_id !== undefined) {
+    updateData.module_id = parsed.data.module_id;
+  }
 
   const lesson = await courseDao.updateLesson(supabase, Number(id), updateData);
 

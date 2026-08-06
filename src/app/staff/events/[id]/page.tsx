@@ -119,16 +119,18 @@ function OverviewSection({
   );
 }
 
-function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
+export function CourseSection({
+  eventId,
+  userRole,
+  canManageCourse,
+}: {
+  eventId: string;
+  userRole: UserRole | null;
+  canManageCourse: boolean;
+}) {
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
-  const router = useRouter();
-  const isSpeaker = hasMinRole(userRole, "speaker");
   const isStaff = hasMinRole(userRole, "facilitator");
-  const isAdmin = hasMinRole(userRole, "admin");
-  const { assignments, loading: speakersLoading } = useEventSpeakers(eventId);
-
-  const hasSpeakers = assignments.length > 0;
 
   if (loading) {
     return (
@@ -152,10 +154,11 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (isSpeaker && courseBuilder.modules.length === 0) {
+  if (canManageCourse && courseBuilder.modules.length === 0) {
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm text-muted-fg">No course yet for this event.</p>
+        {courseBuilder.error && <p className="mt-3 text-sm text-error">{courseBuilder.error}</p>}
         <button
           onClick={() => courseBuilder.handleAddModule()}
           className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
@@ -166,9 +169,10 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (isSpeaker && courseBuilder.modules.length > 0) {
+  if (canManageCourse && courseBuilder.modules.length > 0) {
     return (
       <SectionCard title="Course" icon="school">
+        {courseBuilder.error && <p className="mb-4 text-sm text-error">{courseBuilder.error}</p>}
         <CurriculumBuilder
           modules={courseBuilder.modules}
           onAddModule={courseBuilder.handleAddModule}
@@ -178,8 +182,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
           onDeleteLesson={courseBuilder.handleDeleteLesson}
           onAddLessonClick={courseBuilder.openLessonDialog}
           onReorderModules={courseBuilder.handleReorderModules}
-          onReorderLessons={courseBuilder.handleReorderLessons}
-          onToggleModuleLock={courseBuilder.handleToggleModuleLock}
+          onMoveLesson={courseBuilder.handleMoveLesson}
         />
         <LessonDialog
           open={courseBuilder.lessonDialogModuleId !== null}
@@ -192,16 +195,8 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (!isAdmin && !isStaff && !isSpeaker) {
+  if (!isStaff && !canManageCourse) {
     return null;
-  }
-
-  if (isAdmin && !hasSpeakers && !speakersLoading) {
-    return (
-      <SectionCard title="Course" icon="school">
-        <p className="text-sm text-muted-fg">Assign a speaker first to manage this event&apos;s course.</p>
-      </SectionCard>
-    );
   }
 
   return (
@@ -380,6 +375,13 @@ export default function StaffEventDashboardPage() {
 
   if (!isStaff) return null;
 
+  const isAdmin = hasMinRole(userRole, "admin");
+  // The page is facilitator-floor, and fetch-event-access only loads the
+  // caller's speaker profile for the exact speaker role, so isSpeakerAssigned
+  // can never be true here — the assignment term is the facilitator row.
+  const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
+  const canManageCourse = isAdmin || isAssignedFacilitator;
+
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[1200px] px-5 py-12 sm:px-8">
@@ -418,7 +420,7 @@ export default function StaffEventDashboardPage() {
 
           <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
-          <CourseSection eventId={eventId} userRole={userRole} />
+          <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
 
           <SpeakersSection eventId={eventId} userRole={userRole} />
 

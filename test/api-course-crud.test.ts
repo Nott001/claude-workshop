@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireRole, dao, storage, logAuditEvent } = vi.hoisted(() => ({
+const { requireRole, dao, isAssigned, isAssignedByUserId, storage, logAuditEvent } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   dao: {
     findCourseWithDetails: vi.fn(),
-    findCourseOwner: vi.fn(),
+    findCourseEvent: vi.fn(),
     findCourseById: vi.fn(),
     findModulesByCourse: vi.fn(),
     findLessonsByModule: vi.fn(),
     updateCourse: vi.fn(),
     deleteCourse: vi.fn(),
   },
+  isAssigned: vi.fn(),
+  isAssignedByUserId: vi.fn(),
   storage: { listStorageFolder: vi.fn(), deleteFromStorage: vi.fn() },
   logAuditEvent: vi.fn(),
 }));
@@ -18,6 +20,8 @@ const { requireRole, dao, storage, logAuditEvent } = vi.hoisted(() => ({
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
+vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId }));
 vi.mock("@/shared/integrations/storage/service", () => storage);
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
@@ -39,12 +43,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(OWNER);
   dao.findCourseWithDetails.mockResolvedValue({ id: 7, course_name: "Fundamentals" });
-  dao.findCourseOwner.mockResolvedValue({ created_by: 5 });
-  dao.findCourseById.mockResolvedValue({ created_by: 5, course_name: "Fundamentals" });
+  dao.findCourseEvent.mockResolvedValue({ id: 7, event_id: 100 });
+  dao.findCourseById.mockResolvedValue({ id: 7, course_name: "Fundamentals" });
   dao.findModulesByCourse.mockResolvedValue([]);
   dao.findLessonsByModule.mockResolvedValue([]);
   dao.updateCourse.mockResolvedValue({ id: 7, course_name: "Fundamentals" });
   dao.deleteCourse.mockResolvedValue(true);
+  isAssigned.mockResolvedValue(false);
+  isAssignedByUserId.mockResolvedValue(false);
   storage.listStorageFolder.mockResolvedValue([]);
   storage.deleteFromStorage.mockResolvedValue(undefined);
   logAuditEvent.mockResolvedValue(undefined);
@@ -78,6 +84,7 @@ describe("GET /api/courses/[id]", () => {
 
 describe("PATCH /api/courses/[id]", () => {
   it("lets the owner edit their own course", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     const res = await PATCH(patch(VALID_BODY), params);
 
     expect(res.status).toBe(200);
@@ -98,6 +105,7 @@ describe("PATCH /api/courses/[id]", () => {
 
   it("lets a facilitator edit a course somebody else made", async () => {
     requireRole.mockResolvedValue(FACILITATOR);
+    isAssigned.mockResolvedValue(true);
 
     const res = await PATCH(patch(VALID_BODY), params);
 
@@ -105,6 +113,7 @@ describe("PATCH /api/courses/[id]", () => {
   });
 
   it("rejects a body the schema does not accept", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     const res = await PATCH(patch({ course_name: "", event_id: 3 }), params);
 
     expect(res.status).toBe(400);
@@ -112,12 +121,14 @@ describe("PATCH /api/courses/[id]", () => {
   });
 
   it("stores an absent description as null rather than dropping the column", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     await PATCH(patch({ course_name: "Fundamentals", event_id: 3 }), params);
 
     expect(dao.updateCourse).toHaveBeenCalledWith({}, 7, expect.objectContaining({ course_description: null }));
   });
 
   it("reports a failed write instead of a success", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     dao.updateCourse.mockResolvedValue(null);
 
     const res = await PATCH(patch(VALID_BODY), params);
@@ -127,6 +138,7 @@ describe("PATCH /api/courses/[id]", () => {
   });
 
   it("records who changed what", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     await PATCH(patch(VALID_BODY), params);
 
     expect(logAuditEvent).toHaveBeenCalledWith({}, 5, "course.updated", "course", 7, {
@@ -136,15 +148,20 @@ describe("PATCH /api/courses/[id]", () => {
 });
 
 describe("DELETE /api/courses/[id]", () => {
-  it("lets the owner delete their own course", async () => {
+  it("lets an assigned facilitator delete the course they manage", async () => {
+    requireRole.mockResolvedValue(FACILITATOR);
+    isAssigned.mockResolvedValue(true);
+
     const res = await DELETE(new Request("https://app.test/api/courses/7"), params);
 
     expect(res.status).toBe(200);
     expect(dao.deleteCourse).toHaveBeenCalledWith({}, 7);
   });
 
-  it("demands admin, not merely facilitator, to delete somebody else's course", async () => {
-    // Deliberately stricter than PATCH, which a facilitator may do.
+  it("refuses a facilitator who is not assigned to the event", async () => {
+    // Deliberately stricter than PATCH: an assigned speaker may write material
+    // but cannot take the course down, and deletion is reserved for the event's
+    // facilitators and admins.
     requireRole.mockResolvedValue(FACILITATOR);
 
     const res = await DELETE(new Request("https://app.test/api/courses/7"), params);
@@ -164,6 +181,7 @@ describe("DELETE /api/courses/[id]", () => {
   it("clears the uploads of every lesson before dropping the course", async () => {
     // Deleting the rows alone leaves the files orphaned in storage, which is a
     // bug this project has already shipped once.
+    requireRole.mockResolvedValue(ADMIN);
     dao.findModulesByCourse.mockResolvedValue([{ id: 11 }]);
     dao.findLessonsByModule.mockResolvedValue([{ id: 22 }]);
     storage.listStorageFolder.mockResolvedValue(["courses/7/modules/11/lessons/22/file.pdf"]);
@@ -176,6 +194,7 @@ describe("DELETE /api/courses/[id]", () => {
   });
 
   it("reports a failed delete instead of a success", async () => {
+    requireRole.mockResolvedValue(ADMIN);
     dao.deleteCourse.mockResolvedValue(false);
 
     const res = await DELETE(new Request("https://app.test/api/courses/7"), params);
