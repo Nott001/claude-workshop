@@ -6,10 +6,10 @@ import {
   UnreadableImageError,
   STRIPPABLE_TYPES,
 } from "@/shared/integrations/storage/strip-metadata";
+import { ascii, chunk, PNG_SIGNATURE } from "./helpers/png-fixture";
 import { STORAGE_BUCKETS, validateFileType } from "@/shared/integrations/storage/policy";
 
 const bytes = (...values: number[]) => Uint8Array.from(values);
-const ascii = (text: string) => Array.from(text, (c) => c.charCodeAt(0));
 const contains = (haystack: Uint8Array, needle: string) => new TextDecoder("latin1").decode(haystack).includes(needle);
 
 /** A marker segment: 0xFF, its code, then a big-endian length covering itself. */
@@ -18,24 +18,6 @@ function segment(marker: number, payload: number[]): number[] {
   return [0xff, marker, (length >> 8) & 0xff, length & 0xff, ...payload];
 }
 
-/** A PNG chunk: big-endian length, four-character type, payload, CRC. */
-function chunk(type: string, payload: number[] = []): number[] {
-  const length = payload.length;
-  return [
-    (length >>> 24) & 0xff,
-    (length >>> 16) & 0xff,
-    (length >>> 8) & 0xff,
-    length & 0xff,
-    ...ascii(type),
-    ...payload,
-    0xde,
-    0xad,
-    0xbe,
-    0xef,
-  ];
-}
-
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const SCAN = [0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x12, 0x34, 0x56, 0xff, 0xd9];
 
 /** EXIF as a camera writes it: the marker, the namespace, then the payload. */
@@ -83,10 +65,12 @@ describe("stripJpeg", () => {
     expect(Array.from(cleaned.subarray(cleaned.length - SCAN.length))).toEqual(SCAN);
   });
 
-  it("returns an image that had no metadata unchanged", async () => {
+  it("hands back the very bytes it was given when there was no metadata", async () => {
+    // Identity, not equality: copying the ranges would spend a pass over the
+    // pixel data to rebuild bytes already in hand.
     const plain = jpeg();
 
-    expect(Array.from(stripJpeg(plain))).toEqual(Array.from(plain));
+    expect(stripJpeg(plain)).toBe(plain);
   });
 
   it("keeps quantisation and Huffman tables, which the image cannot be read without", async () => {
@@ -189,6 +173,21 @@ describe("stripPng", () => {
       ...chunk("IEND"),
     );
 
+  it("hands back the very bytes it was given when there was no metadata", async () => {
+    // Re-encoding copies the pixel payload several times to recompute
+    // checksums it would not change.
+    const plain = png();
+
+    expect(stripPng(plain)).toBe(plain);
+  });
+
+  it("rebuilds when bytes are hiding past the end marker, even with no metadata", async () => {
+    const trailing = bytes(...Array.from(png()), ...ascii("GPSLatitude 14.5995"));
+
+    expect(stripPng(trailing)).not.toBe(trailing);
+    expect(contains(stripPng(trailing), "GPSLatitude")).toBe(false);
+  });
+
   it("removes the EXIF chunk", async () => {
     const withExif = png(chunk("eXIf", ascii("GPSLatitude 14.5995")));
 
@@ -232,11 +231,20 @@ describe("stripPng", () => {
     expect(contains(stripPng(trailing), "GPSLatitude")).toBe(false);
   });
 
-  it("stops cleanly on a file that ends between chunks", async () => {
-    // Truncated uploads happen; walking past the end is how a parser crashes.
+  it("refuses a file that ends before its end marker", async () => {
+    // A truncated upload is damaged, not merely unfamiliar. Rewriting one could
+    // only produce something more broken, so the caller stores it as it came.
     const truncated = bytes(...PNG_SIGNATURE, ...chunk("IHDR", [0, 0, 0, 1]), 0x00, 0x00);
 
-    expect(contains(stripPng(truncated), "IHDR")).toBe(true);
+    expect(() => stripPng(truncated)).toThrow(UnreadableImageError);
+  });
+
+  it("refuses a file whose checksums do not match its contents", async () => {
+    // Corruption the hand-written walk used to ignore: chunks were dropped
+    // without ever reading a CRC, so a damaged file was rewritten regardless.
+    const corrupt = bytes(...PNG_SIGNATURE, ...chunk("IHDR", [0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]).slice(0, -1), 0x00);
+
+    expect(() => stripPng(corrupt)).toThrow(UnreadableImageError);
   });
 
   it("refuses a file that is not a PNG at all", async () => {
@@ -245,6 +253,27 @@ describe("stripPng", () => {
 
   it("refuses a file too short to hold the signature", async () => {
     expect(() => stripPng(bytes(0x89, 0x50, 0x4e))).toThrow(UnreadableImageError);
+  });
+
+  it("refuses a chunk that declares more bytes than the file holds, without allocating them", async () => {
+    // png-chunks-extract sizes its buffer from the declared length before
+    // checking it: this twenty-byte file cost a 2GB allocation and 28 seconds
+    // of CPU before the library rejected it, from an endpoint any signed-in
+    // user can reach.
+    const hostile = bytes(...PNG_SIGNATURE, 0x7f, 0xff, 0xff, 0xff, ...ascii("IHDR"), 0, 0, 0, 0);
+
+    const started = Date.now();
+    expect(() => stripPng(hostile)).toThrow(UnreadableImageError);
+    expect(Date.now() - started).toBeLessThan(100);
+  });
+
+  it("refuses a chunk length with the top bit set", async () => {
+    // 0x80000000 read as a signed integer is negative, which walked the cursor
+    // backwards and spun until the isolate was killed — a hang any uploader
+    // could trigger with twenty bytes.
+    const hostile = bytes(...PNG_SIGNATURE, 0x80, 0x00, 0x00, 0x00, ...ascii("eXIf"), 0, 0, 0, 0);
+
+    expect(() => stripPng(hostile)).toThrow(UnreadableImageError);
   });
 
   it("refuses a chunk claiming to run past the end of the file", async () => {
