@@ -70,7 +70,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  const course = await courseDao.findCourseOwner(supabase, mod.course_id);
+  const course = await courseDao.findCourseEvent(supabase, mod.course_id);
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }

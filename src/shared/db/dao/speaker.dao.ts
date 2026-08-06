@@ -142,6 +142,16 @@ export async function getSpeakerEventIds(supabase: DbClient, speakerProfileId: n
   return (data ?? []).map((a: { event_id: number }) => a.event_id);
 }
 
+export async function isAssignedByUserId(supabase: DbClient, userId: number, eventId: number): Promise<boolean> {
+  const { data } = await supabase
+    .from("EVENT_SPEAKER")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .eq("SPEAKER_PROFILE.user_id", userId)
+    .limit(1);
+  return !!data && data.length > 0;
+}
+
 export async function checkSpeakerAssignment(supabase: DbClient, speakerProfileId: number, eventId: number): Promise<boolean> {
   const { data } = await supabase
     .from("EVENT_SPEAKER")
