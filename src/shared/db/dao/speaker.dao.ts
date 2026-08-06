@@ -110,9 +110,11 @@ export async function replaceEventAssignments(
   eventId: number,
   speakerProfileIds: number[],
 ): Promise<boolean> {
+  // Selecting the embed makes the USER.role filter legal; without it in the
+  // select list PostgREST answers PGRST108 and every speaker is silently dropped.
   const { data: valid } = await supabase
     .from("SPEAKER_PROFILE")
-    .select("id")
+    .select("id, USER(role)")
     .in("id", speakerProfileIds)
     .eq("USER.role", "speaker");
   const validIds = (valid ?? []).map((s: { id: number }) => s.id);
@@ -142,14 +144,16 @@ export async function getSpeakerEventIds(supabase: DbClient, speakerProfileId: n
   return (data ?? []).map((a: { event_id: number }) => a.event_id);
 }
 
+/**
+ * Whether the user's speaker profile is assigned to the event. The profile is
+ * resolved first, then the assignment is checked by profile id: filtering an
+ * embed that is not in the select list makes PostgREST answer PGRST108, so the
+ * join must happen in two plain queries — the same shape the speaker route uses.
+ */
 export async function isAssignedByUserId(supabase: DbClient, userId: number, eventId: number): Promise<boolean> {
-  const { data } = await supabase
-    .from("EVENT_SPEAKER")
-    .select("event_id")
-    .eq("event_id", eventId)
-    .eq("SPEAKER_PROFILE.user_id", userId)
-    .limit(1);
-  return !!data && data.length > 0;
+  const profile = await findByUserId(supabase, userId);
+  if (!profile) return false;
+  return checkSpeakerAssignment(supabase, profile.id, eventId);
 }
 
 export async function checkSpeakerAssignment(supabase: DbClient, speakerProfileId: number, eventId: number): Promise<boolean> {

@@ -5,6 +5,7 @@ import {
   createEvent,
   createCourse,
   assignFacilitator,
+  assignSpeaker,
   signIn,
   cleanup,
   type SeededUser,
@@ -207,6 +208,28 @@ test("an assigned facilitator can create a course through the API", async ({ pag
   const res = await page.request.post("/api/courses", {
     // course_description: null is what the UI sends when the field is empty.
     data: { course_name: "e2e-created-course", course_description: null, event_id: event.eventId },
+  });
+
+  expect(res.status()).toBe(201);
+  const created = await res.json();
+  courses.push({ courseId: created.id, name: created.course_name });
+});
+
+/**
+ * The same create, but as a speaker. The speaker gate resolves the profile by
+ * user id and checks the EVENT_SPEAKER row directly — the embedded-filter
+ * version of that query made PostgREST answer PGRST108, which returned false
+ * for every speaker and 403'd the create. This exercises that exact path.
+ */
+test("an assigned speaker can create a course through the API", async ({ page }) => {
+  const speaker = await createUser(db, "speaker");
+  users.push(speaker);
+  await assignSpeaker(db, speaker.userId, event.eventId);
+
+  await signIn(page, speaker);
+
+  const res = await page.request.post("/api/courses", {
+    data: { course_name: "e2e-speaker-course", course_description: null, event_id: event.eventId },
   });
 
   expect(res.status()).toBe(201);

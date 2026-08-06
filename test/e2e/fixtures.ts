@@ -122,6 +122,23 @@ export async function assignFacilitator(db: SupabaseClient, userId: number, even
 }
 
 /**
+ * Makes a speaker part of an event's team, the way the app does: a profile row
+ * first, then an EVENT_SPEAKER row against that profile. The authoring routes
+ * resolve a speaker by user id, so both rows must exist.
+ */
+export async function assignSpeaker(db: SupabaseClient, userId: number, eventId: number): Promise<void> {
+  const { data: profile, error } = await db
+    .from("SPEAKER_PROFILE")
+    .insert({ user_id: userId, designation: "E2E Speaker" })
+    .select("id")
+    .single();
+  if (error || !profile) throw new Error(`SPEAKER_PROFILE insert failed: ${error?.message}`);
+
+  const { error: esError } = await db.from("EVENT_SPEAKER").insert({ event_id: eventId, speaker_profile_id: profile.id });
+  if (esError) throw new Error(`EVENT_SPEAKER insert failed: ${esError.message}`);
+}
+
+/**
  * Puts a real object in a real bucket. Without this the entitlement tests prove
  * nothing: a missing object and a forbidden one both return 404, by design.
  */
