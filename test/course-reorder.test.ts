@@ -146,6 +146,62 @@ describe("moveModule", () => {
   });
 });
 
+describe("moveModule schedule swap", () => {
+  function scheduled(id: number, sequenceOrder: number, start_time: string | null, end_time: string | null): ModuleWithLessons {
+    return { ...lessonsModule(id, [], sequenceOrder), start_time, end_time };
+  }
+
+  it("trades time sessions with the neighbour it displaced when moving up", () => {
+    const modules = sortedModules([
+      scheduled(1, 1, "09:00", "10:00"),
+      scheduled(2, 2, "10:00", "11:00"),
+      scheduled(3, 3, "11:00", "12:00"),
+    ]);
+
+    const next = moveModule(modules, 2, "up")!;
+
+    expect(next.map((m) => m.id)).toEqual([2, 1, 3]);
+    expect(next.map((m) => m.sequence_order)).toEqual([1, 2, 3]);
+    expect(next.find((m) => m.id === 1)).toMatchObject({ start_time: "10:00", end_time: "11:00" });
+    expect(next.find((m) => m.id === 2)).toMatchObject({ start_time: "09:00", end_time: "10:00" });
+  });
+
+  it("trades time sessions with the neighbour it displaced when moving down", () => {
+    const modules = sortedModules([
+      scheduled(1, 1, "09:00", "10:00"),
+      scheduled(2, 2, "10:00", "11:00"),
+      scheduled(3, 3, "11:00", "12:00"),
+    ]);
+
+    const next = moveModule(modules, 1, "down")!;
+
+    expect(next.map((m) => m.id)).toEqual([2, 1, 3]);
+    expect(next.find((m) => m.id === 1)).toMatchObject({ start_time: "10:00", end_time: "11:00" });
+    expect(next.find((m) => m.id === 2)).toMatchObject({ start_time: "09:00", end_time: "10:00" });
+  });
+
+  it("keeps the speaker with the module, not the slot", () => {
+    const modules = sortedModules([
+      { ...scheduled(1, 1, "09:00", "10:00"), speaker_profile_id: 7 },
+      { ...scheduled(2, 2, "10:00", "11:00"), speaker_profile_id: null },
+    ]);
+
+    const next = moveModule(modules, 2, "up")!;
+
+    expect(next.find((m) => m.id === 1)?.speaker_profile_id).toBe(7);
+    expect(next.find((m) => m.id === 2)?.speaker_profile_id).toBeNull();
+  });
+
+  it("does not mutate the modules it is given", () => {
+    const modules = sortedModules([scheduled(1, 1, "09:00", "10:00"), scheduled(2, 2, "10:00", "11:00")]);
+    const before = JSON.stringify(modules);
+
+    moveModule(modules, 2, "up");
+
+    expect(JSON.stringify(modules)).toBe(before);
+  });
+});
+
 describe("moveLesson within a module", () => {
   const build = () => sortedModules([lessonsModule(1, [lesson(1, 1, 1), lesson(2, 1, 2), lesson(3, 1, 3)], 1)]);
 

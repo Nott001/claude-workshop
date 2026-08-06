@@ -141,9 +141,21 @@ export function moveModule(
   const target = direction === "up" ? idx - 1 : idx + 1;
   if (target < 0 || target >= modules.length) return null;
 
-  const next = [...modules];
+  const next = modules.map((m) => ({ ...m }));
   const [moved] = next.splice(idx, 1);
   next.splice(target, 0, moved);
+
+  // The schedule belongs to the slot, not the module: a move trades the whole
+  // window with the neighbour it displaced, so reordering can never create an
+  // overlap. The speaker is module content and travels with the module.
+  const movedModule = next[target];
+  const displaced = next[idx];
+  const { start_time, end_time } = movedModule;
+  movedModule.start_time = displaced.start_time;
+  movedModule.end_time = displaced.end_time;
+  displaced.start_time = start_time;
+  displaced.end_time = end_time;
+
   return next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
 }
 
