@@ -24,6 +24,10 @@ interface Module {
   sequence_order: number;
   module_type: string;
   is_locked: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  speaker_profile_id: number | null;
+  SPEAKER_PROFILE: { id: number; designation: string | null; USER: { full_name: string } | null } | null;
   LESSONS: Lesson[];
 }
 
