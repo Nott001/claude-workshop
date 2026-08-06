@@ -10,7 +10,10 @@ function moduleFiles(): string[] {
     .map((f) => f.replace(/\\/g, "/"));
 }
 
-const importsEvents = (rel: string) => /from\s+["']@\/modules\/events/.test(readFileSync(path.join(COURSES_DIR, rel), "utf8"));
+// Matches both static `from "..."` imports and dynamic `import("...")` /
+// `await import("...")`, so a lazy import cannot smuggle in the dependency.
+const importsEvents = (rel: string) =>
+  /(from\s+["']@\/modules\/events|import\(\s*["']@\/modules\/events)/.test(readFileSync(path.join(COURSES_DIR, rel), "utf8"));
 
 describe("course module boundary", () => {
   const files = moduleFiles();

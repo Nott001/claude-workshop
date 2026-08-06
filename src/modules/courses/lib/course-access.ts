@@ -24,11 +24,34 @@ export async function canManageEvent(
   return false;
 }
 
-export async function requireCourseAccess(courseId: number, userId: number, userRole: UserRole): Promise<NextResponse | null> {
-  const supabase = getServiceClient();
-  const course = await courseDao.findCourseEvent(supabase, courseId);
+interface CoursePointer {
+  id: number;
+  event_id: number;
+}
+
+/**
+ * What a route may hand over to skip work the helper would otherwise redo.
+ * Routes that already hold an open client and the course row pass them here so
+ * the request issues no second client or duplicate query.
+ */
+export interface CourseAccessContext {
+  supabase?: DbClient;
+  course?: CoursePointer | null;
+}
+
+type Missing = "Course" | "Module" | "Lesson";
+
+async function requireEventAccess(
+  userId: number,
+  userRole: UserRole,
+  ctx: CourseAccessContext,
+  resolveCourse: (supabase: DbClient) => Promise<CoursePointer | null>,
+  missing: Missing,
+): Promise<NextResponse | null> {
+  const supabase = ctx.supabase ?? getServiceClient();
+  const course = ctx.course !== undefined ? ctx.course : await resolveCourse(supabase);
   if (!course) {
-    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    return NextResponse.json({ error: `${missing} not found` }, { status: 404 });
   }
   if (!(await canManageEvent(supabase, userId, userRole, course.event_id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -36,28 +59,31 @@ export async function requireCourseAccess(courseId: number, userId: number, user
   return null;
 }
 
-export async function requireModuleAccess(moduleId: number, userId: number, userRole: UserRole): Promise<NextResponse | null> {
-  const supabase = getServiceClient();
-  const course = await courseDao.findCourseByModule(supabase, moduleId);
-  if (!course) {
-    return NextResponse.json({ error: "Module not found" }, { status: 404 });
-  }
-  if (!(await canManageEvent(supabase, userId, userRole, course.event_id))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
+export async function requireCourseAccess(
+  courseId: number,
+  userId: number,
+  userRole: UserRole,
+  ctx: CourseAccessContext = {},
+): Promise<NextResponse | null> {
+  return requireEventAccess(userId, userRole, ctx, (supabase) => courseDao.findCourseEvent(supabase, courseId), "Course");
 }
 
-export async function requireLessonAccess(lessonId: number, userId: number, userRole: UserRole): Promise<NextResponse | null> {
-  const supabase = getServiceClient();
-  const course = await courseDao.findCourseByLesson(supabase, lessonId);
-  if (!course) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-  }
-  if (!(await canManageEvent(supabase, userId, userRole, course.event_id))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
+export async function requireModuleAccess(
+  moduleId: number,
+  userId: number,
+  userRole: UserRole,
+  ctx: CourseAccessContext = {},
+): Promise<NextResponse | null> {
+  return requireEventAccess(userId, userRole, ctx, (supabase) => courseDao.findCourseByModule(supabase, moduleId), "Module");
+}
+
+export async function requireLessonAccess(
+  lessonId: number,
+  userId: number,
+  userRole: UserRole,
+  ctx: CourseAccessContext = {},
+): Promise<NextResponse | null> {
+  return requireEventAccess(userId, userRole, ctx, (supabase) => courseDao.findCourseByLesson(supabase, lessonId), "Lesson");
 }
 
 export async function requireCourseDeleteAccess(
@@ -65,18 +91,11 @@ export async function requireCourseDeleteAccess(
   userId: number,
   userRole: UserRole,
 ): Promise<NextResponse | null> {
-  if (hasMinRole(userRole, "admin")) return null;
-  if (userRole !== "facilitator") {
+  // Speakers — even assigned ones — may never delete, and anyone below
+  // facilitator is refused without a query so the caller learns nothing about
+  // whether the course exists.
+  if (!hasMinRole(userRole, "facilitator")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const supabase = getServiceClient();
-  const course = await courseDao.findCourseEvent(supabase, courseId);
-  if (!course) {
-    return NextResponse.json({ error: "Course not found" }, { status: 404 });
-  }
-  const assigned = await facilitatorDao.checkAssignment(supabase, userId, course.event_id);
-  if (!assigned) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
+  return requireEventAccess(userId, userRole, {}, (supabase) => courseDao.findCourseEvent(supabase, courseId), "Course");
 }

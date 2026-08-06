@@ -119,7 +119,7 @@ function OverviewSection({
   );
 }
 
-function CourseSection({
+export function CourseSection({
   eventId,
   userRole,
   canManageCourse,
@@ -131,10 +131,6 @@ function CourseSection({
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
   const isStaff = hasMinRole(userRole, "facilitator");
-  const isAdmin = hasMinRole(userRole, "admin");
-  const { assignments, loading: speakersLoading } = useEventSpeakers(eventId);
-
-  const hasSpeakers = assignments.length > 0;
 
   if (loading) {
     return (
@@ -198,16 +194,8 @@ function CourseSection({
     );
   }
 
-  if (!isAdmin && !isStaff && !canManageCourse) {
+  if (!isStaff && !canManageCourse) {
     return null;
-  }
-
-  if (isAdmin && !hasSpeakers && !speakersLoading) {
-    return (
-      <SectionCard title="Course" icon="school">
-        <p className="text-sm text-muted-fg">Assign a speaker first to manage this event&apos;s course.</p>
-      </SectionCard>
-    );
   }
 
   return (
@@ -360,7 +348,6 @@ export default function StaffEventDashboardPage() {
     loading,
     error,
     badgeProps,
-    isSpeakerAssigned,
     publishing,
     publishError,
     deleteError,
@@ -388,8 +375,11 @@ export default function StaffEventDashboardPage() {
   if (!isStaff) return null;
 
   const isAdmin = hasMinRole(userRole, "admin");
+  // The page is facilitator-floor, and fetch-event-access only loads the
+  // caller's speaker profile for the exact speaker role, so isSpeakerAssigned
+  // can never be true here — the assignment term is the facilitator row.
   const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
-  const canManageCourse = isAdmin || isAssignedFacilitator || isSpeakerAssigned;
+  const canManageCourse = isAdmin || isAssignedFacilitator;
 
   return (
     <div className="flex flex-1 flex-col bg-bg">

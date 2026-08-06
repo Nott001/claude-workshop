@@ -5,7 +5,12 @@ import { requireLessonAccess } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { uploadToStorage } from "@/shared/integrations/storage/service";
-import { buildCourseVideoPath, validateFileType, validateFileSize } from "@/shared/integrations/storage/policy";
+import {
+  buildCourseVideoPath,
+  sanitizeObjectName,
+  validateFileType,
+  validateFileSize,
+} from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
   const guard = await requireRole("speaker");
@@ -29,8 +34,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
   }
 
-  // The stored path is derived from the lesson's own module and course ids, so
-  // a forged course_id/module_id in the form cannot redirect an upload.
+  // The stored path is derived from the lesson's own module and course ids, and
+  // the client filename is reduced to its basename, so neither the ids nor a
+  // path smuggled into the filename can redirect an upload outside this lesson.
   const supabase = getServiceClient();
   const lesson = await courseDao.findLessonModule(supabase, Number(lessonId));
   if (!lesson) {
@@ -40,13 +46,17 @@ export async function POST(req: Request) {
   if (!mod) {
     return NextResponse.json({ error: "Module not found" }, { status: 400 });
   }
+  const course = await courseDao.findCourseEvent(supabase, mod.course_id);
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 400 });
+  }
 
-  const access = await requireLessonAccess(Number(lessonId), guard.user.id, guard.user.role);
+  const access = await requireLessonAccess(Number(lessonId), guard.user.id, guard.user.role, { supabase, course });
   if (access) {
     return access;
   }
 
-  const filename = file.name || `video.${file.type.split("/")[1]}`;
+  const filename = sanitizeObjectName(file.name, `video.${file.type.split("/")[1]}`);
   const path = buildCourseVideoPath(mod.course_id, lesson.module_id, Number(lessonId), filename);
 
   try {

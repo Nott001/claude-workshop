@@ -105,6 +105,25 @@ describe("author-content access (course / module / lesson)", () => {
       findCourseByLesson.mockResolvedValue(null);
       expect(await fn(id, 7, "facilitator")).toMatchObject({ status: 404 });
     });
+
+    it(`${name} uses a course and client passed in without re-querying`, async () => {
+      checkAssignment.mockResolvedValue(true);
+      const passed = {} as unknown as Parameters<typeof canManageEvent>[0];
+      const res = await fn(id, 7, "facilitator", { supabase: passed, course: assigned });
+      expect(res).toBeNull();
+      expect(findCourseByModule).not.toHaveBeenCalled();
+      expect(findCourseByLesson).not.toHaveBeenCalled();
+      expect(findCourseEvent).not.toHaveBeenCalled();
+      expect(checkAssignment).toHaveBeenCalledWith(passed, 7, 100);
+    });
+
+    it(`${name} treats a passed null course as a 404 without querying`, async () => {
+      const res = await fn(id, 7, "facilitator", { course: null });
+      expect(res).toMatchObject({ status: 404 });
+      expect(findCourseByModule).not.toHaveBeenCalled();
+      expect(findCourseByLesson).not.toHaveBeenCalled();
+      expect(findCourseEvent).not.toHaveBeenCalled();
+    });
   }
 });
 

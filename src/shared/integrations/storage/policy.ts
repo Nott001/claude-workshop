@@ -91,6 +91,16 @@ export function buildProfileImagePath(userId: number, ext: string): string {
   return `users/${userId}/profile_${Date.now()}.${ext}`;
 }
 
+/**
+ * Reduces an untrusted client filename to its final path segment so an object
+ * key built from it can never escape the lesson's folder, and drops a name that
+ * is only dots — the traversal payload itself — in favour of the fallback.
+ */
+export function sanitizeObjectName(name: string, fallback: string): string {
+  const base = name.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+  return base.replace(/^\.+|\.+$/g, "") || fallback;
+}
+
 export function buildCourseAssetPath(courseId: number, moduleId: number, lessonId: number, filename: string): string {
   return `courses/${courseId}/modules/${moduleId}/lessons/${lessonId}/${filename}`;
 }

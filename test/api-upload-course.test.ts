@@ -6,6 +6,8 @@ const {
   requireLessonAccess,
   findLessonModule,
   findModuleCourse,
+  findCourseEvent,
+  findCourseByLesson,
   updateLesson,
   uploadToStorage,
   optimizeImage,
@@ -15,6 +17,8 @@ const {
   requireLessonAccess: vi.fn(),
   findLessonModule: vi.fn(),
   findModuleCourse: vi.fn(),
+  findCourseEvent: vi.fn(),
+  findCourseByLesson: vi.fn(),
   updateLesson: vi.fn(),
   uploadToStorage: vi.fn(),
   optimizeImage: vi.fn(),
@@ -24,7 +28,13 @@ const {
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireLessonAccess }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ findLessonModule, findModuleCourse, updateLesson }));
+vi.mock("@/shared/db/dao/course.dao", () => ({
+  findLessonModule,
+  findModuleCourse,
+  findCourseEvent,
+  findCourseByLesson,
+  updateLesson,
+}));
 vi.mock("@/shared/integrations/storage/service", () => ({ uploadToStorage }));
 vi.mock("@/shared/integrations/storage/optimize", () => ({ optimizeImage }));
 // validateFileType stays real; only the size gate is stubbed so an oversized
@@ -55,9 +65,11 @@ function NextResponse403() {
 }
 
 // Lesson 3 hangs off module 2, which hangs off course 1 — the ids the path
-// must come from, never from whatever the form claims.
+// must come from, never from whatever the form claims. Course 1 is the course
+// the route resolves from that chain for the access check.
 const lesson = { module_id: 2 };
 const mod = { course_id: 1 };
+const course = { id: 1, event_id: 100 };
 
 function upload(handler: typeof postAsset, fields: Record<string, string | File>): Promise<Response> {
   const form = new FormData();
@@ -81,6 +93,7 @@ beforeEach(() => {
   requireLessonAccess.mockResolvedValue(null);
   findLessonModule.mockResolvedValue(lesson);
   findModuleCourse.mockResolvedValue(mod);
+  findCourseEvent.mockResolvedValue(course);
   updateLesson.mockResolvedValue({ id: 3 });
   uploadToStorage.mockResolvedValue({ url: "/api/storage/course_assets/x", path: "x" });
   optimizeImage.mockImplementation(async (f: File) => f);
@@ -104,6 +117,29 @@ describe("POST /api/upload/course-asset", () => {
 
     const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "slides.pdf");
     expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+  });
+
+  it("reduces a traversal filename to its basename so it cannot escape the lesson", async () => {
+    await assetUpload({ file: pdf("../../1/lessons/2/evil.pdf"), lesson_id: "3" });
+
+    const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "evil.pdf");
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+  });
+
+  it("falls back to the extension name when the filename is only dots", async () => {
+    await assetUpload({ file: pdf(".."), lesson_id: "3" });
+
+    const expected = buildCourseAssetPath(mod.course_id, lesson.module_id, 3, "asset.pdf");
+    expect(uploadToStorage).toHaveBeenCalledWith("course_assets", expected, expect.anything());
+  });
+
+  it("resolves the course once and never re-queries the lesson's chain", async () => {
+    await assetUpload({ file: pdf(), lesson_id: "3" });
+
+    expect(findLessonModule).toHaveBeenCalledTimes(1);
+    expect(findModuleCourse).toHaveBeenCalledTimes(1);
+    expect(findCourseEvent).toHaveBeenCalledWith(expect.anything(), mod.course_id);
+    expect(findCourseByLesson).not.toHaveBeenCalled();
   });
 
   it("403s an unassigned speaker without uploading", async () => {
@@ -182,6 +218,13 @@ describe("POST /api/upload/course-video", () => {
 
     expect(res.status).toBe(200);
     const expected = buildCourseVideoPath(mod.course_id, lesson.module_id, 3, "lecture.mp4");
+    expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.anything());
+  });
+
+  it("reduces a traversal filename to its basename for videos too", async () => {
+    await videoUpload({ file: mp4("../../../2/lessons/3/leak.mp4"), lesson_id: "3" });
+
+    const expected = buildCourseVideoPath(mod.course_id, lesson.module_id, 3, "leak.mp4");
     expect(uploadToStorage).toHaveBeenCalledWith("course_videos", expected, expect.anything());
   });
 
