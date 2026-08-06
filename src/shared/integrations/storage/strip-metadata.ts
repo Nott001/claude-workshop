@@ -50,6 +50,7 @@ export function stripJpeg(bytes: Uint8Array): Uint8Array {
 
   const kept: Array<[number, number]> = [[0, 2]];
   let dropped = false;
+  let orientation: number | null = null;
   let i = 2;
 
   while (i < bytes.length) {
@@ -81,15 +82,30 @@ export function stripJpeg(bytes: Uint8Array): Uint8Array {
     const end = marker + 1 + length;
     if (length < 2 || end > bytes.length) throw new UnreadableImageError("JPEG");
 
-    if (isJpegMetadata(code)) dropped = true;
-    else kept.push([i, end]);
+    if (isJpegMetadata(code)) {
+      dropped = true;
+      // A camera does not rotate a portrait photo, it records which way up the
+      // sensor was and leaves the pixels sideways. Deleting that tag with the
+      // rest of EXIF is what turns an upright photo on its side, so the value
+      // is carried across even though nothing else in the block is.
+      orientation ??= readExifOrientation(bytes.subarray(marker + 3, end));
+    } else {
+      kept.push([i, end]);
+    }
     i = end;
   }
 
   // The ranges cover the whole file when nothing was dropped, so copying them
   // into a new buffer would spend a pass over the pixel data to produce the
   // bytes already in hand.
-  return dropped ? concat(bytes, kept) : bytes;
+  if (!dropped) return bytes;
+
+  // Rebuilt rather than kept: the original block is the one carrying the
+  // coordinates, and a whole EXIF structure cannot be edited in place without
+  // becoming the kind of parser this file exists to avoid.
+  const insert = orientation !== null && orientation !== ORIENTATION_UPRIGHT ? exifOrientationSegment(orientation) : null;
+
+  return concat(bytes, kept, insert);
 }
 
 /**
@@ -187,15 +203,120 @@ function chunkLengthsFit(bytes: Uint8Array): boolean {
   return true;
 }
 
-function concat(source: Uint8Array, ranges: Array<[number, number]>): Uint8Array {
-  const size = ranges.reduce((total, [start, end]) => total + (end - start), 0);
-  const out = new Uint8Array(size);
+/** The EXIF tag numbering which way up the camera was held. */
+const ORIENTATION_TAG = 0x0112;
+const ORIENTATION_UPRIGHT = 1;
+const ORIENTATION_MAX = 8;
+const IFD_ENTRY_SIZE = 12;
+
+/**
+ * The orientation an EXIF block records, or null if it records none.
+ *
+ * Reads only: every offset is checked against the block it was found in, and
+ * nothing is allocated from a value the file supplies. EXIF is a TIFF document
+ * in a JPEG segment — a byte-order mark, a directory offset, then fixed-width
+ * entries — so finding one tag needs no general TIFF reader.
+ */
+function readExifOrientation(payload: Uint8Array): number | null {
+  const EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
+  if (payload.length < 14 || EXIF_HEADER.some((byte, index) => payload[index] !== byte)) return null;
+
+  const tiff = payload.subarray(6);
+  const littleEndian = tiff[0] === 0x49 && tiff[1] === 0x49;
+  const bigEndian = tiff[0] === 0x4d && tiff[1] === 0x4d;
+  if (!littleEndian && !bigEndian) return null;
+
+  const u16 = (at: number) => (littleEndian ? tiff[at] | (tiff[at + 1] << 8) : (tiff[at] << 8) | tiff[at + 1]);
+  const u32 = (at: number) =>
+    (littleEndian
+      ? tiff[at] | (tiff[at + 1] << 8) | (tiff[at + 2] << 16) | (tiff[at + 3] << 24)
+      : (tiff[at] << 24) | (tiff[at + 1] << 16) | (tiff[at + 2] << 8) | tiff[at + 3]) >>> 0;
+
+  const directory = u32(4);
+  if (directory + 2 > tiff.length) return null;
+
+  const entries = u16(directory);
+  for (let entry = 0; entry < entries; entry++) {
+    const at = directory + 2 + entry * IFD_ENTRY_SIZE;
+    if (at + IFD_ENTRY_SIZE > tiff.length) return null;
+    if (u16(at) !== ORIENTATION_TAG) continue;
+
+    // A SHORT sits in the first half of the four-byte value field.
+    const value = u16(at + 8);
+    return value >= ORIENTATION_UPRIGHT && value <= ORIENTATION_MAX ? value : null;
+  }
+
+  return null;
+}
+
+/**
+ * An EXIF segment holding the orientation and nothing else.
+ *
+ * Fixed bytes with one variable: a big-endian TIFF header, a directory of a
+ * single SHORT entry, and no next directory. Constructing it is what keeps the
+ * original block — coordinates and all — out of the file.
+ */
+function exifOrientationSegment(orientation: number): Uint8Array {
+  return Uint8Array.from([
+    0xff,
+    0xe1,
+    0x00,
+    0x22, // APP1, covering the 32 bytes that follow plus itself
+    0x45,
+    0x78,
+    0x69,
+    0x66,
+    0x00,
+    0x00, // "Exif\0\0"
+    0x4d,
+    0x4d,
+    0x00,
+    0x2a,
+    0x00,
+    0x00,
+    0x00,
+    0x08, // big-endian TIFF, directory at byte 8
+    0x00,
+    0x01, // one entry
+    (ORIENTATION_TAG >> 8) & 0xff,
+    ORIENTATION_TAG & 0xff,
+    0x00,
+    0x03, // SHORT
+    0x00,
+    0x00,
+    0x00,
+    0x01, // one of them
+    0x00,
+    orientation,
+    0x00,
+    0x00, // the value, left-aligned in its four bytes
+    0x00,
+    0x00,
+    0x00,
+    0x00, // no directory follows
+  ]);
+}
+
+/**
+ * The kept ranges of `source` in order, with `insert` placed after the first.
+ *
+ * The first range is the start-of-image marker, and an application segment has
+ * to follow it rather than precede it.
+ */
+function concat(source: Uint8Array, ranges: Array<[number, number]>, insert: Uint8Array | null = null): Uint8Array {
+  const kept = ranges.reduce((total, [start, end]) => total + (end - start), 0);
+  const out = new Uint8Array(kept + (insert?.length ?? 0));
 
   let offset = 0;
-  for (const [start, end] of ranges) {
+  ranges.forEach(([start, end], index) => {
     out.set(source.subarray(start, end), offset);
     offset += end - start;
-  }
+
+    if (index === 0 && insert) {
+      out.set(insert, offset);
+      offset += insert.length;
+    }
+  });
 
   return out;
 }

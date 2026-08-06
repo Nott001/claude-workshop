@@ -163,6 +163,101 @@ describe("stripJpeg", () => {
   });
 });
 
+describe("stripJpeg orientation", () => {
+  /** EXIF as a TIFF document: byte-order mark, directory offset, one entry. */
+  function exif(orientation: number, { littleEndian = false } = {}): number[] {
+    const u16 = (value: number) => (littleEndian ? [value & 0xff, (value >> 8) & 0xff] : [(value >> 8) & 0xff, value & 0xff]);
+    const u32 = (value: number) =>
+      littleEndian
+        ? [value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff, (value >> 24) & 0xff]
+        : [(value >> 24) & 0xff, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+
+    return [
+      ...ascii("Exif\0\0"),
+      ...(littleEndian ? ascii("II") : ascii("MM")),
+      ...u16(42),
+      ...u32(8),
+      ...u16(1),
+      ...u16(0x0112),
+      ...u16(3),
+      ...u32(1),
+      ...u16(orientation),
+      0x00,
+      0x00,
+      ...u32(0),
+    ];
+  }
+
+  const orientationOf = (cleaned: Uint8Array) => {
+    // The rebuilt segment is fixed-width, so the value sits at a known offset
+    // from the marker rather than needing the file re-parsed.
+    const marker = cleaned.indexOf(0xe1);
+    if (cleaned[marker - 1] !== 0xff) return null;
+    // Counted from the 0xFF that starts the segment, not from the marker byte.
+    return cleaned[marker - 1 + 29];
+  };
+
+  it("carries the orientation across, and nothing else from the block", async () => {
+    // Otherwise a portrait photo that skipped the browser's resize is stored
+    // with sideways pixels and no note saying to turn them.
+    const portrait = jpeg(segment(0xe1, [...exif(6), ...ascii("GPSLatitude 14.5995")]));
+
+    const cleaned = stripJpeg(portrait);
+
+    expect(orientationOf(cleaned)).toBe(6);
+    expect(contains(cleaned, "GPSLatitude")).toBe(false);
+  });
+
+  it("reads a block written the other way round", async () => {
+    // Canon writes big-endian, most phones little-endian; both are valid EXIF.
+    const cleaned = stripJpeg(jpeg(segment(0xe1, exif(8, { littleEndian: true }))));
+
+    expect(orientationOf(cleaned)).toBe(8);
+  });
+
+  it("writes no block when the photo was already upright", async () => {
+    // Orientation 1 means no rotation, so the tag would say nothing.
+    const cleaned = stripJpeg(jpeg(segment(0xe1, [...exif(1), ...ascii("GPSLatitude")])));
+
+    expect(contains(cleaned, "Exif")).toBe(false);
+  });
+
+  it("writes no block when the metadata never recorded one", async () => {
+    const cleaned = stripJpeg(jpeg(segment(0xe1, [...ascii("Exif\0\0"), ...ascii("MM"), 0x00, 0x2a, 0, 0, 0, 8, 0x00, 0x00])));
+
+    expect(contains(cleaned, "Exif")).toBe(false);
+  });
+
+  it("puts the segment where an application segment belongs", async () => {
+    const cleaned = stripJpeg(jpeg(segment(0xe1, exif(3))));
+
+    // Directly after the start-of-image marker, never before it.
+    expect(Array.from(cleaned.subarray(0, 4))).toEqual([0xff, 0xd8, 0xff, 0xe1]);
+  });
+
+  it("ignores a block whose orientation is not a rotation", async () => {
+    const cleaned = stripJpeg(jpeg(segment(0xe1, exif(99))));
+
+    expect(contains(cleaned, "Exif")).toBe(false);
+  });
+
+  it("ignores a directory pointing outside the block it lives in", async () => {
+    const lying = [...ascii("Exif\0\0"), ...ascii("MM"), 0x00, 0x2a, 0x7f, 0xff, 0xff, 0xff];
+    const cleaned = stripJpeg(jpeg(segment(0xe1, lying)));
+
+    expect(contains(cleaned, "Exif")).toBe(false);
+  });
+
+  it("takes the orientation from EXIF rather than from XMP alongside it", async () => {
+    const withXmp = jpeg([...segment(0xe1, ascii("http://ns.adobe.com/xap/1.0/\0<x>author</x>")), ...segment(0xe1, exif(6))]);
+
+    const cleaned = stripJpeg(withXmp);
+
+    expect(orientationOf(cleaned)).toBe(6);
+    expect(contains(cleaned, "adobe")).toBe(false);
+  });
+});
+
 describe("stripPng", () => {
   const png = (extra: number[] = []) =>
     bytes(
