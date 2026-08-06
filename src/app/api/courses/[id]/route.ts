@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
+import { requireCourseAccess, requireCourseDeleteAccess } from "@/modules/courses/lib/course-access";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
@@ -35,16 +35,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const course = await courseDao.findCourseOwner(supabase, Number(id));
-  if (!course) {
-    return NextResponse.json({ error: "Course not found" }, { status: 404 });
-  }
-
-  if (course.created_by !== guard.user.id) {
-    const isStaff = hasMinRole(guard.user.role, "facilitator");
-    if (!isStaff) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const access = await requireCourseAccess(Number(id), guard.user.id, guard.user.role);
+  if (access) {
+    return access;
   }
 
   const body = await req.json();
@@ -78,15 +71,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const supabase = getServiceClient();
 
+  const access = await requireCourseDeleteAccess(Number(id), guard.user.id, guard.user.role);
+  if (access) {
+    return access;
+  }
+
   const courseInfo = await courseDao.findCourseById(supabase, Number(id));
   if (!courseInfo) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
-  }
-
-  if (courseInfo.created_by !== guard.user.id) {
-    if (!hasMinRole(guard.user.role, "admin")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
   }
 
   const modules = await courseDao.findModulesByCourse(supabase, Number(id));
