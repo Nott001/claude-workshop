@@ -88,6 +88,15 @@ describe("support-session.dao ownership", () => {
 
     expect(callsList[0].some(([, a]) => a[0] === "assigned_to")).toBe(false);
   });
+
+  it("purges the ended session instead of marking it ended", async () => {
+    const { client, callsList } = stub([{ data: { id: 1 } }]);
+
+    await dao.endSession(client, 5, "general");
+
+    expect(callsList[0].some(([m]) => m === "delete")).toBe(true);
+    expect(callsList[0].some(([m]) => m === "update")).toBe(false);
+  });
 });
 
 describe("support-session.dao listCases", () => {
