@@ -16,11 +16,14 @@ const SRC_DIR = path.resolve(__dirname, "../src");
  */
 describe("upload path", () => {
   it("routes every browser upload through postUpload", () => {
-    const handRolled = globSync("**/*.{ts,tsx}", { cwd: SRC_DIR }).filter((rel) => {
-      if (rel.startsWith("app/api/")) return false; // routes receive uploads, they do not send them
-      if (rel === "shared/integrations/storage/upload-client.ts") return false;
-      return /\.append\(\s*["']file["']/.test(readFileSync(path.join(SRC_DIR, rel), "utf8"));
-    });
+    const handRolled = globSync("**/*.{ts,tsx}", { cwd: SRC_DIR })
+      // glob returns backslash paths on Windows; normalize so the comparisons below hold everywhere.
+      .map((rel) => rel.replaceAll("\\", "/"))
+      .filter((rel) => {
+        if (rel.startsWith("app/api/")) return false; // routes receive uploads, they do not send them
+        if (rel === "shared/integrations/storage/upload-client.ts") return false;
+        return /\.append\(\s*["']file["']/.test(readFileSync(path.join(SRC_DIR, rel), "utf8"));
+      });
 
     expect(handRolled, "builds an upload body by hand instead of calling postUpload").toEqual([]);
   });
