@@ -1,11 +1,6 @@
 import type { DbClient } from "./types";
 import type { Course, Module, Lesson } from "@/shared/types";
 
-export async function listCourses(supabase: DbClient): Promise<Course[]> {
-  const { data } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
-  return (data ?? []) as Course[];
-}
-
 export type CourseWithEvent = Course & {
   event_title: string | null;
   event_date: string | null;

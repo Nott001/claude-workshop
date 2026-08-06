@@ -82,14 +82,6 @@ export async function remove(supabase: DbClient, id: number): Promise<boolean> {
   return !error;
 }
 
-export async function findByIdWithUser(
-  supabase: DbClient,
-  id: number,
-): Promise<{ user_id: number; photo_url?: string | null } | null> {
-  const { data } = await supabase.from("SPEAKER_PROFILE").select("user_id").eq("id", id).single();
-  return data;
-}
-
 export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventSpeakerAssignment[]> {
   const { data } = await supabase.from("EVENT_SPEAKER").select("*, SPEAKER_PROFILE(*)").eq("event_id", eventId);
   return data ?? [];
