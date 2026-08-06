@@ -3,7 +3,9 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { moduleSchema } from "@/modules/courses/lib/schemas";
+import { findTimeOverlaps } from "@/modules/courses/lib/scheduling";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
@@ -35,9 +37,45 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const supabase = getServiceClient();
+
+  // A module may only be assigned a speaker who is assigned to the event the
+  // module's course teaches. `null` is the clear value and needs no check.
+  if (parsed.data.speaker_profile_id !== undefined && parsed.data.speaker_profile_id !== null) {
+    const course = await courseDao.findCourseByModule(supabase, Number(id));
+    const assigned =
+      course !== null && (await speakerDao.checkSpeakerAssignment(supabase, parsed.data.speaker_profile_id, course.event_id));
+    if (!assigned) {
+      return NextResponse.json({ error: { message: "Speaker is not assigned to this event" } }, { status: 400 });
+    }
+  }
+
+  // An edit may not make the module collide with another session. A pre-existing
+  // overlap between two untouched modules is surfaced elsewhere, not a reason to
+  // refuse an unrelated edit, so only a conflict involving the edited module is
+  // rejected.
+  if (parsed.data.start_time !== undefined || parsed.data.end_time !== undefined) {
+    const current = await courseDao.findModuleById(supabase, Number(id));
+    if (!current) {
+      return NextResponse.json({ error: "Failed to load module" }, { status: 500 });
+    }
+    const merged = {
+      start_time: parsed.data.start_time ?? current.start_time,
+      end_time: parsed.data.end_time ?? current.end_time,
+    };
+    const siblings = await courseDao.findModulesByCourse(supabase, current.course_id);
+    const proposed = siblings.map((m) => (m.id === Number(id) ? { ...m, ...merged } : m));
+    const conflict = findTimeOverlaps(proposed).find(([a, b]) => a.id === Number(id) || b.id === Number(id));
+    if (conflict) {
+      const other = conflict[0].id === Number(id) ? conflict[1] : conflict[0];
+      return NextResponse.json({ error: { message: `Time overlaps with "${other.module_name}"` } }, { status: 400 });
+    }
+  }
+
   const mod = await courseDao.updateModule(supabase, Number(id), {
     module_name: parsed.data.module_name,
     sequence_order: parsed.data.sequence_order,
+    ...(parsed.data.start_time !== undefined && { start_time: parsed.data.start_time, end_time: parsed.data.end_time }),
+    ...(parsed.data.speaker_profile_id !== undefined && { speaker_profile_id: parsed.data.speaker_profile_id }),
   });
 
   if (!mod) {

@@ -128,6 +128,44 @@ describe("course.dao writes", () => {
 
     await expect(dao.updateLesson(client, 3, { description: "x" })).resolves.toBeNull();
   });
+
+  it("forwards the schedule fields to updateModule", async () => {
+    const { client, calls } = stub({ MODULE: { data: { id: 2 }, error: null } });
+
+    await dao.updateModule(client, 2, {
+      module_name: "Renamed",
+      sequence_order: 3,
+      start_time: "09:00",
+      end_time: "10:00",
+      speaker_profile_id: 7,
+    });
+
+    const [payload] = argsOf(calls, "MODULE", "update") as [Record<string, unknown>];
+    expect(payload).toMatchObject({ start_time: "09:00", end_time: "10:00", speaker_profile_id: 7 });
+  });
+});
+
+describe("course.dao clearModuleSpeakerForEvent", () => {
+  it("nulls the speaker's references on the event's course modules", async () => {
+    const { client, calls } = stub({ COURSE: { data: { id: 5 } }, MODULE: { data: null, error: null } });
+
+    await expect(dao.clearModuleSpeakerForEvent(client, 9, 7)).resolves.toBe(true);
+
+    const [update] = argsOf(calls, "MODULE", "update") as [Record<string, unknown>];
+    expect(update).toEqual({ speaker_profile_id: null });
+    const eqCalls = calls.filter(([t, m]) => t === "MODULE" && m === "eq").map(([, , args]) => args);
+    expect(eqCalls).toEqual([
+      ["course_id", 5],
+      ["speaker_profile_id", 7],
+    ]);
+  });
+
+  it("is a no-op when the event has no course", async () => {
+    const { client, from } = stub({ COURSE: { data: null } });
+
+    await expect(dao.clearModuleSpeakerForEvent(client, 9, 7)).resolves.toBe(true);
+    expect(from).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("course.dao userHasCourseAccess", () => {

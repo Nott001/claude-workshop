@@ -43,10 +43,18 @@ export async function findCourseById(supabase: DbClient, id: number): Promise<Co
 
 export interface ModuleWithLessons extends Module {
   LESSONS: Lesson[];
+  SPEAKER_PROFILE?: ModuleSpeakerProfile | null;
 }
 
 interface ModuleContent extends Module {
   LESSON: Lesson[];
+  SPEAKER_PROFILE?: ModuleSpeakerProfile | null;
+}
+
+export interface ModuleSpeakerProfile {
+  id: number;
+  designation: string | null;
+  USER: { full_name: string } | null;
 }
 
 export interface CourseWithModules extends Course {
@@ -78,6 +86,7 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
       *,
       MODULE (
         *,
+        SPEAKER_PROFILE (id, designation, USER (full_name)),
         LESSON (*)
       ),
       EVENT!event_id (
@@ -107,6 +116,7 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
       *,
       MODULE (
         *,
+        SPEAKER_PROFILE (id, designation, USER (full_name)),
         LESSON (*)
       )
     `,
@@ -178,7 +188,14 @@ export async function createModule(
 export async function updateModule(
   supabase: DbClient,
   id: number,
-  data: { module_name?: string; sequence_order?: number; is_locked?: boolean },
+  data: {
+    module_name?: string;
+    sequence_order?: number;
+    is_locked?: boolean;
+    start_time?: string | null;
+    end_time?: string | null;
+    speaker_profile_id?: number | null;
+  },
 ): Promise<Module | null> {
   const { data: module, error } = await supabase.from("MODULE").update(data).eq("id", id).select("*").single();
 
@@ -187,6 +204,26 @@ export async function updateModule(
     return null;
   }
   return module;
+}
+
+/**
+ * Unassign a speaker from every module of an event's course. An event owns at
+ * most one course, so the course is resolved first; no course is a no-op.
+ */
+export async function clearModuleSpeakerForEvent(
+  supabase: DbClient,
+  eventId: number,
+  speakerProfileId: number,
+): Promise<boolean> {
+  const { data: course } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
+  if (!course) return true;
+
+  const { error } = await supabase
+    .from("MODULE")
+    .update({ speaker_profile_id: null })
+    .eq("course_id", course.id)
+    .eq("speaker_profile_id", speakerProfileId);
+  return !error;
 }
 
 export async function setModuleLock(supabase: DbClient, id: number, is_locked: boolean): Promise<Module | null> {

@@ -7,6 +7,7 @@ import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
+import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
@@ -123,16 +124,21 @@ export function CourseSection({
   eventId,
   userRole,
   canManageCourse,
+  eventStartTime,
+  eventEndTime,
 }: {
   eventId: string;
   userRole: UserRole | null;
   canManageCourse: boolean;
+  eventStartTime: string | null;
+  eventEndTime: string | null;
 }) {
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
+  const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
   const isStaff = hasMinRole(userRole, "facilitator");
 
-  if (loading) {
+  if (loading || speakersLoading) {
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm text-muted-fg">Loading course...</p>
@@ -175,6 +181,10 @@ export function CourseSection({
         {courseBuilder.error && <p className="mb-4 text-sm text-error">{courseBuilder.error}</p>}
         <CurriculumBuilder
           modules={courseBuilder.modules}
+          eventSpeakers={speakers}
+          eventStartTime={eventStartTime}
+          eventEndTime={eventEndTime}
+          onUpdateModuleSchedule={courseBuilder.handleUpdateModuleSchedule}
           onAddModule={courseBuilder.handleAddModule}
           onAddQaModule={courseBuilder.handleAddQaModule}
           onRenameModule={courseBuilder.handleRenameModule}
@@ -420,7 +430,13 @@ export default function StaffEventDashboardPage() {
 
           <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
-          <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
+          <CourseSection
+            eventId={eventId}
+            userRole={userRole}
+            canManageCourse={canManageCourse}
+            eventStartTime={event.start_time}
+            eventEndTime={event.end_time}
+          />
 
           <SpeakersSection eventId={eventId} userRole={userRole} />
 

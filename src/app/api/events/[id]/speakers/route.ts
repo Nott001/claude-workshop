@@ -7,13 +7,20 @@ import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole("speaker");
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const { id } = await params;
   const supabase = getServiceClient();
+
+  // The roster is the co-presenter list the builder offers for module
+  // assignments, so an assigned speaker may read it for their event too. A
+  // staff member passes through; only an exact speaker needs the assignment.
+  if (guard.user.role === "speaker" && !(await speakerDao.isAssignedByUserId(supabase, guard.user.id, Number(id)))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const assignments = await speakerDao.listEventAssignments(supabase, Number(id));
 

@@ -32,6 +32,9 @@ export interface Module {
   sequence_order: number;
   module_type: ModuleType;
   is_locked: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  speaker_profile_id: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -34,6 +34,9 @@ describe("Course content types", () => {
       sequence_order: 1,
       module_type: "lessons",
       is_locked: false,
+      start_time: null,
+      end_time: null,
+      speaker_profile_id: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
@@ -102,6 +105,71 @@ describe("moduleSchema", () => {
 
   it("rejects empty name", () => {
     const result = moduleSchema.safeParse({ module_name: "", sequence_order: "1" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("moduleSchema schedule fields", () => {
+  it("rejects a partial pair", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: "09:00" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a lone null clear", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: null });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an inverted order", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: "10:00", end_time: "09:00" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects equal times", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: "09:00", end_time: "09:00" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a malformed format", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: "9:00", end_time: "10:00" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a valid pair", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: "09:00", end_time: "10:00" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a null clear of both times", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, start_time: null, end_time: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("still parses a plain rename without schedule keys", () => {
+    const result = moduleSchema.safeParse({ module_name: "Renamed", sequence_order: 1 });
+    expect(result.success).toBe(true);
+  });
+
+  it("coerces a string speaker_profile_id", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, speaker_profile_id: "3" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.speaker_profile_id).toBe(3);
+    }
+  });
+
+  it("accepts a null speaker_profile_id", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, speaker_profile_id: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-positive speaker_profile_id", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, speaker_profile_id: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a non-numeric speaker_profile_id", () => {
+    const result = moduleSchema.safeParse({ module_name: "M", sequence_order: 1, speaker_profile_id: "bob" });
     expect(result.success).toBe(false);
   });
 });

@@ -196,6 +196,35 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     return null;
   }
 
+  async function handleUpdateModuleSchedule(
+    moduleId: number,
+    schedule: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
+  ): Promise<string | null> {
+    const mod = modules.find((m) => m.id === moduleId);
+    if (!mod) return "Module not found";
+
+    const previous = modules;
+    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, ...schedule } : m)));
+
+    const res = await fetch(`/api/modules/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        module_name: mod.module_name,
+        sequence_order: mod.sequence_order,
+        ...schedule,
+      }),
+    });
+
+    if (!res.ok) {
+      setModules(previous);
+      const err = await res.json().catch(() => null);
+      return err?.error?.message ?? "Failed to update schedule";
+    }
+
+    return null;
+  }
+
   async function handleReorderModules(reordered: ModuleWithLessons[]) {
     setModules(reordered);
     await Promise.all(
@@ -203,7 +232,13 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
         fetch(`/api/modules/${m.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
+          body: JSON.stringify({
+            module_name: m.module_name,
+            sequence_order: m.sequence_order,
+            start_time: m.start_time,
+            end_time: m.end_time,
+            speaker_profile_id: m.speaker_profile_id,
+          }),
         }),
       ),
     );
@@ -249,6 +284,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     handleDeleteLesson,
     openLessonDialog,
     handleAddLesson,
+    handleUpdateModuleSchedule,
     handleReorderModules,
     handleMoveLesson,
   };
