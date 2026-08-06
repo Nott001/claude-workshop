@@ -34,6 +34,9 @@ describe("Course content types", () => {
       sequence_order: 1,
       module_type: "lessons",
       is_locked: false,
+      start_time: null,
+      end_time: null,
+      speaker_profile_id: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
     };
