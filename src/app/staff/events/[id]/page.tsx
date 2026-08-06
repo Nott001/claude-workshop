@@ -119,11 +119,17 @@ function OverviewSection({
   );
 }
 
-function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
+function CourseSection({
+  eventId,
+  userRole,
+  canManageCourse,
+}: {
+  eventId: string;
+  userRole: UserRole | null;
+  canManageCourse: boolean;
+}) {
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
-  const router = useRouter();
-  const isSpeaker = hasMinRole(userRole, "speaker");
   const isStaff = hasMinRole(userRole, "facilitator");
   const isAdmin = hasMinRole(userRole, "admin");
   const { assignments, loading: speakersLoading } = useEventSpeakers(eventId);
@@ -152,7 +158,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (isSpeaker && courseBuilder.modules.length === 0) {
+  if (canManageCourse && courseBuilder.modules.length === 0) {
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm text-muted-fg">No course yet for this event.</p>
@@ -166,7 +172,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (isSpeaker && courseBuilder.modules.length > 0) {
+  if (canManageCourse && courseBuilder.modules.length > 0) {
     return (
       <SectionCard title="Course" icon="school">
         <CurriculumBuilder
@@ -192,7 +198,7 @@ function CourseSection({ eventId, userRole }: { eventId: string; userRole: UserR
     );
   }
 
-  if (!isAdmin && !isStaff && !isSpeaker) {
+  if (!isAdmin && !isStaff && !canManageCourse) {
     return null;
   }
 
@@ -354,6 +360,7 @@ export default function StaffEventDashboardPage() {
     loading,
     error,
     badgeProps,
+    isSpeakerAssigned,
     publishing,
     publishError,
     deleteError,
@@ -379,6 +386,10 @@ export default function StaffEventDashboardPage() {
   }
 
   if (!isStaff) return null;
+
+  const isAdmin = hasMinRole(userRole, "admin");
+  const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
+  const canManageCourse = isAdmin || isAssignedFacilitator || isSpeakerAssigned;
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
@@ -418,7 +429,7 @@ export default function StaffEventDashboardPage() {
 
           <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
-          <CourseSection eventId={eventId} userRole={userRole} />
+          <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
 
           <SpeakersSection eventId={eventId} userRole={userRole} />
 
