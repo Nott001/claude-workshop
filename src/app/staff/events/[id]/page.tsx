@@ -124,10 +124,14 @@ export function CourseSection({
   eventId,
   userRole,
   canManageCourse,
+  eventStartTime,
+  eventEndTime,
 }: {
   eventId: string;
   userRole: UserRole | null;
   canManageCourse: boolean;
+  eventStartTime: string | null;
+  eventEndTime: string | null;
 }) {
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
@@ -178,6 +182,8 @@ export function CourseSection({
         <CurriculumBuilder
           modules={courseBuilder.modules}
           eventSpeakers={speakers}
+          eventStartTime={eventStartTime}
+          eventEndTime={eventEndTime}
           onUpdateModuleSchedule={courseBuilder.handleUpdateModuleSchedule}
           onAddModule={courseBuilder.handleAddModule}
           onAddQaModule={courseBuilder.handleAddQaModule}
@@ -424,7 +430,13 @@ export default function StaffEventDashboardPage() {
 
           <CoverImageSection eventId={eventId} userRole={userRole} coverImageUrl={event.cover_image_url} />
 
-          <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
+          <CourseSection
+            eventId={eventId}
+            userRole={userRole}
+            canManageCourse={canManageCourse}
+            eventStartTime={event.start_time}
+            eventEndTime={event.end_time}
+          />
 
           <SpeakersSection eventId={eventId} userRole={userRole} />
 

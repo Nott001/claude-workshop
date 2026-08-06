@@ -3,24 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/button";
 import { Toast } from "@/shared/components/toast";
-import { cn } from "@/shared/lib/utils";
 import type { Lesson } from "@/shared/types";
-import { findTimeOverlaps } from "../lib/scheduling";
+import { findTimeOverlaps, rowIssueFor, toInputTime, workingRows } from "../lib/scheduling";
 import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
 import {
   describeLessonMove,
   describeModuleMove,
   moveLesson,
   moveModule,
-  type LessonMoveInfo,
   type LessonMove,
-  type ModuleMoveInfo,
   type MoveDirection,
 } from "../lib/reorder";
+import { ModuleCard, type FlashState, type PreviewState } from "./module-card";
+import type { TimeField } from "./session-time-picker";
 
 export interface CurriculumBuilderProps {
   modules: ModuleWithLessons[];
   eventSpeakers: CourseSpeaker[];
+  eventStartTime?: string | null;
+  eventEndTime?: string | null;
   onUpdateModuleSchedule: (
     moduleId: number,
     patch: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
@@ -37,120 +38,11 @@ export interface CurriculumBuilderProps {
 
 export type SchedulePatch = { start_time: string | null; end_time: string | null; speaker_profile_id: number | null };
 
-type PreviewState = { type: "module" | "lesson"; id: number; direction: MoveDirection } | null;
-
-interface MoveButtonProps {
-  direction: MoveDirection;
-  label: string;
-  disabled?: boolean;
-  onPreview: () => void;
-  onPreviewEnd: () => void;
-  onClick: () => void;
-}
-
-function MoveButton({ direction, label, disabled = false, onPreview, onPreviewEnd, onClick }: MoveButtonProps) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      onMouseEnter={onPreview}
-      onMouseLeave={onPreviewEnd}
-      onFocus={onPreview}
-      onBlur={onPreviewEnd}
-      onClick={onClick}
-      className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-fg transition-colors",
-        "hover:border-brand hover:bg-brand/5 hover:text-brand",
-        "disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-muted-fg",
-      )}
-    >
-      <span className="material-symbols-rounded text-[14px]">
-        {direction === "up" ? "keyboard_arrow_up" : "keyboard_arrow_down"}
-      </span>
-    </button>
-  );
-}
-
-function lessonMoveLabel(lesson: Lesson, info: LessonMoveInfo): string {
-  if (!info.possible) {
-    return `Cannot move lesson ${info.direction}`;
-  }
-  if (info.kind === "within") {
-    return `Move "${lesson.description}" ${info.direction} one position`;
-  }
-  return info.direction === "up"
-    ? `Move "${lesson.description}" to end of ${info.targetModuleName}`
-    : `Move "${lesson.description}" to start of ${info.targetModuleName}`;
-}
-
-function moduleMoveLabel(info: ModuleMoveInfo): string {
-  if (!info.possible) {
-    return `Cannot move module ${info.direction}`;
-  }
-  return info.direction === "up" ? `Move module above ${info.targetModuleName}` : `Move module below ${info.targetModuleName}`;
-}
-
-// The DAO returns TIME columns as "09:00:00"; the time input wants "09:00".
-function toInputTime(time: string | null): string {
-  return time ? time.slice(0, 5) : "";
-}
-
-interface ScheduleRowProps {
-  mod: ModuleWithLessons;
-  eventSpeakers: CourseSpeaker[];
-  startValue: string;
-  endValue: string;
-  onTimeChange: (field: "start" | "end", value: string) => void;
-  onSpeakerChange: (speakerProfileId: number | null) => void;
-}
-
-function ScheduleRow({ mod, eventSpeakers, startValue, endValue, onTimeChange, onSpeakerChange }: ScheduleRowProps) {
-  const inputClass =
-    "rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg outline-none focus:border-brand focus:ring-2 focus:ring-ring/20";
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface/70 px-3 py-2">
-      <span className="material-symbols-rounded text-[14px] text-muted-fg" title="Session time">
-        schedule
-      </span>
-      <input
-        type="time"
-        value={startValue}
-        onChange={(e) => onTimeChange("start", e.target.value)}
-        aria-label={`Start time for ${mod.module_name}`}
-        className={inputClass}
-      />
-      <span className="text-xs text-muted-fg">to</span>
-      <input
-        type="time"
-        value={endValue}
-        onChange={(e) => onTimeChange("end", e.target.value)}
-        aria-label={`End time for ${mod.module_name}`}
-        className={inputClass}
-      />
-      {eventSpeakers.length > 1 && (
-        <select
-          value={mod.speaker_profile_id ?? ""}
-          onChange={(e) => onSpeakerChange(e.target.value === "" ? null : Number(e.target.value))}
-          aria-label={`Speaker for ${mod.module_name}`}
-          className={inputClass}
-        >
-          <option value="">Unassigned</option>
-          {eventSpeakers.map((speaker) => (
-            <option key={speaker.speaker_profile_id} value={speaker.speaker_profile_id}>
-              {speaker.full_name}
-            </option>
-          ))}
-        </select>
-      )}
-    </div>
-  );
-}
-
 export function CurriculumBuilder({
   modules,
   eventSpeakers,
+  eventStartTime,
+  eventEndTime,
   onUpdateModuleSchedule,
   onAddModule,
   onAddQaModule,
@@ -171,12 +63,9 @@ export function CurriculumBuilder({
   const [scheduleDrafts, setScheduleDrafts] = useState<Record<number, { start: string; end: string }>>({});
 
   const [preview, setPreview] = useState<PreviewState>(null);
-  const [flash, setFlash] = useState<{ lessons: number[]; modules: number[] }>({ lessons: [], modules: [] });
+  const [flash, setFlash] = useState<FlashState>({ lessons: [], modules: [] });
   const flashTimerRef = useRef<number | null>(null);
   const [toast, setToast] = useState<{ title: string; description?: string } | null>(null);
-
-  const lessonPreviewInfo = preview?.type === "lesson" ? describeLessonMove(modules, preview.id, preview.direction) : null;
-  const modulePreviewInfo = preview?.type === "module" ? describeModuleMove(modules, preview.id, preview.direction) : null;
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -246,7 +135,8 @@ export function CurriculumBuilder({
     }
   }
 
-  const overlaps = findTimeOverlaps(modules);
+  const working = workingRows(modules, scheduleDrafts);
+  const overlaps = findTimeOverlaps(working);
   const conflictingModuleIds = new Set(overlaps.flatMap(([a, b]) => [a.id, b.id]));
 
   function draftFor(mod: ModuleWithLessons): { start: string; end: string } {
@@ -270,7 +160,7 @@ export function CurriculumBuilder({
     }
   }
 
-  async function handleTimeChange(mod: ModuleWithLessons, field: "start" | "end", value: string) {
+  async function handleTimeChange(mod: ModuleWithLessons, field: TimeField, value: string) {
     const next = { ...draftFor(mod), [field]: value };
     setScheduleDrafts((prev) => ({ ...prev, [mod.id]: next }));
 
@@ -281,20 +171,13 @@ export function CurriculumBuilder({
       return;
     }
     if (start === null || end === null) return;
-    if (end <= start) {
-      dropDraft(mod.id);
-      setToast({ title: "Invalid time", description: "The end time must be after the start time." });
-      return;
-    }
 
-    const proposed = modules.map((m) => (m.id === mod.id ? { ...m, start_time: start, end_time: end } : m));
-    const conflict = findTimeOverlaps(proposed).find(([a, b]) => a.id === mod.id || b.id === mod.id);
-    if (conflict) {
-      const other = conflict[0].id === mod.id ? conflict[1] : conflict[0];
-      dropDraft(mod.id);
-      setToast({ title: "Time conflict", description: `"${other.module_name}" already runs at that time.` });
-      return;
-    }
+    // The picker already greys out anything that would clash; this guard keeps
+    // a pre-existing committed overlap (e.g. left behind by a reorder) from
+    // being re-committed while the row is still red.
+    const proposed = workingRows(modules, { ...scheduleDrafts, [mod.id]: next });
+    const blocks = findTimeOverlaps(proposed).some(([a, b]) => a.id === mod.id || b.id === mod.id);
+    if (blocks) return;
 
     await commitSchedule(mod, { start_time: start, end_time: end, speaker_profile_id: mod.speaker_profile_id });
   }
@@ -353,229 +236,49 @@ export function CurriculumBuilder({
           <div className="space-y-3">
             {modules.map((mod) => {
               const isQa = mod.module_type === "qa";
-              const upInfo = describeModuleMove(modules, mod.id, "up");
-              const downInfo = describeModuleMove(modules, mod.id, "down");
-              const isModuleMoveSource = preview?.type === "module" && preview.id === mod.id;
-              const isModuleSwapTarget = modulePreviewInfo?.possible === true && modulePreviewInfo.targetModuleId === mod.id;
-              const isModuleFlash = flash.modules.includes(mod.id);
-              const dropSlot =
-                lessonPreviewInfo?.kind === "cross" && lessonPreviewInfo.targetModuleId === mod.id
-                  ? lessonPreviewInfo.slot
-                  : null;
-              const header = (
-                <div className="flex items-center gap-2">
-                  <span className={cn("material-symbols-rounded text-lg", isQa ? "text-warning" : "text-info")}>
-                    {isQa ? "forum" : "menu_book"}
-                  </span>
-                  {renamingModuleId === mod.id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onRenameModule(mod.id, renameValue.trim());
-                          setRenamingModuleId(null);
-                        }
-                        if (e.key === "Escape") setRenamingModuleId(null);
-                      }}
-                      onBlur={() => {
-                        if (renameValue.trim()) {
-                          onRenameModule(mod.id, renameValue.trim());
-                        }
-                        setRenamingModuleId(null);
-                      }}
-                      className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setRenamingModuleId(mod.id);
-                      setRenameValue(mod.module_name);
-                    }}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Rename module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">edit</span>
-                  </button>
-
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      isQa ? "bg-warning/10 text-warning" : "bg-info/10 text-info",
-                    )}
-                  >
-                    {isQa ? "Q&A Module" : `${mod.LESSONS.length} ${mod.LESSONS.length === 1 ? "lesson" : "lessons"}`}
-                  </span>
-
-                  {conflictingModuleIds.has(mod.id) && (
-                    <span className="material-symbols-rounded text-[16px] text-warning" title="Session overlaps another module">
-                      warning
-                    </span>
-                  )}
-
-                  <div className="ml-auto flex items-center gap-1">
-                    <MoveButton
-                      direction="up"
-                      label={moduleMoveLabel(upInfo)}
-                      disabled={!upInfo.possible}
-                      onPreview={() => setPreview({ type: "module", id: mod.id, direction: "up" })}
-                      onPreviewEnd={() => setPreview(null)}
-                      onClick={() => handleMoveModule(mod.id, "up")}
-                    />
-                    <MoveButton
-                      direction="down"
-                      label={moduleMoveLabel(downInfo)}
-                      disabled={!downInfo.possible}
-                      onPreview={() => setPreview({ type: "module", id: mod.id, direction: "down" })}
-                      onPreviewEnd={() => setPreview(null)}
-                      onClick={() => handleMoveModule(mod.id, "down")}
-                    />
-                    <button
-                      onClick={() => onDeleteModule(mod.id)}
-                      className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                      title="Delete module"
-                    >
-                      <span className="material-symbols-rounded text-[14px]">delete</span>
-                    </button>
-                  </div>
-                </div>
-              );
-
-              if (isQa) {
-                return (
-                  <div
-                    key={mod.id}
-                    className={cn(
-                      "rounded-lg border border-warning/30 bg-warning/5 p-5",
-                      isModuleSwapTarget && "ring-2 ring-brand/50",
-                      isModuleFlash && "curriculum-flash",
-                    )}
-                  >
-                    {header}
-                    <ScheduleRow
-                      mod={mod}
-                      eventSpeakers={eventSpeakers}
-                      startValue={draftFor(mod).start}
-                      endValue={draftFor(mod).end}
-                      onTimeChange={(field, value) => handleTimeChange(mod, field, value)}
-                      onSpeakerChange={(speakerProfileId) => handleSpeakerChange(mod, speakerProfileId)}
-                    />
-                  </div>
-                );
-              }
-
+              const scheduleIssue = rowIssueFor(working, overlaps, mod.id);
               return (
-                <div
+                <ModuleCard
                   key={mod.id}
-                  className={cn(
-                    "relative rounded-lg border border-border bg-muted p-5",
-                    (isModuleSwapTarget || dropSlot !== null) && "border-brand/60 ring-2 ring-brand/40",
-                    isModuleMoveSource && "bg-brand/5",
-                    isModuleFlash && "curriculum-flash",
-                  )}
-                >
-                  <div className="mb-3">{header}</div>
-                  <ScheduleRow
-                    mod={mod}
-                    eventSpeakers={eventSpeakers}
-                    startValue={draftFor(mod).start}
-                    endValue={draftFor(mod).end}
-                    onTimeChange={(field, value) => handleTimeChange(mod, field, value)}
-                    onSpeakerChange={(speakerProfileId) => handleSpeakerChange(mod, speakerProfileId)}
-                  />
-
-                  {dropSlot !== null && (
-                    <div
-                      className={cn(
-                        "pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-brand/60 bg-surface px-3 py-1 text-[11px] font-semibold text-brand shadow-md",
-                        dropSlot === "start" ? "-top-3" : "-bottom-3",
-                      )}
-                    >
-                      <span className="material-symbols-rounded mr-1 align-middle text-[12px]">
-                        {dropSlot === "start" ? "vertical_align_top" : "vertical_align_bottom"}
-                      </span>
-                      Drops in as the {dropSlot === "start" ? "first" : "last"} lesson
-                    </div>
-                  )}
-
-                  {mod.LESSONS.length > 0 && (
-                    <div className="mb-3 space-y-1.5">
-                      {mod.LESSONS.map((lesson) => {
-                        const upMove = describeLessonMove(modules, lesson.id, "up");
-                        const downMove = describeLessonMove(modules, lesson.id, "down");
-                        const isLessonSource = preview?.type === "lesson" && preview.id === lesson.id;
-                        const isSwapTarget =
-                          lessonPreviewInfo?.kind === "within" && lessonPreviewInfo.swapLessonId === lesson.id;
-                        const isLessonFlash = flash.lessons.includes(lesson.id);
-                        return (
-                          <div
-                            key={lesson.id}
-                            data-lesson-id={lesson.id}
-                            className={cn(
-                              "flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 transition-all",
-                              isLessonSource && "border-brand/50 bg-brand/5",
-                              isSwapTarget && "border-brand/60 ring-2 ring-brand/40",
-                              isLessonFlash && "curriculum-flash",
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-xs font-medium text-muted-fg">
-                                {mod.sequence_order}.{lesson.sequence_order}
-                              </span>
-                              <span className="text-sm text-fg">{lesson.description}</span>
-                              <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                                {lesson.content_type}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MoveButton
-                                direction="up"
-                                label={lessonMoveLabel(lesson, upMove)}
-                                disabled={!upMove.possible}
-                                onPreview={() => setPreview({ type: "lesson", id: lesson.id, direction: "up" })}
-                                onPreviewEnd={() => setPreview(null)}
-                                onClick={() => handleMoveLesson(lesson, "up")}
-                              />
-                              <MoveButton
-                                direction="down"
-                                label={lessonMoveLabel(lesson, downMove)}
-                                disabled={!downMove.possible}
-                                onPreview={() => setPreview({ type: "lesson", id: lesson.id, direction: "down" })}
-                                onPreviewEnd={() => setPreview(null)}
-                                onClick={() => handleMoveLesson(lesson, "down")}
-                              />
-                              {lesson.content_url && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}
-                                >
-                                  View
-                                </Button>
-                              )}
-                              <button
-                                onClick={() => onDeleteLesson(lesson.id, mod.id)}
-                                className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                                title="Delete lesson"
-                              >
-                                <span className="material-symbols-rounded text-[14px]">delete</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <Button variant="ghost" size="sm" onClick={() => onAddLessonClick(mod.id)}>
-                    <span className="material-symbols-rounded text-[14px]">add_circle</span>
-                    Add lesson to topic
-                  </Button>
-                </div>
+                  mod={mod}
+                  modules={modules}
+                  isQa={isQa}
+                  working={working}
+                  eventSpeakers={eventSpeakers}
+                  eventStartTime={eventStartTime}
+                  eventEndTime={eventEndTime}
+                  issue={scheduleIssue}
+                  conflicting={conflictingModuleIds.has(mod.id)}
+                  preview={preview}
+                  flash={flash}
+                  renaming={renamingModuleId === mod.id}
+                  renameValue={renameValue}
+                  renameInputRef={renameInputRef}
+                  onRenameValueChange={setRenameValue}
+                  onCommitRename={() => {
+                    if (renameValue.trim()) {
+                      onRenameModule(mod.id, renameValue.trim());
+                    }
+                    setRenamingModuleId(null);
+                  }}
+                  onCancelRename={() => setRenamingModuleId(null)}
+                  onStartRename={() => {
+                    setRenamingModuleId(mod.id);
+                    setRenameValue(mod.module_name);
+                  }}
+                  onPreviewModuleMove={(direction) => setPreview({ type: "module", id: mod.id, direction })}
+                  onPreviewLessonMove={(lessonId, direction) => setPreview({ type: "lesson", id: lessonId, direction })}
+                  onPreviewMoveEnd={() => setPreview(null)}
+                  onMoveModule={(direction) => handleMoveModule(mod.id, direction)}
+                  onDeleteModule={() => onDeleteModule(mod.id)}
+                  startValue={draftFor(mod).start}
+                  endValue={draftFor(mod).end}
+                  onTimeChange={(field, value) => handleTimeChange(mod, field, value)}
+                  onSpeakerChange={(speakerProfileId) => handleSpeakerChange(mod, speakerProfileId)}
+                  onAddLessonClick={() => onAddLessonClick(mod.id)}
+                  onMoveLesson={(lesson, direction) => handleMoveLesson(lesson, direction)}
+                  onDeleteLesson={(lessonId) => onDeleteLesson(lessonId, mod.id)}
+                />
               );
             })}
           </div>

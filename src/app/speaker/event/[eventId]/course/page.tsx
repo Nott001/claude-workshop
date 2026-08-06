@@ -82,6 +82,8 @@ export default function SpeakerCoursePage() {
             <CurriculumBuilder
               modules={courseBuilder.modules}
               eventSpeakers={speakers}
+              eventStartTime={speakerEvent.start_time}
+              eventEndTime={speakerEvent.end_time}
               onUpdateModuleSchedule={courseBuilder.handleUpdateModuleSchedule}
               onAddModule={courseBuilder.handleAddModule}
               onAddQaModule={courseBuilder.handleAddQaModule}

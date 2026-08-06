@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useCallback, useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import { CurriculumBuilder, type CurriculumBuilderProps } from "@/modules/courses/components/curriculum-builder";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "@/modules/courses/lib/types";
@@ -77,6 +77,18 @@ function renderStatic(overrides: Partial<CurriculumBuilderProps> = {}) {
       {...overrides}
     />,
   );
+}
+
+function openPicker(modName: string) {
+  fireEvent.click(screen.getByRole("button", { name: `Session time for ${modName}` }));
+}
+
+function startColumn(modName: string) {
+  return screen.getByRole("listbox", { name: `Start time for ${modName}` });
+}
+
+function endColumn(modName: string) {
+  return screen.getByRole("listbox", { name: `End time for ${modName}` });
 }
 
 // Controlled by a parent like the real page, so a move actually re-renders the
@@ -210,43 +222,100 @@ describe("CurriculumBuilder move affordances", () => {
 });
 
 describe("CurriculumBuilder schedule editing", () => {
-  it("renders a start and end time input for every module, empty when unset", () => {
+  it("renders a session picker per module, empty when unset", () => {
     renderStatic();
 
-    expect(screen.getByLabelText("Start time for Module 1")).toHaveProperty("value", "");
-    expect(screen.getByLabelText("End time for Module 1")).toHaveProperty("value", "");
-    expect(screen.getByLabelText("Start time for Q&A")).toHaveProperty("value", "");
+    expect(screen.getAllByRole("button", { name: /Session time for/ })).toHaveLength(modules.length);
+    expect(screen.getAllByText("Not scheduled")).toHaveLength(modules.length);
   });
 
-  it("normalises the DAO's '09:00:00' to the input's '09:00'", () => {
+  it("shows Start and End columns side by side in one open, each with Not scheduled", () => {
+    renderStatic();
+    openPicker("Module 1");
+
+    expect(startColumn("Module 1")).toBeTruthy();
+    expect(endColumn("Module 1")).toBeTruthy();
+    expect(within(startColumn("Module 1")).getByRole("option", { name: "Not scheduled" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(within(endColumn("Module 1")).getByRole("option", { name: "Not scheduled" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+  });
+
+  it("offers 15-minute steps bounded to the event window", () => {
+    renderStatic({ eventStartTime: "09:00", eventEndTime: "10:00" });
+    openPicker("Module 1");
+
+    const start = startColumn("Module 1");
+    expect(within(start).getByRole("option", { name: "9:15 AM" })).toBeTruthy();
+    expect(within(start).queryByRole("option", { name: "8:45 AM" })).toBeNull();
+    expect(within(start).queryByRole("option", { name: "10:15 AM" })).toBeNull();
+  });
+
+  it("normalises the DAO's '09:00:00' to '09:00' and preselects both edges", () => {
     renderStatic({ modules: scheduledModules });
+    openPicker("Module 1");
 
-    expect(screen.getByLabelText("Start time for Module 1")).toHaveProperty("value", "09:00");
-    expect(screen.getByLabelText("End time for Module 2")).toHaveProperty("value", "11:00");
+    expect(within(startColumn("Module 1")).getByRole("option", { name: "9:00 AM" }).getAttribute("aria-selected")).toBe("true");
+    expect(within(endColumn("Module 1")).getByRole("option", { name: "10:00 AM" }).getAttribute("aria-selected")).toBe("true");
+
+    openPicker("Module 2");
+    expect(within(startColumn("Module 2")).getByRole("option", { name: "10:00 AM" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(within(endColumn("Module 2")).getByRole("option", { name: "11:00 AM" }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("commits a complete time pair through onUpdateModuleSchedule", async () => {
+  it("commits a pair picked in a single open", async () => {
     const onUpdateModuleSchedule = vi.fn(async () => null);
-    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+    renderStatic({ modules: [mod(1, "Module 1", "lessons", [], 1)], onUpdateModuleSchedule });
 
-    // 10:30-11:00 sits after 09:00-10:00, so adjacent windows still pass.
-    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "10:30" } });
+    openPicker("Module 1");
+    fireEvent.click(within(startColumn("Module 1")).getByRole("option", { name: "9:30 AM" }));
+    // Half-filled: picking only the start commits nothing yet.
+    expect(onUpdateModuleSchedule).not.toHaveBeenCalled();
+    fireEvent.click(within(endColumn("Module 1")).getByRole("option", { name: "10:00 AM" }));
 
     await waitFor(() =>
-      expect(onUpdateModuleSchedule).toHaveBeenCalledWith(2, {
-        start_time: "10:30",
-        end_time: "11:00",
+      expect(onUpdateModuleSchedule).toHaveBeenCalledWith(1, {
+        start_time: "09:30",
+        end_time: "10:00",
         speaker_profile_id: null,
       }),
     );
+  });
+
+  it("keeps the panel open until Done, then closes it", () => {
+    renderStatic();
+    openPicker("Module 1");
+    fireEvent.click(within(startColumn("Module 1")).getByRole("option", { name: "9:30 AM" }));
+
+    expect(screen.getByRole("listbox", { name: "Start time for Module 1" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("listbox", { name: "Start time for Module 1" })).toBeNull();
+  });
+
+  it("closes the picker on outside click and on Escape", () => {
+    renderStatic();
+    openPicker("Module 1");
+    expect(screen.getByRole("listbox", { name: "Start time for Module 1" })).toBeTruthy();
+
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("listbox", { name: "Start time for Module 1" })).toBeNull();
+
+    openPicker("Module 1");
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Start time for Module 1" })).toBeNull();
   });
 
   it("clears a session when both times are emptied", async () => {
     const onUpdateModuleSchedule = vi.fn(async () => null);
     renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
 
-    fireEvent.change(screen.getByLabelText("Start time for Module 1"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("End time for Module 1"), { target: { value: "" } });
+    openPicker("Module 1");
+    fireEvent.click(within(startColumn("Module 1")).getByRole("option", { name: "Not scheduled" }));
+    fireEvent.click(within(endColumn("Module 1")).getByRole("option", { name: "Not scheduled" }));
 
     await waitFor(() =>
       expect(onUpdateModuleSchedule).toHaveBeenCalledWith(1, {
@@ -257,24 +326,81 @@ describe("CurriculumBuilder schedule editing", () => {
     );
   });
 
-  it("blocks a time edit that would overlap another module and toasts the conflict", async () => {
+  it("greys out a start inside another module's window but leaves it clickable", () => {
+    renderStatic({ modules: scheduledModules });
+    openPicker("Module 2");
+
+    const booked = within(startColumn("Module 2")).getByRole("option", { name: "9:45 AM" });
+    expect(booked).toHaveProperty("disabled", false);
+    expect(booked.className).toContain("text-muted-fg/60");
+    // An adjacent start exactly at Module 1's end stays open.
+    expect(within(startColumn("Module 2")).getByRole("option", { name: "10:00 AM" }).className).not.toContain(
+      "text-muted-fg/60",
+    );
+  });
+
+  it("keeps a conflicting start picked and warns without committing", () => {
+    // Module 2 has only a start (no end committed); a start that falls inside
+    // Module 1's 09:00-10:00 window is greyed but still selectable.
     const onUpdateModuleSchedule = vi.fn(async () => null);
-    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+    const startOnly = [
+      mod(1, "Module 1", "lessons", [], 1, { start_time: "09:00:00", end_time: "10:00:00" }),
+      mod(2, "Module 2", "lessons", [], 2, { start_time: "10:00:00", end_time: null }),
+    ];
+    renderStatic({ modules: startOnly, onUpdateModuleSchedule });
 
-    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "09:30" } });
+    openPicker("Module 2");
+    fireEvent.click(within(startColumn("Module 2")).getByRole("option", { name: "9:30 AM" }));
 
-    expect(await screen.findByText("Time conflict")).toBeTruthy();
-    expect(screen.getByText('"Module 1" already runs at that time.')).toBeTruthy();
+    expect(within(startColumn("Module 2")).getByRole("option", { name: "9:30 AM" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("Set both times, or leave both unset, to schedule this module.")).toBeTruthy();
     expect(onUpdateModuleSchedule).not.toHaveBeenCalled();
-    // The input reverts to the committed value instead of keeping the edit.
-    expect(screen.getByLabelText("Start time for Module 2")).toHaveProperty("value", "10:00");
+  });
+
+  it("greys out an end at or before the start time", () => {
+    renderStatic({ modules: scheduledModules });
+    openPicker("Module 2");
+
+    expect(within(endColumn("Module 2")).getByRole("option", { name: "9:00 AM" }).className).toContain("text-muted-fg/60");
+    expect(within(endColumn("Module 2")).getByRole("option", { name: "11:00 AM" }).className).not.toContain("text-muted-fg/60");
+  });
+
+  it("keeps a committed off-grid time selectable instead of rewriting it", () => {
+    const offGrid = [
+      mod(1, "Module 1", "lessons", [], 1, { start_time: "09:07:00", end_time: "10:00:00" }),
+      mod(2, "Module 2", "lessons", [], 2, { start_time: "10:00:00", end_time: "11:00:00" }),
+    ];
+    renderStatic({ modules: offGrid });
+    openPicker("Module 1");
+
+    const offGridOption = within(startColumn("Module 1")).getByRole("option", { name: "9:07 AM" });
+    expect(offGridOption.getAttribute("aria-selected")).toBe("true");
+    expect(offGridOption.className).not.toContain("text-muted-fg/60");
+  });
+
+  it("flags a pre-existing overlap on the row without committing another edit", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => null);
+    const overlapping = [
+      mod(1, "Module 1", "lessons", [], 1, { start_time: "09:00:00", end_time: "10:30:00" }),
+      mod(2, "Module 2", "lessons", [], 2, { start_time: "10:00:00", end_time: "11:00:00" }),
+    ];
+    renderStatic({ modules: overlapping, onUpdateModuleSchedule });
+
+    expect(screen.getByText('Overlaps "Module 1" (9:00 AM – 10:30 AM).')).toBeTruthy();
+
+    // Editing the end to a non-conflicting value keeps the overlap in place
+    // (the start still clashes), so nothing commits.
+    openPicker("Module 2");
+    fireEvent.click(within(endColumn("Module 2")).getByRole("option", { name: "12:00 PM" }));
+    expect(onUpdateModuleSchedule).not.toHaveBeenCalled();
   });
 
   it("toasts the API message when the update fails", async () => {
     const onUpdateModuleSchedule = vi.fn(async () => "Module not found");
     renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
 
-    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "10:30" } });
+    openPicker("Module 2");
+    fireEvent.click(within(startColumn("Module 2")).getByRole("option", { name: "10:30 AM" }));
 
     expect(await screen.findByText("Could not save schedule")).toBeTruthy();
     expect(screen.getByText("Module not found")).toBeTruthy();
