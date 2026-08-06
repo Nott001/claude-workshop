@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { useCallback, useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { CurriculumBuilder, type CurriculumBuilderProps } from "@/modules/courses/components/curriculum-builder";
 import type { Lesson } from "@/shared/types";
 import type { ModuleWithLessons } from "@/modules/courses/lib/types";
 import type { LessonMove } from "@/modules/courses/lib/reorder";
@@ -20,7 +20,14 @@ function lesson(id: number, moduleId: number, seq: number): Lesson {
   };
 }
 
-function mod(id: number, name: string, type: "lessons" | "qa", lessons: Lesson[], seq: number): ModuleWithLessons {
+function mod(
+  id: number,
+  name: string,
+  type: "lessons" | "qa",
+  lessons: Lesson[],
+  seq: number,
+  schedule?: { start_time: string | null; end_time: string | null; speaker_profile_id?: number | null },
+): ModuleWithLessons {
   return {
     id,
     course_id: 1,
@@ -28,9 +35,9 @@ function mod(id: number, name: string, type: "lessons" | "qa", lessons: Lesson[]
     sequence_order: seq,
     module_type: type,
     is_locked: false,
-    start_time: null,
-    end_time: null,
-    speaker_profile_id: null,
+    start_time: schedule?.start_time ?? null,
+    end_time: schedule?.end_time ?? null,
+    speaker_profile_id: schedule?.speaker_profile_id ?? null,
     created_at: "",
     updated_at: "",
     LESSONS: lessons,
@@ -45,12 +52,20 @@ const modules = [
   mod(3, "Module 3", "lessons", [lesson(3, 3, 1), lesson(4, 3, 2)], 3),
 ];
 
+// Adjacent windows, no overlap: 09:00-10:00 then 10:00-11:00.
+const scheduledModules = [
+  mod(1, "Module 1", "lessons", [], 1, { start_time: "09:00:00", end_time: "10:00:00" }),
+  mod(2, "Module 2", "lessons", [], 2, { start_time: "10:00:00", end_time: "11:00:00" }),
+];
+
 const noop = vi.fn();
 
-function renderStatic() {
+function renderStatic(overrides: Partial<CurriculumBuilderProps> = {}) {
   return render(
     <CurriculumBuilder
       modules={modules}
+      eventSpeakers={[]}
+      onUpdateModuleSchedule={async () => null}
       onAddModule={noop}
       onAddQaModule={noop}
       onRenameModule={noop}
@@ -59,6 +74,7 @@ function renderStatic() {
       onAddLessonClick={noop}
       onReorderModules={noop}
       onMoveLesson={noop}
+      {...overrides}
     />,
   );
 }
@@ -94,6 +110,8 @@ function Harness({
   return (
     <CurriculumBuilder
       modules={state}
+      eventSpeakers={[]}
+      onUpdateModuleSchedule={async () => null}
       onAddModule={noop}
       onAddQaModule={noop}
       onRenameModule={noop}
@@ -188,5 +206,128 @@ describe("CurriculumBuilder move affordances", () => {
     const next = onReorderModules.mock.calls[0][0] as ModuleWithLessons[];
     expect(next.map((m) => m.id)).toEqual([1, 3, 2]);
     expect(next.map((m) => m.sequence_order)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("CurriculumBuilder schedule editing", () => {
+  it("renders a start and end time input for every module, empty when unset", () => {
+    renderStatic();
+
+    expect(screen.getByLabelText("Start time for Module 1")).toHaveProperty("value", "");
+    expect(screen.getByLabelText("End time for Module 1")).toHaveProperty("value", "");
+    expect(screen.getByLabelText("Start time for Q&A")).toHaveProperty("value", "");
+  });
+
+  it("normalises the DAO's '09:00:00' to the input's '09:00'", () => {
+    renderStatic({ modules: scheduledModules });
+
+    expect(screen.getByLabelText("Start time for Module 1")).toHaveProperty("value", "09:00");
+    expect(screen.getByLabelText("End time for Module 2")).toHaveProperty("value", "11:00");
+  });
+
+  it("commits a complete time pair through onUpdateModuleSchedule", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => null);
+    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+
+    // 10:30-11:00 sits after 09:00-10:00, so adjacent windows still pass.
+    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "10:30" } });
+
+    await waitFor(() =>
+      expect(onUpdateModuleSchedule).toHaveBeenCalledWith(2, {
+        start_time: "10:30",
+        end_time: "11:00",
+        speaker_profile_id: null,
+      }),
+    );
+  });
+
+  it("clears a session when both times are emptied", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => null);
+    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+
+    fireEvent.change(screen.getByLabelText("Start time for Module 1"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("End time for Module 1"), { target: { value: "" } });
+
+    await waitFor(() =>
+      expect(onUpdateModuleSchedule).toHaveBeenCalledWith(1, {
+        start_time: null,
+        end_time: null,
+        speaker_profile_id: null,
+      }),
+    );
+  });
+
+  it("blocks a time edit that would overlap another module and toasts the conflict", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => null);
+    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+
+    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "09:30" } });
+
+    expect(await screen.findByText("Time conflict")).toBeTruthy();
+    expect(screen.getByText('"Module 1" already runs at that time.')).toBeTruthy();
+    expect(onUpdateModuleSchedule).not.toHaveBeenCalled();
+    // The input reverts to the committed value instead of keeping the edit.
+    expect(screen.getByLabelText("Start time for Module 2")).toHaveProperty("value", "10:00");
+  });
+
+  it("toasts the API message when the update fails", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => "Module not found");
+    renderStatic({ modules: scheduledModules, onUpdateModuleSchedule });
+
+    fireEvent.change(screen.getByLabelText("Start time for Module 2"), { target: { value: "10:30" } });
+
+    expect(await screen.findByText("Could not save schedule")).toBeTruthy();
+    expect(screen.getByText("Module not found")).toBeTruthy();
+  });
+
+  it("shows a persistent warning banner and icons for pre-existing overlaps", () => {
+    const overlapping = [
+      mod(1, "Module 1", "lessons", [], 1, { start_time: "09:00:00", end_time: "10:30:00" }),
+      mod(2, "Module 2", "lessons", [], 2, { start_time: "10:00:00", end_time: "11:00:00" }),
+    ];
+    renderStatic({ modules: overlapping });
+
+    expect(screen.getByText(/Fix required/)).toBeTruthy();
+    expect(screen.getByText(/"Module 1" and "Module 2"/)).toBeTruthy();
+    expect(screen.getAllByTitle("Session overlaps another module")).toHaveLength(2);
+  });
+
+  it("hides the speaker select for one speaker and shows it for several", () => {
+    const { unmount } = renderStatic({ eventSpeakers: [{ speaker_profile_id: 7, full_name: "Ada Lovelace" }] });
+    expect(screen.queryByLabelText(/Speaker for/)).toBeNull();
+
+    unmount();
+    renderStatic({
+      eventSpeakers: [
+        { speaker_profile_id: 7, full_name: "Ada Lovelace" },
+        { speaker_profile_id: 9, full_name: "Grace Hopper" },
+      ],
+    });
+
+    expect(screen.getAllByLabelText(/Speaker for/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("option", { name: "Unassigned" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("option", { name: "Grace Hopper" }).length).toBeGreaterThan(0);
+  });
+
+  it("commits a speaker assignment through onUpdateModuleSchedule", async () => {
+    const onUpdateModuleSchedule = vi.fn(async () => null);
+    renderStatic({
+      modules: scheduledModules,
+      eventSpeakers: [
+        { speaker_profile_id: 7, full_name: "Ada Lovelace" },
+        { speaker_profile_id: 9, full_name: "Grace Hopper" },
+      ],
+      onUpdateModuleSchedule,
+    });
+
+    fireEvent.change(screen.getByLabelText("Speaker for Module 2"), { target: { value: "9" } });
+
+    await waitFor(() =>
+      expect(onUpdateModuleSchedule).toHaveBeenCalledWith(2, {
+        start_time: "10:00",
+        end_time: "11:00",
+        speaker_profile_id: 9,
+      }),
+    );
   });
 });

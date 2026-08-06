@@ -175,6 +175,8 @@ export function CourseSection({
         {courseBuilder.error && <p className="mb-4 text-sm text-error">{courseBuilder.error}</p>}
         <CurriculumBuilder
           modules={courseBuilder.modules}
+          eventSpeakers={[]}
+          onUpdateModuleSchedule={courseBuilder.handleUpdateModuleSchedule}
           onAddModule={courseBuilder.handleAddModule}
           onAddQaModule={courseBuilder.handleAddQaModule}
           onRenameModule={courseBuilder.handleRenameModule}
