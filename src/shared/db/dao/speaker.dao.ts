@@ -10,7 +10,7 @@ export interface SpeakerProfileWithUser extends SpeakerProfile {
 export interface EventSpeakerAssignment {
   event_id: number;
   speaker_profile_id: number;
-  SPEAKER_PROFILE: SpeakerProfile | null;
+  SPEAKER_PROFILE: (SpeakerProfile & { USER: Pick<User, "full_name"> | null }) | null;
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<SpeakerProfile | null> {
@@ -83,7 +83,12 @@ export async function remove(supabase: DbClient, id: number): Promise<boolean> {
 }
 
 export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventSpeakerAssignment[]> {
-  const { data } = await supabase.from("EVENT_SPEAKER").select("*, SPEAKER_PROFILE(*)").eq("event_id", eventId);
+  // The nested USER embed gives the assignment roster names, which is what the
+  // builder's speaker select and the host wiring display.
+  const { data } = await supabase
+    .from("EVENT_SPEAKER")
+    .select("*, SPEAKER_PROFILE(*, USER(full_name))")
+    .eq("event_id", eventId);
   return data ?? [];
 }
 

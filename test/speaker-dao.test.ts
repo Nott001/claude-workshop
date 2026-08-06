@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { listCandidates, replaceEventAssignments, isAssignedByUserId } from "@/shared/db/dao/speaker.dao";
+import { listCandidates, replaceEventAssignments, isAssignedByUserId, listEventAssignments } from "@/shared/db/dao/speaker.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 function replaceStub({
@@ -116,6 +116,40 @@ describe("speaker.dao isAssignedByUserId", () => {
     const ok = await isAssignedByUserId(client, 881, 353);
 
     expect(ok).toBe(false);
+  });
+});
+
+describe("speaker.dao listEventAssignments", () => {
+  it("embeds the speaker's name so the roster is displayable", async () => {
+    const esChain = {
+      select: vi.fn(() => esChain),
+      eq: vi.fn(() =>
+        Promise.resolve({
+          data: [
+            {
+              event_id: 10,
+              speaker_profile_id: 2,
+              SPEAKER_PROFILE: { id: 2, user_id: 1, USER: { full_name: "Sam Speaker" } },
+            },
+          ],
+          error: null,
+        }),
+      ),
+    };
+    const from = vi.fn(() => esChain);
+    const client = { from } as unknown as DbClient;
+
+    const rows = await listEventAssignments(client, 10);
+
+    expect(rows).toEqual([
+      {
+        event_id: 10,
+        speaker_profile_id: 2,
+        SPEAKER_PROFILE: { id: 2, user_id: 1, USER: { full_name: "Sam Speaker" } },
+      },
+    ]);
+    expect(esChain.select).toHaveBeenCalledWith("*, SPEAKER_PROFILE(*, USER(full_name))");
+    expect(esChain.eq).toHaveBeenCalledWith("event_id", 10);
   });
 });
 

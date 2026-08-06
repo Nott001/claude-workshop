@@ -9,6 +9,7 @@ import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
 import { LessonDialog } from "@/modules/courses/components/lesson-dialog";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
+import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
 
 export default function SpeakerCoursePage() {
   const params = useParams();
@@ -17,6 +18,7 @@ export default function SpeakerCoursePage() {
   const { allowed: isSpeaker, pending: sessionPending } = useRoleGuard("speaker");
 
   const { event: speakerEvent, loading: speakerLoading, error: speakerError } = useSpeakerEvent(eventId);
+  const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
   const { course, loading: courseLoading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId, course?.id);
 
@@ -36,7 +38,7 @@ export default function SpeakerCoursePage() {
     }
   }, [speakerLoading, sessionPending, speakerError, speakerEvent, eventId, router]);
 
-  if (sessionPending || speakerLoading || courseLoading) {
+  if (sessionPending || speakerLoading || speakersLoading || courseLoading) {
     return (
       <div className="flex flex-1 items-center justify-center bg-bg">
         <div className="text-sm text-muted-fg">Loading...</div>
@@ -79,7 +81,7 @@ export default function SpeakerCoursePage() {
             {courseBuilder.error && <p className="mb-4 text-sm text-error">{courseBuilder.error}</p>}
             <CurriculumBuilder
               modules={courseBuilder.modules}
-              eventSpeakers={[]}
+              eventSpeakers={speakers}
               onUpdateModuleSchedule={courseBuilder.handleUpdateModuleSchedule}
               onAddModule={courseBuilder.handleAddModule}
               onAddQaModule={courseBuilder.handleAddQaModule}
