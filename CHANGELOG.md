@@ -63,6 +63,7 @@
 - Coverage measurement with thresholds set at measured values as a ratchet against regression. Statement coverage rose from 2.25% to 8.56%; the global figure stays low because components are most of the remaining surface, while the trust boundary itself is at or near full coverage.
 - Dependabot, grouped so patch and minor updates arrive as one pull request and majors stay separate for review.
 - Staff management pages for events, courses, emails, and organization under `src/app/staff/`.
+- A dev-only browser profiler that surfaces client-side health while iterating. A provider in the root layout samples memory (`performance.memory` where Chromium offers it, `memoryUsage` elsewhere), live object and DOM counts, realtime channel usage, listeners and timers, plus a rolling average of how long each sample's metric collection took. Every sample prints one line to the `pnpm dev` terminal via a `console.log` sink that compiles to nothing in production, and `/staff/profiler` renders the same feed as cards with a heap sparkline, so a leak or listener churn can be caught while it is still tied to the tab that caused it. All of it is dead-code-eliminated from production builds: the provider is a no-op outside development, the route answers 404 unless `NODE_ENV` is development, and the instrumentation never runs off the client.
 
 ### Changed
 

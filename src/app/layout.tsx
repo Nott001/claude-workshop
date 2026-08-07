@@ -1,4 +1,5 @@
 import { SessionProvider } from "@/modules/auth/components/session-context";
+import { ProfilerProvider } from "@/modules/profiler/profiler-provider";
 import type { Metadata } from "next";
 import { AppShell } from "@/shared/components/app-shell";
 import "./fonts.css";
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col font-sans">
         <SessionProvider>
+          <ProfilerProvider />
           <AppShell>{children}</AppShell>
         </SessionProvider>
       </body>
