@@ -6,7 +6,7 @@ export interface LiveModuleSource {
   SPEAKER_PROFILE: { id: number; USER: { full_name: string } | null } | null;
 }
 
-function toDate(eventDate: string, time: string): Date | null {
+export function toDate(eventDate: string, time: string): Date | null {
   const date = new Date(`${eventDate}T${time}`);
   return Number.isNaN(date.getTime()) ? null : date;
 }

@@ -17,6 +17,7 @@ function allowRoom(overrides: Record<string, unknown> = {}) {
     eventTitle: "Demo Day",
     eventDate: "",
     startTime: "",
+    endTime: "",
     course: null,
     userRole: "speaker",
     liveModule: null,
@@ -75,6 +76,8 @@ describe("SpeakerEventRoomPage", () => {
       },
       assignedSpeakerCount: 2,
       eventDate: "2026-01-01",
+      startTime: "09:00:00",
+      endTime: "17:00:00",
       course: {
         id: 4,
         course_name: "Intro",
@@ -102,6 +105,8 @@ describe("SpeakerEventRoomPage", () => {
     expect(screen.getByText("Live now")).toBeTruthy();
     expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
     expect(screen.getByText("Agenda")).toBeTruthy();
+    expect(screen.getByText("Event start")).toBeTruthy();
+    expect(screen.getByText("Event end")).toBeTruthy();
   });
 
   it("hides speaker names when the event has a single assigned speaker", () => {

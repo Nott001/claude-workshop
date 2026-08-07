@@ -90,4 +90,87 @@ describe("SessionTimeline", () => {
 
     expect(screen.queryByText(/Ada Lovelace/)).toBeNull();
   });
+
+  it("renders event start and end bookends when event times are provided", () => {
+    render(
+      <SessionTimeline
+        modules={[module(1, "Keynote", "10:00:00", "11:00:00")]}
+        eventDate={EVENT_DATE}
+        assignedSpeakerCount={1}
+        eventStartTime="09:00:00"
+        eventEndTime="12:00:00"
+        now={NOW}
+      />,
+    );
+
+    expect(screen.getByText("Event start")).toBeTruthy();
+    expect(screen.getByText("Event end")).toBeTruthy();
+    expect(screen.getByText("9:00 AM")).toBeTruthy();
+    expect(screen.getByText("12:00 PM")).toBeTruthy();
+  });
+
+  it("hides bookends when event times are not provided", () => {
+    render(
+      <SessionTimeline
+        modules={[module(1, "Keynote", "09:00:00", "10:00:00")]}
+        eventDate={EVENT_DATE}
+        assignedSpeakerCount={1}
+        now={NOW}
+      />,
+    );
+
+    expect(screen.queryByText("Event start")).toBeNull();
+    expect(screen.queryByText("Event end")).toBeNull();
+  });
+
+  it("renders a progress bar that fills based on event time", () => {
+    const { container } = render(
+      <SessionTimeline
+        modules={[module(1, "Keynote", "09:00:00", "10:00:00")]}
+        eventDate={EVENT_DATE}
+        assignedSpeakerCount={1}
+        eventStartTime="09:00:00"
+        eventEndTime="12:00:00"
+        now={NOW}
+      />,
+    );
+
+    const fill = container.querySelector('[class*="bg-brand"][class*="transition"]') as HTMLElement;
+    expect(fill).toBeTruthy();
+    expect(fill.style.height).toBeTruthy();
+  });
+
+  it("fills the progress bar to 100% when the event has ended", () => {
+    const { container } = render(
+      <SessionTimeline
+        modules={[module(1, "Keynote", "09:00:00", "10:00:00")]}
+        eventDate={EVENT_DATE}
+        assignedSpeakerCount={1}
+        eventStartTime="09:00:00"
+        eventEndTime="12:00:00"
+        now={new Date("2026-09-01T13:00:00")}
+      />,
+    );
+
+    const fill = container.querySelector('[class*="bg-brand"][class*="transition"]') as HTMLElement;
+    expect(fill).toBeTruthy();
+    expect(fill.style.height).toBe("100%");
+  });
+
+  it("fills the progress bar to 0% before the event starts", () => {
+    const { container } = render(
+      <SessionTimeline
+        modules={[module(1, "Keynote", "09:00:00", "10:00:00")]}
+        eventDate={EVENT_DATE}
+        assignedSpeakerCount={1}
+        eventStartTime="09:00:00"
+        eventEndTime="12:00:00"
+        now={new Date("2026-09-01T08:00:00")}
+      />,
+    );
+
+    const fill = container.querySelector('[class*="bg-brand"][class*="transition"]') as HTMLElement;
+    expect(fill).toBeTruthy();
+    expect(fill.style.height).toBe("0%");
+  });
 });

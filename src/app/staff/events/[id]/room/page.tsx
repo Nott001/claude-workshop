@@ -31,6 +31,7 @@ export default function StaffEventRoomPage() {
     eventTitle,
     eventDate,
     startTime,
+    endTime,
     course,
     userRole,
     isStaff,
@@ -204,7 +205,13 @@ export default function StaffEventRoomPage() {
 
         {course && (
           <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-8 lg:flex">
-            <SessionTimeline modules={course.MODULE} eventDate={eventDate} assignedSpeakerCount={assignedSpeakerCount} />
+            <SessionTimeline
+              modules={course.MODULE}
+              eventDate={eventDate}
+              assignedSpeakerCount={assignedSpeakerCount}
+              eventStartTime={startTime}
+              eventEndTime={endTime}
+            />
           </aside>
         )}
       </div>
