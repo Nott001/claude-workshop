@@ -11,25 +11,38 @@ function toDate(eventDate: string, time: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export type SessionStatus = "completed" | "live" | "upcoming";
+
+/**
+ * Where a module's session sits relative to now, or null when the session
+ * cannot be placed in time (no event date, a missing edge, or a time that
+ * does not parse). Sessions are half-open [start, end), matching the overlap
+ * rule in `scheduling.ts`, so the roadmap and the "live" pill never disagree.
+ */
+export function moduleSessionStatus(
+  eventDate: string,
+  startTime: string | null,
+  endTime: string | null,
+  now: Date,
+): SessionStatus | null {
+  if (!eventDate || !startTime || !endTime) return null;
+  const start = toDate(eventDate, startTime);
+  const end = toDate(eventDate, endTime);
+  if (!start || !end) return null;
+  const t = now.getTime();
+  if (t < start.getTime()) return "upcoming";
+  if (t < end.getTime()) return "live";
+  return "completed";
+}
+
 /**
  * The module whose scheduled session is happening right now, or null when
- * none is. Sessions are half-open [start, end), matching the overlap rule in
- * `scheduling.ts`, and a module missing either edge can never be live.
+ * none is.
  */
 export function findLiveModule(
   modules: LiveModuleSource[],
   eventDate: string,
   now: Date = new Date(),
 ): LiveModuleSource | null {
-  if (!eventDate) return null;
-  return (
-    modules.find((m) => {
-      if (!m.start_time || !m.end_time) return false;
-      const start = toDate(eventDate, m.start_time);
-      const end = toDate(eventDate, m.end_time);
-      if (!start || !end) return false;
-      const t = now.getTime();
-      return t >= start.getTime() && t < end.getTime();
-    }) ?? null
-  );
+  return modules.find((m) => moduleSessionStatus(eventDate, m.start_time, m.end_time, now) === "live") ?? null;
 }

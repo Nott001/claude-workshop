@@ -74,6 +74,7 @@ describe("SpeakerEventRoomPage", () => {
         SPEAKER_PROFILE: { id: 7, USER: { full_name: "Ada Lovelace" } },
       },
       assignedSpeakerCount: 2,
+      eventDate: "2026-01-01",
       course: {
         id: 4,
         course_name: "Intro",
@@ -97,9 +98,10 @@ describe("SpeakerEventRoomPage", () => {
     render(<SpeakerEventRoomPage />);
 
     expect(screen.getByText("Live")).toBeTruthy();
-    expect(screen.getAllByText("Keynote").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Keynote")).toHaveLength(3);
     expect(screen.getByText("Live now")).toBeTruthy();
     expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Agenda")).toBeTruthy();
   });
 
   it("hides speaker names when the event has a single assigned speaker", () => {

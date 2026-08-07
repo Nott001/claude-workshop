@@ -6,6 +6,7 @@ import QAPanel from "@/modules/chat/components/qa-panel";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { LiveNowTag } from "@/modules/events/components/live-now-tag";
+import { SessionTimeline } from "@/modules/events/components/session-timeline";
 import { useRoomAccess } from "@/modules/events/lib/use-room-access";
 import type { UserRole } from "@/shared/types";
 
@@ -95,82 +96,90 @@ export default function EventRoomPage() {
         }}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0">
-        <div className="mx-auto w-full max-w-[896px]">
-          {access === "no_course" && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <span className="material-symbols-rounded text-4xl text-muted-foreground/50">school</span>
-              <p className="mt-3 text-sm text-muted-foreground">No curriculum has been linked to this event yet.</p>
-            </div>
-          )}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 min-h-0">
+          <div className="mx-auto w-full max-w-[896px]">
+            {access === "no_course" && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="material-symbols-rounded text-4xl text-muted-foreground/50">school</span>
+                <p className="mt-3 text-sm text-muted-foreground">No curriculum has been linked to this event yet.</p>
+              </div>
+            )}
 
-          {course && (
-            <div className="rounded-xl border border-border bg-surface p-6">
-              <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
-              {course.MODULE && (
-                <div className="mt-4 space-y-3">
-                  {course.MODULE.map((mod) => {
-                    const isLive = liveModule?.id === mod.id;
-                    return mod.module_type === "qa" ? (
-                      <div
-                        key={mod.id}
-                        className={`overflow-hidden rounded-lg border ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
-                      >
-                        {mod.start_time && mod.end_time && (
-                          <div className="border-b border-border bg-muted px-4 py-2">
-                            <div className="flex items-center justify-between gap-2">
+            {course && (
+              <div className="rounded-xl border border-border bg-surface p-6">
+                <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
+                {course.MODULE && (
+                  <div className="mt-4 space-y-3">
+                    {course.MODULE.map((mod) => {
+                      const isLive = liveModule?.id === mod.id;
+                      return mod.module_type === "qa" ? (
+                        <div
+                          key={mod.id}
+                          className={`overflow-hidden rounded-lg border ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
+                        >
+                          {mod.start_time && mod.end_time && (
+                            <div className="border-b border-border bg-muted px-4 py-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <ModuleScheduleBadge
+                                  startTime={mod.start_time}
+                                  endTime={mod.end_time}
+                                  speakerName={assignedSpeakerCount > 1 ? (mod.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
+                                />
+                                {isLive && <LiveNowTag />}
+                              </div>
+                            </div>
+                          )}
+                          <QAPanel
+                            moduleId={mod.id}
+                            userRole={userRole as UserRole | null}
+                            eventStarted={eventStarted}
+                            eventEnded={eventEnded}
+                            isLocked={mod.is_locked}
+                            onToggleLock={() => handleToggleLock(mod.id, mod.is_locked)}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          key={mod.id}
+                          className={`rounded-lg border p-3 ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                            <div className="flex items-center gap-2">
+                              {isLive && <LiveNowTag />}
                               <ModuleScheduleBadge
                                 startTime={mod.start_time}
                                 endTime={mod.end_time}
                                 speakerName={assignedSpeakerCount > 1 ? (mod.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
                               />
-                              {isLive && <LiveNowTag />}
                             </div>
                           </div>
-                        )}
-                        <QAPanel
-                          moduleId={mod.id}
-                          userRole={userRole as UserRole | null}
-                          eventStarted={eventStarted}
-                          eventEnded={eventEnded}
-                          isLocked={mod.is_locked}
-                          onToggleLock={() => handleToggleLock(mod.id, mod.is_locked)}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={mod.id}
-                        className={`rounded-lg border p-3 ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
-                          <div className="flex items-center gap-2">
-                            {isLive && <LiveNowTag />}
-                            <ModuleScheduleBadge
-                              startTime={mod.start_time}
-                              endTime={mod.end_time}
-                              speakerName={assignedSpeakerCount > 1 ? (mod.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
-                            />
-                          </div>
+                          {mod.LESSONS && (
+                            <div className="mt-2 space-y-1">
+                              {mod.LESSONS.map((lesson) => (
+                                <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
+                                  <span className="material-symbols-rounded text-[14px]">description</span>
+                                  {lesson.description}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {mod.LESSONS && (
-                          <div className="mt-2 space-y-1">
-                            {mod.LESSONS.map((lesson) => (
-                              <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
-                                <span className="material-symbols-rounded text-[14px]">description</span>
-                                {lesson.description}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {course && (
+          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-8 lg:flex">
+            <SessionTimeline modules={course.MODULE} eventDate={eventDate} assignedSpeakerCount={assignedSpeakerCount} />
+          </aside>
+        )}
       </div>
     </div>
   );
