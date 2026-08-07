@@ -1,6 +1,6 @@
 import type { DbClient } from "./types";
 import { ilikePattern } from "./helpers";
-import type { Ticket, TicketStatus, User } from "@/shared/types";
+import type { Payment, Ticket, TicketStatus, User } from "@/shared/types";
 
 interface TicketWithUser extends Ticket {
   USER: Pick<User, "full_name" | "email"> | null;
@@ -18,13 +18,9 @@ export interface TicketEvent {
   currency: string;
 }
 
-/** A TICKET row with the EVENT embed, as `listByUser` and `listAll` select it. */
-export interface TicketWithEvent extends Ticket {
+export interface TicketWithPaymentAndEvent extends Ticket {
   EVENT: TicketEvent | null;
-}
-
-export interface TicketWithPaymentAndEvent extends TicketWithEvent {
-  PAYMENT: { status: string; paid_at: string | null } | null;
+  PAYMENT: Pick<Payment, "status" | "paid_at"> | null;
 }
 
 interface AttendeeRow {
@@ -69,20 +65,21 @@ export async function findActiveByUserAndEvent(supabase: DbClient, userId: numbe
   return (data ?? []) as Ticket[];
 }
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithEvent[]> {
+// Everything a ticket card renders, so it never has to ask a second time.
+const TICKET_CARD_SELECT =
+  "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";
+
+export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithPaymentAndEvent[]> {
   const { data } = await supabase
     .from("TICKET")
-    .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
+    .select(TICKET_CARD_SELECT)
     .eq("user_id", userId)
     .order("issued_at", { ascending: false });
   return data ?? [];
 }
 
-export async function listAll(supabase: DbClient): Promise<TicketWithEvent[]> {
-  const { data } = await supabase
-    .from("TICKET")
-    .select("*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)")
-    .order("issued_at", { ascending: false });
+export async function listAll(supabase: DbClient): Promise<TicketWithPaymentAndEvent[]> {
+  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).order("issued_at", { ascending: false });
   return data ?? [];
 }
 
@@ -90,13 +87,7 @@ export async function findWithPaymentAndEvent(
   supabase: DbClient,
   paymentId: number,
 ): Promise<TicketWithPaymentAndEvent | null> {
-  const { data } = await supabase
-    .from("TICKET")
-    .select(
-      "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)",
-    )
-    .eq("payment_id", paymentId)
-    .single();
+  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("payment_id", paymentId).single();
   return data;
 }
 

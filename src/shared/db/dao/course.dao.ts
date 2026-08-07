@@ -1,27 +1,13 @@
 import type { DbClient } from "./types";
 import type { Course, Module, Lesson } from "@/shared/types";
 
-export async function listCourses(supabase: DbClient): Promise<Course[]> {
-  const { data } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
-  return (data ?? []) as Course[];
-}
-
 export type CourseWithEvent = Course & {
   event_title: string | null;
   event_date: string | null;
-  creator_name: string | null;
 };
 
-export async function findCreatorName(supabase: DbClient, userId: number): Promise<string | null> {
-  const { data } = await supabase.from("USER").select("full_name").eq("id", userId).single();
-  return data?.full_name ?? null;
-}
-
-export async function findCourseOwner(
-  supabase: DbClient,
-  courseId: number,
-): Promise<{ id: number; created_by: number | null; event_id: number } | null> {
-  const { data } = await supabase.from("COURSE").select("id, created_by, event_id").eq("id", courseId).single();
+export async function findCourseEvent(supabase: DbClient, courseId: number): Promise<{ id: number; event_id: number } | null> {
+  const { data } = await supabase.from("COURSE").select("id, event_id").eq("id", courseId).single();
   return data;
 }
 
@@ -31,32 +17,21 @@ export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseW
 
   const courseList = courses as Course[];
   const eventIds = courseList.map((c) => c.event_id);
-  const userIds = courseList.filter((c) => c.created_by).map((c) => c.created_by!);
 
-  const [events, users] = await Promise.all([
-    eventIds.length > 0
-      ? supabase.from("EVENT").select("id, title, event_date").in("id", eventIds)
-      : Promise.resolve({ data: null }),
-    userIds.length > 0 ? supabase.from("USER").select("id, full_name").in("id", userIds) : Promise.resolve({ data: null }),
-  ]);
+  const events =
+    eventIds.length > 0 ? (await supabase.from("EVENT").select("id, title, event_date").in("id", eventIds)).data : null;
 
   const eventMap = new Map<number, { id: number; title: string; event_date: string }>();
-  for (const e of (events?.data ?? []) as Array<{ id: number; title: string; event_date: string }>) {
+  for (const e of (events ?? []) as Array<{ id: number; title: string; event_date: string }>) {
     eventMap.set(e.id, e);
   }
 
-  const userMap = new Map<number, string>();
-  for (const u of (users?.data ?? []) as Array<{ id: number; full_name: string }>) {
-    userMap.set(u.id, u.full_name);
-  }
-
-  return (courses as Course[]).map((course) => {
+  return courseList.map((course) => {
     const linked = eventMap.get(course.event_id);
     return {
       ...course,
       event_title: linked?.title ?? null,
       event_date: linked?.event_date ?? null,
-      creator_name: course.created_by ? (userMap.get(course.created_by) ?? null) : null,
     };
   });
 }
@@ -68,10 +43,18 @@ export async function findCourseById(supabase: DbClient, id: number): Promise<Co
 
 export interface ModuleWithLessons extends Module {
   LESSONS: Lesson[];
+  SPEAKER_PROFILE?: ModuleSpeakerProfile | null;
 }
 
 interface ModuleContent extends Module {
   LESSON: Lesson[];
+  SPEAKER_PROFILE?: ModuleSpeakerProfile | null;
+}
+
+export interface ModuleSpeakerProfile {
+  id: number;
+  designation: string | null;
+  USER: { full_name: string } | null;
 }
 
 export interface CourseWithModules extends Course {
@@ -103,6 +86,7 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
       *,
       MODULE (
         *,
+        SPEAKER_PROFILE (id, designation, USER (full_name)),
         LESSON (*)
       ),
       EVENT!event_id (
@@ -132,6 +116,7 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
       *,
       MODULE (
         *,
+        SPEAKER_PROFILE (id, designation, USER (full_name)),
         LESSON (*)
       )
     `,
@@ -144,17 +129,21 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
   return toLessonsKey(data as (Course & { MODULE: ModuleContent[] }) | null);
 }
 
+export type CreateCourseResult = { course: Course } | { course: null; reason: "conflict" | "failed" };
+
 export async function createCourse(
   supabase: DbClient,
-  data: { course_name: string; course_description: string | null; event_id: number; created_by: number },
-): Promise<Course | null> {
+  data: { course_name: string; course_description: string | null; event_id: number },
+): Promise<CreateCourseResult> {
   const { data: course, error } = await supabase.from("COURSE").insert(data).select("*").single();
 
   if (error) {
     console.error("course.dao.createCourse failed:", error.message, error.code);
-    return null;
+    // COURSE.event_id is UNIQUE (SPEC-01: an event owns at most one course), so
+    // 23505 here is the caller asking for a second one — their problem, not ours.
+    return { course: null, reason: error.code === "23505" ? "conflict" : "failed" };
   }
-  return course;
+  return { course };
 }
 
 export async function updateCourse(
@@ -203,7 +192,14 @@ export async function createModule(
 export async function updateModule(
   supabase: DbClient,
   id: number,
-  data: { module_name?: string; sequence_order?: number; is_locked?: boolean },
+  data: {
+    module_name?: string;
+    sequence_order?: number;
+    is_locked?: boolean;
+    start_time?: string | null;
+    end_time?: string | null;
+    speaker_profile_id?: number | null;
+  },
 ): Promise<Module | null> {
   const { data: module, error } = await supabase.from("MODULE").update(data).eq("id", id).select("*").single();
 
@@ -212,6 +208,26 @@ export async function updateModule(
     return null;
   }
   return module;
+}
+
+/**
+ * Unassign a speaker from every module of an event's course. An event owns at
+ * most one course, so the course is resolved first; no course is a no-op.
+ */
+export async function clearModuleSpeakerForEvent(
+  supabase: DbClient,
+  eventId: number,
+  speakerProfileId: number,
+): Promise<boolean> {
+  const { data: course } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
+  if (!course) return true;
+
+  const { error } = await supabase
+    .from("MODULE")
+    .update({ speaker_profile_id: null })
+    .eq("course_id", course.id)
+    .eq("speaker_profile_id", speakerProfileId);
+  return !error;
 }
 
 export async function setModuleLock(supabase: DbClient, id: number, is_locked: boolean): Promise<Module | null> {
@@ -257,16 +273,16 @@ export async function findModuleCourse(supabase: DbClient, moduleId: number): Pr
 export async function findCourseByModule(
   supabase: DbClient,
   moduleId: number,
-): Promise<{ id: number; created_by: number | null } | null> {
+): Promise<{ id: number; event_id: number } | null> {
   const mod = await findModuleCourse(supabase, moduleId);
   if (!mod) return null;
-  return findCourseOwner(supabase, mod.course_id);
+  return findCourseEvent(supabase, mod.course_id);
 }
 
 export async function findCourseByLesson(
   supabase: DbClient,
   lessonId: number,
-): Promise<{ id: number; created_by: number | null } | null> {
+): Promise<{ id: number; event_id: number } | null> {
   const lesson = await findLessonModule(supabase, lessonId);
   if (!lesson) return null;
   return findCourseByModule(supabase, lesson.module_id);
@@ -317,7 +333,7 @@ export async function userHasCourseAccess(supabase: DbClient, userId: number, co
   // The live schema links these as COURSE.event_id -> EVENT, the opposite of
   // what 00001_initial_schema.sql describes. This follows the database, since
   // that is what the query actually runs against. Revisit if the schemas are
-  // ever reconciled — see SPEC-09-TEST-STRATEGY §9.
+  // ever reconciled — see SPEC-01-COURSE-OWNERSHIP.
   const { data: course } = await supabase.from("COURSE").select("event_id").eq("id", courseId).single();
   if (!course?.event_id) return false;
 

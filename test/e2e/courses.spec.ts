@@ -4,6 +4,8 @@ import {
   createUser,
   createEvent,
   createCourse,
+  assignFacilitator,
+  assignSpeaker,
   signIn,
   cleanup,
   type SeededUser,
@@ -14,10 +16,11 @@ import {
 /**
  * Course authoring: modules and lessons.
  *
- * The course itself is seeded rather than created through the API, because
- * `POST /api/courses` cannot work against the live schema — see the fixme at
- * the bottom and SPEC-09-TEST-STRATEGY §9. Everything below the course level does work, and
- * is worth holding in place.
+ * The course itself is seeded rather than created through the API, so authoring
+ * below the course level is tested in isolation. A course belongs to exactly one
+ * event (COURSE.event_id — the contract from SPEC-01), and every facilitator who
+ * authors is assigned to that event first, because the SPEC-02 policy 403s
+ * anyone who is not.
  */
 
 const db = serviceClient();
@@ -44,6 +47,7 @@ test.afterAll(async () => {
 test("a facilitator adds a module to a course", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -62,6 +66,7 @@ test("a facilitator adds a module to a course", async ({ page }) => {
 test("a facilitator adds a lesson to a module", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -84,6 +89,7 @@ test("a facilitator adds a lesson to a module", async ({ page }) => {
 test("the curriculum reads back with its modules and lessons", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -111,6 +117,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
 test("an invalid module is refused without writing", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -123,6 +130,27 @@ test("an invalid module is refused without writing", async ({ page }) => {
     data: { module_name: "e2e-bad", sequence_order: 0 },
   });
   expect(badOrder.status()).toBe(400);
+});
+
+test("an unassigned facilitator cannot author course content", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+
+  await signIn(page, facilitator);
+
+  const { count: before } = await db
+    .from("MODULE")
+    .select("*", { count: "exact", head: true })
+    .eq("course_id", course.courseId);
+
+  const mod = await page.request.post(`/api/courses/${course.courseId}/modules`, {
+    data: { module_name: "e2e-should-not-exist", sequence_order: 9 },
+  });
+  // 403, not 401: the caller signed in above, so this is a permission refusal.
+  expect(mod.status()).toBe(403);
+
+  const { count: after } = await db.from("MODULE").select("*", { count: "exact", head: true }).eq("course_id", course.courseId);
+  expect(after).toBe(before);
 });
 
 test("an attendee cannot author course content", async ({ page }) => {
@@ -145,6 +173,7 @@ test("an attendee cannot author course content", async ({ page }) => {
 test("a facilitator deleting a module removes its lessons", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -165,23 +194,67 @@ test("a facilitator deleting a module removes its lessons", async ({ page }) => 
 });
 
 /**
- * Creating a course through the API cannot work against the live database.
+ * Creating a course through the API works now that the route forwards event_id
+ * and the SPEC-02 policy gates on assignment. The course is pushed to `courses`
+ * so teardown removes it like every other seeded course.
  *
- * `courseDao.createCourse` inserts only `course_name` and `course_description`,
- * but the live COURSE table has `event_id NOT NULL`. Every call fails, which is
- * the same schema drift that breaks event creation.
- *
- * Marked fixme so the gap stays visible. Remove the marker once SPEC-09-TEST-STRATEGY §9 is
- * resolved; this test then holds the fix in place.
+ * These creates need an event of their own: the shared `event` already owns the
+ * seeded course, and COURSE.event_id is UNIQUE, so a second one is refused.
  */
-test.fixme("a facilitator can create a course through the API", async ({ page }) => {
+test("an assigned facilitator can create a course through the API", async ({ page }) => {
+  const ownEvent = await createEvent(db);
+  events.push(ownEvent);
+
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, ownEvent.eventId);
 
   await signIn(page, facilitator);
 
   const res = await page.request.post("/api/courses", {
-    data: { course_name: "e2e-created-course", course_description: "made by an e2e run" },
+    // course_description: null is what the UI sends when the field is empty.
+    data: { course_name: "e2e-created-course", course_description: null, event_id: ownEvent.eventId },
+  });
+
+  expect(res.status()).toBe(201);
+  const created = await res.json();
+  courses.push({ courseId: created.id, name: created.course_name });
+});
+
+test("a second course for the same event is refused as a conflict", async ({ page }) => {
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
+
+  await signIn(page, facilitator);
+
+  // `event` already owns the course seeded in beforeAll.
+  const res = await page.request.post("/api/courses", {
+    data: { course_name: "e2e-duplicate-course", course_description: null, event_id: event.eventId },
+  });
+
+  // 409, not 500: the event owning a course already is the caller's problem.
+  expect(res.status()).toBe(409);
+});
+
+/**
+ * The same create, but as a speaker. The speaker gate resolves the profile by
+ * user id and checks the EVENT_SPEAKER row directly — the embedded-filter
+ * version of that query made PostgREST answer PGRST108, which returned false
+ * for every speaker and 403'd the create. This exercises that exact path.
+ */
+test("an assigned speaker can create a course through the API", async ({ page }) => {
+  const ownEvent = await createEvent(db);
+  events.push(ownEvent);
+
+  const speaker = await createUser(db, "speaker");
+  users.push(speaker);
+  await assignSpeaker(db, speaker.userId, ownEvent.eventId);
+
+  await signIn(page, speaker);
+
+  const res = await page.request.post("/api/courses", {
+    data: { course_name: "e2e-speaker-course", course_description: null, event_id: ownEvent.eventId },
   });
 
   expect(res.status()).toBe(201);

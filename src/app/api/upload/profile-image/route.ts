@@ -4,7 +4,6 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
-import { optimizeImage } from "@/shared/integrations/storage/optimize";
 import { uploadToStorage, listStorageFolder, deleteFromStorage } from "@/shared/integrations/storage/service";
 import {
   buildProfileImagePath,
@@ -42,7 +41,6 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
 
   const ext = getExtensionFromMimeType(file.type);
-  const optimizedFile = await optimizeImage(file);
   const path = buildProfileImagePath(guard.user.id, ext);
 
   try {
@@ -51,7 +49,7 @@ export async function POST(req: Request) {
       await deleteFromStorage("profile_images", oldPaths);
     }
 
-    const result = await uploadToStorage("profile_images", path, optimizedFile);
+    const result = await uploadToStorage("profile_images", path, file);
 
     await userDao.updateUser(supabase, authUserId, { profile_image_url: result.url });
 

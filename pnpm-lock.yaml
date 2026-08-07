@@ -14,9 +14,6 @@ importers:
       "@base-ui/react":
         specifier: ^1.6.0
         version: 1.6.0(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      "@cf-wasm/photon":
-        specifier: ^0.4.0
-        version: 0.4.0
       "@hookform/resolvers":
         specifier: ^5.4.0
         version: 5.5.7(@standard-schema/spec@1.1.0)(react-hook-form@7.83.0(react@19.2.4))(zod@4.4.3)
@@ -35,6 +32,12 @@ importers:
       next:
         specifier: 16.2.11
         version: 16.2.11(@babel/core@7.29.7)(@playwright/test@1.62.0)(@types/node@22.20.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      png-chunks-encode:
+        specifier: ^1.0.0
+        version: 1.0.0
+      png-chunks-extract:
+        specifier: ^1.0.0
+        version: 1.0.0
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -72,6 +75,12 @@ importers:
       "@types/node":
         specifier: ^22.20.1
         version: 22.20.1
+      "@types/png-chunks-encode":
+        specifier: ^1.0.2
+        version: 1.0.2
+      "@types/png-chunks-extract":
+        specifier: ^1.0.2
+        version: 1.0.2
       "@types/qrcode":
         specifier: ^1.5.6
         version: 1.5.6
@@ -487,12 +496,6 @@ packages:
   "@bramus/specificity@2.4.2":
     resolution: { integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw== }
     hasBin: true
-
-  "@cf-wasm/internals@0.2.0":
-    resolution: { integrity: sha512-QwMNETkTCtrx0uCzjJPRCTyok0OZNvOry9alfG8a8TpHo7oPJ17htPMDG4ptudpwe9F0VtJHy9+nOzJmupteiQ== }
-
-  "@cf-wasm/photon@0.4.0":
-    resolution: { integrity: sha512-PQcN6sThZAR/V6SH2MQmeFndDDhGfOxvra6UStyaBbkDHrgTPKvB+WapAhh0/TA9LsRAUaX/rEEw6hvY9uphbQ== }
 
   "@cloudflare/kv-asset-handler@0.5.0":
     resolution: { integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg== }
@@ -2003,6 +2006,12 @@ packages:
   "@types/node@22.20.1":
     resolution: { integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q== }
 
+  "@types/png-chunks-encode@1.0.2":
+    resolution: { integrity: sha512-Dxn0aXEcSg1wVeHjvNlygm/+fKBDzWMCdxJYhjGUTeefFW/jYxWcrg+W7ppLBfH44iJMqeVBHtHBwtYQUeYvgw== }
+
+  "@types/png-chunks-extract@1.0.2":
+    resolution: { integrity: sha512-z6djfFIbrrddtunoMJBOPlyZrnmeuG1kkvHUNi2QfpOb+JMMLuLliHHTmMyRi7k7LiTAut0HbdGCF6ibDtQAHQ== }
+
   "@types/qrcode@1.5.6":
     resolution: { integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw== }
 
@@ -2528,6 +2537,10 @@ packages:
   cookie@1.1.1:
     resolution: { integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ== }
     engines: { node: ">=18" }
+
+  crc-32@0.3.0:
+    resolution: { integrity: sha512-kucVIjOmMc1f0tv53BJ/5WIX+MGLcKuoBhnGqQrgKJNqLByb/sVMWfW/Aw6hw0jgcqjJ2pi9E5y32zOIpaUlsA== }
+    engines: { node: ">=0.8" }
 
   cross-spawn@7.0.6:
     resolution: { integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA== }
@@ -3858,6 +3871,12 @@ packages:
     engines: { node: ">=20" }
     hasBin: true
 
+  png-chunks-encode@1.0.0:
+    resolution: { integrity: sha512-J1jcHgbQRsIIgx5wxW9UmCymV3wwn4qCCJl6KYgEU/yHCh/L2Mwq/nMOkRPtmV79TLxRZj5w3tH69pvygFkDqA== }
+
+  png-chunks-extract@1.0.0:
+    resolution: { integrity: sha512-ZiVwF5EJ0DNZyzAqld8BP1qyJBaGOFaq9zl579qfbkcmOwWLLO4I9L8i2O4j3HkI6/35i0nKG2n+dZplxiT89Q== }
+
   pngjs@5.0.0:
     resolution: { integrity: sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw== }
     engines: { node: ">=10.13.0" }
@@ -4088,6 +4107,10 @@ packages:
   signal-exit@4.1.0:
     resolution: { integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw== }
     engines: { node: ">=14" }
+
+  sliced@1.0.1:
+    resolution: { integrity: sha512-VZBmZP8WU3sMOZm1bdgTadsQbcscK0UM8oKxKVBs4XAhUo2Xxzm/OFMGBkPusxw9xL3Uy8LrzEqGqJhclsr0yA== }
+    deprecated: Unsupported
 
   source-map-js@1.2.1:
     resolution: { integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA== }
@@ -5333,12 +5356,6 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  "@cf-wasm/internals@0.2.0": {}
-
-  "@cf-wasm/photon@0.4.0":
-    dependencies:
-      "@cf-wasm/internals": 0.2.0
-
   "@cloudflare/kv-asset-handler@0.5.0": {}
 
   "@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260730.1)":
@@ -6488,6 +6505,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  "@types/png-chunks-encode@1.0.2": {}
+
+  "@types/png-chunks-extract@1.0.2": {}
+
   "@types/qrcode@1.5.6":
     dependencies:
       "@types/node": 22.20.1
@@ -7015,6 +7036,8 @@ snapshots:
   cookie@0.7.2: {}
 
   cookie@1.1.1: {}
+
+  crc-32@0.3.0: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -8491,6 +8514,15 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.2
 
+  png-chunks-encode@1.0.0:
+    dependencies:
+      crc-32: 0.3.0
+      sliced: 1.0.1
+
+  png-chunks-extract@1.0.0:
+    dependencies:
+      crc-32: 0.3.0
+
   pngjs@5.0.0: {}
 
   possible-typed-array-names@1.1.0: {}
@@ -8826,6 +8858,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  sliced@1.0.1: {}
 
   source-map-js@1.2.1: {}
 

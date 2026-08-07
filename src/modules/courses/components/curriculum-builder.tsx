@@ -2,11 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/button";
+import { Toast } from "@/shared/components/toast";
 import type { Lesson } from "@/shared/types";
-import type { ModuleWithLessons } from "../lib/types";
+import { findTimeOverlaps, rowIssueFor, toInputTime, workingRows } from "../lib/scheduling";
+import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
+import {
+  describeLessonMove,
+  describeModuleMove,
+  moveLesson,
+  moveModule,
+  type LessonMove,
+  type MoveDirection,
+} from "../lib/reorder";
+import { ModuleCard, type FlashState, type PreviewState } from "./module-card";
+import type { TimeField } from "./session-time-picker";
 
-interface CurriculumBuilderProps {
+export interface CurriculumBuilderProps {
   modules: ModuleWithLessons[];
+  eventSpeakers: CourseSpeaker[];
+  eventStartTime?: string | null;
+  eventEndTime?: string | null;
+  onUpdateModuleSchedule: (
+    moduleId: number,
+    patch: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
+  ) => Promise<string | null>;
   onAddModule: () => Promise<number | undefined> | number | undefined;
   onAddQaModule: () => Promise<number | undefined> | number | undefined;
   onRenameModule: (moduleId: number, newName: string) => Promise<void> | void;
@@ -14,12 +33,17 @@ interface CurriculumBuilderProps {
   onDeleteLesson: (lessonId: number, moduleId: number) => Promise<void> | void;
   onAddLessonClick: (moduleId: number) => void;
   onReorderModules: (modules: ModuleWithLessons[]) => Promise<void>;
-  onReorderLessons: (moduleId: number, lessons: Lesson[]) => Promise<void>;
-  onToggleModuleLock: (moduleId: number, currentLocked: boolean) => Promise<void>;
+  onMoveLesson: (modules: ModuleWithLessons[], updates: LessonMove[]) => Promise<void>;
 }
+
+export type SchedulePatch = { start_time: string | null; end_time: string | null; speaker_profile_id: number | null };
 
 export function CurriculumBuilder({
   modules,
+  eventSpeakers,
+  eventStartTime,
+  eventEndTime,
+  onUpdateModuleSchedule,
   onAddModule,
   onAddQaModule,
   onRenameModule,
@@ -27,14 +51,21 @@ export function CurriculumBuilder({
   onDeleteLesson,
   onAddLessonClick,
   onReorderModules,
-  onReorderLessons,
-  onToggleModuleLock,
+  onMoveLesson,
 }: CurriculumBuilderProps) {
   const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const [dragOverModuleId, setDragOverModuleId] = useState<number | null>(null);
-  const [dragOverLessonId, setDragOverLessonId] = useState<number | null>(null);
+
+  // A session needs both times, but the two inputs change one at a time; hold
+  // the partial pair locally so the edited input survives until its partner
+  // arrives, then commit the whole pair together.
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<number, { start: string; end: string }>>({});
+
+  const [preview, setPreview] = useState<PreviewState>(null);
+  const [flash, setFlash] = useState<FlashState>({ lessons: [], modules: [] });
+  const flashTimerRef = useRef<number | null>(null);
+  const [toast, setToast] = useState<{ title: string; description?: string } | null>(null);
 
   useEffect(() => {
     if (renamingModuleId !== null && renameInputRef.current) {
@@ -42,6 +73,18 @@ export function CurriculumBuilder({
       renameInputRef.current.select();
     }
   }, [renamingModuleId]);
+
+  function flashRows(lessons: number[], moduleIds: number[]) {
+    setFlash({ lessons, modules: moduleIds });
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash({ lessons: [], modules: [] }), 1000);
+  }
+
+  function scrollLessonIntoView(lessonId: number) {
+    window.setTimeout(() => {
+      document.querySelector(`[data-lesson-id="${lessonId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  }
 
   async function handleAddModuleClick() {
     const newModuleId = await onAddModule();
@@ -59,58 +102,96 @@ export function CurriculumBuilder({
     }
   }
 
-  function handleModuleDragStart(e: React.DragEvent, moduleId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(moduleId));
+  function handleMoveModule(moduleId: number, direction: MoveDirection) {
+    const info = describeModuleMove(modules, moduleId, direction);
+    if (!info.possible) return;
+    const next = moveModule(modules, moduleId, direction);
+    if (!next) return;
+    void onReorderModules(next);
+    setPreview(null);
+    flashRows([], [moduleId]);
   }
 
-  async function handleModuleDragOver(e: React.DragEvent, moduleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(moduleId);
+  function handleMoveLesson(lesson: Lesson, direction: MoveDirection) {
+    const info = describeLessonMove(modules, lesson.id, direction);
+    if (!info.possible) return;
+    const next = moveLesson(modules, lesson.id, direction);
+    if (!next) return;
+    void onMoveLesson(next.modules, next.updates);
+    setPreview(null);
+
+    if (info.kind === "within" && info.swapLessonId !== null) {
+      flashRows([lesson.id, info.swapLessonId], []);
+    } else {
+      flashRows([lesson.id], []);
+    }
+
+    if (info.kind === "cross" && info.targetModuleName) {
+      setToast({
+        title: `Lesson moved to ${info.targetModuleName}`,
+        description: `It is now the ${info.slot === "start" ? "first" : "last"} lesson in that module.`,
+      });
+      scrollLessonIntoView(lesson.id);
+    }
   }
 
-  async function handleModuleDrop(e: React.DragEvent, targetModuleId: number) {
-    e.preventDefault();
-    setDragOverModuleId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetModuleId) return;
+  const working = workingRows(modules, scheduleDrafts);
+  const overlaps = findTimeOverlaps(working);
+  const conflictingModuleIds = new Set(overlaps.flatMap(([a, b]) => [a.id, b.id]));
 
-    const draggedIdx = modules.findIndex((m) => m.id === draggedId);
-    const targetIdx = modules.findIndex((m) => m.id === targetModuleId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const next = [...modules];
-    const [moved] = next.splice(draggedIdx, 1);
-    next.splice(targetIdx, 0, moved);
-    const reordered = next.map((m, i) => ({ ...m, sequence_order: i + 1 }));
-
-    await onReorderModules(reordered);
+  function draftFor(mod: ModuleWithLessons): { start: string; end: string } {
+    return scheduleDrafts[mod.id] ?? { start: toInputTime(mod.start_time), end: toInputTime(mod.end_time) };
   }
 
-  function handleLessonDragStart(e: React.DragEvent, lessonId: number) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(lessonId));
+  function dropDraft(moduleId: number) {
+    setScheduleDrafts((prev) => {
+      if (!(moduleId in prev)) return prev;
+      const next = { ...prev };
+      delete next[moduleId];
+      return next;
+    });
   }
 
-  async function handleLessonDrop(e: React.DragEvent, targetLessonId: number, moduleId: number) {
-    e.preventDefault();
-    setDragOverLessonId(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId || draggedId === targetLessonId) return;
+  async function commitSchedule(mod: ModuleWithLessons, patch: SchedulePatch) {
+    const error = await onUpdateModuleSchedule(mod.id, patch);
+    dropDraft(mod.id);
+    if (error) {
+      setToast({ title: "Could not save schedule", description: error });
+    }
+  }
 
-    const mod = modules.find((m) => m.id === moduleId);
-    if (!mod) return;
+  async function handleTimeChange(mod: ModuleWithLessons, field: TimeField, value: string) {
+    const next = { ...draftFor(mod), [field]: value };
+    setScheduleDrafts((prev) => ({ ...prev, [mod.id]: next }));
 
-    const lessons = [...mod.LESSONS];
-    const draggedIdx = lessons.findIndex((l) => l.id === draggedId);
-    const targetIdx = lessons.findIndex((l) => l.id === targetLessonId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
+    const start = next.start === "" ? null : next.start;
+    const end = next.end === "" ? null : next.end;
+    if (start === null && end === null) {
+      await commitSchedule(mod, { start_time: null, end_time: null, speaker_profile_id: mod.speaker_profile_id });
+      return;
+    }
+    if (start === null || end === null) return;
 
-    const [moved] = lessons.splice(draggedIdx, 1);
-    lessons.splice(targetIdx, 0, moved);
-    const reordered = lessons.map((l, i) => ({ ...l, sequence_order: i + 1 }));
+    // The picker already greys out anything that would clash; this guard keeps
+    // a pre-existing committed overlap (e.g. left behind by a reorder) from
+    // being re-committed while the row is still red.
+    const proposed = workingRows(modules, { ...scheduleDrafts, [mod.id]: next });
+    const blocks = findTimeOverlaps(proposed).some(([a, b]) => a.id === mod.id || b.id === mod.id);
+    if (blocks) return;
 
-    await onReorderLessons(moduleId, reordered);
+    await commitSchedule(mod, { start_time: start, end_time: end, speaker_profile_id: mod.speaker_profile_id });
+  }
+
+  async function handleSpeakerChange(mod: ModuleWithLessons, speakerProfileId: number | null) {
+    // The props carry the DAO's "HH:MM:SS"; the API validates "HH:MM".
+    const error = await onUpdateModuleSchedule(mod.id, {
+      start_time: mod.start_time?.slice(0, 5) ?? null,
+      end_time: mod.end_time?.slice(0, 5) ?? null,
+      speaker_profile_id: speakerProfileId,
+    });
+    if (error) {
+      setToast({ title: "Could not assign speaker", description: error });
+    }
   }
 
   return (
@@ -142,191 +223,71 @@ export function CurriculumBuilder({
           <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {modules.map((mod) =>
-            mod.module_type === "qa" ? (
-              <div key={mod.id} className="rounded-lg border border-warning/30 bg-warning/5 p-5">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-rounded text-lg text-warning">forum</span>
-                  {renamingModuleId === mod.id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onRenameModule(mod.id, renameValue.trim());
-                          setRenamingModuleId(null);
-                        }
-                        if (e.key === "Escape") setRenamingModuleId(null);
-                      }}
-                      onBlur={() => {
-                        if (renameValue.trim()) {
-                          onRenameModule(mod.id, renameValue.trim());
-                        }
-                        setRenamingModuleId(null);
-                      }}
-                      className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setRenamingModuleId(mod.id);
-                      setRenameValue(mod.module_name);
-                    }}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Rename module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">edit</span>
-                  </button>
-
-                  <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">Q&A Module</span>
-
-                  <button
-                    onClick={() => onToggleModuleLock(mod.id, mod.is_locked)}
-                    className={`ml-auto flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
-                      mod.is_locked
-                        ? "border border-error/30 text-error hover:bg-error/10"
-                        : "border border-success/30 text-success hover:bg-success/10"
-                    }`}
-                  >
-                    <span className="material-symbols-rounded text-xs">{mod.is_locked ? "lock" : "lock_open"}</span>
-                    {mod.is_locked ? "Locked" : "Unlocked"}
-                  </button>
-
-                  <button
-                    onClick={() => onDeleteModule(mod.id)}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                    title="Delete module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">delete</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
-                key={mod.id}
-                draggable
-                onDragStart={(e) => handleModuleDragStart(e, mod.id)}
-                onDragOver={(e) => handleModuleDragOver(e, mod.id)}
-                onDragLeave={() => setDragOverModuleId(null)}
-                onDrop={(e) => handleModuleDrop(e, mod.id)}
-                onDragEnd={() => setDragOverModuleId(null)}
-                className={`rounded-lg border bg-muted p-5 transition-shadow ${
-                  dragOverModuleId === mod.id ? "border-brand shadow-[0_0_0_2px_rgba(41,182,246,0.2)]" : "border-border"
-                }`}
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  {renamingModuleId === mod.id ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onRenameModule(mod.id, renameValue.trim());
-                          setRenamingModuleId(null);
-                        }
-                        if (e.key === "Escape") setRenamingModuleId(null);
-                      }}
-                      onBlur={() => {
-                        if (renameValue.trim()) {
-                          onRenameModule(mod.id, renameValue.trim());
-                        }
-                        setRenamingModuleId(null);
-                      }}
-                      className="rounded-lg border border-brand bg-surface px-3 py-1.5 text-sm font-semibold text-fg outline-none ring-2 ring-ring/20"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-fg">{mod.module_name}</span>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setRenamingModuleId(mod.id);
-                      setRenameValue(mod.module_name);
-                    }}
-                    className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
-                    title="Rename module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">edit</span>
-                  </button>
-
-                  <span className="rounded-full bg-info/10 px-2.5 py-0.5 text-xs font-medium text-info">
-                    {mod.LESSONS.length} {mod.LESSONS.length === 1 ? "lesson" : "lessons"}
-                  </span>
-
-                  <button
-                    onClick={() => onDeleteModule(mod.id)}
-                    className="ml-auto rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                    title="Delete module"
-                  >
-                    <span className="material-symbols-rounded text-[14px]">delete</span>
-                  </button>
-                </div>
-
-                {mod.LESSONS.length > 0 && (
-                  <div className="mb-3 space-y-1.5">
-                    {mod.LESSONS.map((lesson) => (
-                      <div
-                        key={lesson.id}
-                        draggable
-                        onDragStart={(e) => handleLessonDragStart(e, lesson.id)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDragOverLessonId(lesson.id);
-                        }}
-                        onDragLeave={() => setDragOverLessonId(null)}
-                        onDrop={(e) => handleLessonDrop(e, lesson.id, mod.id)}
-                        onDragEnd={() => setDragOverLessonId(null)}
-                        className={`flex items-center justify-between rounded-lg border px-4 py-2.5 transition-shadow ${
-                          dragOverLessonId === lesson.id
-                            ? "border-brand bg-surface shadow-[0_0_0_2px_rgba(41,182,246,0.2)]"
-                            : "border-border bg-surface"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xs font-medium text-muted-fg">
-                            {mod.sequence_order}.{lesson.sequence_order}
-                          </span>
-                          <span className="text-sm text-fg">{lesson.description}</span>
-                          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                            {lesson.content_type}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {lesson.content_url && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}
-                            >
-                              View
-                            </Button>
-                          )}
-                          <button
-                            onClick={() => onDeleteLesson(lesson.id, mod.id)}
-                            className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-                            title="Delete lesson"
-                          >
-                            <span className="material-symbols-rounded text-[14px]">delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Button variant="ghost" size="sm" onClick={() => onAddLessonClick(mod.id)}>
-                  <span className="material-symbols-rounded text-[14px]">add_circle</span>
-                  Add lesson to topic
-                </Button>
-              </div>
-            ),
+        <>
+          {overlaps.length > 0 && (
+            <div className="mb-6 flex items-center gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span className="material-symbols-rounded text-[18px]">warning</span>
+              <span>
+                Fix required — overlapping sessions:{" "}
+                {overlaps.map(([a, b]) => `"${a.module_name}" and "${b.module_name}"`).join(", ")}.
+              </span>
+            </div>
           )}
+          <div className="space-y-3">
+            {modules.map((mod) => {
+              const isQa = mod.module_type === "qa";
+              const scheduleIssue = rowIssueFor(working, overlaps, mod.id);
+              return (
+                <ModuleCard
+                  key={mod.id}
+                  mod={mod}
+                  modules={modules}
+                  isQa={isQa}
+                  working={working}
+                  eventSpeakers={eventSpeakers}
+                  eventStartTime={eventStartTime}
+                  eventEndTime={eventEndTime}
+                  issue={scheduleIssue}
+                  conflicting={conflictingModuleIds.has(mod.id)}
+                  preview={preview}
+                  flash={flash}
+                  renaming={renamingModuleId === mod.id}
+                  renameValue={renameValue}
+                  renameInputRef={renameInputRef}
+                  onRenameValueChange={setRenameValue}
+                  onCommitRename={() => {
+                    if (renameValue.trim()) {
+                      onRenameModule(mod.id, renameValue.trim());
+                    }
+                    setRenamingModuleId(null);
+                  }}
+                  onCancelRename={() => setRenamingModuleId(null)}
+                  onStartRename={() => {
+                    setRenamingModuleId(mod.id);
+                    setRenameValue(mod.module_name);
+                  }}
+                  onPreviewModuleMove={(direction) => setPreview({ type: "module", id: mod.id, direction })}
+                  onPreviewLessonMove={(lessonId, direction) => setPreview({ type: "lesson", id: lessonId, direction })}
+                  onPreviewMoveEnd={() => setPreview(null)}
+                  onMoveModule={(direction) => handleMoveModule(mod.id, direction)}
+                  onDeleteModule={() => onDeleteModule(mod.id)}
+                  startValue={draftFor(mod).start}
+                  endValue={draftFor(mod).end}
+                  onTimeChange={(field, value) => handleTimeChange(mod, field, value)}
+                  onSpeakerChange={(speakerProfileId) => handleSpeakerChange(mod, speakerProfileId)}
+                  onAddLessonClick={() => onAddLessonClick(mod.id)}
+                  onMoveLesson={(lesson, direction) => handleMoveLesson(lesson, direction)}
+                  onDeleteLesson={(lessonId) => onDeleteLesson(lessonId, mod.id)}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Toast title={toast.title} description={toast.description} onClose={() => setToast(null)} />
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import {
   createUser,
   createEvent,
   createCourse,
+  assignFacilitator,
   issueTicket,
   signIn,
   cleanup,
@@ -68,6 +69,7 @@ test.afterAll(async () => {
 test("a facilitator uploads a course asset and it becomes readable through the storage route", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
@@ -75,8 +77,6 @@ test("a facilitator uploads a course asset and it becomes readable through the s
     multipart: {
       file: { name: "e2e-notes.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 e2e") },
       lesson_id: String(lessonId),
-      course_id: String(course.courseId),
-      module_id: String(moduleId),
     },
   });
 
@@ -97,6 +97,7 @@ test("an attendee holding a ticket can read an uploaded asset, and one without c
   const holder = await createUser(db, "attendee");
   const outsider = await createUser(db, "attendee");
   users.push(facilitator, holder, outsider);
+  await assignFacilitator(db, facilitator.userId, event.eventId);
   await issueTicket(db, holder.userId, event.eventId);
 
   await signIn(page, facilitator);
@@ -104,8 +105,6 @@ test("an attendee holding a ticket can read an uploaded asset, and one without c
     multipart: {
       file: { name: "e2e-gated.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 gated") },
       lesson_id: String(lessonId),
-      course_id: String(course.courseId),
-      module_id: String(moduleId),
     },
   });
   expect(upload.status()).toBe(200);
@@ -135,8 +134,6 @@ test("an attendee cannot upload course material", async ({ page }) => {
     multipart: {
       file: { name: "e2e-nope.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
       lesson_id: String(lessonId),
-      course_id: String(course.courseId),
-      module_id: String(moduleId),
     },
   });
 
@@ -154,8 +151,6 @@ test("a file type the bucket does not accept is refused", async ({ page }) => {
     multipart: {
       file: { name: "e2e-not-a-video.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
       lesson_id: String(lessonId),
-      course_id: String(course.courseId),
-      module_id: String(moduleId),
     },
   });
 
@@ -168,10 +163,11 @@ test("a missing field is refused before anything is stored", async ({ page }) =>
 
   await signIn(page, facilitator);
 
+  // lesson_id omitted on purpose: the route cannot derive a path without it, so
+  // it must refuse at the guard rather than reach storage.
   const res = await page.request.post("/api/upload/course-asset", {
     multipart: {
       file: { name: "e2e-orphan.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
-      lesson_id: String(lessonId),
     },
   });
 

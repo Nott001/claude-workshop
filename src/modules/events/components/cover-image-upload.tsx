@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { acceptAttribute, maxSizeMb, validateFileSize, validateFileType } from "@/shared/integrations/storage/policy";
+import { acceptAttribute, maxSizeMb } from "@/shared/integrations/storage/policy";
+import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 interface CoverImageUploadProps {
   eventId: string;
@@ -21,36 +22,17 @@ export function CoverImageUpload({ eventId, initialUrl, onUploaded }: CoverImage
     if (!file) return;
 
     setError(null);
-
-    // The route rejects these too. Checking here saves a 50 MB round trip only
-    // to be told the file was never allowed.
-    if (!validateFileType("event_images", file.type)) {
-      setError("Only JPEG and PNG images are allowed.");
-      return;
-    }
-    if (!validateFileSize("event_images", file.size)) {
-      setError(`Image must be under ${maxSizeMb("event_images")} MB.`);
-      return;
-    }
-
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("event_id", eventId);
+      const result = await postUpload("event_images", "/api/upload/event-image", file, { event_id: eventId });
 
-      const res = await fetch("/api/upload/event-image", { method: "POST", body: formData });
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setError(data?.error ?? "Could not upload image.");
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
-      setUrl(data.url);
-      onUploaded?.(data.url);
-    } catch {
-      setError("Could not upload image.");
+      setUrl(result.url);
+      onUploaded?.(result.url);
     } finally {
       setUploading(false);
       // The path is `cover.<ext>`, so re-picking the same filename is normal.

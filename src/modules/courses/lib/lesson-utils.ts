@@ -1,3 +1,5 @@
+import type { StorageBucket } from "@/shared/integrations/storage/policy";
+
 export function detectContentType(file: File | null, url: string): string {
   void url;
   if (file) {
@@ -18,5 +20,12 @@ export function normalizeUrl(url: string): string {
 export function getUploadEndpoint(contentType: string): string | undefined {
   if (contentType === "video") return "/api/upload/course-video";
   if (contentType === "pdf") return "/api/upload/course-asset";
+  return undefined;
+}
+
+/** The bucket behind `getUploadEndpoint`, so the browser can apply its rules. */
+export function uploadBucket(contentType: string): StorageBucket | undefined {
+  if (contentType === "video") return "course_videos";
+  if (contentType === "pdf") return "course_assets";
   return undefined;
 }

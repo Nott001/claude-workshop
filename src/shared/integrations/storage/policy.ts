@@ -17,14 +17,23 @@ export function isStorageBucket(value: string): value is StorageBucket {
 /** Buckets holding paid course material, which requires an entitlement check. */
 export const COURSE_CONTENT_BUCKETS: readonly StorageBucket[] = ["course_assets", "course_videos"];
 
-const BUCKET_CONFIG: Record<StorageBucket, { allowedTypes: string[]; maxSizeBytes: number }> = {
+/**
+ * `noun` and `refusal` are here rather than at the call sites because the rule
+ * and the sentence explaining it drift apart otherwise: a type added to a
+ * bucket used to leave a message behind naming the old set.
+ */
+const BUCKET_CONFIG: Record<StorageBucket, { allowedTypes: string[]; maxSizeBytes: number; noun: string; refusal: string }> = {
   event_images: {
     allowedTypes: ["image/jpeg", "image/png"],
     maxSizeBytes: 50 * 1024 * 1024,
+    noun: "Image",
+    refusal: "Only JPEG and PNG images are allowed.",
   },
   profile_images: {
     allowedTypes: ["image/jpeg", "image/png"],
     maxSizeBytes: 50 * 1024 * 1024,
+    noun: "Image",
+    refusal: "Only JPEG and PNG images are allowed.",
   },
   course_assets: {
     allowedTypes: [
@@ -39,12 +48,23 @@ const BUCKET_CONFIG: Record<StorageBucket, { allowedTypes: string[]; maxSizeByte
       "application/zip",
     ],
     maxSizeBytes: 50 * 1024 * 1024,
+    noun: "File",
+    refusal: "That file type is not accepted for course material.",
   },
   course_videos: {
     allowedTypes: ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo", "video/x-matroska"],
     maxSizeBytes: 50 * 1024 * 1024,
+    noun: "Video",
+    refusal: "Only MP4, WebM, MOV, AVI and MKV videos are allowed.",
   },
 };
+
+/** Why this bucket refuses the file, or null if it does not. */
+export function describeRejection(bucket: StorageBucket, file: File): string | null {
+  if (!validateFileType(bucket, file.type)) return BUCKET_CONFIG[bucket].refusal;
+  if (!validateFileSize(bucket, file.size)) return `${BUCKET_CONFIG[bucket].noun} must be under ${maxSizeMb(bucket)} MB.`;
+  return null;
+}
 
 export function validateFileType(bucket: StorageBucket, mimeType: string): boolean {
   return BUCKET_CONFIG[bucket].allowedTypes.includes(mimeType);
@@ -89,6 +109,16 @@ export function buildEventImagePath(eventId: number, ext: string): string {
 
 export function buildProfileImagePath(userId: number, ext: string): string {
   return `users/${userId}/profile_${Date.now()}.${ext}`;
+}
+
+/**
+ * Reduces an untrusted client filename to its final path segment so an object
+ * key built from it can never escape the lesson's folder, and drops a name that
+ * is only dots — the traversal payload itself — in favour of the fallback.
+ */
+export function sanitizeObjectName(name: string, fallback: string): string {
+  const base = name.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+  return base.replace(/^\.+|\.+$/g, "") || fallback;
 }
 
 export function buildCourseAssetPath(courseId: number, moduleId: number, lessonId: number, filename: string): string {

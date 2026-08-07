@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import QAPanel from "@/modules/chat/components/qa-panel";
+import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { useRoomAccess } from "@/modules/events/lib/use-room-access";
 import type { UserRole } from "@/shared/types";
@@ -114,6 +115,15 @@ export default function StaffEventRoomPage() {
                   {course.MODULE.map((mod) =>
                     mod.module_type === "qa" ? (
                       <div key={mod.id} className="rounded-lg border border-border overflow-hidden">
+                        {mod.start_time && mod.end_time && (
+                          <div className="border-b border-border bg-muted px-4 py-2">
+                            <ModuleScheduleBadge
+                              startTime={mod.start_time}
+                              endTime={mod.end_time}
+                              speakerName={mod.SPEAKER_PROFILE?.USER?.full_name ?? null}
+                            />
+                          </div>
+                        )}
                         <QAPanel
                           moduleId={mod.id}
                           userRole={userRole as UserRole | null}
@@ -125,8 +135,13 @@ export default function StaffEventRoomPage() {
                       </div>
                     ) : (
                       <div key={mod.id} className="rounded-lg border border-border p-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
+                          <ModuleScheduleBadge
+                            startTime={mod.start_time}
+                            endTime={mod.end_time}
+                            speakerName={mod.SPEAKER_PROFILE?.USER?.full_name ?? null}
+                          />
                         </div>
                         {mod.LESSONS && (
                           <div className="mt-2 space-y-1">

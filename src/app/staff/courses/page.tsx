@@ -10,7 +10,6 @@ interface CourseRow {
   course_description: string | null;
   event_title: string | null;
   event_date: string | null;
-  creator_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -99,7 +98,6 @@ export default function StaffCoursesPage() {
                       <th className="px-8 py-3">Course Name</th>
                       <th className="px-8 py-3">Linked Event</th>
                       <th className="px-8 py-3">Event Date</th>
-                      <th className="px-8 py-3">Created By</th>
                       <th className="px-8 py-3">Created</th>
                       <th className="px-8 py-3">Updated</th>
                     </tr>
@@ -118,9 +116,6 @@ export default function StaffCoursesPage() {
                         </td>
                         <td className="px-8 py-4 text-sm text-muted-fg">
                           {course.event_date ?? <span className="text-muted-fg">&mdash;</span>}
-                        </td>
-                        <td className="px-8 py-4 text-sm text-fg">
-                          {course.creator_name ?? <span className="text-muted-fg">&mdash;</span>}
                         </td>
                         <td className="px-8 py-4 text-sm text-muted-fg">{formatDate(course.created_at)}</td>
                         <td className="px-8 py-4 text-sm text-muted-fg">{formatDate(course.updated_at)}</td>

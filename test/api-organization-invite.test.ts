@@ -2,20 +2,30 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireRole, findStaffByEmail, listStaff, logAuditEvent, generateLink, updateUserById, deleteUser, send } = vi.hoisted(
-  () => ({
-    requireRole: vi.fn(),
-    findStaffByEmail: vi.fn(),
-    listStaff: vi.fn(),
-    logAuditEvent: vi.fn(),
-    generateLink: vi.fn(),
-    updateUserById: vi.fn(),
-    deleteUser: vi.fn(),
-    send: vi.fn(),
-  }),
-);
+const {
+  requireRole,
+  findStaffByEmail,
+  findAuthAccountByEmail,
+  listStaff,
+  logAuditEvent,
+  generateLink,
+  updateUserById,
+  deleteUser,
+  send,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  findStaffByEmail: vi.fn(),
+  findAuthAccountByEmail: vi.fn(),
+  listStaff: vi.fn(),
+  logAuditEvent: vi.fn(),
+  generateLink: vi.fn(),
+  updateUserById: vi.fn(),
+  deleteUser: vi.fn(),
+  send: vi.fn(),
+}));
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
@@ -34,13 +44,14 @@ function post(body: unknown) {
 }
 
 const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: "speaker" };
-// Low-entropy on purpose; see test/invite-redirect.test.ts.
+// Low-entropy on purpose; see test/invite-accept.test.ts.
 const TOKEN = "aaaabbbbccccddddeeeeffff";
 
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(admin);
   findStaffByEmail.mockResolvedValue(null);
+  findAuthAccountByEmail.mockResolvedValue(null);
   generateLink.mockResolvedValue({ data: { user: { id: "auth-1" }, properties: { hashed_token: TOKEN } }, error: null });
   updateUserById.mockResolvedValue({ error: null });
   deleteUser.mockResolvedValue({ error: null });
@@ -144,6 +155,70 @@ describe("POST /api/organization", () => {
 
     expect(res.status).toBe(409);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("invites again when the first invitation was never accepted", async () => {
+    // The account Supabase created for the earlier invitation is still there and
+    // blocks a second one, even though nobody has ever signed in with it.
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
+
+    const res = await POST(post(INVITE));
+
+    expect(res.status).toBe(201);
+    expect(deleteUser).toHaveBeenCalledWith("auth-stale");
+    expect(generateLink).toHaveBeenCalledWith(expect.objectContaining({ email: "jane@example.com" }));
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("hands the resent invitation whichever role was chosen this time", async () => {
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
+
+    await POST(post({ ...INVITE, role: "facilitator" }));
+
+    expect(updateUserById).toHaveBeenCalledWith(
+      "auth-1",
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "facilitator" } }),
+    );
+  });
+
+  it("marks a replaced invitation as a resend in the audit log", async () => {
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
+
+    await POST(post(INVITE));
+
+    expect(logAuditEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      3,
+      "organization.invited",
+      "user",
+      null,
+      expect.objectContaining({ resent: true }),
+    );
+  });
+
+  it("says so when the earlier invitation could not be cleared", async () => {
+    // Reporting the "already registered" that would follow would blame the
+    // address rather than the delete that actually failed.
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
+    deleteUser.mockResolvedValue({ error: { message: "service unavailable" } });
+
+    const res = await POST(post(INVITE));
+
+    expect(res.status).toBe(502);
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("refuses once the invitation has actually been accepted", async () => {
+    // Signed in at least once, so the account belongs to a person rather than to
+    // an invitation left unopened.
+    findAuthAccountByEmail.mockResolvedValue({ id: "auth-live", accepted: true });
+
+    const res = await POST(post(INVITE));
+
+    expect(res.status).toBe(409);
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   it("rejects an existing user before creating anything", async () => {

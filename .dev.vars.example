@@ -8,9 +8,10 @@
 
 SUPABASE_SERVICE_ROLE_KEY=
 
-# Transactional email. Unset any of the three and the app falls back to the
-# console provider, which logs instead of sending. SMTP also needs the Workers
-# runtime for its socket, so `next dev` logs regardless — use `pnpm cf:preview`.
+# Transactional email. SMTP needs the Workers runtime for its socket, so
+# `next dev` logs to the console regardless — use `pnpm cf:preview` to send.
+# Under that runtime, leaving any of the three unset makes a send fail rather
+# than log: on workerd a missing mailbox is a misconfiguration, not a fallback.
 #
 # Never rename these to NEXT_PUBLIC_*: the compiler would inline the password
 # into the client bundle.

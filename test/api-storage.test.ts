@@ -115,6 +115,26 @@ describe("public event covers", () => {
     expect(isPublished).toHaveBeenCalledWith(expect.anything(), 1);
   });
 
+  it("does not ask who the caller is when the cover is published", async () => {
+    isPublished.mockResolvedValue(true);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    // Every card on `/` and `/events` is one of these requests, and each
+    // `requireAuth` is an auth round trip plus a user lookup whose answer this
+    // branch never reads. Without this assertion the ordering silently regresses.
+    expect(res.status).toBe(200);
+    expect(requireAuth).not.toHaveBeenCalled();
+  });
+
+  it("still resolves the caller for a draft cover, which is role-gated", async () => {
+    isPublished.mockResolvedValue(false);
+
+    await GET(req(), params("event_images", cover));
+
+    expect(requireAuth).toHaveBeenCalled();
+  });
+
   it("lets a shared cache hold a published cover, since it is the same for everyone", async () => {
     isPublished.mockResolvedValue(true);
 

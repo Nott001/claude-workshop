@@ -10,9 +10,6 @@ import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => ({ user: null, loading: false, isLoaded: true, isSignedIn: true }),
 }));
-vi.mock("@/modules/commerce/lib/use-ticket-card", () => ({
-  useTicketCard: () => ({ qrUrl: null, qrLoading: false, payment: null }),
-}));
 
 // AUDIT_LOG, EMAIL_LOG, PAYMENT and TICKET all key on `id`. Each of these
 // surfaces used to invent a different name for it — `log_id`, `payment_id` —
@@ -58,6 +55,7 @@ const ticket: Ticket = {
   checked_in_at: null,
   created_at: "2026-08-01T00:00:00Z",
   updated_at: "2026-08-01T00:00:00Z",
+  PAYMENT: { status: "paid", paid_at: "2026-08-01T00:00:00Z" },
   EVENT: {
     title: "The Best Event",
     event_date: "2026-08-12",

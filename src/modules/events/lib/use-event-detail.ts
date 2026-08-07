@@ -73,7 +73,7 @@ export function useEventDetail(eventId: string) {
   }, [eventId, isLoaded, isSignedIn, user]);
 
   const isSpeakerAssigned =
-    (speakerProfileId && event?.EVENT_SPEAKER?.some((es) => es.SPEAKER_PROFILE.id === speakerProfileId)) ?? false;
+    speakerProfileId != null && (event?.EVENT_SPEAKER?.some((es) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
   const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
 

@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PhotonImage } from "@cf-wasm/photon";
-import { toBlobPart } from "@/shared/integrations/storage/optimize";
 import {
   validateFileType,
   validateFileSize,
@@ -15,6 +13,33 @@ import { uploadToStorage, deleteFromStorage, listStorageFolder } from "@/shared/
 import type { Event, User } from "@/shared/types";
 
 const bucket = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn(), list: vi.fn() }));
+
+/** A JPEG carrying an EXIF block, since uploads now have their metadata removed. */
+const EXIF = Array.from("Exif\0\0GPSLatitude 14.5995", (c) => c.charCodeAt(0));
+const JPEG_WITH_EXIF = Uint8Array.from([
+  0xff,
+  0xd8,
+  0xff,
+  0xe1,
+  ((EXIF.length + 2) >> 8) & 0xff,
+  (EXIF.length + 2) & 0xff,
+  ...EXIF,
+  0xff,
+  0xda,
+  0x00,
+  0x08,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x3f,
+  0x00,
+  0x12,
+  0xff,
+  0xd9,
+]);
+
+const jpegFile = () => new File([JPEG_WITH_EXIF as BlobPart], "cover.jpg", { type: "image/jpeg" });
 
 // The storage helpers import the service client lazily, inside each call.
 vi.mock("@/shared/db/client", () => ({
@@ -122,117 +147,6 @@ describe("Storage path builders", () => {
   });
 });
 
-describe("optimizeImage", () => {
-  // Varied pixels rather than a flat fill: a solid colour compresses to almost
-  // nothing at any quality, so it cannot show that re-encoding did anything.
-  function sampleImage(width = 100, height = 100): PhotonImage {
-    const raw = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      raw[i * 4] = i % 256;
-      raw[i * 4 + 1] = (i * 7) % 256;
-      raw[i * 4 + 2] = (i * 13) % 256;
-      raw[i * 4 + 3] = 255;
-    }
-    return new PhotonImage(raw, width, height);
-  }
-
-  const magicBytes = async (file: File, count: number) => Array.from(new Uint8Array(await file.arrayBuffer()).slice(0, count));
-
-  it("re-encodes a JPEG to a smaller file", async () => {
-    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
-
-    const source = sampleImage();
-    const file = new File([toBlobPart(source.get_bytes_jpeg(100))], "test.jpg", { type: "image/jpeg" });
-    source.free();
-
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.type).toBe("image/jpeg");
-    // Still a JPEG: SOI marker.
-    expect(await magicBytes(optimized, 2)).toEqual([0xff, 0xd8]);
-    expect(optimized.size).toBeLessThan(file.size);
-  });
-
-  it("scales an oversized JPEG down to the cap as well as re-encoding it", async () => {
-    const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
-
-    // Just over the cap, not double it. Encoding a 5-megapixel fixture took
-    // seconds and left little room under vitest's timeout on a loaded runner;
-    // scaling is exercised just as well by an image that barely exceeds it.
-    const source = sampleImage(MAX_IMAGE_DIMENSION + 100, (MAX_IMAGE_DIMENSION + 100) / 2);
-    const file = new File([toBlobPart(source.get_bytes_jpeg(100))], "big.jpg", { type: "image/jpeg" });
-    source.free();
-
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.type).toBe("image/jpeg");
-    expect(optimized.size).toBeLessThan(file.size);
-
-    const result = PhotonImage.new_from_byteslice(new Uint8Array(await optimized.arrayBuffer()));
-    expect(result.get_width()).toBe(MAX_IMAGE_DIMENSION);
-    expect(result.get_height()).toBe(MAX_IMAGE_DIMENSION / 2);
-    result.free();
-  });
-
-  it("leaves a PNG already within the cap untouched", async () => {
-    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
-
-    const source = sampleImage();
-    const file = new File([toBlobPart(source.get_bytes())], "test.png", { type: "image/png" });
-    source.free();
-
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.type).toBe("image/png");
-    expect(await magicBytes(optimized, 4)).toEqual([0x89, 0x50, 0x4e, 0x47]);
-    // Re-encoding at the same size would cost CPU and return the same bytes.
-    expect(optimized.size).toBe(file.size);
-  });
-
-  it("scales an oversized PNG down to the cap and keeps its aspect ratio", async () => {
-    const { optimizeImage, MAX_IMAGE_DIMENSION } = await import("@/shared/integrations/storage/optimize");
-
-    // 2:1, longest edge well past the cap.
-    // Just over the cap, not double it. Encoding a 5-megapixel fixture took
-    // seconds and left little room under vitest's timeout on a loaded runner;
-    // scaling is exercised just as well by an image that barely exceeds it.
-    const source = sampleImage(MAX_IMAGE_DIMENSION + 100, (MAX_IMAGE_DIMENSION + 100) / 2);
-    const file = new File([toBlobPart(source.get_bytes())], "big.png", { type: "image/png" });
-    source.free();
-
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.type).toBe("image/png");
-    expect(await magicBytes(optimized, 4)).toEqual([0x89, 0x50, 0x4e, 0x47]);
-    expect(optimized.size).toBeLessThan(file.size);
-
-    const result = PhotonImage.new_from_byteslice(new Uint8Array(await optimized.arrayBuffer()));
-    expect(result.get_width()).toBe(MAX_IMAGE_DIMENSION);
-    expect(result.get_height()).toBe(MAX_IMAGE_DIMENSION / 2);
-    result.free();
-  });
-
-  it("passes non-image files through unchanged", async () => {
-    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
-
-    const file = new File(["hello"], "test.txt", { type: "text/plain" });
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.size).toBe(file.size);
-    expect(optimized.type).toBe("text/plain");
-  });
-
-  it("passes an image type it has no codec for through unchanged", async () => {
-    const { optimizeImage } = await import("@/shared/integrations/storage/optimize");
-
-    const file = new File(["GIF89a"], "test.gif", { type: "image/gif" });
-    const optimized = await optimizeImage(file);
-
-    expect(optimized.size).toBe(file.size);
-    expect(optimized.type).toBe("image/gif");
-  });
-});
-
 describe("Storage operations", () => {
   beforeEach(() => {
     bucket.upload.mockReset();
@@ -248,8 +162,7 @@ describe("Storage operations", () => {
   it("uploadToStorage returns the proxy URL rather than a public one", async () => {
     bucket.upload.mockResolvedValue({ error: null });
 
-    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
-    const result = await uploadToStorage("event_images", "events/1/cover.jpg", file);
+    const result = await uploadToStorage("event_images", "events/1/cover.jpg", jpegFile());
 
     // Entitlement is enforced by /api/storage, so a bypassable public URL would
     // defeat the check the proxy exists to perform.
@@ -260,8 +173,51 @@ describe("Storage operations", () => {
   it("uploadToStorage throws when the upload fails", async () => {
     bucket.upload.mockResolvedValue({ error: { message: "quota exceeded" } });
 
-    const file = new File(["x"], "cover.jpg", { type: "image/jpeg" });
-    await expect(uploadToStorage("event_images", "events/1/cover.jpg", file)).rejects.toThrow("quota exceeded");
+    await expect(uploadToStorage("event_images", "events/1/cover.jpg", jpegFile())).rejects.toThrow("quota exceeded");
+  });
+
+  it("uploadToStorage strips metadata before the bytes reach the bucket", async () => {
+    // The seam every upload passes through, so a bucket added later cannot be
+    // wired up in a way that forgets this.
+    bucket.upload.mockResolvedValue({ error: null });
+
+    await uploadToStorage("profile_images", "users/1/profile.jpg", jpegFile());
+
+    const stored = bucket.upload.mock.calls[0][1] as File;
+    const bytes = new TextDecoder("latin1").decode(new Uint8Array(await stored.arrayBuffer()));
+    expect(bytes).not.toContain("GPSLatitude");
+    expect(stored.type).toBe("image/jpeg");
+  });
+
+  it("uploadToStorage still stores a file whose bytes are not the image it claims", async () => {
+    // Stripping must not become a second gate on what may be uploaded; the
+    // route's own type and size checks decide that.
+    bucket.upload.mockResolvedValue({ error: null });
+    const lying = new File(["not really a jpeg" as BlobPart], "cover.jpg", { type: "image/jpeg" });
+
+    const result = await uploadToStorage("event_images", "events/1/cover.jpg", lying);
+
+    expect(result.path).toBe("events/1/cover.jpg");
+    expect(bucket.upload.mock.calls[0][1]).toBe(lying);
+  });
+
+  it("deleteFromStorage reports a failed removal without throwing", async () => {
+    // Cleanup runs while deleting an event or course; throwing here would fail
+    // the delete itself over files that are merely left behind.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    bucket.remove.mockResolvedValue({ error: { message: "object not found" } });
+
+    await expect(deleteFromStorage("course_assets", ["a.pdf"])).resolves.toBeUndefined();
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it("listStorageFolder answers with no files when the listing fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    bucket.list.mockResolvedValue({ data: null, error: { message: "bucket missing" } });
+
+    await expect(listStorageFolder("course_assets", "courses/1")).resolves.toEqual([]);
+    logged.mockRestore();
   });
 
   it("deleteFromStorage makes no call for an empty path list", async () => {

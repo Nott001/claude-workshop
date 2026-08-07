@@ -1,13 +1,10 @@
 "use client";
 
-import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
-import ChatPanel from "@/modules/chat/components/chat-panel";
+import StaffSupportInbox from "@/modules/chat/components/staff-support-inbox";
 
 export default function StaffSupportPage() {
-  const { user } = useSession();
-  const { role, allowed, pending } = useRoleGuard("admin");
-  const currentUserId = user?.id ?? null;
+  const { allowed, pending } = useRoleGuard("admin");
 
   if (pending) {
     return (
@@ -20,12 +17,14 @@ export default function StaffSupportPage() {
   if (!allowed) return null;
 
   return (
-    <>
-      <div>
-        <h1>General Support Inbox</h1>
-        <p>Handle general support requests from attendees.</p>
-        <ChatPanel eventId="" supportType="general" userRole={role} currentUserId={currentUserId} />
+    <div className="flex flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-8">
+        <div>
+          <h1 className="text-xl font-bold">General Support Inbox</h1>
+          <p className="text-sm text-muted-fg">Claim a case to handle it end to end.</p>
+        </div>
+        <StaffSupportInbox />
       </div>
-    </>
+    </div>
   );
 }

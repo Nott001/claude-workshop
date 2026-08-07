@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { listCandidates, replaceEventAssignments } from "@/shared/db/dao/speaker.dao";
+import { listCandidates, replaceEventAssignments, isAssignedByUserId, listEventAssignments } from "@/shared/db/dao/speaker.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 function replaceStub({
@@ -60,6 +60,96 @@ describe("speaker.dao replaceEventAssignments", () => {
     const { client } = replaceStub({ validIds: [2], insertError: { message: "nope" } });
 
     await expect(replaceEventAssignments(client, 10, [2])).resolves.toBe(false);
+  });
+});
+
+describe("speaker.dao isAssignedByUserId", () => {
+  it("resolves the profile, then checks the assignment directly by profile id", async () => {
+    const profileChain = {
+      select: vi.fn(() => profileChain),
+      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
+    };
+    const esChain = {
+      select: vi.fn(() => esChain),
+      eq: vi.fn(() => esChain),
+      single: vi.fn(() => Promise.resolve({ data: { event_id: 353 }, error: null })),
+    };
+    const from = vi.fn((table: string) => (table === "SPEAKER_PROFILE" ? profileChain : esChain));
+    const client = { from } as unknown as DbClient;
+
+    const ok = await isAssignedByUserId(client, 881, 353);
+
+    expect(ok).toBe(true);
+    expect(profileChain.eq).toHaveBeenCalledWith("user_id", 881);
+    expect(esChain.eq).toHaveBeenCalledWith("speaker_profile_id", 2);
+    expect(esChain.eq).toHaveBeenCalledWith("event_id", 353);
+  });
+
+  it("returns false without querying assignments when the user has no profile", async () => {
+    const profileChain = {
+      select: vi.fn(() => profileChain),
+      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: { code: "PGRST116" } })) })),
+    };
+    const esChain = { select: vi.fn(), eq: vi.fn(), single: vi.fn() };
+    const from = vi.fn((table: string) => (table === "SPEAKER_PROFILE" ? profileChain : esChain));
+    const client = { from } as unknown as DbClient;
+
+    const ok = await isAssignedByUserId(client, 999, 353);
+
+    expect(ok).toBe(false);
+    expect(esChain.select).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the profile is not assigned to the event", async () => {
+    const profileChain = {
+      select: vi.fn(() => profileChain),
+      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
+    };
+    const esChain = {
+      select: vi.fn(() => esChain),
+      eq: vi.fn(() => esChain),
+      single: vi.fn(() => Promise.resolve({ data: null, error: { code: "PGRST116" } })),
+    };
+    const from = vi.fn((table: string) => (table === "SPEAKER_PROFILE" ? profileChain : esChain));
+    const client = { from } as unknown as DbClient;
+
+    const ok = await isAssignedByUserId(client, 881, 353);
+
+    expect(ok).toBe(false);
+  });
+});
+
+describe("speaker.dao listEventAssignments", () => {
+  it("embeds the speaker's name so the roster is displayable", async () => {
+    const esChain = {
+      select: vi.fn(() => esChain),
+      eq: vi.fn(() =>
+        Promise.resolve({
+          data: [
+            {
+              event_id: 10,
+              speaker_profile_id: 2,
+              SPEAKER_PROFILE: { id: 2, user_id: 1, USER: { full_name: "Sam Speaker" } },
+            },
+          ],
+          error: null,
+        }),
+      ),
+    };
+    const from = vi.fn(() => esChain);
+    const client = { from } as unknown as DbClient;
+
+    const rows = await listEventAssignments(client, 10);
+
+    expect(rows).toEqual([
+      {
+        event_id: 10,
+        speaker_profile_id: 2,
+        SPEAKER_PROFILE: { id: 2, user_id: 1, USER: { full_name: "Sam Speaker" } },
+      },
+    ]);
+    expect(esChain.select).toHaveBeenCalledWith("*, SPEAKER_PROFILE(*, USER(full_name))");
+    expect(esChain.eq).toHaveBeenCalledWith("event_id", 10);
   });
 });
 

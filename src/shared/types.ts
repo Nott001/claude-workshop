@@ -21,7 +21,6 @@ export interface Course {
   event_id: number;
   course_name: string;
   course_description: string | null;
-  created_by: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +32,9 @@ export interface Module {
   sequence_order: number;
   module_type: ModuleType;
   is_locked: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  speaker_profile_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -180,6 +182,8 @@ export interface SupportSession {
   status: SupportSessionStatus;
   support_type: SupportType;
   event_id: number | null;
+  case_number: number;
+  assigned_to: number | null;
   created_at: string;
   updated_at: string;
 }

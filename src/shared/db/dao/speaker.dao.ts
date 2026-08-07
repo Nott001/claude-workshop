@@ -10,7 +10,7 @@ export interface SpeakerProfileWithUser extends SpeakerProfile {
 export interface EventSpeakerAssignment {
   event_id: number;
   speaker_profile_id: number;
-  SPEAKER_PROFILE: SpeakerProfile | null;
+  SPEAKER_PROFILE: (SpeakerProfile & { USER: Pick<User, "full_name"> | null }) | null;
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<SpeakerProfile | null> {
@@ -82,16 +82,13 @@ export async function remove(supabase: DbClient, id: number): Promise<boolean> {
   return !error;
 }
 
-export async function findByIdWithUser(
-  supabase: DbClient,
-  id: number,
-): Promise<{ user_id: number; photo_url?: string | null } | null> {
-  const { data } = await supabase.from("SPEAKER_PROFILE").select("user_id").eq("id", id).single();
-  return data;
-}
-
 export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventSpeakerAssignment[]> {
-  const { data } = await supabase.from("EVENT_SPEAKER").select("*, SPEAKER_PROFILE(*)").eq("event_id", eventId);
+  // The nested USER embed gives the assignment roster names, which is what the
+  // builder's speaker select and the host wiring display.
+  const { data } = await supabase
+    .from("EVENT_SPEAKER")
+    .select("*, SPEAKER_PROFILE(*, USER(full_name))")
+    .eq("event_id", eventId);
   return data ?? [];
 }
 
@@ -110,6 +107,8 @@ export async function replaceEventAssignments(
   eventId: number,
   speakerProfileIds: number[],
 ): Promise<boolean> {
+  // Selecting the embed makes the USER.role filter legal; without it in the
+  // select list PostgREST answers PGRST108 and every speaker is silently dropped.
   const { data: valid } = await supabase
     .from("SPEAKER_PROFILE")
     .select("id, USER(role)")
@@ -140,6 +139,18 @@ export async function unassignFromEvent(supabase: DbClient, eventId: number, spe
 export async function getSpeakerEventIds(supabase: DbClient, speakerProfileId: number): Promise<number[]> {
   const { data } = await supabase.from("EVENT_SPEAKER").select("event_id").eq("speaker_profile_id", speakerProfileId);
   return (data ?? []).map((a: { event_id: number }) => a.event_id);
+}
+
+/**
+ * Whether the user's speaker profile is assigned to the event. The profile is
+ * resolved first, then the assignment is checked by profile id: filtering an
+ * embed that is not in the select list makes PostgREST answer PGRST108, so the
+ * join must happen in two plain queries — the same shape the speaker route uses.
+ */
+export async function isAssignedByUserId(supabase: DbClient, userId: number, eventId: number): Promise<boolean> {
+  const profile = await findByUserId(supabase, userId);
+  if (!profile) return false;
+  return checkSpeakerAssignment(supabase, profile.id, eventId);
 }
 
 export async function checkSpeakerAssignment(supabase: DbClient, speakerProfileId: number, eventId: number): Promise<boolean> {

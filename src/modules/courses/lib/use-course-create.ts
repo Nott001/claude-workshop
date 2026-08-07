@@ -1,10 +1,26 @@
 "use client";
 
+// The only coupling to the events module is the eventId scope parameter feeding
+// event_id into POST /api/courses — the 1:1 contract from SPEC-01. Keep it that
+// way: anything else a course author does is owned by this module.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
-import type { Lesson } from "@/shared/types";
+import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
+import { postUpload } from "@/shared/integrations/storage/upload-client";
 import type { ModuleWithLessons } from "./types";
+import type { LessonMove } from "./reorder";
+
+/**
+ * Routes answer with `{ error: string }` for a refusal the caller can act on and
+ * `{ error: { message } }` elsewhere. Reading only the latter turned a 409 into
+ * a generic failure, which told the author nothing about what to do next.
+ */
+async function refusalMessage(res: Response, fallback: string): Promise<string> {
+  const body = await res.json().catch(() => null);
+  const error = body?.error;
+  if (typeof error === "string") return error;
+  return typeof error?.message === "string" ? error.message : fallback;
+}
 
 export function useCourseCreate(eventId: string, existingCourseId?: number) {
   const router = useRouter();
@@ -33,8 +49,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Failed to create course");
+      setError(await refusalMessage(res, "Failed to create course"));
       setSubmitting(false);
       return;
     }
@@ -63,7 +78,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     });
 
     if (!res.ok) {
-      setError("Failed to create course");
+      setError(await refusalMessage(res, "Failed to create course"));
       return null;
     }
 
@@ -105,15 +120,6 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     const mod = await res.json();
     setModules((prev) => [...prev, { ...mod, LESSONS: [] }]);
     return mod.id;
-  }
-
-  async function handleToggleModuleLock(moduleId: number, currentLocked: boolean) {
-    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, is_locked: !currentLocked } : m)));
-    await fetch(`/api/qa/module/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_locked: !currentLocked }),
-    });
   }
 
   async function handleRenameModule(moduleId: number, newName: string) {
@@ -185,23 +191,48 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
 
     if (data.file) {
       const endpoint = getUploadEndpoint(contentType);
-      if (endpoint) {
-        const formData = new FormData();
-        formData.append("file", data.file);
-        formData.append("lesson_id", String(lesson.id));
-        formData.append("course_id", String(modules[0].id));
-        formData.append("module_id", String(moduleId));
-
-        const uploadRes = await fetch(endpoint, { method: "POST", body: formData });
-        if (!uploadRes.ok) {
-          const uploadData = await uploadRes.json().catch(() => null);
-          return uploadData?.error ?? "Lesson saved but file upload failed.";
-        }
+      const bucket = uploadBucket(contentType);
+      if (endpoint && bucket) {
+        const result = await postUpload(bucket, endpoint, data.file, {
+          lesson_id: String(lesson.id),
+          course_id: String(modules[0].course_id),
+          module_id: String(moduleId),
+        });
+        if (!result.ok) return `Lesson saved, but ${result.error.charAt(0).toLowerCase()}${result.error.slice(1)}`;
       }
     }
 
     setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
     setLessonDialogModuleId(null);
+    return null;
+  }
+
+  async function handleUpdateModuleSchedule(
+    moduleId: number,
+    schedule: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
+  ): Promise<string | null> {
+    const mod = modules.find((m) => m.id === moduleId);
+    if (!mod) return "Module not found";
+
+    const previous = modules;
+    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, ...schedule } : m)));
+
+    const res = await fetch(`/api/modules/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        module_name: mod.module_name,
+        sequence_order: mod.sequence_order,
+        ...schedule,
+      }),
+    });
+
+    if (!res.ok) {
+      setModules(previous);
+      const err = await res.json().catch(() => null);
+      return err?.error?.message ?? "Failed to update schedule";
+    }
+
     return null;
   }
 
@@ -212,27 +243,36 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
         fetch(`/api/modules/${m.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ module_name: m.module_name, sequence_order: m.sequence_order }),
+          body: JSON.stringify({
+            module_name: m.module_name,
+            sequence_order: m.sequence_order,
+            start_time: m.start_time,
+            end_time: m.end_time,
+            speaker_profile_id: m.speaker_profile_id,
+          }),
         }),
       ),
     );
   }
 
-  async function handleReorderLessons(_moduleId: number, lessons: Lesson[]) {
-    setModules((prev) => prev.map((m) => (m.id === _moduleId ? { ...m, LESSONS: lessons } : m)));
+  async function handleMoveLesson(nextModules: ModuleWithLessons[], updates: LessonMove[]) {
+    setModules(nextModules);
     await Promise.all(
-      lessons.map((l) =>
-        fetch(`/api/lessons/${l.id}`, {
+      updates.map((u) => {
+        const lesson = nextModules.find((m) => m.id === u.module_id)?.LESSONS.find((l) => l.id === u.id);
+        if (!lesson) return Promise.resolve();
+        return fetch(`/api/lessons/${u.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            description: l.description,
-            content_type: l.content_type,
-            content_url: l.content_url,
-            sequence_order: l.sequence_order,
+            description: lesson.description,
+            content_type: lesson.content_type,
+            content_url: lesson.content_url,
+            sequence_order: u.sequence_order,
+            module_id: u.module_id,
           }),
-        }),
-      ),
+        });
+      }),
     );
   }
 
@@ -250,13 +290,13 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     handleCreateCourse,
     handleAddModule,
     handleAddQaModule,
-    handleToggleModuleLock,
     handleRenameModule,
     handleDeleteModule,
     handleDeleteLesson,
     openLessonDialog,
     handleAddLesson,
+    handleUpdateModuleSchedule,
     handleReorderModules,
-    handleReorderLessons,
+    handleMoveLesson,
   };
 }
