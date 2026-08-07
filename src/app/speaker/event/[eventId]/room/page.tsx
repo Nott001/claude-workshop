@@ -11,7 +11,7 @@ import type { UserRole } from "@/shared/types";
 export default function SpeakerEventRoomPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.id as string;
+  const eventId = params.eventId as string;
 
   const {
     access,
