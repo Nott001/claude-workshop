@@ -163,10 +163,11 @@ test("a missing field is refused before anything is stored", async ({ page }) =>
 
   await signIn(page, facilitator);
 
+  // lesson_id omitted on purpose: the route cannot derive a path without it, so
+  // it must refuse at the guard rather than reach storage.
   const res = await page.request.post("/api/upload/course-asset", {
     multipart: {
       file: { name: "e2e-orphan.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
-      lesson_id: String(lessonId),
     },
   });
 

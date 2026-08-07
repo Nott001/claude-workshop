@@ -78,13 +78,30 @@ describe("course.dao writes", () => {
 
     await expect(
       dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 }),
-    ).resolves.toMatchObject({ id: 4 });
+    ).resolves.toMatchObject({ course: { id: 4 } });
   });
 
   it("reports a rejected insert as no course", async () => {
     const { client } = stub({ COURSE: { data: null, error: { message: "violates foreign key", code: "23503" } } });
 
-    await expect(dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 })).resolves.toBeNull();
+    await expect(dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 })).resolves.toEqual({
+      course: null,
+      reason: "failed",
+    });
+  });
+
+  it("separates an event that already owns a course from a failed insert", async () => {
+    const { client } = stub({
+      COURSE: {
+        data: null,
+        error: { message: 'duplicate key value violates unique constraint "COURSE_event_id_key"', code: "23505" },
+      },
+    });
+
+    await expect(dao.createCourse(client, { course_name: "Intro", course_description: null, event_id: 9 })).resolves.toEqual({
+      course: null,
+      reason: "conflict",
+    });
   });
 
   it("defaults a new module to lessons rather than leaving its type unset", async () => {

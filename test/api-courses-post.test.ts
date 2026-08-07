@@ -37,7 +37,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(speaker);
   canManageEvent.mockResolvedValue(true);
-  createCourse.mockResolvedValue({ id: 1, course_name: "Intro to React", course_description: null, event_id: 353 });
+  createCourse.mockResolvedValue({
+    course: { id: 1, course_name: "Intro to React", course_description: null, event_id: 353 },
+  });
 });
 
 describe("POST /api/courses", () => {
@@ -69,5 +71,23 @@ describe("POST /api/courses", () => {
 
     expect(res.status).toBe(403);
     expect(createCourse).not.toHaveBeenCalled();
+  });
+
+  it("409s when the event already owns a course, rather than reporting a server fault", async () => {
+    createCourse.mockResolvedValue({ course: null, reason: "conflict" });
+
+    const res = await POST(jsonRequest({ course_name: "Intro to React", course_description: null, event_id: 353 }));
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({ error: "This event already has a course" });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it("500s when the insert failed for any other reason", async () => {
+    createCourse.mockResolvedValue({ course: null, reason: "failed" });
+
+    const res = await POST(jsonRequest({ course_name: "Intro to React", course_description: null, event_id: 353 }));
+
+    expect(res.status).toBe(500);
   });
 });

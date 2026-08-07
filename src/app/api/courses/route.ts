@@ -37,15 +37,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "You are not assigned to this event" }, { status: 403 });
   }
 
-  const course = await courseDao.createCourse(supabase, {
+  const result = await courseDao.createCourse(supabase, {
     course_name: parsed.data.course_name,
     course_description: parsed.data.course_description ?? null,
     event_id: parsed.data.event_id,
   });
 
-  if (!course) {
-    return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
+  if (!result.course) {
+    return result.reason === "conflict"
+      ? NextResponse.json({ error: "This event already has a course" }, { status: 409 })
+      : NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
+  const course = result.course;
 
   await logAuditEvent(supabase, guard.user.id, "course.created", "course", course.id, {
     name: course.course_name,

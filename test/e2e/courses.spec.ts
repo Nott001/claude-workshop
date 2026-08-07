@@ -197,22 +197,44 @@ test("a facilitator deleting a module removes its lessons", async ({ page }) => 
  * Creating a course through the API works now that the route forwards event_id
  * and the SPEC-02 policy gates on assignment. The course is pushed to `courses`
  * so teardown removes it like every other seeded course.
+ *
+ * These creates need an event of their own: the shared `event` already owns the
+ * seeded course, and COURSE.event_id is UNIQUE, so a second one is refused.
  */
 test("an assigned facilitator can create a course through the API", async ({ page }) => {
+  const ownEvent = await createEvent(db);
+  events.push(ownEvent);
+
+  const facilitator = await createUser(db, "facilitator");
+  users.push(facilitator);
+  await assignFacilitator(db, facilitator.userId, ownEvent.eventId);
+
+  await signIn(page, facilitator);
+
+  const res = await page.request.post("/api/courses", {
+    // course_description: null is what the UI sends when the field is empty.
+    data: { course_name: "e2e-created-course", course_description: null, event_id: ownEvent.eventId },
+  });
+
+  expect(res.status()).toBe(201);
+  const created = await res.json();
+  courses.push({ courseId: created.id, name: created.course_name });
+});
+
+test("a second course for the same event is refused as a conflict", async ({ page }) => {
   const facilitator = await createUser(db, "facilitator");
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
   await signIn(page, facilitator);
 
+  // `event` already owns the course seeded in beforeAll.
   const res = await page.request.post("/api/courses", {
-    // course_description: null is what the UI sends when the field is empty.
-    data: { course_name: "e2e-created-course", course_description: null, event_id: event.eventId },
+    data: { course_name: "e2e-duplicate-course", course_description: null, event_id: event.eventId },
   });
 
-  expect(res.status()).toBe(201);
-  const created = await res.json();
-  courses.push({ courseId: created.id, name: created.course_name });
+  // 409, not 500: the event owning a course already is the caller's problem.
+  expect(res.status()).toBe(409);
 });
 
 /**
@@ -222,14 +244,17 @@ test("an assigned facilitator can create a course through the API", async ({ pag
  * for every speaker and 403'd the create. This exercises that exact path.
  */
 test("an assigned speaker can create a course through the API", async ({ page }) => {
+  const ownEvent = await createEvent(db);
+  events.push(ownEvent);
+
   const speaker = await createUser(db, "speaker");
   users.push(speaker);
-  await assignSpeaker(db, speaker.userId, event.eventId);
+  await assignSpeaker(db, speaker.userId, ownEvent.eventId);
 
   await signIn(page, speaker);
 
   const res = await page.request.post("/api/courses", {
-    data: { course_name: "e2e-speaker-course", course_description: null, event_id: event.eventId },
+    data: { course_name: "e2e-speaker-course", course_description: null, event_id: ownEvent.eventId },
   });
 
   expect(res.status()).toBe(201);

@@ -10,6 +10,18 @@ import { postUpload } from "@/shared/integrations/storage/upload-client";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
 
+/**
+ * Routes answer with `{ error: string }` for a refusal the caller can act on and
+ * `{ error: { message } }` elsewhere. Reading only the latter turned a 409 into
+ * a generic failure, which told the author nothing about what to do next.
+ */
+async function refusalMessage(res: Response, fallback: string): Promise<string> {
+  const body = await res.json().catch(() => null);
+  const error = body?.error;
+  if (typeof error === "string") return error;
+  return typeof error?.message === "string" ? error.message : fallback;
+}
+
 export function useCourseCreate(eventId: string, existingCourseId?: number) {
   const router = useRouter();
 
@@ -37,8 +49,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Failed to create course");
+      setError(await refusalMessage(res, "Failed to create course"));
       setSubmitting(false);
       return;
     }
@@ -67,7 +78,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     });
 
     if (!res.ok) {
-      setError("Failed to create course");
+      setError(await refusalMessage(res, "Failed to create course"));
       return null;
     }
 

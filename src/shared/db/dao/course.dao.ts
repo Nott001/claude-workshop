@@ -129,17 +129,21 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
   return toLessonsKey(data as (Course & { MODULE: ModuleContent[] }) | null);
 }
 
+export type CreateCourseResult = { course: Course } | { course: null; reason: "conflict" | "failed" };
+
 export async function createCourse(
   supabase: DbClient,
   data: { course_name: string; course_description: string | null; event_id: number },
-): Promise<Course | null> {
+): Promise<CreateCourseResult> {
   const { data: course, error } = await supabase.from("COURSE").insert(data).select("*").single();
 
   if (error) {
     console.error("course.dao.createCourse failed:", error.message, error.code);
-    return null;
+    // COURSE.event_id is UNIQUE (SPEC-01: an event owns at most one course), so
+    // 23505 here is the caller asking for a second one — their problem, not ours.
+    return { course: null, reason: error.code === "23505" ? "conflict" : "failed" };
   }
-  return course;
+  return { course };
 }
 
 export async function updateCourse(
