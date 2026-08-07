@@ -14,6 +14,9 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   "auth/invite/route.ts":
     "Invitation acceptance — the invitee has no session, and creating one is the point. " +
     "The single-use token in the request body is the credential, and the submission must be same-origin.",
+  "dev/profiler/route.ts":
+    "Dev-only browser profiler sink. Self-404s on production builds, and anonymous visitors' " +
+    "samples must still reach the dev terminal, so it cannot sit behind a session.",
 };
 
 /**
@@ -49,7 +52,7 @@ describe("api route authorization sweep", () => {
 
   it("keeps the public list minimal", () => {
     // A guard rail on the guard rail: if this list grows, someone should notice.
-    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(2);
+    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(3);
   });
 
   it.each(Object.keys(PUBLIC_BY_DESIGN))("%s is genuinely unguarded, so the list stays honest", (rel) => {
