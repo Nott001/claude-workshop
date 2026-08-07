@@ -6,6 +6,7 @@ import { useSession } from "@/modules/auth/components/session-context";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
+import { LiveNowTag } from "@/modules/events/components/live-now-tag";
 import { useRoomAccess } from "@/modules/events/lib/use-room-access";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -32,6 +33,8 @@ export default function StaffEventRoomPage() {
     course,
     userRole,
     isStaff,
+    liveModule,
+    assignedSpeakerCount,
     eventStarted,
     eventEnded,
     elapsed,
@@ -89,6 +92,8 @@ export default function StaffEventRoomPage() {
         remaining={remaining}
         eventDate={eventDate}
         startTime={startTime}
+        liveModuleName={liveModule?.module_name}
+        liveSpeakerName={assignedSpeakerCount > 1 ? (liveModule?.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
         onExit={() => {
           if (userRole === "speaker") {
             router.push(`/speaker/event/${eventId}`);
@@ -112,16 +117,23 @@ export default function StaffEventRoomPage() {
               <h2 className="text-lg font-bold text-fg">{course.course_name}</h2>
               {course.MODULE && (
                 <div className="mt-4 space-y-3">
-                  {course.MODULE.map((mod) =>
-                    mod.module_type === "qa" ? (
-                      <div key={mod.id} className="rounded-lg border border-border overflow-hidden">
+                  {course.MODULE.map((mod) => {
+                    const isLive = liveModule?.id === mod.id;
+                    return mod.module_type === "qa" ? (
+                      <div
+                        key={mod.id}
+                        className={`overflow-hidden rounded-lg border ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
+                      >
                         {mod.start_time && mod.end_time && (
                           <div className="border-b border-border bg-muted px-4 py-2">
-                            <ModuleScheduleBadge
-                              startTime={mod.start_time}
-                              endTime={mod.end_time}
-                              speakerName={mod.SPEAKER_PROFILE?.USER?.full_name ?? null}
-                            />
+                            <div className="flex items-center justify-between gap-2">
+                              <ModuleScheduleBadge
+                                startTime={mod.start_time}
+                                endTime={mod.end_time}
+                                speakerName={assignedSpeakerCount > 1 ? (mod.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
+                              />
+                              {isLive && <LiveNowTag />}
+                            </div>
                           </div>
                         )}
                         <QAPanel
@@ -134,14 +146,20 @@ export default function StaffEventRoomPage() {
                         />
                       </div>
                     ) : (
-                      <div key={mod.id} className="rounded-lg border border-border p-3">
+                      <div
+                        key={mod.id}
+                        className={`rounded-lg border p-3 ${isLive ? "border-brand ring-1 ring-brand" : "border-border"}`}
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="text-sm font-semibold text-fg">{mod.module_name}</h3>
-                          <ModuleScheduleBadge
-                            startTime={mod.start_time}
-                            endTime={mod.end_time}
-                            speakerName={mod.SPEAKER_PROFILE?.USER?.full_name ?? null}
-                          />
+                          <div className="flex items-center gap-2">
+                            {isLive && <LiveNowTag />}
+                            <ModuleScheduleBadge
+                              startTime={mod.start_time}
+                              endTime={mod.end_time}
+                              speakerName={assignedSpeakerCount > 1 ? (mod.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
+                            />
+                          </div>
                         </div>
                         {mod.LESSONS && (
                           <div className="mt-2 space-y-1">
@@ -171,8 +189,8 @@ export default function StaffEventRoomPage() {
                           </div>
                         )}
                       </div>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               )}
             </div>
