@@ -18,7 +18,7 @@ export default function HomePage() {
       <div className="flex flex-1 flex-col bg-bg text-fg">
         <section className="relative overflow-hidden rounded-b-[40px] bg-brand px-6 py-10 sm:px-12 lg:px-16 lg:py-8">
           <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px]" />
-          <div className="relative mx-auto grid max-w-[1110px] items-center gap-10 lg:min-h-[427px] lg:grid-cols-[1.1fr_.8fr] lg:gap-12">
+          <div className="relative grid items-center gap-10 lg:min-h-[427px] lg:grid-cols-[1.1fr_.8fr] lg:gap-12">
             <div>
               <p className="mb-3 text-sm font-semibold tracking-[0.16em] text-white/80 uppercase">Learn. Connect. Grow.</p>
               <h1 className="max-w-xl text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl lg:leading-[1.12]">
@@ -56,7 +56,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        <EventGrid events={events} />
+        <div className="px-6 py-12">
+          <EventGrid events={events} />
+        </div>
       </div>
     </>
   );
