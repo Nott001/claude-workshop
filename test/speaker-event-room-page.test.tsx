@@ -143,4 +143,85 @@ describe("SpeakerEventRoomPage", () => {
 
     expect(screen.queryByText(/Ada Lovelace/)).toBeNull();
   });
+
+  it("renders clickable lesson capsules that open a viewer modal", () => {
+    allowRoom({
+      course: {
+        id: 4,
+        course_name: "Intro",
+        MODULE: [
+          {
+            id: 1,
+            module_name: "Workshop",
+            sequence_order: 1,
+            module_type: "lessons",
+            is_locked: false,
+            start_time: "09:00:00",
+            end_time: "10:00:00",
+            speaker_profile_id: null,
+            SPEAKER_PROFILE: null,
+            LESSONS: [
+              {
+                id: 10,
+                description: "Slides PDF",
+                content_type: "pdf",
+                content_url: "https://example.com/slides.pdf",
+                module_id: 1,
+                sequence_order: 1,
+              },
+              {
+                id: 11,
+                description: "Demo Video",
+                content_type: "video",
+                content_url: "https://example.com/demo.mp4",
+                module_id: 1,
+                sequence_order: 2,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    render(<SpeakerEventRoomPage />);
+
+    const lessonBtn = screen.getByText("Slides PDF").closest("button");
+    expect(lessonBtn).toBeTruthy();
+    expect(lessonBtn!.querySelector(".material-symbols-rounded")!.textContent).toBe("picture_as_pdf");
+
+    const videoBtn = screen.getByText("Demo Video").closest("button");
+    expect(videoBtn).toBeTruthy();
+    expect(videoBtn!.querySelector(".material-symbols-rounded")!.textContent).toBe("play_circle");
+  });
+
+  it("disables lesson buttons without content_url", () => {
+    allowRoom({
+      course: {
+        id: 4,
+        course_name: "Intro",
+        MODULE: [
+          {
+            id: 1,
+            module_name: "Workshop",
+            sequence_order: 1,
+            module_type: "lessons",
+            is_locked: false,
+            start_time: "09:00:00",
+            end_time: "10:00:00",
+            speaker_profile_id: null,
+            SPEAKER_PROFILE: null,
+            LESSONS: [
+              { id: 10, description: "No resource", content_type: "pdf", content_url: null, module_id: 1, sequence_order: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    render(<SpeakerEventRoomPage />);
+
+    const btn = screen.getByText("No resource").closest("button");
+    expect(btn).toBeTruthy();
+    expect(btn!.disabled).toBe(true);
+  });
 });

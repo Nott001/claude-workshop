@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
+import { LessonViewerModal, lessonContentTypeIcon } from "@/modules/courses/components/lesson-viewer-modal";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { LiveNowTag } from "@/modules/events/components/live-now-tag";
 import { SessionTimeline } from "@/modules/events/components/session-timeline";
@@ -31,6 +32,13 @@ export default function EventRoomPage() {
     elapsed,
     remaining,
   } = useRoomAccess(eventId);
+
+  const [selectedLesson, setSelectedLesson] = useState<{
+    id: number;
+    description: string;
+    content_type: string;
+    content_url: string | null;
+  } | null>(null);
 
   const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
     await fetch(`/api/qa/module/${moduleId}`, {
@@ -159,10 +167,21 @@ export default function EventRoomPage() {
                           {mod.LESSONS && (
                             <div className="mt-2 space-y-1">
                               {mod.LESSONS.map((lesson) => (
-                                <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-fg">
-                                  <span className="material-symbols-rounded text-[14px]">description</span>
+                                <button
+                                  key={lesson.id}
+                                  onClick={() => lesson.content_url && setSelectedLesson(lesson)}
+                                  disabled={!lesson.content_url}
+                                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-1.5 text-left text-xs transition-colors ${
+                                    lesson.content_url
+                                      ? "cursor-pointer border-border bg-muted text-fg hover:bg-brand/10 hover:text-brand"
+                                      : "cursor-default border-transparent text-muted-fg"
+                                  }`}
+                                >
+                                  <span className="material-symbols-rounded text-[14px]">
+                                    {lessonContentTypeIcon(lesson.content_type)}
+                                  </span>
                                   {lesson.description}
-                                </div>
+                                </button>
                               ))}
                             </div>
                           )}
@@ -188,6 +207,12 @@ export default function EventRoomPage() {
           </aside>
         )}
       </div>
+
+      <LessonViewerModal
+        lesson={selectedLesson}
+        open={!!selectedLesson}
+        onOpenChange={(open) => !open && setSelectedLesson(null)}
+      />
     </div>
   );
 }
