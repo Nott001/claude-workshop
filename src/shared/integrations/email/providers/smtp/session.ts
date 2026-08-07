@@ -143,10 +143,11 @@ export async function runSmtpSession(connection: SmtpDuplex, params: SmtpSession
     await write("QUIT");
   } finally {
     // Best effort: by here the message is already accepted or already failed,
-    // and a teardown error must not mask the real one.
+    // and a teardown error must not mask the real one. Closing the connection
+    // belongs to whoever opened it — a timed-out session never reaches this
+    // block at all, so the socket cannot be this function's to release.
     await writer.close().catch(() => {});
     replies.release();
-    await connection.close().catch(() => {});
   }
 }
 

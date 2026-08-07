@@ -11,6 +11,24 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Auth fully off. On a non-browser runtime GoTrue arms a 30s auto-refresh
+// interval it never clears, and that timer roots the whole client graph —
+// GoTrueClient holds the auth-state emitter, which holds the SupabaseClient —
+// so a client built per request is retained for the life of the process.
+function createServiceClient() {
+  return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
+
+// Wrapped rather than annotated so callers keep the generics `createClient`
+// infers; naming the type collapses them and untyped `.from()` rows become `never`.
+let serviceClient: ReturnType<typeof createServiceClient> | null = null;
+
+// One per isolate. A service-role client holds no per-user state — no cookies,
+// no session — so sharing it across requests is safe. Resolved on first use so
+// the Worker env is populated by then.
 export function getServiceClient() {
-  return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  serviceClient ??= createServiceClient();
+  return serviceClient;
 }

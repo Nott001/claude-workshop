@@ -9,22 +9,12 @@ export interface FakeSmtpServer {
   wasClosed: () => boolean;
 }
 
-/**
- * Pre-queues the server side of the conversation. The session's reply reader
- * buffers, so replies are still consumed in order and no real socket is opened.
- */
-export function fakeSmtpServer(replies: string[]): FakeSmtpServer {
-  const encoder = new TextEncoder();
+function serverReading(readable: ReadableStream<Uint8Array>): FakeSmtpServer {
   const chunks: Uint8Array[] = [];
   let closed = false;
 
   const duplex: SmtpDuplex = {
-    readable: new ReadableStream<Uint8Array>({
-      start(controller) {
-        for (const reply of replies) controller.enqueue(encoder.encode(reply));
-        controller.close();
-      },
-    }),
+    readable,
     writable: new WritableStream<Uint8Array>({
       write(chunk) {
         chunks.push(chunk);
@@ -43,6 +33,32 @@ export function fakeSmtpServer(replies: string[]): FakeSmtpServer {
     writes,
     wasClosed: () => closed,
   };
+}
+
+/**
+ * Pre-queues the server side of the conversation. The session's reply reader
+ * buffers, so replies are still consumed in order and no real socket is opened.
+ */
+export function fakeSmtpServer(replies: string[]): FakeSmtpServer {
+  const encoder = new TextEncoder();
+
+  return serverReading(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const reply of replies) controller.enqueue(encoder.encode(reply));
+        controller.close();
+      },
+    }),
+  );
+}
+
+/**
+ * A peer that accepts the connection and then never speaks. The stream neither
+ * yields nor ends, so the session parks in `reader.read()` exactly as it does
+ * against a stalled MTA — which is the only way to reach the timeout path.
+ */
+export function stalledSmtpServer(): FakeSmtpServer {
+  return serverReading(new ReadableStream<Uint8Array>({ start() {} }));
 }
 
 /** Greeting and capabilities matching the live Exim host, which offers both. */
