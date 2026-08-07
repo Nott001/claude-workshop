@@ -18,11 +18,18 @@ const isPublicApiGet = (req: NextRequest) => {
   );
 };
 
+// The profiler sink must be reachable without a session so samples from
+// anonymous visitors still reach the dev terminal. The route itself 404s on a
+// production build, so whitelisting it costs nothing deployed.
+const isPublicApi = (req: NextRequest) => {
+  return req.nextUrl.pathname === "/api/dev/profiler" || isPublicApiGet(req);
+};
+
 const isProtectedRoute = (req: NextRequest) => {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/staff")) return true;
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
-    return !isPublicApiGet(req);
+    return !isPublicApi(req);
   }
   return false;
 };

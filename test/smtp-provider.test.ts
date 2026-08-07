@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { SmtpEmailProvider } from "@/shared/integrations/email/providers/smtp";
 import type { SmtpConfig } from "@/shared/integrations/email/providers/smtp/config";
-import { acceptingScript, ESMTP_GREETING, fakeSmtpServer } from "./helpers/smtp-server";
+import type { FakeSmtpServer } from "./helpers/smtp-server";
+import { acceptingScript, ESMTP_GREETING, fakeSmtpServer, stalledSmtpServer } from "./helpers/smtp-server";
 
 const CONFIG: SmtpConfig = {
   host: "mail.startuplab.center",
@@ -123,16 +124,38 @@ describe("SmtpEmailProvider", () => {
   });
 
   it("gives up on a server that never replies", async () => {
-    const stalled = {
-      readable: new ReadableStream<Uint8Array>({ start() {} }),
-      writable: new WritableStream<Uint8Array>({ write() {} }),
-      close: async () => {},
-    };
-    const provider = new SmtpEmailProvider({ ...CONFIG, timeoutMs: 20 }, async () => stalled);
+    const stalled = stalledSmtpServer();
+    const provider = new SmtpEmailProvider({ ...CONFIG, timeoutMs: 20 }, async () => stalled.duplex);
 
     const result = await provider.send(MESSAGE);
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/timed out after 20ms/);
+  });
+
+  it("closes the socket of a session it abandoned to the timeout", async () => {
+    const stalled = stalledSmtpServer();
+    const provider = new SmtpEmailProvider({ ...CONFIG, timeoutMs: 20 }, async () => stalled.duplex);
+
+    await provider.send(MESSAGE);
+
+    // The abandoned session is still parked in reader.read() and will never run
+    // its own teardown, so an unclosed socket here is one held for the life of
+    // the isolate.
+    expect(stalled.wasClosed()).toBe(true);
+  });
+
+  it("does not stack a socket per retry against a stalled server", async () => {
+    const stalled: FakeSmtpServer[] = [];
+    const provider = new SmtpEmailProvider({ ...CONFIG, timeoutMs: 20, attempts: 3 }, async () => {
+      const server = stalledSmtpServer();
+      stalled.push(server);
+      return server.duplex;
+    });
+
+    await provider.send(MESSAGE);
+
+    expect(stalled).toHaveLength(3);
+    expect(stalled.filter((server) => !server.wasClosed())).toHaveLength(0);
   });
 });

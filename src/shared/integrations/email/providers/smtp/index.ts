@@ -64,18 +64,25 @@ export class SmtpEmailProvider implements EmailProvider {
   private async deliver(message: string, to: string, from: string): Promise<void> {
     const connection = await this.connect(this.config.host, this.config.port);
 
-    await withTimeout(
-      runSmtpSession(connection, {
-        // Identifying as the sending domain is what receiving MTAs expect.
-        ehloName: from.split("@")[1] ?? "localhost",
-        username: this.config.username,
-        password: this.config.password,
-        envelopeFrom: from,
-        envelopeTo: to,
-        message,
-      }),
-      this.config.timeoutMs,
-      "SMTP session",
-    );
+    try {
+      await withTimeout(
+        runSmtpSession(connection, {
+          // Identifying as the sending domain is what receiving MTAs expect.
+          ehloName: from.split("@")[1] ?? "localhost",
+          username: this.config.username,
+          password: this.config.password,
+          envelopeFrom: from,
+          envelopeTo: to,
+          message,
+        }),
+        this.config.timeoutMs,
+        "SMTP session",
+      );
+    } finally {
+      // On timeout the session is left parked in reader.read() and never runs
+      // its own teardown, so closing here is the only thing that frees the
+      // socket — and a retry would otherwise open another beside it.
+      await connection.close().catch(() => {});
+    }
   }
 }
