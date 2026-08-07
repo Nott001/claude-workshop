@@ -138,10 +138,10 @@ describe("runSmtpSession", () => {
     await expect(runSmtpSession(server.duplex, PARAMS)).rejects.toThrow(/closed the connection unexpectedly/);
   });
 
-  it("closes the socket even when the exchange fails", async () => {
+  it("leaves closing the socket to whoever opened it", async () => {
     const server = fakeSmtpServer(["421 Service unavailable\r\n"]);
 
     await runSmtpSession(server.duplex, PARAMS).catch(() => {});
-    expect(server.wasClosed()).toBe(true);
+    expect(server.wasClosed()).toBe(false);
   });
 });
