@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { formatEventDate, formatTime, eventStatusLabel, isEventLive } from "@/shared/lib/date-utils";
+import { formatEventDate, formatTime, eventStatusLabel, isEventLive, isEventFinished } from "@/shared/lib/date-utils";
 
 describe("date-utils", () => {
   it("formatEventDate produces human-readable dates", () => {
@@ -53,6 +53,35 @@ describe("date-utils", () => {
     it("returns true at the exact end time boundary", () => {
       vi.setSystemTime(new Date("2026-06-15T12:00:00"));
       expect(isEventLive("2026-06-15", "10:00", "12:00")).toBe(true);
+    });
+  });
+
+  describe("isEventFinished", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns true when now is after the end time", () => {
+      vi.setSystemTime(new Date("2026-06-15T13:00:00"));
+      expect(isEventFinished("2026-06-15", "12:00")).toBe(true);
+    });
+
+    it("returns false when now is before the end time", () => {
+      vi.setSystemTime(new Date("2026-06-15T10:00:00"));
+      expect(isEventFinished("2026-06-15", "12:00")).toBe(false);
+    });
+
+    it("returns false at the exact end time boundary", () => {
+      vi.setSystemTime(new Date("2026-06-15T12:00:00"));
+      expect(isEventFinished("2026-06-15", "12:00")).toBe(false);
+    });
+
+    it("returns true for a date already passed", () => {
+      vi.setSystemTime(new Date("2026-06-16T00:00:00"));
+      expect(isEventFinished("2026-06-15", "23:59")).toBe(true);
     });
   });
 });

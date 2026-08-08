@@ -22,6 +22,16 @@ export function isEventLive(eventDate: string, startTime: string, endTime: strin
   return now >= start && now <= end;
 }
 
+// Follows the local-time convention of isEventLive: an event has ended the
+// moment its end time is in the past, which is what marks it completed.
+export function isEventFinished(eventDate: string, endTime: string): boolean {
+  const now = new Date();
+  const [y, m, d] = eventDate.split("-").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  const end = new Date(y, m - 1, d, eh, em);
+  return now > end;
+}
+
 export function eventStatusLabel(status: string): string {
   switch (status) {
     case "active":
