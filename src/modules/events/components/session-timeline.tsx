@@ -1,6 +1,6 @@
 "use client";
 
-import { buildTimeline } from "@/modules/events/lib/session-timeline";
+import { buildTimeline } from "@/modules/events/lib/timeline";
 import type { LiveModuleSource } from "@/modules/events/lib/live-module";
 import { formatTime } from "@/shared/lib/date-utils";
 import { ProgressBar } from "@/modules/events/components/progress-bar";

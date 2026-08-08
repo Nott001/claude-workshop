@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTimeline } from "@/modules/events/lib/session-timeline";
+import { buildTimeline } from "@/modules/events/lib/timeline";
 import type { LiveModuleSource } from "@/modules/events/lib/live-module";
 
 const EVENT_DATE = "2026-09-01";
