@@ -28,6 +28,12 @@ the attendee room renders bare — an inconsistency, not an intent.
   - `accessDeniedMessage` — per variant.
   - role guard via `event-service` (SPEC-03) — admin+ / assigned facilitator /
     assigned speaker.
+  - Common surface (no variant): the session-roadmap sidebar (`SessionTimeline` +
+    `ProgressBar`), the per-module `LiveNowTag`, the live-module pill in
+    `EventSessionNavbar` (`liveModuleName`/`liveSpeakerName`), and the
+    `assignedSpeakerCount` gating of speaker names. The upstream room PR added all
+    four identically to every room, so the unified room just absorbs them as common
+    code — they are not new variant flags.
 - `src/app/events/[id]/room/page.tsx`, `src/app/staff/events/[id]/room/page.tsx`,
   `src/app/speaker/event/[eventId]/room/page.tsx` become thin shells that pass
   their variant.

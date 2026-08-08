@@ -12,17 +12,18 @@ order is deterministic.
 
 Dead code confirmed by repo-wide grep:
 
-- `src/modules/events/components/attendees-panel.tsx` (220 lines) — never imported
-  (sole consumer of `subscribeToCheckins`); staff page shows only a count via
-  `use-event-detail.ts:62`.
-- `src/modules/kiosk/components/qr-scanner.tsx` (94 lines) — never imported; the
-  kiosk page is a static placeholder.
 - `src/shared/components/{avatar,label,textarea,dropdown-menu}.tsx` — zero imports.
 - `src/shared/db/dao/helpers.ts` — 4 of 5 exports (`findById`, `findByField`,
   `exists`, `deleteById`) unused (only `ilikePattern` has a caller).
 - `src/shared/db/dao/audit.dao.ts` — `log` is a duplicate of
   `src/modules/audit/lib/log-audit-event.ts` (SPEC-11 makes the lib the single
   impl); delete the dead DAO.
+
+Earlier drafts listed `attendees-panel.tsx` and `qr-scanner.tsx` here as never
+imported. The kiosk scanner work (PR #160) ended that: `kiosk-scanner-view.tsx`
+renders both — `AttendeesPanel` as the live attendee feed and `QrScanner` for the
+camera/manual check-in — so neither is dead, and `subscribeToCheckins` (the
+panel's realtime feed) stays in `src/shared/integrations/realtime/`.
 
 Migration defects:
 
@@ -39,12 +40,12 @@ Migration defects:
 
 ## Changes
 
-- **Dead code deletion:** remove `attendees-panel.tsx`, `qr-scanner.tsx`, the four
-  unused shared components, and the unused `helpers.ts` exports. Remove the now-dead
-  `subscribeToCheckins` from `src/shared/integrations/realtime/` (its only consumer
-  is gone). Delete `audit.dao.ts` after SPEC-11 lands the lib as the single audit
-  path. If any page renders an empty placeholder where a deleted component was
-  expected, that placeholder is intentional and stays.
+- **Dead code deletion:** remove the four unused shared components
+  (`avatar`, `label`, `textarea`, `dropdown-menu`), the unused `helpers.ts`
+  exports, and — after SPEC-11 lands the lib as the single audit path —
+  `audit.dao.ts`. `attendees-panel.tsx`, `qr-scanner.tsx`, and `subscribeToCheckins`
+  stay (the kiosk scanner uses them). If any page renders an empty placeholder where
+  a deleted component was expected, that placeholder is intentional and stays.
 - **New migration** `00011_user_deletion_set_null.sql`:
   - Alter the user-owning FKs to `ON DELETE SET NULL`
     (`PAYMENT.user_id`, `TICKET.user_id`, `AUDIT_LOG.actor_id`,
@@ -76,11 +77,8 @@ Migration defects:
 
 ## Files touched
 
-- Deleted: `src/modules/events/components/attendees-panel.tsx`,
-  `src/modules/kiosk/components/qr-scanner.tsx`,
-  `src/shared/components/{avatar,label,textarea,dropdown-menu}.tsx`,
+- Deleted: `src/shared/components/{avatar,label,textarea,dropdown-menu}.tsx`,
   `src/shared/db/dao/{helpers.ts,audit.dao.ts}` (partial: helpers keeps `ilikePattern`)
-- `src/shared/integrations/realtime/` (remove `subscribeToCheckins` + unused exports)
 - `supabase/migrations/00011_user_deletion_set_null.sql` (new)
 - Renames: `00009_course_event_owned.sql` → `00012_course_event_owned.sql`,
   `00010_module_schedule.sql` → `00013_module_schedule.sql`
@@ -89,7 +87,9 @@ Migration defects:
 
 ## Verification
 
-- `rg 'attendees-panel|qr-scanner|subscribeToCheckins' src test` returns nothing.
+- `rg 'attendees-panel|qr-scanner|subscribeToCheckins' src test` — references are
+  only the kiosk scanner view, the attendees panel it renders, the realtime index,
+  and their tests (all kept, not dead).
 - `pnpm typecheck` and `pnpm test` pass.
 - Migration dry-run (or a scratch DB) applies `00001`→`00013` cleanly in numeric
   order; `DELETE FROM "USER"` on a user with tickets/payments/audit rows succeeds

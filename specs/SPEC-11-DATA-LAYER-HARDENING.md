@@ -13,18 +13,18 @@ The DAO layer has systemic error-handling problems:
 
 - ~10 `findById`-family reads destructure `{ data }` and never inspect `.error`,
   using `.single()` so a missing row raises PGRST116 and a failed query returns
-  `null` — indistinguishable outcomes (`event.dao.ts:20-23`, `course.dao.ts:39-42`,
+  `null` — indistinguishable outcomes (`event.dao.ts:32-35,37-51`, `course.dao.ts:39-42`,
   `speaker.dao.ts:15-18,22-24`, `user.dao.ts:4-7,9-12`, `ticket.dao.ts:42-55`,
   `payment.dao.ts:9-12`, `email.dao.ts:9-12`, `qa-message.dao.ts:62-65`,
   `chat-message.dao.ts:4-10,101-107`). The correct `.maybeSingle()` pattern already
   exists (`support-session.dao.ts:35`, `payment.dao.ts:33-41,49-58`).
 - List queries have no `.range()`/`.limit()` — every event, ticket, payment, email
-  log row is fetched (`event.dao.list:41-78`, `ticket.dao.listAll/listByUser`,
+  log row is fetched (`event.dao.list:53-90`, `ticket.dao.listAll/listByUser`,
   `payment.dao.listAll/listByUser`, `email.dao.list:14-44`,
   `speaker.dao.list:26-29`, `course.dao.listCoursesWithEvents:14-37`,
   `support-session.dao.listCases:176-224`).
-- `event.dao.findByIds:174-180` does `.in("id", ids)` with no empty-array guard —
-  an empty list returns every row (the trap `event.dao.list:58-60` documents but
+- `event.dao.findByIds:186-193` does `.in("id", ids)` with no empty-array guard —
+  an empty list returns every row (the trap `event.dao.list:70-72` documents but
   `findByIds` does not honor).
 - `src/modules/audit/lib/log-audit-event.ts:12-18` awaits an insert with no error
   check — the audit trail silently drops events; it also duplicates `audit.dao.log`
@@ -41,7 +41,11 @@ The DAO layer has systemic error-handling problems:
 - **Silent reads → explicit errors.** Convert the listed `findById` reads to
   `.maybeSingle()` and return a discriminated result or throw on `.error`, so
   callers can distinguish "not found" from "query failed". Update each caller in
-  the routes/services to the new shape. Leave `event.dao.isPublished`/`getUpcomingForLanding`
+  the routes/services to the new shape. `event.dao`'s reads now map every row
+  through `effectiveStatus` (added with the kiosk/status work): the conversion must
+  preserve that — extract `effectiveStatus` into the DAO's shared helper and keep
+  applying it on the converted reads, so a `.error` throw does not silently drop
+  the status derivation. Leave `event.dao.isPublished`/`getUpcomingForLanding`
   error-masking (SPEC-14 decision on landing rendering) — flag, don't change, the
   landing-page empty-state behavior.
 - **Pagination.** Add `.range(offset, limit)` (defaults ~50) to the unbounded

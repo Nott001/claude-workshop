@@ -4,8 +4,7 @@
 
 Establish the target directory structure for `src/modules/events/`, the contract for
 every app-tree route it feeds, and the dependency-direction rule that keeps the
-modular monolith honest. Also remove the module's dead code and reconcile a naming
-collision. No behavior change.
+modular monolith honest. Also reconcile a naming collision. No behavior change.
 
 ## Background
 
@@ -37,7 +36,10 @@ src/modules/events/
 - `test/event-module-boundary.test.ts` (new, mirrors `test/module-boundary.test.ts`):
   no file under `src/modules/events` imports from `@/app/**`; no file under
   `courses/`, `chat/`, or `commerce/` imports `@/modules/events`.
-- Delete `src/modules/events/components/attendees-panel.tsx` (never imported).
+- Keep `src/modules/events/components/attendees-panel.tsx`: the kiosk scanner
+  (`src/modules/kiosk/components/kiosk-scanner-view.tsx`) renders it as the live
+  attendee feed. `kiosk → events` is an allowed dependency direction; events must
+  never import kiosk in return (the boundary test pins this).
 - Rename `lib/session-timeline.ts` → `lib/timeline.ts` to end the collision with
   `components/session-timeline.tsx`; the `buildTimeline` export is unchanged; update
   imports in `components/session-timeline.tsx` and `test/session-timeline.test.ts`.
@@ -51,11 +53,11 @@ src/modules/events/
 ## Files touched
 
 - `test/event-module-boundary.test.ts` (new)
-- `src/modules/events/components/attendees-panel.tsx` (deleted)
 - `src/modules/events/lib/session-timeline.ts` → `src/modules/events/lib/timeline.ts`
   (+ 2 import sites)
 
 ## Verification
 
 - `pnpm test` — new boundary tests pass; `pnpm typecheck` passes after the rename.
-- `rg "attendees-panel"` returns nothing.
+- `rg "@/modules/events/components/attendees-panel" src` — the only importer is
+  `src/modules/kiosk/components/kiosk-scanner-view.tsx` (kiosk → events).

@@ -58,8 +58,9 @@ facilitator/speaker act on any record.
 - Standardize the page guards that bypass `useRoleGuard`:
   - `staff/courses/page.tsx:26,50` — render a redirect instead of returning `null`
     (currently a permanently blank page).
-  - `kiosk/page.tsx:20-23`, `staff/events/[id]/room/page.tsx:20-25` — keep their
-    current behavior but route through `useRoleGuard`-style handling where practical.
+  - `kiosk/page.tsx:19-24,46`, `staff/events/[id]/room/page.tsx:24-27,73` — keep
+    their current behavior but route through `useRoleGuard`-style handling where
+    practical.
 - Middleware: add `/speaker/*` to the auth-gated paths (`middleware.ts:28-35`) so
   unauthenticated visitors are 302'd instead of served the shell + spinner.
 

@@ -20,10 +20,11 @@ the codebase and then reintroduced:
 - **`res.json()` before `res.ok`.** `use-speaker-event.ts:30-31` and
   `global-support-chat.tsx:50-51` parse the body before checking status — a
   non-JSON 500 throws and skips the error path.
-- **Latent NaN dates.** `new Date(\`${date}T${time}\`)` at 8 unpadded sites
-(`use-event-timer.ts:12-13`, `use-room-access.ts:56-57`, `use-event-detail.ts:78`,
-`event-session-navbar.tsx:20,42`) while `countdown-timer.tsx:19`pads with`:00`.
-An unpadded `"9:00"`can yield`Invalid Date`→ NaN comparisons in`eventStarted`/`eventEnded`.
+- **Latent NaN dates.** `new Date(\`${date}T${time}\`)` at 9 unpadded sites
+(`use-event-timer.ts:12-13`, `use-room-access.ts:58-59`, `use-event-detail.ts:78`,
+`event-session-navbar.tsx:31,53`, `live-module.ts:10`) while `countdown-timer.tsx:19`pads with`:00`. An unpadded `"9:00"`can yield`Invalid Date`→ NaN comparisons
+in`eventStarted`/`eventEnded`; `live-module.ts`'s `toDate`already guards the NaN
+with a`null`return but is the same helper`parseLocalDateTime` should absorb.
 - **Duplicate fetches.** `staff/events/[id]/page.tsx` fires `useEventSpeakers`
   (`:229`) and `useAssignedSpeakers` (`:138`) for the same endpoint;
   `use-event-detail.ts:40` then `fetch-event-access.ts:17` fetch the same event.
@@ -45,8 +46,10 @@ An unpadded `"9:00"`can yield`Invalid Date`→ NaN comparisons in`eventStarted`/
   check `res.ok` and surface a structured error before `res.json()`.
 - **One date parser.** Add `src/shared/lib/date-utils.ts` `parseLocalDateTime(date, time)`
   that pads the time to `HH:MM:SS` and returns a validated `Date` (throws/`null` on
-  invalid input). Replace the 8 unpadded `new Date(...)` sites; update
-  `countdown-timer.tsx` to use it too so padding lives in one place.
+  invalid input). Replace the 9 unpadded `new Date(...)` sites, including
+  `live-module.ts`'s `toDate` (which `parseLocalDateTime` supersedes); update
+  `countdown-timer.tsx` to use it too so padding lives in one place. (`date-utils.ts`
+  also gained `isEventFinished` upstream; `parseLocalDateTime` slots in alongside it.)
 - **Duplicate fetches.**
   - `staff/events/[id]/page.tsx`: keep one fetch — either `useAssignedSpeakers`
     (already scoped to the event) or a single `/api/events/[id]/speakers` call —
@@ -70,7 +73,8 @@ An unpadded `"9:00"`can yield`Invalid Date`→ NaN comparisons in`eventStarted`/
 ## Files touched
 
 - `src/modules/events/lib/use-speaker-events.ts`, `use-speaker-event.ts`,
-  `use-event-timer.ts`, `use-room-access.ts`, `use-event-detail.ts`
+  `use-event-timer.ts`, `use-room-access.ts`, `use-event-detail.ts`,
+  `live-module.ts` (its `toDate` becomes `parseLocalDateTime`)
 - `src/modules/commerce/lib/use-tickets.ts`, `use-payments.ts`
 - `src/modules/auth/components/session-context.tsx`
 - `src/modules/events/components/event-session-navbar.tsx`,
