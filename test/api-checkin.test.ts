@@ -13,7 +13,7 @@ const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotificatio
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById }));

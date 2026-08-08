@@ -25,7 +25,7 @@ const {
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));

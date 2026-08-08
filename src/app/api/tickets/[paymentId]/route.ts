@@ -8,7 +8,7 @@ import { generateQRDataUrl } from "@/shared/integrations/qr";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
-  const guard = await requireRole(ROLES.ATTENDEE, ROLES.FACILITATOR);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }

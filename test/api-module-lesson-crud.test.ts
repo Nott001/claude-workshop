@@ -22,7 +22,7 @@ const { requireRole, dao, storage, logAuditEvent, requireModuleAccess, requireLe
   requireLessonAccess: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/integrations/storage/service", () => storage);

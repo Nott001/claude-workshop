@@ -68,6 +68,14 @@ export async function findLatestSession(
   return data as unknown as LatestSession | null;
 }
 
+export async function findById(
+  supabase: DbClient,
+  id: number,
+): Promise<{ id: number; user_id: number; assigned_to: number | null } | null> {
+  const { data } = await supabase.from("SUPPORT_SESSION").select("id, user_id, assigned_to").eq("id", id).maybeSingle();
+  return data;
+}
+
 export async function createSession(
   supabase: DbClient,
   userId: number,

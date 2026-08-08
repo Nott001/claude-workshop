@@ -25,7 +25,7 @@ const {
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => NextResponse.json({ error: guard.error }, { status: 403 }),
 }));

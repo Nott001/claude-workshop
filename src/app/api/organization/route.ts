@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
@@ -22,7 +22,7 @@ const inviteSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const guard = await requireRole(ROLES.ADMIN);
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole(ROLES.ADMIN);
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

@@ -6,7 +6,7 @@ const { requireRole, listCandidates } = vi.hoisted(() => ({
   listCandidates: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => new Response(JSON.stringify({ error: guard.error }), { status: 403 }),
 }));

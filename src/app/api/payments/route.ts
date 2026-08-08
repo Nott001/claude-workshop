@@ -83,15 +83,15 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const guard = await requireRole(ROLES.ATTENDEE, ROLES.FACILITATOR);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
 
-  // Scoped by entitlement, not by a literal role string: `requireRole` admits
-  // every authenticated role, so anyone who is not staff sees only their own.
+  // Scoped by entitlement, not by a role test: `requireRole()` admits any
+  // authenticated caller, so anyone who is not staff sees only their own.
   const payments = hasMinRole(guard.user.role, ROLES.FACILITATOR)
     ? await paymentDao.listAll(supabase)
     : await paymentDao.listByUser(supabase, guard.user.id);

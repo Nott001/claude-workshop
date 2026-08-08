@@ -24,7 +24,7 @@ const {
   validateFileSize: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireLessonAccess }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({

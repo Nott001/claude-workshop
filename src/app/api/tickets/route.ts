@@ -7,17 +7,17 @@ import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET() {
-  const guard = await requireRole(ROLES.ATTENDEE, ROLES.FACILITATOR);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
 
-  // `requireRole(ROLES.ATTENDEE, ...)` admits every authenticated role, so the
-  // listing has to be scoped by what the caller is allowed to see rather than
-  // by a literal ROLES.ATTENDEE test — a speaker is neither an attendee nor staff
-  // and used to fall through to the unscoped listing.
+  // `requireRole()` admits any authenticated caller, so the listing has to be
+  // scoped by what the caller is allowed to see rather than by a role test — a
+  // speaker is neither an attendee nor staff and would otherwise fall through
+  // to the unscoped listing.
   const tickets = hasMinRole(guard.user.role, ROLES.FACILITATOR)
     ? await ticketDao.listAll(supabase)
     : await ticketDao.listByUser(supabase, guard.user.id);

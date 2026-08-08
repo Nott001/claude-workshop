@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
@@ -10,13 +10,20 @@ import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/stor
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.SPEAKER);
+  const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const { id } = await params;
   const supabase = getServiceClient();
+
+  // Reading the course tree exposes the whole curriculum, so it is gated like
+  // the writes: only the event's own team, not every speaker in the system.
+  const access = await requireCourseAccess(Number(id), guard.user.id, guard.user.role);
+  if (access) {
+    return access;
+  }
 
   const course = await courseDao.findCourseWithDetails(supabase, Number(id));
 
@@ -28,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.SPEAKER);
+  const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -64,7 +71,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.SPEAKER);
+  const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

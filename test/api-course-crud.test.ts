@@ -18,7 +18,7 @@ const { requireRole, dao, isAssigned, isAssignedByUserId, storage, logAuditEvent
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
@@ -67,7 +67,15 @@ describe("GET /api/courses/[id]", () => {
     expect(dao.findCourseWithDetails).not.toHaveBeenCalled();
   });
 
+  it("refuses a speaker who is not assigned to the course's event", async () => {
+    const res = await GET(new Request("https://app.test/api/courses/7"), params);
+
+    expect(res.status).toBe(403);
+    expect(dao.findCourseWithDetails).not.toHaveBeenCalled();
+  });
+
   it("answers 404 for a course that does not exist", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     dao.findCourseWithDetails.mockResolvedValue(null);
 
     const res = await GET(new Request("https://app.test/api/courses/7"), params);
@@ -75,7 +83,9 @@ describe("GET /api/courses/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns the course to a speaker", async () => {
+  it("returns the course to an assigned speaker", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
+
     const res = await GET(new Request("https://app.test/api/courses/7"), params);
 
     expect(res.status).toBe(200);

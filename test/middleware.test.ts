@@ -47,6 +47,8 @@ describe("route protection", () => {
     ["/staff/events/new", undefined],
     ["/staff/organization", undefined],
     ["/staff/kiosk", undefined],
+    ["/speaker/dashboard", undefined],
+    ["/speaker/event/42/course", undefined],
     ["/api/events", { method: "POST" }],
     ["/api/tickets/1", undefined],
     ["/api/checkin", undefined],
@@ -236,10 +238,10 @@ describe("session cookie handling", () => {
   });
 });
 
-// The middleware only guards /staff/ and /api/ routes. Page-level components
-// are expected to gate their own content. See SPEC-09-TEST-STRATEGY §3 (P1).
+// The middleware only guards /staff/, /speaker/ and /api/ routes. Page-level
+// components are expected to gate their own content. See SPEC-09-TEST-STRATEGY §3 (P1).
 describe("routes the middleware does NOT protect", () => {
-  it.each(["/events/1/edit", "/payments", "/tickets", "/speaker/dashboard"])("reaches %s without a session", async (path) => {
+  it.each(["/events/1/edit", "/payments", "/tickets"])("reaches %s without a session", async (path) => {
     getUser.mockResolvedValue(signedOut);
     const res = await middleware(request(path));
     expect(res.status).toBe(200);

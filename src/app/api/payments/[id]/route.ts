@@ -7,7 +7,7 @@ import * as paymentDao from "@/shared/db/dao/payment.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.ATTENDEE, ROLES.FACILITATOR);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }

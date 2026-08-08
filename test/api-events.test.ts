@@ -28,7 +28,7 @@ const {
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseById }));

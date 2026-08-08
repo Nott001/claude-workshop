@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { eventSchema } from "@/modules/events/lib/schemas";
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole(ROLES.ADMIN);
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

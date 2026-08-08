@@ -14,7 +14,7 @@ const { requireRole, requireAuth, speakerDao, logAuditEvent, eventFindById, faci
   facilitatorIsAssigned: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);

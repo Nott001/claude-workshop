@@ -25,7 +25,7 @@ const {
   send: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),

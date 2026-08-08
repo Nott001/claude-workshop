@@ -14,7 +14,7 @@ import {
 } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
-  const guard = await requireRole(ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ATTENDEE);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }

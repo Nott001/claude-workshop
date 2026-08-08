@@ -1,22 +1,30 @@
-import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
   const { messageId } = await params;
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, ROLES.SPEAKER)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const message = await chatDao.qaMessageDao.findById(supabase, Number(messageId));
   if (!message) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
+  }
+
+  // The asker may always take their own question down; anyone else must be on
+  // the course's team (admin+, or a facilitator/speaker assigned to its event).
+  if (message.user_id !== user.id) {
+    const denied = await requireModuleAccess(message.module_id, user.id, user.role);
+    if (denied) {
+      return denied;
+    }
   }
 
   const ok = await chatDao.qaMessageDao.softDelete(supabase, [Number(messageId)]);

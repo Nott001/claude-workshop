@@ -35,7 +35,7 @@ function routeFiles(): string[] {
     .map((f) => f.replace(/\\/g, "/"));
 }
 
-const guarded = (rel: string) => /requireAuth|requireRole/.test(readFileSync(path.join(API_DIR, rel), "utf8"));
+const guarded = (rel: string) => /requireAuth|requireMinRole|requireRole/.test(readFileSync(path.join(API_DIR, rel), "utf8"));
 
 describe("api route authorization sweep", () => {
   const files = routeFiles();

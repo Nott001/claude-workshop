@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
@@ -93,7 +93,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;
-  const guard = await requireRole(ROLES.SPEAKER);
+  const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

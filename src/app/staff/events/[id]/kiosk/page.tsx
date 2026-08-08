@@ -1,31 +1,21 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth/components/session-context";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { useParams } from "next/navigation";
 import { KioskScannerView } from "@/modules/kiosk/components/kiosk-scanner-view";
 import { useEffect, useState } from "react";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { Event } from "@/shared/types";
 
 export default function StaffEventKioskPage() {
   const params = useParams();
-  const router = useRouter();
   const eventId = params.id as string;
-  const { isLoaded, isSignedIn, user } = useSession();
-  const userRole = user?.role ?? null;
+  const { pending, allowed } = useRoleGuard(ROLES.FACILITATOR);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn || !hasMinRole(userRole, ROLES.FACILITATOR)) {
-      router.push("/");
-    }
-  }, [isLoaded, isSignedIn, userRole, router]);
-
-  useEffect(() => {
-    if (!hasMinRole(userRole, ROLES.FACILITATOR)) return;
+    if (!allowed) return;
     fetch("/api/events?filter=upcoming")
       .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load event")))
       .then((data) => {
@@ -34,9 +24,9 @@ export default function StaffEventKioskPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [userRole, eventId]);
+  }, [allowed, eventId]);
 
-  if (!isLoaded || loading) {
+  if (pending || loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="material-symbols-rounded animate-spin text-4xl text-brand">progress_activity</span>
@@ -44,7 +34,7 @@ export default function StaffEventKioskPage() {
     );
   }
 
-  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
+  if (!allowed) return null;
 
   return (
     <div className="flex flex-1 flex-col">

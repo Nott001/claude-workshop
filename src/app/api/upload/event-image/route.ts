@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -13,7 +13,7 @@ import {
 } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
-  const guard = await requireRole(ROLES.FACILITATOR);
+  const guard = await requireMinRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

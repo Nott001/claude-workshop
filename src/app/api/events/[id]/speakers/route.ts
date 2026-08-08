@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
@@ -10,7 +10,7 @@ import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-se
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.SPEAKER);
+  const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

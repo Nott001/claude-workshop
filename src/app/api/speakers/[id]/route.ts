@@ -1,17 +1,28 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
 import { deleteFromStorage } from "@/shared/integrations/storage/service";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import type { AuthUser } from "@/modules/auth/lib/types";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.FACILITATOR, ROLES.SPEAKER);
-  if (!guard.allowed) {
-    return guardFailure(guard);
+  // Staff may edit any profile; a speaker is held to their own. Requiring both
+  // exactly would lock admins out, so staff passes on min-role and only the
+  // owner path is an exact-role check.
+  const staff = await requireMinRole(ROLES.FACILITATOR);
+  let user: AuthUser;
+  if (staff.allowed) {
+    user = staff.user;
+  } else {
+    const owner = await requireRole(ROLES.SPEAKER);
+    if (!owner.allowed) {
+      return guardFailure(owner);
+    }
+    user = owner.user;
   }
 
   const { id } = await params;
@@ -29,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  if (!hasMinRole(guard.user.role, ROLES.FACILITATOR) && guard.user.id !== (profile as { user_id: number }).user_id) {
+  if (!hasMinRole(user.role, ROLES.FACILITATOR) && user.id !== (profile as { user_id: number }).user_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,7 +54,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole(ROLES.FACILITATOR);
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -52,6 +63,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
 
   const profile = await speakerDao.findById(supabase, Number(id));
+
+  if (!profile) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  // Deleting a profile wipes the speaker's image and history, so only admin+
+  // or the owner may do it — a facilitator editing someone else's profile
+  // cannot, and the profile fetch above keeps existence private below admin.
+  if (!hasMinRole(guard.user.role, ROLES.ADMIN) && guard.user.id !== (profile as { user_id: number }).user_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   if ((profile as { photo_url?: string | null } | null)?.photo_url) {
     const { data: userFiles } = await supabase.storage.from("profile_images").list(`users/${profile!.user_id}`);

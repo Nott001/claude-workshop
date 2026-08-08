@@ -1,11 +1,10 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// `requireRole(ROLES.ATTENDEE, ...)` admits every authenticated role, because
-// hasMinRole treats ROLES.ATTENDEE as the floor. The routes below therefore have to
-// scope their reads by entitlement rather than by a literal role string — the
-// role that exposed the bug is `speaker`, which is neither an attendee nor
-// staff and used to fall straight through to the unscoped listing.
+// `requireRole()` admits any authenticated caller, so the routes scope their
+// reads by entitlement rather than by a role string — the role that exposed
+// the bug was `speaker`, which is neither an attendee nor staff and used to
+// fall straight through to the unscoped listing.
 const {
   requireRole,
   ticketListByUser,

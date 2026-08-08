@@ -2,8 +2,7 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
-import { useSession } from "@/modules/auth/components/session-context";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 
 interface CourseRow {
   id: number;
@@ -16,15 +15,13 @@ interface CourseRow {
 }
 
 export default function StaffCoursesPage() {
-  const { isLoaded, user } = useSession();
-  const role = user?.role ?? null;
+  const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!hasMinRole(role, ROLES.ADMIN)) return;
+    if (pending || !allowed) return;
     let cancelled = false;
     fetch("/api/courses")
       .then((r) => {
@@ -46,9 +43,9 @@ export default function StaffCoursesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, role]);
+  }, [pending, allowed]);
 
-  if (!hasMinRole(role, ROLES.ADMIN)) return null;
+  if (pending || !allowed) return null;
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

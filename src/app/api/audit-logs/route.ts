@@ -1,12 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as auditDao from "@/shared/db/dao/audit.dao";
 
 export async function GET(req: Request) {
-  const guard = await requireRole(ROLES.ADMIN);
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
