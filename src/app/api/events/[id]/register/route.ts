@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import * as eventDao from "@/modules/events/db/event.dao";
-import * as ticketDao from "@/shared/db/dao/ticket.dao";
-import * as paymentDao from "@/shared/db/dao/payment.dao";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { EventServiceError, getEventRegistrationState, registerForEvent } from "@/modules/events/lib/event-service";
+
+function mapError(err: unknown): NextResponse {
+  if (err instanceof EventServiceError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+  throw err;
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,23 +20,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const event = await eventDao.findById(supabase, Number(id));
-
-  if (!event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  try {
+    const state = await getEventRegistrationState(supabase, Number(id), {
+      id: user.id,
+      role: user.role,
+      full_name: user.full_name,
+      email: user.email,
+    });
+    return NextResponse.json(state);
+  } catch (err) {
+    return mapError(err);
   }
-
-  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
-
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, Number(id));
-
-  return NextResponse.json({
-    event,
-    user: { user_id: user.id, full_name: user.full_name, email: user.email },
-    already_registered: activeTickets.length > 0,
-  });
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -49,26 +47,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const event = await eventDao.findById(supabase, Number(id));
-  if (!event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  try {
+    const result = await registerForEvent(supabase, Number(id), { id: user.id, role: user.role });
+    return NextResponse.json(result);
+  } catch (err) {
+    return mapError(err);
   }
-
-  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
-
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, Number(id));
-
-  if (activeTickets.length > 0) {
-    return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
-  }
-
-  const existingPending = await paymentDao.findPendingByUserAndEvent(supabase, user.id, Number(id));
-
-  if (existingPending) {
-    return NextResponse.json({ eligible: true, pending_payment_id: existingPending.id });
-  }
-
-  return NextResponse.json({ eligible: true });
 }
