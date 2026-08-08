@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import EventsPage from "@/app/events/page";
+import { EventListPage } from "@/modules/events/pages/event-list";
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
@@ -55,9 +55,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("EventsPage event list", () => {
+describe("EventListPage event list", () => {
   it("links each card to /events/<id> using the API's id column", async () => {
-    render(<EventsPage />);
+    render(<EventListPage />);
 
     const links = await screen.findAllByRole("link");
     const hrefs = links.map((link) => link.getAttribute("href"));
@@ -67,7 +67,7 @@ describe("EventsPage event list", () => {
   });
 });
 
-describe("EventsPage for a signed-out visitor", () => {
+describe("EventListPage for a signed-out visitor", () => {
   it("renders the published events served by the public API", async () => {
     const useSessionMock = useSession as unknown as ReturnType<typeof vi.fn>;
     useSessionMock.mockReturnValue({
@@ -77,7 +77,7 @@ describe("EventsPage for a signed-out visitor", () => {
       signOut: vi.fn(),
     });
 
-    render(<EventsPage />);
+    render(<EventListPage />);
 
     expect(await screen.findByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Beta")).toBeTruthy();
@@ -93,7 +93,7 @@ describe("EventsPage for a signed-out visitor", () => {
     });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
-    render(<EventsPage />);
+    render(<EventListPage />);
 
     expect(await screen.findByText("Failed to load events")).toBeTruthy();
   });
@@ -109,7 +109,7 @@ describe("events page loading state", () => {
       vi.fn(() => new Promise(() => {})),
     );
 
-    render(<EventsPage />);
+    render(<EventListPage />);
 
     expect(screen.getByLabelText("Loading events")).toBeTruthy();
     expect(screen.queryByText("Loading events...")).toBeNull();
@@ -121,7 +121,7 @@ describe("events page loading state", () => {
       vi.fn(() => new Promise(() => {})),
     );
 
-    const { container } = render(<EventsPage />);
+    const { container } = render(<EventListPage />);
 
     // Six cards at the real card height clears any realistic viewport.
     expect(container.querySelectorAll(".h-48").length).toBe(6);
