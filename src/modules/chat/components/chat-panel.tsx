@@ -1,19 +1,15 @@
 "use client";
 
-import { ROLES } from "@/shared/lib/roles";
-import { useState, useRef, useEffect, useMemo } from "react";
-import { getBrowserClient } from "@/shared/db/browser-client";
-import * as chatDao from "@/shared/db/dao/chat.dao";
-import type { ChatMessage } from "@/shared/types";
-
-interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string };
-}
+import { useState, useRef, useEffect } from "react";
+import type { UserRole } from "@/shared/types";
+import { isChatStaff, type ChatMessageWithUser } from "@/modules/chat/lib/types";
+import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import { MessageComposer } from "./message-composer";
 
 interface ChatPanelProps {
   eventId: string;
   supportType: "general" | "event";
-  userRole: string | null;
+  userRole: UserRole | null;
   currentUserId: number | null;
 }
 
@@ -26,9 +22,8 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
-  const supabase = useMemo(() => getBrowserClient(), []);
 
-  const isStaff = userRole === ROLES.FACILITATOR || userRole === ROLES.ADMIN || userRole === ROLES.SUPER_ADMIN;
+  const isStaff = isChatStaff(userRole);
 
   const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
 
@@ -40,39 +35,23 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [apiUrl]);
 
-    const channelName = `chat-panel-${supportType}-${eventId}-${Date.now()}`;
-    const sub = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "CHAT_MESSAGE",
-          filter: `support_type=eq.${supportType}`,
-        },
-        async (payload) => {
-          const msg = payload.new as ChatMessageWithUser;
-          if (supportType === "event" && msg.event_id !== Number(eventId)) return;
-          if (supportType === "general" && msg.event_id !== null) return;
-          if (msg.user_id === currentUserId || msg.recipient_user_id === currentUserId || isStaff) {
-            const full = await chatDao.findMessageWithUser(supabase, msg.id);
-            if (full) {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === full.id)) return prev;
-                return [...prev, full as unknown as ChatMessageWithUser];
-              });
-            }
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(sub);
-    };
-  }, [eventId, supportType, currentUserId, isStaff, supabase]);
+  useRealtimeMessages<ChatMessageWithUser>({
+    channelName: `chat-panel-${supportType}-${eventId}`,
+    table: CHAT_TABLE,
+    filter: `support_type=eq.${supportType}`,
+    relevant: (row) => {
+      if (supportType === "event" && row.event_id !== Number(eventId)) return false;
+      if (supportType === "general" && row.event_id !== null) return false;
+      return row.user_id === currentUserId || row.recipient_user_id === currentUserId || isStaff;
+    },
+    onInsert: (msg) =>
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      }),
+  });
 
   useEffect(() => {
     if (isAtBottomRef.current) {
@@ -86,8 +65,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
     isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
   };
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSend() {
     if (!newMessage.trim() || sending) return;
 
     const text = newMessage.trim();
@@ -143,20 +121,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSend}>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
-          maxLength={1000}
-        />
-        <button type="submit" disabled={sending || !newMessage.trim()}>
-          {sending ? "Sending..." : "Send"}
-        </button>
-      </form>
-
-      {error && <p>{error}</p>}
+      <MessageComposer value={newMessage} onChange={setNewMessage} onSend={handleSend} sending={sending} error={error} />
     </div>
   );
 }

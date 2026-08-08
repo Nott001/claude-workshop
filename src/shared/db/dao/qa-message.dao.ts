@@ -1,6 +1,19 @@
 import type { DbClient } from "./types";
 import { runCursorFeed, throwOnDbError } from "./helpers";
-import type { QaMessage } from "@/shared/types";
+import type { QaMessage, UserRole } from "@/shared/types";
+
+export async function findByIdWithUser(
+  supabase: DbClient,
+  id: number,
+): Promise<(QaMessage & { USER: { full_name: string; role: UserRole } }) | null> {
+  const { data, error } = await supabase
+    .from("QA_MESSAGE")
+    .select("*, USER:user_id(full_name, role)")
+    .eq("id", id)
+    .maybeSingle();
+  throwOnDbError(error, "qa-message.dao.findByIdWithUser");
+  return data as unknown as (QaMessage & { USER: { full_name: string; role: UserRole } }) | null;
+}
 
 export async function listQuestionsByModule(
   supabase: DbClient,

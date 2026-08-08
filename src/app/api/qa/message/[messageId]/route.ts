@@ -4,6 +4,26 @@ import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
+export async function GET(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
+  const { messageId } = await params;
+  const supabase = getServiceClient();
+
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  // Reading is open to any authenticated user, like the module listing; only
+  // deletion is moderated. A panel fetches a question it just received a
+  // realtime INSERT for, and those may belong to other attendees.
+  const message = await chatDao.qaMessageDao.findByIdWithUser(supabase, Number(messageId));
+  if (!message) {
+    return NextResponse.json({ error: "Message not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(message);
+}
+
 export async function DELETE(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
   const { messageId } = await params;
   const supabase = getServiceClient();

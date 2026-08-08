@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getBrowserClient } from "@/shared/db/browser-client";
-import * as chatDao from "@/shared/db/dao/chat.dao";
-import { subscribeToSupportSessions, subscribeToSupportMessages, unsubscribe } from "@/shared/integrations/realtime";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import { useSession } from "@/modules/auth/components/session-context";
-import type { ChatMessage } from "@/shared/types";
+import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 
 export interface CaseSummary {
   id: number;
@@ -19,12 +18,7 @@ export interface CaseSummary {
   last_message_at: string | null;
 }
 
-export interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string; role: string };
-}
-
 export function useSupportCases() {
-  const supabase = useMemo(() => getBrowserClient(), []);
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
@@ -98,24 +92,23 @@ export function useSupportCases() {
     void load();
 
     const sessionSub = subscribeToSupportSessions(() => loadCases());
-    const messageSub = subscribeToSupportMessages("general", undefined, async (msg) => {
-      loadCases();
-      const sel = selectedRef.current;
-      if (sel && msg.session_id === sel.id) {
-        const full = await chatDao.findMessageWithUser(supabase, msg.id);
-        if (full) {
-          setMessages((prev) =>
-            prev.some((m) => m.id === full.id) ? prev : [...prev, full as unknown as ChatMessageWithUser],
-          );
-        }
-      }
-    });
 
     return () => {
       unsubscribe(sessionSub);
-      unsubscribe(messageSub);
     };
-  }, [loadCases, supabase]);
+  }, [loadCases]);
+
+  useRealtimeMessages<ChatMessageWithUser>({
+    channelName: "support-inbox-general",
+    table: CHAT_TABLE,
+    filter: "support_type=eq.general",
+    relevant: (row) => row.session_id === selectedRef.current?.id,
+    onInsert: (msg) =>
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      }),
+  });
 
   const openCase = useCallback(async (c: CaseSummary) => {
     setSelected(c);

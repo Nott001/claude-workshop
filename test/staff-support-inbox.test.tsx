@@ -11,17 +11,12 @@ vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 const { getBrowserClient } = vi.hoisted(() => ({ getBrowserClient: vi.fn() }));
 vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient }));
 
-const { findMessageWithUser } = vi.hoisted(() => ({ findMessageWithUser: vi.fn() }));
-vi.mock("@/shared/db/dao/chat.dao", () => ({ findMessageWithUser }));
-
-const { subscribeToSupportSessions, subscribeToSupportMessages, unsubscribe } = vi.hoisted(() => ({
+const { subscribeToSupportSessions, unsubscribe } = vi.hoisted(() => ({
   subscribeToSupportSessions: vi.fn(),
-  subscribeToSupportMessages: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 vi.mock("@/shared/integrations/realtime", () => ({
   subscribeToSupportSessions,
-  subscribeToSupportMessages,
   unsubscribe,
 }));
 
@@ -103,10 +98,10 @@ function mockFetch(routes: Array<{ match: (method: string, url: string) => boole
 
 function renderInbox() {
   useSession.mockReturnValue({ user: ADMIN, isSignedIn: true, signOut: vi.fn() });
-  getBrowserClient.mockReturnValue({ channel: vi.fn() });
+  getBrowserClient.mockReturnValue({
+    channel: vi.fn(() => ({ on: () => ({ subscribe: () => {} }) })),
+  });
   subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
-  subscribeToSupportMessages.mockReturnValue({ id: "messages" });
-  findMessageWithUser.mockResolvedValue(MESSAGE(3, 1, "on it"));
   return render(<StaffSupportInbox />);
 }
 
