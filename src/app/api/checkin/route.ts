@@ -3,7 +3,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";

@@ -10,7 +10,7 @@ const { requireAuth, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/event.dao", () => ({
+vi.mock("@/modules/events/db/event.dao", () => ({
   findByIdWithCourse,
   getAttendeeCount,
   findById: vi.fn(),

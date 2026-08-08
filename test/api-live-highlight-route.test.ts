@@ -13,7 +13,7 @@ const { requireAuth, eventDao, courseDao, client } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/shared/db/dao/event.dao", () => eventDao);
+vi.mock("@/modules/events/db/event.dao", () => eventDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/client", () => ({
   // One table stub for both reads: LIVE_SESSION_STATE ends in `.single()`,

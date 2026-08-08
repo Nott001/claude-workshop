@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as paymentDao from "@/shared/db/dao/payment.dao";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";

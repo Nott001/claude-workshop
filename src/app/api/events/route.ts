@@ -3,7 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import * as facilitatorDao from "@/shared/db/dao/facilitator.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { eventSchema } from "@/modules/events/lib/schemas";

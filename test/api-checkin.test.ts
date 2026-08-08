@@ -15,7 +15,7 @@ const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotificatio
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ findById }));
+vi.mock("@/modules/events/db/event.dao", () => ({ findById }));
 
 vi.mock("@/modules/notifications/lib/email", () => ({ sendEmailNotification }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));

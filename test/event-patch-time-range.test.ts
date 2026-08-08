@@ -13,7 +13,7 @@ const { requireRole, findById, update, logAuditEvent, facilitatorReplace, speake
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() }));
+vi.mock("@/modules/events/db/event.dao", () => ({ findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({}));
 vi.mock("@/shared/db/dao/course.dao", () => ({}));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments: facilitatorReplace }));

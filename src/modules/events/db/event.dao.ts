@@ -1,4 +1,4 @@
-import type { DbClient } from "./types";
+import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { isEventFinished } from "@/shared/lib/date-utils";

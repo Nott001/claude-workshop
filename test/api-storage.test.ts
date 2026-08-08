@@ -16,7 +16,7 @@ vi.mock("@/shared/db/client", () => ({
 }));
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ userHasCourseAccess }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ isPublished }));
+vi.mock("@/modules/events/db/event.dao", () => ({ isPublished }));
 
 import { GET } from "@/app/api/storage/[bucket]/[...path]/route";
 

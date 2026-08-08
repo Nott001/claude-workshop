@@ -5,7 +5,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 vi.mock("@/shared/db/client", () => ({ supabase: {} }));
 
 const { getUpcomingForLanding } = vi.hoisted(() => ({ getUpcomingForLanding: vi.fn() }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ getUpcomingForLanding }));
+vi.mock("@/modules/events/db/event.dao", () => ({ getUpcomingForLanding }));
 
 vi.mock("@/modules/auth/components/post-login-redirect", () => ({
   PostLoginRedirect: () => null,

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getServiceClient } from "@/shared/db/client";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 
 interface PageProps {
