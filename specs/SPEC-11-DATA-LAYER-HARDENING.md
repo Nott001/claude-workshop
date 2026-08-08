@@ -90,6 +90,5 @@ The DAO layer has systemic error-handling problems:
 
 - `pnpm test` green, including new failure-path tests.
 - `pnpm typecheck` passes.
-- `pnpm cf:build` succeeds.
 - Manual: list endpoints cap at the page size; a forced DB error on a read now
   reaches the caller instead of returning `null`.

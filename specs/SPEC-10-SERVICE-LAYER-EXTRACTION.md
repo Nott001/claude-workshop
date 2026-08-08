@@ -73,6 +73,5 @@ modules have no server-side logic to test.
 
 - `pnpm test` — new service tests + existing api-handler tests green.
 - `pnpm typecheck` — services compile without Next.js types.
-- `pnpm cf:build` succeeds.
 - Manual: invite flow, module create/delete, support case claim still behave the
   same (request/response unchanged).

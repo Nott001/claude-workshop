@@ -81,7 +81,6 @@ Three near-identical chat UIs exist, each re-implementing the same pieces:
 - `pnpm test` green, including the realtime-hook lifecycle test.
 - `rg 'Date.now\\(\\)|CHAT_MESSAGE"|findMessageWithUser' src/modules/*/components` —
   no inline channel `Date.now()`, table literal, or client enrichment left.
-- `pnpm cf:build` succeeds.
 - Manual in `pnpm dev`: open a live chat, QA, and support case side by side — all
   update in place, survive strict-mode remount without duplicate channels, and
   send/optimistic-append identically.

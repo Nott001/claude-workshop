@@ -106,4 +106,3 @@ Migration defects:
 - Migration dry-run (or a scratch DB) applies `00001`→`00013` cleanly in numeric
   order; `DELETE FROM "USER"` on a user with tickets/payments/audit rows succeeds
   and leaves the rows intact with the actor/user FK set to NULL.
-- `pnpm cf:build` succeeds.

@@ -61,4 +61,3 @@ app-wide layout, not a shared primitive; it belongs in its own module.
 
 - `pnpm test` — new `shared-boundary` test passes.
 - `rg 'from "@/shared/components/(app-shell|navbar|footer|error-boundary)"' src` returns nothing.
-- `pnpm cf:build` succeeds (layout renders unchanged on the isolate).

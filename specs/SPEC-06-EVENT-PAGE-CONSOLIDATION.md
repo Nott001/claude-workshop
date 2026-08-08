@@ -62,6 +62,5 @@ the same ~40 lines of course-builder wiring.
 ## Verification
 
 - `pnpm test`, `pnpm typecheck`, `pnpm lint` green.
-- `pnpm cf:build` succeeds with the page shells.
 - `rg "src/app/events|src/app/staff/events|src/app/speaker/event" test` — tests now
   exercise `pages/` components, not the app-tree bodies.

@@ -85,5 +85,4 @@ facilitator/speaker act on any record.
 - `pnpm test` — new role-guard matrix test and updated handler tests green.
 - `pnpm typecheck` — zero remaining `requireRole(` sites that meant min-role
   (grep the diff).
-- `pnpm cf:build` succeeds.
 - Manual: anonymous `/speaker/dashboard` 302s to sign-in.

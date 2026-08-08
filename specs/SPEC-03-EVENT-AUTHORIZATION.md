@@ -70,4 +70,3 @@ Today's guards check roles, not assignments:
 - `pnpm test` green, including the new denial cases (unassigned facilitator → 403
   on PATCH/DELETE/publish/attendees; unassigned speaker → 403 on the course
   highlight).
-- `pnpm cf:build` succeeds.

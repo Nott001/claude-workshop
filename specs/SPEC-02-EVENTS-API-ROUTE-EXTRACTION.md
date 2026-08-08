@@ -65,5 +65,4 @@ event-domain operations and no inline supabase.
 ## Verification
 
 - `pnpm test` — service tests and api-handler tests pass against the same URLs.
-- `pnpm cf:build` succeeds.
 - `rg "from \"@/modules/events/routes"` returns nothing (no such directory).
