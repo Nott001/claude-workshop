@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // The API serves these DAO rows verbatim, so the shapes come from the DAO
 // rather than a hand-written copy. The copy that used to live here had drifted:
 // it called the SPEAKER_PROFILE key `speaker_profile_id` (it is `id`) and the
@@ -8,13 +8,32 @@ import { useEffect, useState } from "react";
 // "Speaker #undefined" and no assigned speaker was ever filtered out.
 import type { SpeakerProfileWithUser, EventSpeakerAssignment } from "@/shared/db/dao/speaker.dao";
 
+const PAGE_SIZE = 50;
+
 export function useEventSpeakers(eventId: string) {
   const [assignments, setAssignments] = useState<EventSpeakerAssignment[]>([]);
   const [allProfiles, setAllProfiles] = useState<SpeakerProfileWithUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profilesLoadingMore, setProfilesLoadingMore] = useState(false);
+  const [profilesHasMore, setProfilesHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const profilePageRef = useRef(1);
+
+  const loadProfiles = useCallback(async (page: number, append: boolean) => {
+    try {
+      const res = await fetch(`/api/speakers?page=${page}&limit=${PAGE_SIZE}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      const rows = (Array.isArray(data.data) ? data.data : []) as SpeakerProfileWithUser[];
+      setAllProfiles((prev) => (append ? [...prev, ...rows] : rows));
+      setProfilesHasMore((data.total ?? 0) > page * PAGE_SIZE);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,8 +54,10 @@ export function useEventSpeakers(eventId: string) {
       const [assignmentRows, profileRows] = await Promise.all([assignRes.json(), profilesRes.json()]);
       if (cancelled) return;
 
+      profilePageRef.current = 1;
       setAssignments(assignmentRows);
-      setAllProfiles(profileRows);
+      setAllProfiles(Array.isArray(profileRows.data) ? profileRows.data : []);
+      setProfilesHasMore((profileRows.total ?? 0) > PAGE_SIZE);
       setLoading(false);
     }
 
@@ -45,6 +66,15 @@ export function useEventSpeakers(eventId: string) {
       cancelled = true;
     };
   }, [eventId, refreshKey]);
+
+  const loadMoreProfiles = useCallback(async () => {
+    if (profilesLoadingMore) return;
+    setProfilesLoadingMore(true);
+    const next = profilePageRef.current + 1;
+    profilePageRef.current = next;
+    await loadProfiles(next, true);
+    setProfilesLoadingMore(false);
+  }, [loadProfiles, profilesLoadingMore]);
 
   async function handleAssign(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +105,9 @@ export function useEventSpeakers(eventId: string) {
     assignments,
     allProfiles,
     loading,
+    profilesLoadingMore,
+    profilesHasMore,
+    loadMoreProfiles,
     error,
     selectedProfileId,
     setSelectedProfileId,

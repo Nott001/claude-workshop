@@ -9,9 +9,10 @@ export function useUpcomingEvents() {
 
   useEffect(() => {
     fetch("/api/events?filter=upcoming")
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => (res.ok ? res.json() : { data: [] }))
       .then((data: unknown) => {
-        setEvents(Array.isArray(data) ? (data as EventRow[]).slice(0, 2).map(toLandingEvent) : []);
+        const rows = (data as { data?: unknown }).data;
+        setEvents(Array.isArray(rows) ? (rows as EventRow[]).slice(0, 2).map(toLandingEvent) : []);
       })
       .catch(() => {});
   }, []);

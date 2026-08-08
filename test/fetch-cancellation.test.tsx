@@ -59,14 +59,14 @@ describe("useEventList under strict mode's mount/unmount/remount", () => {
     // setLoading(false) landed with `events` still empty, and the page rendered
     // "No events found" until the live run came back.
     await act(async () => {
-      pending[0].resolve(events);
+      pending[0].resolve({ data: events, total: 1, page: 1, limit: 50 });
     });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.filteredEvents).toEqual([]);
 
     await act(async () => {
-      pending[1].resolve(events);
+      pending[1].resolve({ data: events, total: 1, page: 1, limit: 50 });
     });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -81,8 +81,8 @@ describe("useEventList under strict mode's mount/unmount/remount", () => {
     await waitFor(() => expect(pending.length).toBe(2));
 
     await act(async () => {
-      pending[1].resolve(events);
-      pending[0].resolve([]);
+      pending[1].resolve({ data: events, total: 1, page: 1, limit: 50 });
+      pending[0].resolve({ data: [], total: 0, page: 1, limit: 50 });
     });
 
     await waitFor(() => expect(result.current.loading).toBe(false));

@@ -25,7 +25,7 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
   const [event, speakerData, tickets] = await Promise.all([
     eventRes.ok ? eventRes.json() : Promise.resolve(null),
     speakerRes?.ok ? speakerRes.json() : Promise.resolve(null),
-    ticketRes?.ok ? ticketRes.json() : Promise.resolve([]),
+    ticketRes?.ok ? ticketRes.json() : Promise.resolve({ data: [] }),
   ]);
 
   const speakerProfileId: number | null = speakerData?.speaker_profile_id ?? null;
@@ -33,7 +33,7 @@ export async function fetchEventAccess(eventId: string, user: AuthUser): Promise
     !!speakerProfileId &&
     (event?.EVENT_SPEAKER?.some((es: EventSpeakerEntry) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
-  const hasTicket = (tickets as Array<{ event_id: number; status: string }>).some(
+  const hasTicket = ((tickets?.data ?? []) as Array<{ event_id: number; status: string }>).some(
     (t) => t.event_id === Number(eventId) && t.status !== "cancelled",
   );
 

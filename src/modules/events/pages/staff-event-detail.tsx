@@ -6,6 +6,7 @@ import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { LoadMoreButton } from "@/shared/components/load-more";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
@@ -194,6 +195,9 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
     selectedProfileId,
     setSelectedProfileId,
     availableProfiles,
+    profilesLoadingMore,
+    profilesHasMore,
+    loadMoreProfiles,
     handleAssign,
     handleRemove,
   } = useEventSpeakers(eventId);
@@ -251,6 +255,10 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
 
           {availableProfiles.length === 0 && assignments.length > 0 && (
             <p className="text-xs text-muted-fg">All speakers are assigned to this event.</p>
+          )}
+
+          {profilesHasMore && (
+            <LoadMoreButton loading={profilesLoadingMore} onLoadMore={loadMoreProfiles} label="Load more speakers" />
           )}
         </>
       )}

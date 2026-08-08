@@ -45,7 +45,10 @@ beforeEach(() => {
     isSignedIn: true,
     signOut: vi.fn(),
   });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => events }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) }),
+  );
 });
 
 afterEach(() => {

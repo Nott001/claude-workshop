@@ -59,7 +59,10 @@ function signInAsAttendee() {
     isSignedIn: true,
     signOut: vi.fn(),
   });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => apiRows }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: apiRows, total: 2, page: 1, limit: 50 }) }),
+  );
 }
 
 beforeEach(() => {

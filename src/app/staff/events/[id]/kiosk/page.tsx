@@ -19,7 +19,8 @@ export default function StaffEventKioskPage() {
     fetch("/api/events?filter=upcoming")
       .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load event")))
       .then((data) => {
-        const found = Array.isArray(data) ? data.find((e: Event) => String(e.id) === eventId) : null;
+        const rows = (data as { data?: Event[] }).data ?? [];
+        const found = rows.find((e: Event) => String(e.id) === eventId);
         setEvent(found ?? null);
       })
       .catch(() => {})

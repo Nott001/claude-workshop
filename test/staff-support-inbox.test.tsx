@@ -124,7 +124,9 @@ afterEach(() => {
 
 describe("StaffSupportInbox queue", () => {
   it("renders each open case with its number and handler state", async () => {
-    mockFetch([{ match: (m) => m === "GET", respond: () => ({ cases: [UNCLAIMED, MINE, OTHER] }) }]);
+    mockFetch([
+      { match: (m) => m === "GET", respond: () => ({ data: [UNCLAIMED, MINE, OTHER], total: 3, page: 1, limit: 50 }) },
+    ]);
 
     renderInbox();
 
@@ -137,7 +139,7 @@ describe("StaffSupportInbox queue", () => {
   });
 
   it("shows a quiet state when the queue is empty", async () => {
-    mockFetch([{ match: (m) => m === "GET", respond: () => ({ cases: [] }) }]);
+    mockFetch([{ match: (m) => m === "GET", respond: () => ({ data: [], total: 0, page: 1, limit: 50 }) }]);
 
     renderInbox();
 
@@ -148,7 +150,10 @@ describe("StaffSupportInbox queue", () => {
 describe("StaffSupportInbox claim flow", () => {
   it("opens an unclaimed case read-only and claims it", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [UNCLAIMED] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [UNCLAIMED], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=20"),
         respond: () => ({
@@ -174,7 +179,10 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("shows a case handled by someone else as read-only", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [OTHER] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [OTHER], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=22"),
         respond: () => ({
@@ -195,7 +203,10 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("lets the owner reply, relinquish and end a case", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [MINE] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [MINE], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=21"),
         respond: () => ({
@@ -230,7 +241,12 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("keeps the claim button on the queue item's header actions", async () => {
     const queue = [UNCLAIMED];
-    mockFetch([{ match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: queue }) }]);
+    mockFetch([
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: queue, total: 1, page: 1, limit: 50 }),
+      },
+    ]);
 
     renderInbox();
 

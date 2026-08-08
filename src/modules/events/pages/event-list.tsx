@@ -9,6 +9,7 @@ import { EventListSkeleton } from "@/modules/events/components/event-list-skelet
 import { useSession } from "@/modules/auth/components/session-context";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -18,7 +19,7 @@ const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
 export function EventListPage() {
   const router = useRouter();
   const { user } = useSession();
-  const { filteredEvents, loading, error, activeTab, setActiveTab, tabCounts } = useEventList();
+  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList();
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
@@ -84,6 +85,7 @@ export function EventListPage() {
             ))}
           </div>
         )}
+        {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </>
   );

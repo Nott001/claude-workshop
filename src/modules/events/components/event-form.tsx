@@ -59,7 +59,7 @@ export function EventForm({
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [facRes, spkRes] = await Promise.all([fetch("/api/facilitators"), fetch("/api/speakers?role=speaker")]);
+      const [facRes, spkRes] = await Promise.all([fetch("/api/facilitators"), fetch("/api/speakers?role=speaker&limit=100")]);
       if (cancelled) return;
 
       if (facRes.ok) {
@@ -70,7 +70,8 @@ export function EventForm({
       }
 
       if (spkRes.ok) {
-        const rows: SpeakerCandidate[] = await spkRes.json();
+        const data = (await spkRes.json()) as { data?: SpeakerCandidate[] };
+        const rows: SpeakerCandidate[] = data.data ?? [];
         if (!cancelled) setSpeakers(rows);
       } else {
         setSpeakersError(true);

@@ -184,7 +184,14 @@ describe("EventForm", () => {
           ok: true,
           json: async () =>
             String(input).includes("/api/speakers?role=speaker")
-              ? [{ id: 4, user_id: 2, designation: "Author", USER: { full_name: "Sam Speaker", email: "sam@example.com" } }]
+              ? {
+                  data: [
+                    { id: 4, user_id: 2, designation: "Author", USER: { full_name: "Sam Speaker", email: "sam@example.com" } },
+                  ],
+                  total: 1,
+                  page: 1,
+                  limit: 100,
+                }
               : [],
         }),
       ),

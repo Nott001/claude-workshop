@@ -59,7 +59,7 @@ export async function fetchCourseRoomAccess(courseId: string, user: AuthUser): P
   const [room, speakerData, tickets] = await Promise.all([
     roomRes.ok ? roomRes.json() : Promise.resolve(null),
     speakerRes?.ok ? speakerRes.json() : Promise.resolve(null),
-    ticketRes?.ok ? ticketRes.json() : Promise.resolve([]),
+    ticketRes?.ok ? ticketRes.json() : Promise.resolve({ data: [] }),
   ]);
 
   const eventId = room?.event?.id;
@@ -68,7 +68,7 @@ export async function fetchCourseRoomAccess(courseId: string, user: AuthUser): P
     !!speakerProfileId &&
     (room?.event?.EVENT_SPEAKER?.some((es: CourseRoomEventSpeaker) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
-  const hasTicket = (tickets as Array<{ event_id: number; status: string }>).some(
+  const hasTicket = ((tickets?.data ?? []) as Array<{ event_id: number; status: string }>).some(
     (t) => t.event_id === eventId && t.status !== "cancelled",
   );
 

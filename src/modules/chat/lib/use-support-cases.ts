@@ -30,6 +30,9 @@ export function useSupportCases() {
 
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
+  const [loadingMoreCases, setLoadingMoreCases] = useState(false);
+  const [hasMoreCases, setHasMoreCases] = useState(false);
+  const casesPageRef = useRef(1);
   const [selected, setSelected] = useState<CaseSummary | null>(null);
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -42,15 +45,17 @@ export function useSupportCases() {
 
   const loadCases = useCallback(async () => {
     try {
+      casesPageRef.current = 1;
       const res = await fetch("/api/support/cases");
       if (!res.ok) return;
       const data = await res.json();
-      setCases(data.cases ?? []);
+      const rows = (Array.isArray(data.data) ? data.data : []) as CaseSummary[];
+      setCases(rows);
+      setHasMoreCases((data.total ?? 0) > (data.limit ?? 50));
       // Keep the open case in sync with the queue, closing it when it ends.
       setSelected((prev) => {
         if (!prev) return prev;
-        const fresh = (data.cases ?? []).find((c: CaseSummary) => c.id === prev.id);
-        return fresh ?? null;
+        return rows.find((c) => c.id === prev.id) ?? null;
       });
     } catch {
       // A failed refresh keeps the queue already on screen.
@@ -58,6 +63,29 @@ export function useSupportCases() {
       setLoadingCases(false);
     }
   }, []);
+
+  const loadMoreCases = useCallback(async () => {
+    if (loadingMoreCases) return;
+    setLoadingMoreCases(true);
+    const next = casesPageRef.current + 1;
+    casesPageRef.current = next;
+    try {
+      const res = await fetch(`/api/support/cases?page=${next}&limit=50`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = (Array.isArray(data.data) ? data.data : []) as CaseSummary[];
+      setCases((prev) => {
+        const merged = new Map<number, CaseSummary>();
+        for (const c of [...prev, ...rows]) merged.set(c.id, c);
+        return [...merged.values()];
+      });
+      setHasMoreCases((data.total ?? 0) > next * (data.limit ?? 50));
+    } catch {
+      // A failed page keeps the queue already on screen.
+    } finally {
+      setLoadingMoreCases(false);
+    }
+  }, [loadingMoreCases]);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -175,6 +203,9 @@ export function useSupportCases() {
   return {
     cases,
     loadingCases,
+    loadingMoreCases,
+    hasMoreCases,
+    loadMoreCases,
     selected,
     messages,
     loadingMessages,

@@ -31,7 +31,10 @@ const apiRows = [
 ];
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => apiRows }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: apiRows, total: apiRows.length, page: 1, limit: 50 }) }),
+  );
 });
 
 afterEach(() => {

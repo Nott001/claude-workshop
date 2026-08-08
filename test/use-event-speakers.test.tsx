@@ -20,7 +20,10 @@ function stubApi(speakerRows: unknown = profiles, assignmentRows: unknown = assi
     vi.fn((url: string) =>
       Promise.resolve({
         ok: true,
-        json: async () => (url === "/api/speakers" ? speakerRows : assignmentRows),
+        json: async () =>
+          url === "/api/speakers"
+            ? { data: speakerRows, total: Array.isArray(speakerRows) ? speakerRows.length : 0, page: 1, limit: 50 }
+            : assignmentRows,
       }),
     ),
   );

@@ -43,7 +43,7 @@ describe("fetchEventAccess", () => {
   it("fetches tickets for attendee, returns hasTicket=true", async () => {
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/tickets": [mockTicket],
+      "/api/tickets": { data: [mockTicket], total: 1, page: 1, limit: 50 },
     });
 
     const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));
@@ -55,7 +55,7 @@ describe("fetchEventAccess", () => {
   it("returns hasTicket=false for attendee without tickets", async () => {
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/tickets": [],
+      "/api/tickets": { data: [], total: 0, page: 1, limit: 50 },
     });
 
     const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));
@@ -111,7 +111,7 @@ describe("fetchEventAccess", () => {
   it("ignores cancelled tickets for attendee", async () => {
     mockFetch({
       [`/api/events/${eventId}`]: mockEvent,
-      "/api/tickets": [mockCancelledTicket],
+      "/api/tickets": { data: [mockCancelledTicket], total: 1, page: 1, limit: 50 },
     });
 
     const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));

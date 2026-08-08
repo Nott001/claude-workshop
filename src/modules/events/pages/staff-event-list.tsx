@@ -6,6 +6,7 @@ import { EventCard } from "@/modules/events/components/event-card";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
@@ -20,7 +21,8 @@ const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
 
 export function StaffEventListPage() {
   const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR);
-  const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts } = useEventList();
+  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, isFacilitator, tabCounts } =
+    useEventList();
 
   if (pending || loading) {
     return (
@@ -90,6 +92,7 @@ export function StaffEventListPage() {
             ))}
           </div>
         )}
+        {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </>
   );

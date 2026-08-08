@@ -1,8 +1,9 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 interface CourseRow {
   id: number;
@@ -14,36 +15,62 @@ interface CourseRow {
   updated_at: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function StaffCoursesPage() {
   const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pageRef = useRef(1);
+
+  const load = useCallback(async (page: number, append: boolean) => {
+    const res = await fetch(`/api/courses?page=${page}&limit=${PAGE_SIZE}`);
+    if (!res.ok) throw new Error("Failed to load courses");
+    const data = await res.json();
+    const rows = (Array.isArray(data.data) ? data.data : []) as CourseRow[];
+    setCourses((prev) => (append ? [...prev, ...rows] : rows));
+    setHasMore((data.total ?? 0) > page * PAGE_SIZE);
+  }, []);
 
   useEffect(() => {
     if (pending || !allowed) return;
     let cancelled = false;
-    fetch("/api/courses")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load courses");
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setCourses(data);
-          setDataLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err.message);
-          setDataLoading(false);
-        }
-      });
+    pageRef.current = 1;
+
+    async function loadFirstPage() {
+      setDataLoading(true);
+      setError(null);
+      try {
+        await load(1, false);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load courses");
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    }
+
+    loadFirstPage();
     return () => {
       cancelled = true;
     };
-  }, [pending, allowed]);
+  }, [pending, allowed, load]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    const next = pageRef.current + 1;
+    pageRef.current = next;
+    try {
+      await load(next, true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load courses");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [load, loadingMore]);
 
   if (pending || !allowed) return null;
 
@@ -124,6 +151,7 @@ export default function StaffCoursesPage() {
               )}
             </div>
           )}
+          {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
         </div>
       </div>
     </>

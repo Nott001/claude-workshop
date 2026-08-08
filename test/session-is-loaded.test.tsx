@@ -71,9 +71,12 @@ describe("a consumer gated on isLoaded", () => {
   it("runs its fetch once the session resolves instead of never", async () => {
     const { usePayments } = await import("@/modules/commerce/lib/use-payments");
 
-    const rows = [{ payment_id: 9, status: "paid", created_at: "2026-08-01", paid_at: null, EVENTS: null }];
+    const rows = [{ id: 9, status: "paid", created_at: "2026-08-01", paid_at: null, EVENT: null }];
     const fetchMock = vi.fn((url: string) =>
-      Promise.resolve({ ok: true, json: async () => (url === "/api/payments" ? rows : appUser) }),
+      Promise.resolve({
+        ok: true,
+        json: async () => (String(url).startsWith("/api/payments") ? { data: rows, total: 1, page: 1, limit: 50 } : appUser),
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -85,7 +88,7 @@ describe("a consumer gated on isLoaded", () => {
     // session was ready, so `loading` was never cleared.
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.payments).toEqual(rows);
-    expect(fetchMock).toHaveBeenCalledWith("/api/payments");
+    expect(fetchMock).toHaveBeenCalledWith("/api/payments?page=1&limit=50");
   });
 });
 
