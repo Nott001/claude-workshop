@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { KioskScannerView } from "@/modules/kiosk/components/kiosk-scanner-view";
 import { useEffect, useState } from "react";
 import type { Event } from "@/shared/types";
 
@@ -58,17 +59,13 @@ export default function StaffEventKioskPage() {
         )}
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center p-8">
+      <div className="flex flex-1">
         {!event ? (
-          <p className="text-sm text-muted-fg">Event not found or unavailable.</p>
+          <div className="flex flex-1 flex-col items-center justify-center p-8">
+            <p className="text-sm text-muted-fg">Event not found or unavailable.</p>
+          </div>
         ) : (
-          <>
-            <span className="material-symbols-rounded text-6xl text-brand">qr_code_scanner</span>
-            <p className="mt-4 text-sm text-muted-fg">
-              Scanning tickets for <strong>{event.title}</strong>
-            </p>
-            <p className="mt-2 text-xs text-muted-fg">{event.event_date}</p>
-          </>
+          <KioskScannerView event={event} />
         )}
       </div>
     </div>

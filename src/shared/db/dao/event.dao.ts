@@ -1,11 +1,23 @@
 import type { DbClient } from "./types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { isEventFinished } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
 
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
+
+// The status column is only ever advanced to "active" by the publish flow, so a
+// past event lingers there forever and the UI has to lie about it. Every read
+// path that surfaces status derives the effective value instead: once an
+// active event's end time has passed it is served as complete.
+function effectiveStatus(event: Pick<Event, "event_date" | "start_time" | "end_time" | "status">): Event["status"] {
+  if (event.status === "active" && isEventFinished(event.event_date, event.end_time)) {
+    return "complete";
+  }
+  return event.status;
+}
 
 type EventSpeakerJoin = {
   speaker_profile_id: number;
@@ -30,12 +42,12 @@ export async function findByIdWithCourse(supabase: DbClient, id: number): Promis
     )
     .eq("id", id)
     .single();
-  return data;
+  return data ? { ...data, status: effectiveStatus(data) } : null;
 }
 
 export async function findByIdWithCourseName(supabase: DbClient, id: number): Promise<EventWithCourseName | null> {
   const { data } = await supabase.from("EVENT").select("*, COURSE!event_id(id, course_name)").eq("id", id).single();
-  return data;
+  return data ? { ...data, status: effectiveStatus(data) } : null;
 }
 
 export async function list(
@@ -74,7 +86,7 @@ export async function list(
   }
 
   const { data } = await query;
-  return data ?? [];
+  return (data ?? []).map((row) => ({ ...row, status: effectiveStatus(row) }));
 }
 
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
