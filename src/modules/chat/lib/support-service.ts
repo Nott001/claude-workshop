@@ -14,23 +14,20 @@ export class SupportServiceError extends Error {
   }
 }
 
-export type SupportType = "general" | "event";
-
 /**
  * Whether the caller may send another message inside the window. The threshold
  * lives here so the rule and its constants stay together; the route decides the
  * 429.
  */
-export async function rateLimitCheck(supabase: DbClient, userId: number, supportType: SupportType): Promise<boolean> {
+export async function rateLimitCheck(supabase: DbClient, userId: number): Promise<boolean> {
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const count = await chatDao.countRecentByUser(supabase, userId, supportType, windowStart);
+  const count = await chatDao.countRecentByUser(supabase, userId, "general", windowStart);
   return count >= RATE_LIMIT_MAX;
 }
 
 export interface OpenSessionInput {
   userId: number;
   role: UserRole;
-  supportType: SupportType;
   /** A staff member replying into somebody else's case. */
   recipientUserId?: number;
 }
@@ -43,11 +40,11 @@ export interface OpenSessionInput {
  */
 export async function openOrReuseSession(
   supabase: DbClient,
-  { userId, role, supportType, recipientUserId }: OpenSessionInput,
+  { userId, role, recipientUserId }: OpenSessionInput,
 ): Promise<NonNullable<Awaited<ReturnType<typeof chatDao.findActiveSession>>>> {
-  const isStaff = hasMinRole(role, supportType === "general" ? ROLES.ADMIN : ROLES.FACILITATOR);
+  const isStaff = hasMinRole(role, ROLES.ADMIN);
 
-  if (supportType === "general" && isStaff && recipientUserId) {
+  if (isStaff && recipientUserId) {
     const active = await chatDao.findActiveSession(supabase, recipientUserId, "general");
     if (!active) {
       throw new SupportServiceError(404, "No active case for this user");
@@ -62,10 +59,10 @@ export async function openOrReuseSession(
   }
 
   const sessionUserId = isStaff && recipientUserId ? recipientUserId : userId;
-  const existing = await chatDao.findActiveSession(supabase, sessionUserId, supportType);
+  const existing = await chatDao.findActiveSession(supabase, sessionUserId, "general");
   if (existing) return existing;
 
-  const created = await chatDao.createSession(supabase, sessionUserId, supportType);
+  const created = await chatDao.createSession(supabase, sessionUserId, "general");
   // createSession returns null on failure; asserting non-null turned an insert
   // error into a TypeError and a 500 with no usable message.
   if (!created) {
@@ -81,13 +78,12 @@ export async function sendSupportMessage(
     sessionId: number;
     userId: number;
     role: UserRole;
-    supportType: SupportType;
     recipientUserId?: number;
   },
 ): Promise<NonNullable<Awaited<ReturnType<typeof chatDao.sendMessage>>>> {
-  const isStaff = hasMinRole(input.role, input.supportType === "general" ? ROLES.ADMIN : ROLES.FACILITATOR);
+  const isStaff = hasMinRole(input.role, ROLES.ADMIN);
   const message = await chatDao.sendMessage(supabase, {
-    support_type: input.supportType,
+    support_type: "general",
     user_id: input.userId,
     message: input.message,
     session_id: input.sessionId,
@@ -100,10 +96,8 @@ export async function sendSupportMessage(
   return message;
 }
 
-// Case ownership is a general-support concept for now; event support keeps its
-// current free-for-all until it gets the same overhaul.
-function assertClaimable(supportType: SupportType, targetUserId: number, actorId: number): void {
-  if (supportType !== "general" || targetUserId === actorId) {
+function assertClaimable(targetUserId: number, actorId: number): void {
+  if (targetUserId === actorId) {
     throw new SupportServiceError(400, "Not supported for this session");
   }
 }
@@ -111,10 +105,9 @@ function assertClaimable(supportType: SupportType, targetUserId: number, actorId
 export async function claimCase(
   supabase: DbClient,
   targetUserId: number,
-  supportType: SupportType,
   actorId: number,
 ): Promise<NonNullable<Awaited<ReturnType<typeof chatDao.claimSession>>>> {
-  assertClaimable(supportType, targetUserId, actorId);
+  assertClaimable(targetUserId, actorId);
 
   const session = await chatDao.claimSession(supabase, targetUserId, "general", actorId);
   if (!session) {
@@ -126,10 +119,9 @@ export async function claimCase(
 export async function releaseCase(
   supabase: DbClient,
   targetUserId: number,
-  supportType: SupportType,
   actorId: number,
 ): Promise<NonNullable<Awaited<ReturnType<typeof chatDao.relinquishSession>>>> {
-  assertClaimable(supportType, targetUserId, actorId);
+  assertClaimable(targetUserId, actorId);
 
   const session = await chatDao.relinquishSession(supabase, targetUserId, "general", actorId);
   if (!session) {
@@ -139,19 +131,18 @@ export async function releaseCase(
 }
 
 /**
- * Ends the target's session. Ending somebody else's general case is reserved
- * for its handler; an unclaimed case can be closed by any staff member so the
- * queue stays cleanable. Event cases stay free-for-all.
+ * Ends the target's session. Ending somebody else's case is reserved for its
+ * handler; an unclaimed case can be closed by any staff member so the queue
+ * stays cleanable.
  */
 export async function endCase(
   supabase: DbClient,
   targetUserId: number,
-  supportType: SupportType,
   actor: { id: number; role: UserRole },
 ): Promise<Awaited<ReturnType<typeof chatDao.endSession>>> {
   const isOwn = targetUserId === actor.id;
 
-  if (supportType === "general" && !isOwn) {
+  if (!isOwn) {
     const active = await chatDao.findActiveSession(supabase, targetUserId, "general");
     if (!active) {
       throw new SupportServiceError(404, "No active case for this user");
@@ -159,8 +150,8 @@ export async function endCase(
     if (active.assigned_to !== null && active.assigned_to !== actor.id) {
       throw new SupportServiceError(403, "Only the assigned handler can end this case");
     }
-    return chatDao.endSession(supabase, targetUserId, "general", undefined, { ownerId: active.assigned_to });
+    return chatDao.endSession(supabase, targetUserId, "general", { ownerId: active.assigned_to });
   }
 
-  return chatDao.endSession(supabase, targetUserId, supportType);
+  return chatDao.endSession(supabase, targetUserId, "general");
 }

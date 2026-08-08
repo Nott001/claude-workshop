@@ -14,9 +14,6 @@ import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
-import dynamic from "next/dynamic";
-
-const ChatPanel = dynamic(() => import("@/modules/chat/components/chat-panel"), { ssr: false });
 
 function SectionCard({
   title,
@@ -266,16 +263,6 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
   );
 }
 
-function SupportSection({ eventId, userRole, userId }: { eventId: string; userRole: UserRole | null; userId: number | null }) {
-  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
-
-  return (
-    <SectionCard title="Support" icon="support_agent" className="row-span-2">
-      <ChatPanel eventId={eventId} supportType="event" userRole={userRole} currentUserId={userId} />
-    </SectionCard>
-  );
-}
-
 function KioskSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
   const router = useRouter();
 
@@ -417,8 +404,6 @@ export function StaffEventDetailPage() {
           />
 
           <SpeakersSection eventId={eventId} userRole={userRole} />
-
-          <SupportSection eventId={eventId} userRole={userRole} userId={user?.id ?? null} />
 
           <KioskSection eventId={eventId} userRole={userRole} />
 

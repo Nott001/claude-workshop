@@ -14,36 +14,18 @@ export interface CaseSummary {
   last_message_at: string | null;
 }
 
-interface EventScopedQuery {
-  eq(column: string, value: unknown): unknown;
-  is(column: string, value: unknown): unknown;
-}
-
-// The event filter every session read shares: a session with no event (general
-// support) is matched with `is`, never `eq`, which would address no rows. The
-// generic version of this induced a deep Postgrest builder instantiation, so the
-// filter is applied through this narrow seam and the result cast back.
-function applyEventFilter<T extends EventScopedQuery>(query: T, eventId?: number): T {
-  const filtered: unknown = eventId !== undefined ? query.eq("event_id", eventId) : query.is("event_id", null);
-  return filtered as T;
-}
-
 export async function findActiveSession(
   supabase: DbClient,
   userId: number,
   supportType: string,
-  eventId?: number,
 ): Promise<{ id: number; case_number: number; assigned_to: number | null } | null> {
-  let query = supabase
+  const { data } = await supabase
     .from("SUPPORT_SESSION")
     .select("id, case_number, assigned_to")
     .eq("user_id", userId)
     .eq("support_type", supportType)
-    .eq("status", "active");
-
-  query = applyEventFilter(query, eventId);
-
-  const { data } = await query.maybeSingle();
+    .eq("status", "active")
+    .maybeSingle();
   return data;
 }
 
@@ -59,17 +41,15 @@ export async function findLatestSession(
   supabase: DbClient,
   userId: number,
   supportType: string,
-  eventId?: number,
 ): Promise<LatestSession | null> {
-  let query = supabase
+  const { data } = await supabase
     .from("SUPPORT_SESSION")
     .select("id, status, case_number, assigned_to, ASSIGNED:assigned_to(full_name)")
     .eq("user_id", userId)
-    .eq("support_type", supportType);
-
-  query = applyEventFilter(query, eventId);
-
-  const { data } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
+    .eq("support_type", supportType)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   // PostgREST returns to-one embeds as objects; the generated client type can
   // misread a second FK to the same table as a collection.
   return data as unknown as LatestSession | null;
@@ -84,17 +64,12 @@ export async function findById(
   return data;
 }
 
-export async function createSession(
-  supabase: DbClient,
-  userId: number,
-  supportType: string,
-  eventId?: number,
-): Promise<SupportSession | null> {
-  const insertData: Record<string, unknown> = { user_id: userId, support_type: supportType };
-  if (eventId !== undefined) {
-    insertData.event_id = eventId;
-  }
-  const { data, error } = await supabase.from("SUPPORT_SESSION").insert(insertData).select("*").single();
+export async function createSession(supabase: DbClient, userId: number, supportType: string): Promise<SupportSession | null> {
+  const { data, error } = await supabase
+    .from("SUPPORT_SESSION")
+    .insert({ user_id: userId, support_type: supportType })
+    .select("*")
+    .single();
   if (error) {
     console.error("support-session.dao.createSession failed:", error.message, error.code);
     return null;
@@ -144,7 +119,6 @@ export async function endSession(
   supabase: DbClient,
   userId: number,
   supportType: string,
-  eventId?: number,
   opts?: { ownerId?: number | null },
 ): Promise<SupportSession | null> {
   // Ending a case removes it and its message history outright: the attendee
@@ -160,8 +134,6 @@ export async function endSession(
   if (opts?.ownerId !== undefined) {
     query = opts.ownerId === null ? query.is("assigned_to", null) : query.eq("assigned_to", opts.ownerId);
   }
-
-  query = applyEventFilter(query, eventId);
 
   const { data, error } = await query.select("*").single();
 
@@ -251,7 +223,7 @@ export async function listCases(
 export async function listRecentSessions(supabase: DbClient, since: string): Promise<unknown[]> {
   const { data } = await supabase
     .from("SUPPORT_SESSION")
-    .select("id, user_id, status, support_type, event_id")
+    .select("id, user_id, status, support_type")
     .gte("created_at", since)
     .order("created_at", { ascending: false });
   return data ?? [];

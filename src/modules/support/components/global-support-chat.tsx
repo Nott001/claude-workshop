@@ -10,11 +10,9 @@ import { MessageComposer } from "@/modules/chat/components/message-composer";
 interface GlobalSupportChatProps {
   isOpen: boolean;
   onClose: () => void;
-  supportType?: "general" | "event";
-  eventId?: string;
 }
 
-export default function GlobalSupportChat({ isOpen, onClose, supportType = "general", eventId }: GlobalSupportChatProps) {
+export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
@@ -31,7 +29,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
-  const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
+  const apiUrl = "/api/support";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,18 +70,13 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
       active = false;
       unsubscribe(sessionSub);
     };
-  }, [isOpen, supportType, eventId, apiUrl]);
+  }, [isOpen, apiUrl]);
 
   useRealtimeMessages<ChatMessageWithUser>({
-    channelName: `support-panel-${supportType}-${eventId ?? "general"}`,
+    channelName: "support-panel-general",
     table: CHAT_TABLE,
-    filter: `support_type=eq.${supportType}`,
+    filter: "support_type=eq.general",
     enabled: isOpen,
-    relevant: (row) => {
-      if (supportType === "event" && eventId && row.event_id !== Number(eventId)) return false;
-      if (supportType === "general" && row.event_id !== null) return false;
-      return true;
-    },
     onInsert: (msg) =>
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
@@ -112,9 +105,8 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        support_type: supportType,
+        support_type: "general",
         message: text,
-        ...(supportType === "event" && eventId ? { event_id: Number(eventId) } : {}),
       }),
     });
 
@@ -142,7 +134,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
           <span className="material-symbols-rounded text-lg text-brand">support_agent</span>
           <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-fg">{supportType === "general" ? "Support" : "Event Support"}</span>
+              <span className="text-sm font-semibold text-fg">Support</span>
               {sessionInfo.case_number != null && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-fg">
                   CASE-{sessionInfo.case_number}

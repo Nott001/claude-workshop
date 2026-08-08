@@ -25,7 +25,6 @@ export async function GET(req: Request) {
   const after = searchParams.get("after");
   const filterUserId = searchParams.get("user_id");
   const supportTypeParam = searchParams.get("support_type") ?? "general";
-  const eventIdParam = searchParams.get("event_id");
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 50);
 
   const parsedType = supportTypeEnum.safeParse(supportTypeParam);
@@ -33,7 +32,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid support_type" }, { status: 400 });
   }
   const supportType = parsedType.data;
-  const eventId = eventIdParam ? Number(eventIdParam) : null;
 
   const supabase = getServiceClient();
 
@@ -42,7 +40,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (supportType === "general" && !hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
+  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -50,7 +48,6 @@ export async function GET(req: Request) {
     userId: user.id,
     role: user.role,
     supportType,
-    eventId,
     before: before ?? null,
     after: after ?? null,
     limit,
@@ -87,13 +84,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const supportType = parsed.data.support_type ?? "general";
-
-  if (supportType === "general" && !hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
+  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (await rateLimitCheck(supabase, user.id, supportType)) {
+  if (await rateLimitCheck(supabase, user.id)) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
@@ -101,7 +96,6 @@ export async function POST(req: Request) {
     const session = await openOrReuseSession(supabase, {
       userId: user.id,
       role: user.role,
-      supportType,
       recipientUserId: parsed.data.recipient_user_id,
     });
 
@@ -110,7 +104,6 @@ export async function POST(req: Request) {
       sessionId: session.id,
       userId: user.id,
       role: user.role,
-      supportType,
       recipientUserId: parsed.data.recipient_user_id,
     });
 

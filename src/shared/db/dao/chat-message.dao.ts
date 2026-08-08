@@ -19,7 +19,6 @@ import { findLatestSession, type LatestSession } from "./support-session.dao";
 
 export async function listMessages(
   supabase: DbClient,
-  eventId: number | null,
   supportType: string,
   options: {
     before?: string | null;
@@ -27,17 +26,11 @@ export async function listMessages(
     limit: number;
   },
 ): Promise<{ messages: ChatMessage[]; nextCursor: string | null }> {
-  let query = supabase
+  const query = supabase
     .from("CHAT_MESSAGE")
     .select("*, USER:user_id(full_name, role)")
     .eq("support_type", supportType)
     .is("deleted_at", null);
-
-  if (eventId !== null) {
-    query = query.eq("event_id", eventId);
-  } else {
-    query = query.is("event_id", null);
-  }
 
   const { data, nextCursor } = await runCursorFeed<ChatMessage>(query, "sent_at", options);
   return { messages: data, nextCursor };
@@ -46,7 +39,6 @@ export async function listMessages(
 export async function sendMessage(
   supabase: DbClient,
   data: {
-    event_id?: number | null;
     support_type: string;
     user_id: number;
     message: string;
@@ -85,11 +77,8 @@ export async function countRecentByUser(
   return count ?? 0;
 }
 
-export async function findMessageById(
-  supabase: DbClient,
-  messageId: number,
-): Promise<{ id: number; event_id?: number | null } | null> {
-  const { data, error } = await supabase.from("CHAT_MESSAGE").select("id, event_id").eq("id", messageId).maybeSingle();
+export async function findMessageById(supabase: DbClient, messageId: number): Promise<{ id: number } | null> {
+  const { data, error } = await supabase.from("CHAT_MESSAGE").select("id").eq("id", messageId).maybeSingle();
   throwOnDbError(error, "chat-message.dao.findMessageById");
   return data;
 }
@@ -121,7 +110,6 @@ export async function listSupportMessages(
     userId?: number;
     role?: string;
     supportType: string;
-    eventId?: number | null;
     before?: string | null;
     after?: string | null;
     limit: number;
@@ -133,7 +121,7 @@ export async function listSupportMessages(
   sessionActive: boolean;
   session: LatestSession | null;
 }> {
-  const { userId, role, supportType, eventId, before, after, limit, filterUserId } = options;
+  const { userId, role, supportType, before, after, limit, filterUserId } = options;
 
   let sessionActive = false;
   let sessionId: number | null = null;
@@ -145,18 +133,10 @@ export async function listSupportMessages(
     .eq("support_type", supportType)
     .is("deleted_at", null);
 
-  if (eventId !== undefined) {
-    if (eventId !== null) {
-      query = query.eq("event_id", eventId);
-    } else {
-      query = query.is("event_id", null);
-    }
-  }
-
   if (role !== ROLES.FACILITATOR && role !== ROLES.ADMIN && role !== ROLES.SUPER_ADMIN && userId) {
     query = query.or(`user_id.eq.${escapeOrValue(userId)},recipient_user_id.eq.${escapeOrValue(userId)}`);
 
-    session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);
+    session = await findLatestSession(supabase, userId, supportType);
     if (session) {
       sessionActive = session.status === "active";
       sessionId = session.id;
@@ -166,7 +146,7 @@ export async function listSupportMessages(
       `user_id.eq.${escapeOrValue(filterUserId)},and(user_id.eq.${escapeOrValue(userId)},recipient_user_id.eq.${escapeOrValue(filterUserId)})`,
     );
 
-    session = await findLatestSession(supabase, Number(filterUserId), supportType, eventId ?? undefined);
+    session = await findLatestSession(supabase, Number(filterUserId), supportType);
     if (session) {
       sessionId = session.id;
       sessionActive = session.status === "active";

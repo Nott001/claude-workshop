@@ -48,6 +48,7 @@ describe("SPEC-14 migrations", () => {
       "00014_live_session_state_course.sql",
       "00015_user_deletion_set_null.sql",
       "00016_remove_live_session_state_realtime.sql",
+      "00017_remove_event_support_chat.sql",
     ]);
   });
 
@@ -77,5 +78,39 @@ describe("SPEC-14 migrations", () => {
     expect(content("00016_remove_live_session_state_realtime.sql")).toContain(
       'ALTER PUBLICATION supabase_realtime DROP TABLE "LIVE_SESSION_STATE";',
     );
+  });
+
+  describe("00017_remove_event_support_chat.sql", () => {
+    const removal = content("00017_remove_event_support_chat.sql");
+
+    it("purges event rows before the enum loses the value", () => {
+      const delIdx = removal.indexOf("DELETE FROM \"CHAT_MESSAGE\" WHERE support_type = 'event';");
+      const enumIdx = removal.indexOf("ALTER TYPE support_type RENAME TO support_type_legacy;");
+      expect(delIdx).toBeGreaterThan(-1);
+      expect(enumIdx).toBeGreaterThan(delIdx);
+    });
+
+    it("drops the event_id columns", () => {
+      expect(removal).toContain('ALTER TABLE "CHAT_MESSAGE" DROP COLUMN IF EXISTS event_id;');
+      expect(removal).toContain('ALTER TABLE "SUPPORT_SESSION" DROP COLUMN IF EXISTS event_id;');
+    });
+
+    it("narrows the enum to general and drops the legacy type", () => {
+      expect(removal).toContain("CREATE TYPE support_type AS ENUM ('general');");
+      expect(removal).toContain("DROP TYPE support_type_legacy;");
+    });
+
+    it("rebuilds the active-session uniqueness without the event scope", () => {
+      expect(removal).toContain(
+        'CREATE UNIQUE INDEX idx_support_session_active\n  ON "SUPPORT_SESSION"(user_id, support_type)',
+      );
+    });
+
+    it("rewrites the policies and participant function without the event branch", () => {
+      expect(removal).not.toContain('"CHAT_MESSAGE".event_id');
+      expect(removal).not.toContain("m.event_id");
+      const policyStart = removal.lastIndexOf('CREATE POLICY "Users read support messages"');
+      expect(removal.slice(policyStart)).not.toContain("'event'");
+    });
   });
 });

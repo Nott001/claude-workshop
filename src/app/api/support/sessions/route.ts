@@ -37,11 +37,9 @@ export async function POST(req: Request) {
   const body = await req.json();
   const action = body.action ?? "end";
   const targetUserId = body.user_id ? Number(body.user_id) : user.id;
-  const supportType = body.support_type ?? "general";
 
   const isOwn = targetUserId === user.id;
-  const minRole = supportType === "general" ? ROLES.ADMIN : ROLES.FACILITATOR;
-  const isStaff = hasMinRole(user.role, minRole as (typeof ROLES)["ADMIN" | "FACILITATOR"]);
+  const isStaff = hasMinRole(user.role, ROLES.ADMIN);
 
   if (!isOwn && !isStaff) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -53,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      const session = await openOrReuseSession(supabase, { userId: targetUserId, role: user.role, supportType });
+      const session = await openOrReuseSession(supabase, { userId: targetUserId, role: user.role });
       return NextResponse.json({ session });
     } catch (err) {
       return mapError(err);
@@ -64,8 +62,8 @@ export async function POST(req: Request) {
     try {
       const session =
         action === "claim"
-          ? await claimCase(supabase, targetUserId, supportType, user.id)
-          : await releaseCase(supabase, targetUserId, supportType, user.id);
+          ? await claimCase(supabase, targetUserId, user.id)
+          : await releaseCase(supabase, targetUserId, user.id);
       return NextResponse.json({ session });
     } catch (err) {
       return mapError(err);
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const session = await endCase(supabase, targetUserId, supportType, { id: user.id, role: user.role });
+    const session = await endCase(supabase, targetUserId, { id: user.id, role: user.role });
     return NextResponse.json({ session: session ?? null });
   } catch (err) {
     return mapError(err);

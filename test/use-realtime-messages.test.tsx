@@ -143,9 +143,9 @@ describe("useRealtimeMessages", () => {
     const onInsert = vi.fn();
     renderHook(() =>
       useRealtimeMessages({
-        channelName: "chat-panel-event-9",
+        channelName: "chat-general",
         table: CHAT_TABLE,
-        filter: "support_type=eq.event",
+        filter: "support_type=eq.general",
         onInsert,
       }),
     );
@@ -194,7 +194,7 @@ describe("useRealtimeMessages", () => {
     );
     const onInsert = vi.fn();
     renderHook(() =>
-      useRealtimeMessages({ channelName: "chat-panel-event-9", table: CHAT_TABLE, filter: "support_type=eq.event", onInsert }),
+      useRealtimeMessages({ channelName: "chat-general", table: CHAT_TABLE, filter: "support_type=eq.general", onInsert }),
     );
 
     channels[0].fire({ eventType: "INSERT", new: { id: 42 } });

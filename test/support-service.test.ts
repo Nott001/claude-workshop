@@ -40,19 +40,25 @@ beforeEach(() => {
 
 describe("rateLimitCheck", () => {
   it("allows a caller under the threshold", async () => {
-    expect(await rateLimitCheck(supabase, 5, "general")).toBe(false);
+    expect(await rateLimitCheck(supabase, 5)).toBe(false);
   });
 
   it("refuses a caller at the limit", async () => {
     chatDao.countRecentByUser.mockResolvedValue(5);
 
-    expect(await rateLimitCheck(supabase, 5, "general")).toBe(true);
+    expect(await rateLimitCheck(supabase, 5)).toBe(true);
+  });
+
+  it("counts the caller's messages inside the window on the general thread", async () => {
+    await rateLimitCheck(supabase, 5);
+
+    expect(chatDao.countRecentByUser).toHaveBeenCalledWith({}, 5, "general", expect.any(String));
   });
 });
 
 describe("openOrReuseSession", () => {
   it("opens a session the caller has none open", async () => {
-    const session = await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE, supportType: "general" });
+    const session = await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE });
 
     expect(session).toEqual({ id: 31, status: "active" });
     expect(chatDao.createSession).toHaveBeenCalledWith({}, 5, "general");
@@ -61,7 +67,7 @@ describe("openOrReuseSession", () => {
   it("reuses the caller's open session instead of opening another", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 12, status: "active" });
 
-    const session = await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE, supportType: "general" });
+    const session = await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE });
 
     expect(session.id).toBe(12);
     expect(chatDao.createSession).not.toHaveBeenCalled();
@@ -70,9 +76,7 @@ describe("openOrReuseSession", () => {
   it("surfaces a session that failed to open as a handled error", async () => {
     chatDao.createSession.mockResolvedValue(null);
 
-    await expect(
-      openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE, supportType: "general" }),
-    ).rejects.toMatchObject({ status: 500 });
+    await expect(openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE })).rejects.toMatchObject({ status: 500 });
   });
 
   it("replies into the asker's case only when it is claimed by this staff member", async () => {
@@ -81,7 +85,6 @@ describe("openOrReuseSession", () => {
     const session = await openOrReuseSession(supabase, {
       userId: 1,
       role: ROLES.ADMIN,
-      supportType: "general",
       recipientUserId: 5,
     });
 
@@ -92,23 +95,23 @@ describe("openOrReuseSession", () => {
   it("refuses a staff reply to a case nobody claimed", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 31, assigned_to: null });
 
-    await expect(
-      openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, supportType: "general", recipientUserId: 5 }),
-    ).rejects.toMatchObject({ status: 409 });
+    await expect(openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, recipientUserId: 5 })).rejects.toMatchObject({
+      status: 409,
+    });
   });
 
   it("refuses a staff reply to a case another handler owns", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 31, assigned_to: 2 });
 
-    await expect(
-      openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, supportType: "general", recipientUserId: 5 }),
-    ).rejects.toMatchObject({ status: 403 });
+    await expect(openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, recipientUserId: 5 })).rejects.toMatchObject({
+      status: 403,
+    });
   });
 
   it("reports a reply aimed at a user with no active case", async () => {
-    await expect(
-      openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, supportType: "general", recipientUserId: 5 }),
-    ).rejects.toMatchObject({ status: 404 });
+    await expect(openOrReuseSession(supabase, { userId: 1, role: ROLES.ADMIN, recipientUserId: 5 })).rejects.toMatchObject({
+      status: 404,
+    });
   });
 });
 
@@ -119,7 +122,6 @@ describe("sendSupportMessage", () => {
       sessionId: 31,
       userId: 5,
       role: ROLES.ATTENDEE,
-      supportType: "general",
     });
 
     expect(message).toEqual({ id: 100, message: "help" });
@@ -135,7 +137,6 @@ describe("sendSupportMessage", () => {
       sessionId: 31,
       userId: 1,
       role: ROLES.ADMIN,
-      supportType: "general",
       recipientUserId: 5,
     });
 
@@ -146,37 +147,33 @@ describe("sendSupportMessage", () => {
     chatDao.sendMessage.mockResolvedValue(null);
 
     await expect(
-      sendSupportMessage(supabase, { message: "help", sessionId: 31, userId: 5, role: ROLES.ATTENDEE, supportType: "general" }),
+      sendSupportMessage(supabase, { message: "help", sessionId: 31, userId: 5, role: ROLES.ATTENDEE }),
     ).rejects.toMatchObject({ status: 500 });
   });
 });
 
 describe("claimCase", () => {
-  it("claims an unclaimed general case", async () => {
-    const session = await claimCase(supabase, 99, "general", 1);
+  it("claims an unclaimed case", async () => {
+    const session = await claimCase(supabase, 99, 1);
 
     expect(session).toEqual({ id: 50, status: "active" });
     expect(chatDao.claimSession).toHaveBeenCalledWith({}, 99, "general", 1);
   });
 
   it("refuses to claim your own session", async () => {
-    await expect(claimCase(supabase, 1, "general", 1)).rejects.toMatchObject({ status: 400 });
-  });
-
-  it("refuses case claiming for event support", async () => {
-    await expect(claimCase(supabase, 99, "event", 1)).rejects.toMatchObject({ status: 400 });
+    await expect(claimCase(supabase, 1, 1)).rejects.toMatchObject({ status: 400 });
   });
 
   it("reports a case somebody else already claimed", async () => {
     chatDao.claimSession.mockResolvedValue(null);
 
-    await expect(claimCase(supabase, 99, "general", 1)).rejects.toMatchObject({ status: 409 });
+    await expect(claimCase(supabase, 99, 1)).rejects.toMatchObject({ status: 409 });
   });
 });
 
 describe("releaseCase", () => {
   it("relinquishes a case the caller owns", async () => {
-    const session = await releaseCase(supabase, 99, "general", 1);
+    const session = await releaseCase(supabase, 99, 1);
 
     expect(session).toEqual({ id: 50, status: "active" });
     expect(chatDao.relinquishSession).toHaveBeenCalledWith({}, 99, "general", 1);
@@ -185,48 +182,42 @@ describe("releaseCase", () => {
   it("refuses to relinquish a case the caller does not own", async () => {
     chatDao.relinquishSession.mockResolvedValue(null);
 
-    await expect(releaseCase(supabase, 99, "general", 1)).rejects.toMatchObject({ status: 409 });
+    await expect(releaseCase(supabase, 99, 1)).rejects.toMatchObject({ status: 409 });
   });
 });
 
 describe("endCase", () => {
   it("ends your own session", async () => {
-    const session = await endCase(supabase, 5, "general", { id: 5, role: ROLES.ATTENDEE });
+    const session = await endCase(supabase, 5, { id: 5, role: ROLES.ATTENDEE });
 
     expect(session).toEqual({ id: 50, status: "ended" });
     expect(chatDao.endSession).toHaveBeenCalledWith({}, 5, "general");
   });
 
-  it("lets an admin close an unclaimed general case for someone else", async () => {
+  it("lets an admin close an unclaimed case for someone else", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 7, assigned_to: null });
 
-    await endCase(supabase, 99, "general", { id: 1, role: ROLES.ADMIN });
+    await endCase(supabase, 99, { id: 1, role: ROLES.ADMIN });
 
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: null });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: null });
   });
 
   it("lets the assigned handler close the case", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 7, assigned_to: 1 });
 
-    await endCase(supabase, 99, "general", { id: 1, role: ROLES.ADMIN });
+    await endCase(supabase, 99, { id: 1, role: ROLES.ADMIN });
 
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: 1 });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: 1 });
   });
 
   it("stops an admin ending a case that belongs to another handler", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 7, assigned_to: 2 });
 
-    await expect(endCase(supabase, 99, "general", { id: 1, role: ROLES.ADMIN })).rejects.toMatchObject({ status: 403 });
+    await expect(endCase(supabase, 99, { id: 1, role: ROLES.ADMIN })).rejects.toMatchObject({ status: 403 });
   });
 
   it("reports when the target has no active case", async () => {
-    await expect(endCase(supabase, 99, "general", { id: 1, role: ROLES.ADMIN })).rejects.toMatchObject({ status: 404 });
-  });
-
-  it("leaves event cases a free-for-all", async () => {
-    await endCase(supabase, 99, "event", { id: 1, role: ROLES.ADMIN });
-
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "event");
+    await expect(endCase(supabase, 99, { id: 1, role: ROLES.ADMIN })).rejects.toMatchObject({ status: 404 });
   });
 });
 

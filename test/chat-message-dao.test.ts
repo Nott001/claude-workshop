@@ -35,11 +35,11 @@ describe("chat-message.dao reads", () => {
   });
 
   it("reads only what a permission check needs", async () => {
-    const { client, calls } = stub({ data: { id: 1, event_id: 9 } });
+    const { client, calls } = stub({ data: { id: 1 } });
 
     await dao.findMessageById(client, 1);
 
-    expect(argsOf(calls, "select")).toEqual(["id, event_id"]);
+    expect(argsOf(calls, "select")).toEqual(["id"]);
   });
 });
 
@@ -49,7 +49,7 @@ describe("chat-message.dao listMessages", () => {
   it("asks for one row more than the page, to learn whether more exist", async () => {
     const { client, calls } = stub({ data: page(2) });
 
-    await dao.listMessages(client, 9, "event", options);
+    await dao.listMessages(client, "general", options);
 
     expect(argsOf(calls, "limit")).toEqual([3]);
   });
@@ -58,8 +58,8 @@ describe("chat-message.dao listMessages", () => {
     const full = stub({ data: page(3) });
     const partial = stub({ data: page(2) });
 
-    const more = await dao.listMessages(full.client, 9, "event", options);
-    const last = await dao.listMessages(partial.client, 9, "event", options);
+    const more = await dao.listMessages(full.client, "general", options);
+    const last = await dao.listMessages(partial.client, "general", options);
 
     expect(more.messages).toHaveLength(2);
     expect(more.nextCursor).toBe(more.messages[0].sent_at);
@@ -76,7 +76,7 @@ describe("chat-message.dao listMessages", () => {
       ],
     });
 
-    const { messages } = await dao.listMessages(client, 9, "event", options);
+    const { messages } = await dao.listMessages(client, "general", options);
 
     expect(messages.map((m) => m.id)).toEqual([1, 2]);
   });
@@ -89,27 +89,25 @@ describe("chat-message.dao listMessages", () => {
       ],
     });
 
-    const { messages } = await dao.listMessages(client, 9, "event", { before: null, after: "a", limit: 2 });
+    const { messages } = await dao.listMessages(client, "general", { before: null, after: "a", limit: 2 });
 
     expect(messages.map((m) => m.id)).toEqual([1, 2]);
     expect(argsOf(calls, "gt")).toEqual(["sent_at", "a"]);
     expect(argsOf(calls, "order")).toEqual(["sent_at", { ascending: true }]);
   });
 
-  it("matches the null event of general support rather than comparing to it", async () => {
-    // `eq("event_id", null)` matches nothing in SQL; `is` is the only form that
-    // finds the general-support rows.
+  it("scopes to the general support thread", async () => {
     const { client, calls } = stub({ data: [] });
 
-    await dao.listMessages(client, null, "general", options);
+    await dao.listMessages(client, "general", options);
 
-    expect(calls.filter(([m, a]) => m === "is" && a[0] === "event_id")).toHaveLength(1);
+    expect(argsOf(calls, "eq")).toEqual(["support_type", "general"]);
   });
 
   it("hides messages that were deleted", async () => {
     const { client, calls } = stub({ data: [] });
 
-    await dao.listMessages(client, 9, "event", options);
+    await dao.listMessages(client, "general", options);
 
     expect(calls.some(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toBe(true);
   });
@@ -117,7 +115,7 @@ describe("chat-message.dao listMessages", () => {
   it("walks backwards from a cursor when one is given", async () => {
     const { client, calls } = stub({ data: [] });
 
-    await dao.listMessages(client, 9, "event", { before: "2026-08-05T00:00:00Z", after: null, limit: 2 });
+    await dao.listMessages(client, "general", { before: "2026-08-05T00:00:00Z", after: null, limit: 2 });
 
     expect(argsOf(calls, "lt")).toEqual(["sent_at", "2026-08-05T00:00:00Z"]);
   });

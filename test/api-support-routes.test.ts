@@ -224,18 +224,11 @@ describe("POST /api/support/sessions", () => {
     expect(chatDao.endSession).not.toHaveBeenCalled();
   });
 
-  it("needs admin, not facilitator, to end a general conversation for someone else", async () => {
-    // General support is the admin queue; event support is the facilitator one.
-    const res = await sessionAction(action({ action: "end", user_id: 99, support_type: "general" }));
+  it("needs admin, not facilitator, to end a conversation for someone else", async () => {
+    // Support is the admin queue; facilitators stay out of other people's cases.
+    const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(403);
-  });
-
-  it("lets a facilitator end somebody's event conversation", async () => {
-    const res = await sessionAction(action({ action: "end", user_id: 99, support_type: "event" }));
-
-    expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "event");
   });
 
   it("lets an admin end an unclaimed general conversation for someone else", async () => {
@@ -246,7 +239,7 @@ describe("POST /api/support/sessions", () => {
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: null });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: null });
   });
 
   it("lets the assigned handler end a claimed general conversation", async () => {
@@ -256,7 +249,7 @@ describe("POST /api/support/sessions", () => {
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: 1 });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: 1 });
   });
 
   it("stops an admin ending a case that belongs to another handler", async () => {
@@ -319,15 +312,6 @@ describe("POST /api/support/sessions", () => {
     requireAuth.mockResolvedValue(ADMIN);
 
     const res = await sessionAction(action({ action: "claim", user_id: 1 }));
-
-    expect(res.status).toBe(400);
-    expect(chatDao.claimSession).not.toHaveBeenCalled();
-  });
-
-  it("refuses case claiming for event support until it gets the same overhaul", async () => {
-    requireAuth.mockResolvedValue(FACILITATOR);
-
-    const res = await sessionAction(action({ action: "claim", user_id: 99, support_type: "event" }));
 
     expect(res.status).toBe(400);
     expect(chatDao.claimSession).not.toHaveBeenCalled();

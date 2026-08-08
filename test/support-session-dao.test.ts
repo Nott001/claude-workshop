@@ -50,7 +50,8 @@ describe("support-session.dao ownership", () => {
     await dao.findActiveSession(client, 5, "general");
 
     expect(argsOf(callsList[0], "select")).toEqual(["id, case_number, assigned_to"]);
-    expect(argsOf(callsList[0], "is")).toEqual(["event_id", null]);
+    expect(argsOf(callsList[0], "eq")).toEqual(["user_id", 5]);
+    expect(callsList[0].some(([m, a]) => m === "eq" && a[0] === "support_type" && a[1] === "general")).toBe(true);
   });
 
   it("claims an active, unclaimed session for the staff member", async () => {
@@ -83,7 +84,7 @@ describe("support-session.dao ownership", () => {
   it("ends a case only when the given owner holds it", async () => {
     const { client, callsList } = stub([{ data: { id: 1 } }]);
 
-    await dao.endSession(client, 5, "general", undefined, { ownerId: 3 });
+    await dao.endSession(client, 5, "general", { ownerId: 3 });
 
     expect(callsList[0].filter(([m, a]) => m === "eq" && a[0] === "assigned_to")).toEqual([["eq", ["assigned_to", 3]]]);
   });
@@ -91,7 +92,7 @@ describe("support-session.dao ownership", () => {
   it("ends an unclaimed case rather than a claimed one", async () => {
     const { client, callsList } = stub([{ data: { id: 1 } }]);
 
-    await dao.endSession(client, 5, "general", undefined, { ownerId: null });
+    await dao.endSession(client, 5, "general", { ownerId: null });
 
     expect(callsList[0].filter(([m, a]) => m === "is" && a[0] === "assigned_to")).toEqual([["is", ["assigned_to", null]]]);
   });
