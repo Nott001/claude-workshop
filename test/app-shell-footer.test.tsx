@@ -41,7 +41,7 @@ describe("AppShell footer placement", () => {
   });
 
   it("omits the footer when the navbar is hidden (room pages)", () => {
-    vi.mocked(usePathname).mockReturnValue("/events/42/room");
+    vi.mocked(usePathname).mockReturnValue("/courses/42/room");
     const { container } = renderShell();
     expect(container.querySelector("footer")).toBeNull();
   });

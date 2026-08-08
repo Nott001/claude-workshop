@@ -102,12 +102,14 @@ function OverviewSection({
           >
             Edit
           </button>
-          <button
-            onClick={() => router.push(`/staff/events/${eventId}/room`)}
-            className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
-          >
-            Enter Room
-          </button>
+          {event.COURSE?.id && (
+            <button
+              onClick={() => router.push(`/courses/${event.COURSE?.id}/room`)}
+              className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
+            >
+              Enter Course Room
+            </button>
+          )}
           <button
             onClick={handleDelete}
             className="rounded-lg border border-error/30 px-4 py-2 text-xs font-semibold text-error hover:bg-error/10"

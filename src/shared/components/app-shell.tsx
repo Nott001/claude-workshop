@@ -11,9 +11,9 @@ import { Footer } from "@/shared/components/footer";
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
 const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
-const HIDE_ASSIST_PATTERNS = [/^\/events\/[^/]+\/room/];
+const HIDE_ASSIST_PATTERNS = [/^\/courses\/[^/]+\/room/];
 
-const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/events\/[^/]+\/room/];
+const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/];
 
 function shouldHideNavbar(pathname: string) {
   if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;

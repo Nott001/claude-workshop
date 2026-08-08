@@ -4,52 +4,24 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
-import { useEventTimer } from "@/modules/events/lib/use-event-timer";
-import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
-import { findLiveModule } from "@/modules/events/lib/live-module";
-import { canAccessRoom } from "@/modules/events/lib/room-access-policy";
+import { useEventTimer } from "@/shared/lib/use-event-timer";
+import { findLiveModule } from "@/shared/lib/live-module";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-
-export interface Lesson {
-  id: number;
-  module_id: number;
-  description: string;
-  content_type: string;
-  content_url: string | null;
-  sequence_order: number;
-}
-
-interface Module {
-  id: number;
-  module_name: string;
-  sequence_order: number;
-  module_type: string;
-  is_locked: boolean;
-  start_time: string | null;
-  end_time: string | null;
-  speaker_profile_id: number | null;
-  SPEAKER_PROFILE: { id: number; designation: string | null; USER: { full_name: string } | null } | null;
-  LESSONS: Lesson[];
-}
-
-interface CourseData {
-  id: number;
-  course_name: string;
-  course_description: string | null;
-  MODULE: Module[];
-}
+import { canAccessCourseRoom } from "@/modules/courses/lib/room-access-policy";
+import { fetchCourseRoomAccess, type CourseRoomCourse } from "@/modules/courses/lib/fetch-course-room-access";
 
 export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "loading" | "denied";
 
-export function useRoomAccess(eventId: string) {
+export function useCourseRoomAccess(courseId: string) {
   const { isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
   const [access, setAccess] = useState<AccessLevel>("loading");
+  const [eventId, setEventId] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [course, setCourse] = useState<CourseData | null>(null);
+  const [course, setCourse] = useState<CourseRoomCourse | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [assignedSpeakerCount, setAssignedSpeakerCount] = useState(0);
   const [settingHighlight, setSettingHighlight] = useState(false);
@@ -63,7 +35,7 @@ export function useRoomAccess(eventId: string) {
   const { elapsed, remaining } = useEventTimer(eventDate, startTime, endTime);
 
   const { data: highlightData, mutate: mutateHighlight } = useSWR(
-    eventId ? `/api/events/${eventId}/live/highlight` : null,
+    courseId ? `/api/courses/${courseId}/live/highlight` : null,
     fetcher,
     { refreshInterval: 5000, revalidateOnFocus: false, revalidateOnReconnect: false },
   );
@@ -78,7 +50,7 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      const accessData = await fetchEventAccess(eventId, user);
+      const accessData = await fetchCourseRoomAccess(courseId, user);
       if (cancelled) return;
 
       const eventData = accessData.event;
@@ -87,28 +59,24 @@ export function useRoomAccess(eventId: string) {
         return;
       }
 
-      setEventTitle(eventData.title || "Event Room");
+      setEventId(String(eventData.id));
+      setEventTitle(eventData.title || "Course Room");
       setEventDate(eventData.event_date ?? "");
       setStartTime(eventData.start_time ?? "");
       setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
       setAssignedSpeakerCount(eventData.EVENT_SPEAKER?.length ?? 0);
 
-      const gate = canAccessRoom(user.role, accessData);
+      const gate = canAccessCourseRoom(user.role, accessData);
       if (gate !== "allowed") {
         if (!cancelled) setAccess(gate);
         return;
       }
 
-      if (eventData.COURSE?.id) {
-        const res = await fetch(`/api/courses/event/${eventId}`);
-        if (res.ok) {
-          const data: CourseData = await res.json();
-          if (!cancelled) setCourse(data);
-        }
+      if (!cancelled) {
+        setCourse(accessData.course);
+        setAccess(accessData.course ? "allowed" : "no_course");
       }
-
-      if (!cancelled) setAccess(eventData.COURSE?.id ? "allowed" : "no_course");
     }
 
     if (!isLoaded) return;
@@ -117,12 +85,12 @@ export function useRoomAccess(eventId: string) {
     return () => {
       cancelled = true;
     };
-  }, [eventId, isLoaded, isSignedIn, user]);
+  }, [courseId, isLoaded, isSignedIn, user]);
 
   function handleSetHighlight(lessonId: number) {
     setSettingHighlight(true);
     mutateHighlight({ highlighted_lesson_id: lessonId }, false);
-    fetch(`/api/events/${eventId}/live/highlight`, {
+    fetch(`/api/courses/${courseId}/live/highlight`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lesson_id: lessonId }),
@@ -134,7 +102,7 @@ export function useRoomAccess(eventId: string) {
   function handleClearHighlight() {
     setSettingHighlight(true);
     mutateHighlight({ highlighted_lesson_id: null }, false);
-    fetch(`/api/events/${eventId}/live/highlight`, {
+    fetch(`/api/courses/${courseId}/live/highlight`, {
       method: "DELETE",
     })
       .then(() => mutateHighlight())
@@ -143,6 +111,7 @@ export function useRoomAccess(eventId: string) {
 
   return {
     access,
+    eventId,
     eventTitle,
     eventDate,
     startTime,

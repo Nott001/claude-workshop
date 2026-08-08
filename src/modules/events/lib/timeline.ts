@@ -1,4 +1,4 @@
-import { moduleSessionStatus, toDate, type LiveModuleSource, type SessionStatus } from "@/modules/events/lib/live-module";
+import { moduleSessionStatus, toDate, type LiveModuleSource, type SessionStatus } from "@/shared/lib/live-module";
 
 export interface ModuleEntry {
   kind: "module";

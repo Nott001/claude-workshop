@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
   eventDao,
-  liveSessionDao,
   facilitatorDao,
   speakerDao,
   courseDao,
@@ -21,15 +20,12 @@ const {
     updateField: vi.fn(),
     remove: vi.fn(),
   },
-  liveSessionDao: { getHighlightState: vi.fn(), upsertHighlightState: vi.fn() },
   facilitatorDao: { replaceEventAssignments: vi.fn(), isAssigned: vi.fn() },
   speakerDao: { replaceEventAssignments: vi.fn(), isAssignedByUserId: vi.fn() },
   courseDao: {
     findModulesByCourse: vi.fn(),
     findLessonsByModule: vi.fn(),
-    findLessonById: vi.fn(),
-    findModuleById: vi.fn(),
-    findIdByEventId: vi.fn(),
+    findCourseIdByEventId: vi.fn(),
   },
   ticketDao: { findActiveByUserAndEvent: vi.fn(), getAttendees: vi.fn() },
   paymentDao: { findPendingByUserAndEvent: vi.fn() },
@@ -39,7 +35,6 @@ const {
 }));
 
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
-vi.mock("@/modules/events/db/live-session.dao", () => liveSessionDao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => facilitatorDao);
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
@@ -52,18 +47,15 @@ vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 import { getServiceClient } from "@/shared/db/client";
 import {
   canManageEvent,
-  clearEventHighlight,
   createEvent,
   deleteEvent,
   EventServiceError,
   getEvent,
-  getEventHighlight,
   getEventRegistrationState,
   listEventAttendees,
   loadEventOr403,
   publishEvent,
   registerForEvent,
-  setEventHighlight,
   updateEvent,
 } from "@/modules/events/lib/event-service";
 
@@ -91,11 +83,6 @@ beforeEach(() => {
   facilitatorDao.isAssigned.mockResolvedValue(true);
   speakerDao.replaceEventAssignments.mockResolvedValue(true);
   speakerDao.isAssignedByUserId.mockResolvedValue(true);
-  courseDao.findLessonById.mockResolvedValue({ id: 4, module_id: 11 });
-  courseDao.findModuleById.mockResolvedValue({ id: 11, course_id: 7 });
-  courseDao.findIdByEventId.mockResolvedValue(7);
-  liveSessionDao.getHighlightState.mockResolvedValue(null);
-  liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: null });
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
   deleteFromStorage.mockResolvedValue(undefined);
   logAuditEvent.mockResolvedValue(undefined);
@@ -302,7 +289,7 @@ describe("deleteEvent", () => {
       title: "Launch Day",
       cover_image_url: "/api/storage/event_images/events/1/cover.png",
     });
-    courseDao.findIdByEventId.mockResolvedValue(7);
+    courseDao.findCourseIdByEventId.mockResolvedValue(7);
     courseDao.findModulesByCourse.mockResolvedValue([{ id: 3 }]);
     courseDao.findLessonsByModule.mockResolvedValue([{ id: 5 }]);
 
@@ -406,39 +393,5 @@ describe("listEventAttendees", () => {
         checked_in_at: "b",
       },
     ]);
-  });
-});
-
-describe("live highlight", () => {
-  it("reports nothing highlighted when no state row exists", async () => {
-    liveSessionDao.getHighlightState.mockResolvedValue(null);
-
-    await expect(getEventHighlight(supabase, 9)).resolves.toEqual({
-      highlighted_lesson_id: null,
-      updated_by: null,
-      updated_at: null,
-      lesson: null,
-    });
-  });
-
-  it("refuses a lesson from another event's course", async () => {
-    eventDao.findById.mockResolvedValue({ id: 9 });
-    courseDao.findIdByEventId.mockResolvedValue(99);
-
-    await expect(setEventHighlight(supabase, 9, 4, { id: 3 })).rejects.toMatchObject({
-      status: 400,
-      message: "Lesson does not belong to this event's course",
-    });
-  });
-
-  it("clears the highlight with the caller as updated_by", async () => {
-    liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: null });
-
-    await expect(clearEventHighlight(supabase, 9, { id: 3 })).resolves.toEqual({ highlighted_lesson_id: null });
-    expect(liveSessionDao.upsertHighlightState).toHaveBeenCalledWith(
-      supabase,
-      9,
-      expect.objectContaining({ highlighted_lesson_id: null, updated_by: 3 }),
-    );
   });
 });

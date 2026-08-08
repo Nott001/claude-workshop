@@ -168,7 +168,7 @@ export interface AuditLog {
 }
 
 export interface LiveSessionState {
-  event_id: number;
+  course_id: number;
   highlighted_lesson_id: number | null;
   updated_by: number;
   updated_at: string;

@@ -100,7 +100,7 @@ export function EventSessionNavbar({
         className="flex items-center gap-2 text-sm font-medium tracking-[0.7px] text-muted-fg transition-colors hover:text-fg"
       >
         <span className="material-symbols-rounded text-base">logout</span>
-        EXIT EVENT ROOM
+        EXIT COURSE ROOM
       </button>
     </div>
   );

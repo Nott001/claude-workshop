@@ -9,7 +9,7 @@ const {
   listStorageFolder,
   deleteFromStorage,
   logAuditEvent,
-  findIdByEventId,
+  findCourseIdByEventId,
 } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   eventFindById: vi.fn(),
@@ -19,13 +19,13 @@ const {
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
-  findIdByEventId: vi.fn(),
+  findCourseIdByEventId: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findIdByEventId }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findCourseIdByEventId }));
 
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
@@ -62,7 +62,7 @@ beforeEach(() => {
     cover_image_url: "/api/storage/event_images/events/1/cover.png",
   });
   eventRemove.mockResolvedValue(true);
-  findIdByEventId.mockResolvedValue(7);
+  findCourseIdByEventId.mockResolvedValue(7);
   findModulesByCourse.mockResolvedValue([{ id: 3 }]);
   findLessonsByModule.mockResolvedValue([{ id: 5 }]);
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
@@ -136,7 +136,7 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
   });
 
   it("collects nothing from course buckets when the event has no course", async () => {
-    findIdByEventId.mockResolvedValue(null);
+    findCourseIdByEventId.mockResolvedValue(null);
 
     await del();
 

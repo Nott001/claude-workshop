@@ -3,7 +3,7 @@ export interface LiveModuleSource {
   module_name: string;
   start_time: string | null;
   end_time: string | null;
-  SPEAKER_PROFILE: { id: number; USER: { full_name: string } | null } | null;
+  SPEAKER_PROFILE?: { id: number; USER: { full_name: string } | null } | null;
 }
 
 export function toDate(eventDate: string, time: string): Date | null {

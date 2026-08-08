@@ -144,13 +144,15 @@ export default function SpeakerEventDetailsPage() {
                     Build Course
                   </Link>
                 )}
-                <Link
-                  href={`/speaker/event/${eventId}/room`}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
-                >
-                  <span className="material-symbols-rounded text-[19px]">play_arrow</span>
-                  Enter Event Room
-                </Link>
+                {event.course_id && (
+                  <Link
+                    href={`/courses/${event.course_id}/room`}
+                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
+                  >
+                    <span className="material-symbols-rounded text-[19px]">play_arrow</span>
+                    Enter Course Room
+                  </Link>
+                )}
               </div>
             </div>
           </div>

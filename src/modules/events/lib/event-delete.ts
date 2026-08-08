@@ -26,7 +26,7 @@ async function collectStoragePaths(
   }
 
   if (event?.id) {
-    const courseId = await courseDao.findIdByEventId(supabase, event.id);
+    const courseId = await courseDao.findCourseIdByEventId(supabase, event.id);
 
     if (courseId) {
       const modules = await courseDao.findModulesByCourse(supabase, courseId);

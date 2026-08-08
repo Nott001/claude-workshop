@@ -11,7 +11,7 @@ export async function findCourseEvent(supabase: DbClient, courseId: number): Pro
   return data;
 }
 
-export async function findIdByEventId(supabase: DbClient, eventId: number): Promise<number | null> {
+export async function findCourseIdByEventId(supabase: DbClient, eventId: number): Promise<number | null> {
   const { data } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
   return data?.id ?? null;
 }
@@ -224,7 +224,7 @@ export async function clearModuleSpeakerForEvent(
   eventId: number,
   speakerProfileId: number,
 ): Promise<boolean> {
-  const courseId = await findIdByEventId(supabase, eventId);
+  const courseId = await findCourseIdByEventId(supabase, eventId);
   if (courseId === null) return true;
 
   const { error } = await supabase

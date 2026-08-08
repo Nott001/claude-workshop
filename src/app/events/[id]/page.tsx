@@ -64,12 +64,14 @@ export default function EventDetailPage() {
           >
             Register
           </button>
-          <button
-            onClick={() => router.push(`/events/${eventId}/room`)}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
-          >
-            Enter Room
-          </button>
+          {event.COURSE?.id && (
+            <button
+              onClick={() => router.push(`/courses/${event.COURSE?.id}/room`)}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
+            >
+              Enter Course Room
+            </button>
+          )}
         </div>
       </div>
     </div>

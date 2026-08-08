@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findLiveModule, type LiveModuleSource } from "@/modules/events/lib/live-module";
+import { findLiveModule, type LiveModuleSource } from "@/shared/lib/live-module";
 
 const EVENT_DATE = "2026-09-01";
 

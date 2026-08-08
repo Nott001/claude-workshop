@@ -35,6 +35,6 @@ describe("removed Figma MCP assets", () => {
     );
     assertNoFigmaImages(container);
     expect(screen.getByText("StartupLab")).toBeTruthy();
-    expect(screen.getByText("EXIT EVENT ROOM")).toBeTruthy();
+    expect(screen.getByText("EXIT COURSE ROOM")).toBeTruthy();
   });
 });

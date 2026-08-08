@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { SessionTimeline } from "@/modules/events/components/session-timeline";
-import type { LiveModuleSource } from "@/modules/events/lib/live-module";
+import type { LiveModuleSource } from "@/shared/lib/live-module";
 
 const EVENT_DATE = "2026-09-01";
 const NOW = new Date("2026-09-01T10:30:00");

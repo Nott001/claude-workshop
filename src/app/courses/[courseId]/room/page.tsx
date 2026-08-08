@@ -1,33 +1,23 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "@/modules/auth/components/session-context";
 import QAPanel from "@/modules/chat/components/qa-panel";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { LiveNowTag } from "@/modules/events/components/live-now-tag";
 import { SessionTimeline } from "@/modules/events/components/session-timeline";
-import { useRoomAccess } from "@/modules/events/lib/use-room-access";
+import { useCourseRoomAccess } from "@/modules/courses/lib/use-course-room-access";
 import type { UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
-export default function StaffEventRoomPage() {
+export default function CourseRoomPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.id as string;
-  const { user, loading } = useSession();
-  const sessionRole = user?.role ?? null;
-
-  useEffect(() => {
-    if (loading || !user) return;
-    if (!hasMinRole(sessionRole, "facilitator")) {
-      router.replace(`/events/${eventId}/room`);
-    }
-  }, [loading, user, sessionRole, eventId, router]);
+  const courseId = params.courseId as string;
 
   const {
     access,
+    eventId,
     eventTitle,
     eventDate,
     startTime,
@@ -45,43 +35,67 @@ export default function StaffEventRoomPage() {
     settingHighlight,
     handleSetHighlight,
     handleClearHighlight,
-  } = useRoomAccess(eventId);
+  } = useCourseRoomAccess(courseId);
 
-  const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
-    await fetch(`/api/qa/module/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_locked: !currentLocked }),
-    });
-    window.location.reload();
-  }, []);
+  const handleToggleLock = useCallback(
+    async (moduleId: number, currentLocked: boolean) => {
+      await fetch(`/api/qa/module/${moduleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_locked: !currentLocked }),
+      });
+      if (isStaff) {
+        window.location.reload();
+      }
+    },
+    [isStaff],
+  );
 
-  useEffect(() => {
-    if (access === "denied" || access === "no_ticket") {
-      router.replace(`/events/${eventId}/room`);
+  const handleExit = useCallback(() => {
+    if (!eventId) return;
+    if (userRole === "speaker") {
+      router.push(`/speaker/event/${eventId}`);
+    } else if (isStaff) {
+      router.push(`/staff/events/${eventId}`);
+    } else {
+      router.push(`/events/${eventId}`);
     }
-  }, [access, eventId, router]);
+  }, [eventId, userRole, isStaff, router]);
 
   if (access === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading event room...</div>
+        <div className="text-sm text-muted-foreground">Loading course room...</div>
       </div>
     );
   }
 
-  if (!hasMinRole(sessionRole, "facilitator")) {
+  if (access === "denied") {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Redirecting...</div>
+        <div className="text-center">
+          <span className="material-symbols-rounded text-4xl text-muted-foreground/50">lock</span>
+          <p className="mt-3 text-sm text-muted-foreground">You need to sign in to access this room.</p>
+        </div>
       </div>
     );
   }
 
-  if (access === "denied" || access === "no_ticket") {
+  if (access === "no_ticket") {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Redirecting...</div>
+        <div className="text-center">
+          <span className="material-symbols-rounded text-4xl text-muted-foreground/50">confirmation_number</span>
+          <p className="mt-3 text-sm text-muted-foreground">You need a ticket to access this room.</p>
+          {eventId && (
+            <button
+              onClick={() => router.push(`/events/${eventId}/register`)}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
+            >
+              Register
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -96,13 +110,7 @@ export default function StaffEventRoomPage() {
         startTime={startTime}
         liveModuleName={liveModule?.module_name}
         liveSpeakerName={assignedSpeakerCount > 1 ? (liveModule?.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
-        onExit={() => {
-          if (userRole === "speaker") {
-            router.push(`/speaker/event/${eventId}`);
-          } else {
-            router.push(`/staff/events/${eventId}`);
-          }
-        }}
+        onExit={handleExit}
       />
 
       <div className="flex min-h-0 flex-1">
