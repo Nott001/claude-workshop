@@ -22,8 +22,11 @@ Dead code confirmed by repo-wide grep:
 Earlier drafts listed `attendees-panel.tsx` and `qr-scanner.tsx` here as never
 imported. The kiosk scanner work (PR #160) ended that: `kiosk-scanner-view.tsx`
 renders both — `AttendeesPanel` as the live attendee feed and `QrScanner` for the
-camera/manual check-in — so neither is dead, and `subscribeToCheckins` (the
-panel's realtime feed) stays in `src/shared/integrations/realtime/`.
+camera/manual check-in — so neither is dead. Neither belongs to events either:
+SPEC-00 relocates `attendees-panel.tsx` into the kiosk module (it is attendance
+code, rendered only by the kiosk scanner), `qr-scanner.tsx` already lives there,
+and `subscribeToCheckins` (the panel's realtime feed) stays in
+`src/shared/integrations/realtime/`.
 
 Migration defects:
 
@@ -43,8 +46,9 @@ Migration defects:
 - **Dead code deletion:** remove the four unused shared components
   (`avatar`, `label`, `textarea`, `dropdown-menu`), the unused `helpers.ts`
   exports, and — after SPEC-11 lands the lib as the single audit path —
-  `audit.dao.ts`. `attendees-panel.tsx`, `qr-scanner.tsx`, and `subscribeToCheckins`
-  stay (the kiosk scanner uses them). If any page renders an empty placeholder where
+  `audit.dao.ts`. `qr-scanner.tsx` and `subscribeToCheckins` stay (the kiosk
+  scanner uses them); `attendees-panel.tsx` stays too but moves into the kiosk
+  module per SPEC-00. If any page renders an empty placeholder where
   a deleted component was expected, that placeholder is intentional and stays.
 - **New migration** `00011_user_deletion_set_null.sql`:
   - Alter the user-owning FKs to `ON DELETE SET NULL`
@@ -88,8 +92,9 @@ Migration defects:
 ## Verification
 
 - `rg 'attendees-panel|qr-scanner|subscribeToCheckins' src test` — references are
-  only the kiosk scanner view, the attendees panel it renders, the realtime index,
-  and their tests (all kept, not dead).
+  only the kiosk module (`kiosk-scanner-view.tsx`, `qr-scanner.tsx`, and the
+  relocated `attendees-panel.tsx`), the realtime index, and their tests (all kept,
+  not dead; nothing of theirs remains in the events module).
 - `pnpm typecheck` and `pnpm test` pass.
 - Migration dry-run (or a scratch DB) applies `00001`→`00013` cleanly in numeric
   order; `DELETE FROM "USER"` on a user with tickets/payments/audit rows succeeds
