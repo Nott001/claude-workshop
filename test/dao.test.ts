@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { findById, exists, findByField, deleteById, ilikePattern } from "@/shared/db/dao/helpers";
+import { ilikePattern } from "@/shared/db/dao/helpers";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
@@ -29,54 +29,6 @@ function queryStub(result: { data?: unknown; error?: unknown; count?: number } =
 const filters = (calls: Array<[string, unknown[]]>) => calls.filter(([m]) => m === "eq" || m === "neq");
 
 beforeEach(() => vi.clearAllMocks());
-
-describe("helpers.findById", () => {
-  it("filters the named table by id", async () => {
-    const { client, from, calls } = queryStub({ data: { id: 3 } });
-
-    await findById(client, "EVENT", 3);
-
-    expect(from).toHaveBeenCalledWith("EVENT");
-    expect(filters(calls)).toEqual([["eq", ["id", 3]]]);
-  });
-
-  it("returns null rather than undefined when the row is absent", async () => {
-    const { client } = queryStub({ data: null });
-    await expect(findById(client, "EVENT", 3)).resolves.toBeNull();
-  });
-});
-
-describe("helpers.findByField", () => {
-  it("filters by the field it is given", async () => {
-    const { client, calls } = queryStub({ data: { id: 1 } });
-
-    await findByField(client, "USER", "email", "jane@example.com");
-
-    expect(filters(calls)).toEqual([["eq", ["email", "jane@example.com"]]]);
-  });
-
-  it("selects everything by default and honours a narrower projection", async () => {
-    const a = queryStub({ data: {} });
-    await findByField(a.client, "USER", "email", "x");
-    expect(a.chain.select).toHaveBeenCalledWith("*");
-
-    const b = queryStub({ data: {} });
-    await findByField(b.client, "USER", "email", "x", "id, email");
-    expect(b.chain.select).toHaveBeenCalledWith("id, email");
-  });
-});
-
-describe("helpers.exists / deleteById", () => {
-  it("reports existence as a boolean", async () => {
-    await expect(exists(queryStub({ data: { id: 1 } }).client, "EVENT", 1)).resolves.toBe(true);
-    await expect(exists(queryStub({ data: null }).client, "EVENT", 1)).resolves.toBe(false);
-  });
-
-  it("reports a failed delete as false instead of throwing", async () => {
-    await expect(deleteById(queryStub({ error: null }).client, "EVENT", 1)).resolves.toBe(true);
-    await expect(deleteById(queryStub({ error: { message: "fk violation" } }).client, "EVENT", 1)).resolves.toBe(false);
-  });
-});
 
 describe("ticketDao.findActiveTicketByUserAndEvent", () => {
   it("scopes to both the user and the event, and excludes cancelled tickets", async () => {

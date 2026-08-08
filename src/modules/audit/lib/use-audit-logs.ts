@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // The route serves auditDao.list's rows verbatim. The hand-written copy that
 // used to live here called the key `log_id`; AUDIT_LOG's primary key is `id`,
 // so every row's key was undefined.
-import type { AuditLogWithActor } from "@/shared/db/dao/audit.dao";
+import type { AuditLogWithActor } from "@/modules/audit/db/audit.dao";
 
 export function useAuditLogs() {
   const [logs, setLogs] = useState<AuditLogWithActor[]>([]);

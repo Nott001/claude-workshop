@@ -1,4 +1,4 @@
-import type { DbClient, PaginatedResult } from "./types";
+import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { AuditLog, User } from "@/shared/types";
 
 /** An AUDIT_LOG row with the ACTOR embed `list` aliases from actor_id. */
