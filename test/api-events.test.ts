@@ -11,6 +11,7 @@ const {
   logAuditEvent,
   replaceEventAssignments,
   speakerReplaceEventAssignments,
+  facilitatorIsAssigned,
 } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
@@ -22,6 +23,7 @@ const {
   logAuditEvent: vi.fn(),
   replaceEventAssignments: vi.fn(),
   speakerReplaceEventAssignments: vi.fn(),
+  facilitatorIsAssigned: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
@@ -29,7 +31,7 @@ vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseById }));
-vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments, isAssigned: facilitatorIsAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: speakerReplaceEventAssignments }));
 
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
@@ -70,6 +72,7 @@ beforeEach(() => {
   updateField.mockResolvedValue(true);
   replaceEventAssignments.mockResolvedValue(true);
   speakerReplaceEventAssignments.mockResolvedValue(true);
+  facilitatorIsAssigned.mockResolvedValue(true);
 });
 
 describe("GET /api/events", () => {
@@ -218,13 +221,42 @@ describe("POST /api/events creation", () => {
 describe("POST /api/events/[id]/publish", () => {
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
   const req = () => new Request("https://app.test/api/events/1/publish", { method: "POST" });
+  const facilitatorUser = {
+    id: 9,
+    role: "facilitator",
+    full_name: "Fay",
+    email: "fay@example.com",
+    profile_image_url: null,
+  };
 
-  it("refuses a caller who is not a facilitator", async () => {
-    requireRole.mockResolvedValue(denied);
+  beforeEach(() => {
+    requireAuth.mockResolvedValue(facilitatorUser);
+  });
+
+  it("refuses a caller below facilitator", async () => {
+    requireAuth.mockResolvedValue({ ...facilitatorUser, role: "attendee" });
 
     const res = await PUBLISH(req(), params("1"));
 
     expect(res.status).toBe(403);
+    expect(updateField).not.toHaveBeenCalled();
+  });
+
+  it("refuses a facilitator who is not assigned to the event", async () => {
+    facilitatorIsAssigned.mockResolvedValue(false);
+
+    const res = await PUBLISH(req(), params("1"));
+
+    expect(res.status).toBe(403);
+    expect(updateField).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an anonymous caller", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await PUBLISH(req(), params("1"));
+
+    expect(res.status).toBe(401);
     expect(updateField).not.toHaveBeenCalled();
   });
 

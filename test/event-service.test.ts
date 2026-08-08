@@ -22,7 +22,7 @@ const {
     remove: vi.fn(),
   },
   facilitatorDao: { replaceEventAssignments: vi.fn(), isAssigned: vi.fn() },
-  speakerDao: { replaceEventAssignments: vi.fn() },
+  speakerDao: { replaceEventAssignments: vi.fn(), isAssignedByUserId: vi.fn() },
   courseDao: {
     findModulesByCourse: vi.fn(),
     findLessonsByModule: vi.fn(),
@@ -72,6 +72,7 @@ vi.mock("@/shared/db/client", () => ({
 
 import { getServiceClient } from "@/shared/db/client";
 import {
+  canManageEvent,
   clearEventHighlight,
   createEvent,
   deleteEvent,
@@ -80,6 +81,7 @@ import {
   getEventHighlight,
   getEventRegistrationState,
   listEventAttendees,
+  loadEventOr403,
   publishEvent,
   registerForEvent,
   setEventHighlight,
@@ -109,6 +111,7 @@ beforeEach(() => {
   facilitatorDao.replaceEventAssignments.mockResolvedValue(true);
   facilitatorDao.isAssigned.mockResolvedValue(true);
   speakerDao.replaceEventAssignments.mockResolvedValue(true);
+  speakerDao.isAssignedByUserId.mockResolvedValue(true);
   courseDao.findLessonById.mockResolvedValue({ id: 4, module_id: 11 });
   courseDao.findModuleById.mockResolvedValue({ id: 11, course_id: 7 });
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
@@ -123,6 +126,97 @@ describe("EventServiceError", () => {
     expect(err.status).toBe(409);
     expect(err.message).toBe("already registered");
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe("canManageEvent", () => {
+  it("admits an admin without consulting assignments", async () => {
+    expect(await canManageEvent(supabase, { id: 1, role: "admin" }, 5)).toBe(true);
+    expect(await canManageEvent(supabase, { id: 1, role: "super_admin" }, 5)).toBe(true);
+    expect(facilitatorDao.isAssigned).not.toHaveBeenCalled();
+    expect(speakerDao.isAssignedByUserId).not.toHaveBeenCalled();
+  });
+
+  it("admits a facilitator assigned to the event", async () => {
+    facilitatorDao.isAssigned.mockResolvedValue(true);
+
+    expect(await canManageEvent(supabase, { id: 7, role: "facilitator" }, 5)).toBe(true);
+    expect(facilitatorDao.isAssigned).toHaveBeenCalledWith(supabase, 5, 7);
+  });
+
+  it("admits a speaker assigned to the event", async () => {
+    speakerDao.isAssignedByUserId.mockResolvedValue(true);
+
+    expect(await canManageEvent(supabase, { id: 8, role: "speaker" }, 5)).toBe(true);
+    expect(speakerDao.isAssignedByUserId).toHaveBeenCalledWith(supabase, 8, 5);
+  });
+
+  it("denies an unassigned facilitator, an unassigned speaker, and an attendee", async () => {
+    facilitatorDao.isAssigned.mockResolvedValue(false);
+    speakerDao.isAssignedByUserId.mockResolvedValue(false);
+
+    expect(await canManageEvent(supabase, { id: 7, role: "facilitator" }, 5)).toBe(false);
+    expect(await canManageEvent(supabase, { id: 8, role: "speaker" }, 5)).toBe(false);
+    expect(await canManageEvent(supabase, { id: 5, role: "attendee" }, 5)).toBe(false);
+    expect(facilitatorDao.isAssigned).toHaveBeenCalledWith(supabase, 5, 7);
+    expect(speakerDao.isAssignedByUserId).toHaveBeenCalledWith(supabase, 8, 5);
+  });
+});
+
+describe("loadEventOr403", () => {
+  beforeEach(() => {
+    eventDao.findById.mockResolvedValue({ id: 1, title: "Launch Day", status: "draft" });
+    facilitatorDao.isAssigned.mockResolvedValue(true);
+  });
+
+  it("throws 404 when the event does not exist", async () => {
+    eventDao.findById.mockResolvedValue(null);
+
+    await expect(loadEventOr403(supabase, 99, { id: 1, role: "admin" }, "edit")).rejects.toMatchObject({
+      status: 404,
+      message: "Event not found",
+    });
+  });
+
+  it("admits an admin for every capability without checking assignments", async () => {
+    for (const capability of ["edit", "delete", "publish", "attendees"] as const) {
+      await expect(loadEventOr403(supabase, 1, { id: 1, role: "admin" }, capability)).resolves.toMatchObject({ id: 1 });
+    }
+    expect(facilitatorDao.isAssigned).not.toHaveBeenCalled();
+  });
+
+  it("admits a super_admin for delete", async () => {
+    await expect(loadEventOr403(supabase, 1, { id: 1, role: "super_admin" }, "delete")).resolves.toMatchObject({ id: 1 });
+  });
+
+  it("admits an assigned facilitator for the write capabilities", async () => {
+    for (const capability of ["edit", "publish", "attendees"] as const) {
+      await expect(loadEventOr403(supabase, 1, { id: 7, role: "facilitator" }, capability)).resolves.toMatchObject({ id: 1 });
+    }
+    expect(facilitatorDao.isAssigned).toHaveBeenCalledWith(supabase, 1, 7);
+  });
+
+  it("throws 403 for an unassigned facilitator", async () => {
+    facilitatorDao.isAssigned.mockResolvedValue(false);
+
+    await expect(loadEventOr403(supabase, 1, { id: 7, role: "facilitator" }, "edit")).rejects.toMatchObject({
+      status: 403,
+      message: "Forbidden",
+    });
+  });
+
+  it("refuses a facilitator even when assigned for delete", async () => {
+    await expect(loadEventOr403(supabase, 1, { id: 7, role: "facilitator" }, "delete")).rejects.toMatchObject({
+      status: 403,
+      message: "Forbidden",
+    });
+  });
+
+  it("throws 403 for an attendee", async () => {
+    await expect(loadEventOr403(supabase, 1, { id: 5, role: "attendee" }, "attendees")).rejects.toMatchObject({
+      status: 403,
+      message: "Forbidden",
+    });
   });
 });
 

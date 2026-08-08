@@ -1,33 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 
-const { requireRole, findById, update, logAuditEvent, facilitatorReplace, speakerReplace } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
-  findById: vi.fn(),
-  update: vi.fn(),
-  logAuditEvent: vi.fn(),
-  facilitatorReplace: vi.fn(),
-  speakerReplace: vi.fn(),
-}));
+const { findById, update, logAuditEvent, facilitatorReplace, speakerReplace, facilitatorIsAssigned, requireAuth } = vi.hoisted(
+  () => ({
+    findById: vi.fn(),
+    update: vi.fn(),
+    logAuditEvent: vi.fn(),
+    facilitatorReplace: vi.fn(),
+    speakerReplace: vi.fn(),
+    facilitatorIsAssigned: vi.fn(),
+    requireAuth: vi.fn(),
+  }),
+);
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth: vi.fn() }));
+vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({}));
 vi.mock("@/shared/db/dao/course.dao", () => ({}));
-vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments: facilitatorReplace }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({
+  replaceEventAssignments: facilitatorReplace,
+  isAssigned: facilitatorIsAssigned,
+}));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: speakerReplace }));
 
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { PATCH } from "@/app/api/events/[id]/route";
 
-const facilitator = {
-  allowed: true,
-  error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
-};
+const user = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 const stored = { id: 3, title: "Launch", event_date: "2026-09-01", start_time: "09:00", end_time: "17:00" };
 
@@ -38,11 +39,12 @@ const patch = (body: unknown) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireRole.mockResolvedValue(facilitator);
+  requireAuth.mockResolvedValue(user);
   findById.mockResolvedValue(stored);
   update.mockResolvedValue({ ...stored });
   facilitatorReplace.mockResolvedValue(true);
   speakerReplace.mockResolvedValue(true);
+  facilitatorIsAssigned.mockResolvedValue(true);
 });
 
 describe("eventPartialSchema", () => {
@@ -93,11 +95,43 @@ describe("PATCH /api/events/[id] time range", () => {
     expect(update).toHaveBeenCalled();
   });
 
-  it("does not query the stored event when no time is patched", async () => {
+  it("does not re-read the event for a range check when no time is patched", async () => {
     const res = await patch({ title: "Renamed" });
 
     expect(res.status).toBe(200);
-    expect(findById).not.toHaveBeenCalled();
+    // The single read is the authorization guard's; a time-free patch cannot
+    // trip the stored-range check updateEvent would otherwise perform.
+    expect(findById).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("PATCH /api/events/[id] authorization", () => {
+  it("refuses a facilitator who is not assigned to the event", async () => {
+    facilitatorIsAssigned.mockResolvedValue(false);
+
+    const res = await patch({ title: "Renamed" });
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a caller below facilitator", async () => {
+    requireAuth.mockResolvedValue({ ...user, role: "attendee" });
+
+    const res = await patch({ title: "Renamed" });
+
+    expect(res.status).toBe(403);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an anonymous caller", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await patch({ title: "Renamed" });
+
+    expect(res.status).toBe(401);
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
