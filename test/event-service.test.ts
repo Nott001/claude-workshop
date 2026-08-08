@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
   eventDao,
+  liveSessionDao,
   facilitatorDao,
   speakerDao,
   courseDao,
@@ -10,7 +11,6 @@ const {
   listStorageFolder,
   deleteFromStorage,
   logAuditEvent,
-  client,
 } = vi.hoisted(() => ({
   eventDao: {
     create: vi.fn(),
@@ -21,6 +21,7 @@ const {
     updateField: vi.fn(),
     remove: vi.fn(),
   },
+  liveSessionDao: { getHighlightState: vi.fn(), upsertHighlightState: vi.fn() },
   facilitatorDao: { replaceEventAssignments: vi.fn(), isAssigned: vi.fn() },
   speakerDao: { replaceEventAssignments: vi.fn(), isAssignedByUserId: vi.fn() },
   courseDao: {
@@ -28,21 +29,17 @@ const {
     findLessonsByModule: vi.fn(),
     findLessonById: vi.fn(),
     findModuleById: vi.fn(),
+    findIdByEventId: vi.fn(),
   },
   ticketDao: { findActiveByUserAndEvent: vi.fn(), getAttendees: vi.fn() },
   paymentDao: { findPendingByUserAndEvent: vi.fn() },
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
-  client: {
-    maybeSingleData: null as { id: number } | null,
-    singleData: null as unknown,
-    upsertResult: { data: null as unknown, error: null as { message: string } | null },
-    upsert: vi.fn(),
-  },
 }));
 
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
+vi.mock("@/modules/events/db/live-session.dao", () => liveSessionDao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => facilitatorDao);
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
@@ -50,25 +47,7 @@ vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/payment.dao", () => paymentDao);
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
-
-vi.mock("@/shared/db/client", () => ({
-  // One stub for every client-side table access: reads end in `.single()` /
-  // `.maybeSingle()`, writes in `.upsert().select().single()`.
-  getServiceClient: () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: client.singleData }),
-          maybeSingle: async () => ({ data: client.maybeSingleData }),
-        }),
-      }),
-      upsert: (payload: unknown, options: unknown) => {
-        client.upsert(payload, options);
-        return { select: () => ({ single: async () => client.upsertResult }) };
-      },
-    }),
-  }),
-}));
+vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 
 import { getServiceClient } from "@/shared/db/client";
 import {
@@ -114,6 +93,9 @@ beforeEach(() => {
   speakerDao.isAssignedByUserId.mockResolvedValue(true);
   courseDao.findLessonById.mockResolvedValue({ id: 4, module_id: 11 });
   courseDao.findModuleById.mockResolvedValue({ id: 11, course_id: 7 });
+  courseDao.findIdByEventId.mockResolvedValue(7);
+  liveSessionDao.getHighlightState.mockResolvedValue(null);
+  liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: null });
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
   deleteFromStorage.mockResolvedValue(undefined);
   logAuditEvent.mockResolvedValue(undefined);
@@ -320,7 +302,7 @@ describe("deleteEvent", () => {
       title: "Launch Day",
       cover_image_url: "/api/storage/event_images/events/1/cover.png",
     });
-    client.maybeSingleData = { id: 7 };
+    courseDao.findIdByEventId.mockResolvedValue(7);
     courseDao.findModulesByCourse.mockResolvedValue([{ id: 3 }]);
     courseDao.findLessonsByModule.mockResolvedValue([{ id: 5 }]);
 
@@ -429,7 +411,7 @@ describe("listEventAttendees", () => {
 
 describe("live highlight", () => {
   it("reports nothing highlighted when no state row exists", async () => {
-    client.singleData = null;
+    liveSessionDao.getHighlightState.mockResolvedValue(null);
 
     await expect(getEventHighlight(supabase, 9)).resolves.toEqual({
       highlighted_lesson_id: null,
@@ -441,7 +423,7 @@ describe("live highlight", () => {
 
   it("refuses a lesson from another event's course", async () => {
     eventDao.findById.mockResolvedValue({ id: 9 });
-    client.maybeSingleData = { id: 99 };
+    courseDao.findIdByEventId.mockResolvedValue(99);
 
     await expect(setEventHighlight(supabase, 9, 4, { id: 3 })).rejects.toMatchObject({
       status: 400,
@@ -450,12 +432,13 @@ describe("live highlight", () => {
   });
 
   it("clears the highlight with the caller as updated_by", async () => {
-    client.upsertResult = { data: { highlighted_lesson_id: null }, error: null };
+    liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: null });
 
     await expect(clearEventHighlight(supabase, 9, { id: 3 })).resolves.toEqual({ highlighted_lesson_id: null });
-    expect(client.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ event_id: 9, highlighted_lesson_id: null, updated_by: 3 }),
-      { onConflict: "event_id" },
+    expect(liveSessionDao.upsertHighlightState).toHaveBeenCalledWith(
+      supabase,
+      9,
+      expect.objectContaining({ highlighted_lesson_id: null, updated_by: 3 }),
     );
   });
 });

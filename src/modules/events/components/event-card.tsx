@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { formatEventDate, formatTime, isEventLive, eventStatusLabel } from "@/shared/lib/date-utils";
+import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
 
 const ACCENT_CLASSES = [
   "from-sky-500 via-cyan-400 to-teal-300",
@@ -42,8 +43,6 @@ export function EventCard({
   onDelete,
   detailHref,
 }: EventCardProps) {
-  const live = isEventLive(date, startTime, endTime);
-
   return (
     <Link
       href={detailHref ?? `/events/${eventId}`}
@@ -65,16 +64,7 @@ export function EventCard({
           {!coverImageUrl && (
             <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
           )}
-          {live ? (
-            <span className="relative inline-flex items-center gap-1.5 rounded-full bg-error px-3 py-1 text-xs font-semibold">
-              <span className="size-1.5 rounded-full bg-surface animate-pulse" />
-              Live
-            </span>
-          ) : (
-            <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-              <span className="material-symbols-rounded text-sm">auto_awesome</span> {eventStatusLabel(status)}
-            </span>
-          )}
+          <EventStatusBadge status={status} date={date} startTime={startTime} endTime={endTime} />
         </div>
         <div className="p-6">
           <h3 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h3>

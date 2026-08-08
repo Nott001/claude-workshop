@@ -1,38 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, eventDao, courseDao, client } = vi.hoisted(() => ({
+const { requireAuth, eventDao, liveSessionDao, courseDao } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   eventDao: { findById: vi.fn() },
-  courseDao: { findLessonById: vi.fn(), findModuleById: vi.fn() },
-  client: {
-    state: null as unknown,
-    course: null as unknown,
-    upsert: vi.fn(),
-    upsertResult: { data: {} as unknown, error: null as { message: string } | null },
-  },
+  liveSessionDao: { getHighlightState: vi.fn(), upsertHighlightState: vi.fn() },
+  courseDao: { findLessonById: vi.fn(), findModuleById: vi.fn(), findIdByEventId: vi.fn() },
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
+vi.mock("@/modules/events/db/live-session.dao", () => liveSessionDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
-vi.mock("@/shared/db/client", () => ({
-  // One table stub for both reads: LIVE_SESSION_STATE ends in `.single()`,
-  // COURSE in `.maybeSingle()`, so each terminal answers from its own fixture.
-  getServiceClient: () => ({
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: client.state }),
-          maybeSingle: async () => ({ data: client.course }),
-        }),
-      }),
-      upsert: (payload: unknown, options: unknown) => {
-        client.upsert(table, payload, options);
-        return { select: () => ({ single: async () => client.upsertResult }) };
-      },
-    }),
-  }),
-}));
+vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 
 import { GET, POST, DELETE } from "@/app/api/events/[id]/live/highlight/route";
 
@@ -49,9 +28,9 @@ beforeEach(() => {
   eventDao.findById.mockResolvedValue({ id: 9 });
   courseDao.findLessonById.mockResolvedValue({ id: 4, module_id: 11 });
   courseDao.findModuleById.mockResolvedValue({ id: 11, course_id: 7 });
-  client.state = null;
-  client.course = { id: 7 };
-  client.upsertResult = { data: { highlighted_lesson_id: 4 }, error: null };
+  courseDao.findIdByEventId.mockResolvedValue(7);
+  liveSessionDao.getHighlightState.mockResolvedValue(null);
+  liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: 4 });
 });
 
 describe("GET /api/events/[id]/live/highlight", () => {
@@ -75,12 +54,12 @@ describe("GET /api/events/[id]/live/highlight", () => {
   });
 
   it("returns the highlighted lesson alongside its state", async () => {
-    client.state = {
+    liveSessionDao.getHighlightState.mockResolvedValue({
       highlighted_lesson_id: 4,
       updated_by: 3,
       updated_at: "2026-08-05T00:00:00Z",
       LESSON: { id: 4, description: "Intro", content_type: "pdf" },
-    };
+    });
 
     const res = await GET(new Request("https://app.test/x"), params);
 
@@ -95,7 +74,7 @@ describe("POST /api/events/[id]/live/highlight", () => {
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(401);
-    expect(client.upsert).not.toHaveBeenCalled();
+    expect(liveSessionDao.upsertHighlightState).not.toHaveBeenCalled();
   });
 
   it("refuses an attendee", async () => {
@@ -104,7 +83,7 @@ describe("POST /api/events/[id]/live/highlight", () => {
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(403);
-    expect(client.upsert).not.toHaveBeenCalled();
+    expect(liveSessionDao.upsertHighlightState).not.toHaveBeenCalled();
   });
 
   it("answers 404 for an event that does not exist", async () => {
@@ -121,28 +100,28 @@ describe("POST /api/events/[id]/live/highlight", () => {
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(404);
-    expect(client.upsert).not.toHaveBeenCalled();
+    expect(liveSessionDao.upsertHighlightState).not.toHaveBeenCalled();
   });
 
   it("refuses to highlight a lesson belonging to another event's course", async () => {
     // Otherwise a speaker on one event could push their own material into
     // somebody else's live room.
-    client.course = { id: 99 };
+    courseDao.findIdByEventId.mockResolvedValue(99);
 
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(400);
-    expect(client.upsert).not.toHaveBeenCalled();
+    expect(liveSessionDao.upsertHighlightState).not.toHaveBeenCalled();
   });
 
   it("highlights a lesson from this event's own course", async () => {
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(200);
-    expect(client.upsert).toHaveBeenCalledWith(
-      "LIVE_SESSION_STATE",
-      expect.objectContaining({ event_id: 9, highlighted_lesson_id: 4, updated_by: 3 }),
-      { onConflict: "event_id" },
+    expect(liveSessionDao.upsertHighlightState).toHaveBeenCalledWith(
+      expect.anything(),
+      9,
+      expect.objectContaining({ highlighted_lesson_id: 4, updated_by: 3 }),
     );
   });
 
@@ -151,15 +130,15 @@ describe("POST /api/events/[id]/live/highlight", () => {
 
     expect(res.status).toBe(200);
     expect(courseDao.findLessonById).not.toHaveBeenCalled();
-    expect(client.upsert).toHaveBeenCalledWith(
-      "LIVE_SESSION_STATE",
-      expect.objectContaining({ highlighted_lesson_id: null }),
+    expect(liveSessionDao.upsertHighlightState).toHaveBeenCalledWith(
       expect.anything(),
+      9,
+      expect.objectContaining({ highlighted_lesson_id: null }),
     );
   });
 
   it("surfaces a failed write", async () => {
-    client.upsertResult = { data: null, error: { message: "write failed" } };
+    liveSessionDao.upsertHighlightState.mockResolvedValue(null);
 
     const res = await POST(post({ lesson_id: 4 }), params);
 
@@ -174,23 +153,25 @@ describe("DELETE /api/events/[id]/live/highlight", () => {
     const res = await DELETE(new Request("https://app.test/x"), params);
 
     expect(res.status).toBe(403);
-    expect(client.upsert).not.toHaveBeenCalled();
+    expect(liveSessionDao.upsertHighlightState).not.toHaveBeenCalled();
   });
 
   it("clears the highlight", async () => {
+    liveSessionDao.upsertHighlightState.mockResolvedValue({ highlighted_lesson_id: null });
+
     const res = await DELETE(new Request("https://app.test/x"), params);
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ highlighted_lesson_id: null });
-    expect(client.upsert).toHaveBeenCalledWith(
-      "LIVE_SESSION_STATE",
+    expect(liveSessionDao.upsertHighlightState).toHaveBeenCalledWith(
+      expect.anything(),
+      9,
       expect.objectContaining({ highlighted_lesson_id: null, updated_by: 3 }),
-      { onConflict: "event_id" },
     );
   });
 
   it("surfaces a failed write", async () => {
-    client.upsertResult = { data: null, error: { message: "write failed" } };
+    liveSessionDao.upsertHighlightState.mockResolvedValue(null);
 
     const res = await DELETE(new Request("https://app.test/x"), params);
 

@@ -11,6 +11,11 @@ export async function findCourseEvent(supabase: DbClient, courseId: number): Pro
   return data;
 }
 
+export async function findIdByEventId(supabase: DbClient, eventId: number): Promise<number | null> {
+  const { data } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
+  return data?.id ?? null;
+}
+
 export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseWithEvent[]> {
   const { data: courses } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
   if (!courses) return [];
@@ -219,13 +224,13 @@ export async function clearModuleSpeakerForEvent(
   eventId: number,
   speakerProfileId: number,
 ): Promise<boolean> {
-  const { data: course } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
-  if (!course) return true;
+  const courseId = await findIdByEventId(supabase, eventId);
+  if (courseId === null) return true;
 
   const { error } = await supabase
     .from("MODULE")
     .update({ speaker_profile_id: null })
-    .eq("course_id", course.id)
+    .eq("course_id", courseId)
     .eq("speaker_profile_id", speakerProfileId);
   return !error;
 }
