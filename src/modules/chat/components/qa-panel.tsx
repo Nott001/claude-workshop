@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import type { QaMessage, UserRole } from "@/shared/types";
@@ -28,7 +29,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
   const bottomRef = useRef<HTMLDivElement>(null);
   const supabase = useMemo(() => getBrowserClient(), []);
 
-  const isStaff = hasMinRole(userRole, "speaker");
+  const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
 
   useEffect(() => {
     fetch(`/api/qa/module/${moduleId}`)

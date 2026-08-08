@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, findEventForPayment, findLatestByUserAndEvent, findActiveByUserAndEvent, create, createPayment } =
@@ -24,7 +25,7 @@ vi.mock("@/modules/commerce/lib/payment-gateway", () => ({
 
 import { POST } from "@/app/api/payments/route";
 
-const user = { id: 5, role: "attendee", full_name: "Jane", email: "jane@example.com" };
+const user = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
 const event = { id: 3, status: "active", price: 100, currency: "SGD" };
 const post = () => new Request("https://app.test/api/payments", { method: "POST", body: JSON.stringify({ event_id: "3" }) });
 

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 
@@ -17,7 +18,7 @@ export type RoomAccessGate = "allowed" | "no_ticket" | "denied";
  * directly: the regression this pins is invisible to a test that reimplements it.
  */
 export function canAccessCourseRoom(role: UserRole | null, facts: RoomAccessFacts): RoomAccessGate {
-  if (role === "speaker" && !facts.isSpeakerAssigned) return "denied";
-  if (hasMinRole(role, "facilitator") || facts.hasTicket || facts.isSpeakerAssigned) return "allowed";
+  if (role === ROLES.SPEAKER && !facts.isSpeakerAssigned) return "denied";
+  if (hasMinRole(role, ROLES.FACILITATOR) || facts.hasTicket || facts.isSpeakerAssigned) return "allowed";
   return "no_ticket";
 }

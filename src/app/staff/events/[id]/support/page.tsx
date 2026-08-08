@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useParams } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
@@ -9,7 +10,7 @@ export default function StaffSupportPage() {
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const { role, allowed, pending } = useRoleGuard("facilitator");
+  const { role, allowed, pending } = useRoleGuard(ROLES.FACILITATOR);
   const currentUserId = user?.id ?? null;
 
   if (pending) {

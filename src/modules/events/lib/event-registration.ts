@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -17,7 +18,7 @@ export async function getEventRegistrationState(
     throw new EventServiceError(404, "Event not found");
   }
 
-  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
+  if (event.status === "draft" && !hasMinRole(user.role, ROLES.FACILITATOR)) {
     throw new EventServiceError(404, "Event not found");
   }
 
@@ -40,7 +41,7 @@ export async function registerForEvent(
     throw new EventServiceError(404, "Event not found");
   }
 
-  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
+  if (event.status === "draft" && !hasMinRole(user.role, ROLES.FACILITATOR)) {
     throw new EventServiceError(404, "Event not found");
   }
 

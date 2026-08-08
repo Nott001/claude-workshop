@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -31,7 +32,7 @@ vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess, req
 import { PATCH as patchModule, DELETE as deleteModule } from "@/app/api/modules/[id]/route";
 import { GET as getLesson, PATCH as patchLesson, DELETE as deleteLesson } from "@/app/api/lessons/[id]/route";
 
-const SPEAKER = { allowed: true, error: null, user: { id: 5, role: "speaker" } };
+const SPEAKER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
 const params = { params: Promise.resolve({ id: "11" }) };
 
 const MODULE_BODY = { module_name: "Week one", sequence_order: 1 };

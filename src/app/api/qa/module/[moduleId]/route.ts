@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -92,7 +93,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

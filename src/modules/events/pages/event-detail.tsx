@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
@@ -14,7 +15,7 @@ export function EventDetailPage() {
   const { event, loading, error, badgeProps, handleRegister } = useEventDetail(eventId);
 
   useEffect(() => {
-    if (user && user.role !== "attendee") {
+    if (user && user.role !== ROLES.ATTENDEE) {
       router.replace(`/staff/events/${eventId}`);
     }
   }, [user, eventId, router]);

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -22,7 +23,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   // The room admits ticket holders, assigned speakers and staff; the feed must
   // honour the same gate. A role check alone kept the room empty for the
   // attendees it let in.
-  const entitled = hasMinRole(user.role, "facilitator") || (await courseDao.userHasCourseAccess(supabase, user.id, course.id));
+  const entitled =
+    hasMinRole(user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, user.id, course.id));
   if (!entitled) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

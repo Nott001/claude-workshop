@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { z } from "zod";
 import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
@@ -81,18 +82,18 @@ export async function getEvent(
 
   // A facilitator's detail view is restricted to the events they are assigned
   // to, so a direct URL cannot bypass the dashboard's filtering.
-  if (user.role === "facilitator" && user.id != null) {
+  if (user.role === ROLES.FACILITATOR && user.id != null) {
     const assigned = await facilitatorDao.isAssigned(supabase, id, user.id);
     if (!assigned) {
       throw new EventServiceError(404, "Event not found");
     }
   }
 
-  if (event.status === "draft" && !hasMinRole(user.role, "facilitator")) {
+  if (event.status === "draft" && !hasMinRole(user.role, ROLES.FACILITATOR)) {
     throw new EventServiceError(404, "Event not found");
   }
 
-  if (hasMinRole(user.role, "facilitator")) {
+  if (hasMinRole(user.role, ROLES.FACILITATOR)) {
     const attendeeCount = await eventDao.getAttendeeCount(supabase, id);
     return {
       ...event,

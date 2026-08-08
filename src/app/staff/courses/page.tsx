@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -23,7 +24,7 @@ export default function StaffCoursesPage() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!hasMinRole(role, "admin")) return;
+    if (!hasMinRole(role, ROLES.ADMIN)) return;
     let cancelled = false;
     fetch("/api/courses")
       .then((r) => {
@@ -47,7 +48,7 @@ export default function StaffCoursesPage() {
     };
   }, [isLoaded, role]);
 
-  if (!hasMinRole(role, "admin")) return null;
+  if (!hasMinRole(role, ROLES.ADMIN)) return null;
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

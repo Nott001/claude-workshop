@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import type { ModuleWithLessons } from "@/modules/courses/lib/types";
 
@@ -51,8 +52,8 @@ export async function fetchCourseRoomAccess(courseId: string, user: AuthUser): P
     fetch(`/api/courses/${courseId}/room`),
     // /api/auth/me carries the caller's own speaker_profile_id; a speaker is
     // just a user, so there is no separate /api/speakers/me profile route.
-    role === "speaker" ? fetch("/api/auth/me") : Promise.resolve(null),
-    role !== "facilitator" && role !== "speaker" ? fetch("/api/tickets") : Promise.resolve(null),
+    role === ROLES.SPEAKER ? fetch("/api/auth/me") : Promise.resolve(null),
+    role !== ROLES.FACILITATOR && role !== ROLES.SPEAKER ? fetch("/api/tickets") : Promise.resolve(null),
   ]);
 
   const [room, speakerData, tickets] = await Promise.all([

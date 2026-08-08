@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { CourseSection } from "@/modules/events/pages/staff-event-detail";
@@ -53,7 +54,13 @@ afterEach(() => {
 describe("CourseSection gating", () => {
   it("shows the create button only to someone who can manage the course", () => {
     render(
-      <CourseSection eventId="1" userRole="facilitator" canManageCourse={true} eventStartTime="09:00" eventEndTime="17:00" />,
+      <CourseSection
+        eventId="1"
+        userRole={ROLES.FACILITATOR}
+        canManageCourse={true}
+        eventStartTime="09:00"
+        eventEndTime="17:00"
+      />,
     );
 
     expect(screen.getByText("No course yet for this event.")).toBeTruthy();
@@ -61,7 +68,13 @@ describe("CourseSection gating", () => {
 
     cleanup();
     const { container } = render(
-      <CourseSection eventId="1" userRole="facilitator" canManageCourse={false} eventStartTime="09:00" eventEndTime="17:00" />,
+      <CourseSection
+        eventId="1"
+        userRole={ROLES.FACILITATOR}
+        canManageCourse={false}
+        eventStartTime="09:00"
+        eventEndTime="17:00"
+      />,
     );
 
     expect(screen.queryByRole("button", { name: "Create Course" })).toBeNull();
@@ -76,7 +89,9 @@ describe("CourseSection gating", () => {
       error: null,
     });
 
-    render(<CourseSection eventId="1" userRole="admin" canManageCourse={true} eventStartTime="09:00" eventEndTime="17:00" />);
+    render(
+      <CourseSection eventId="1" userRole={ROLES.ADMIN} canManageCourse={true} eventStartTime="09:00" eventEndTime="17:00" />,
+    );
 
     expect(screen.getByText("Intro to Cloudflare")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Create Course" })).toBeNull();
@@ -84,7 +99,13 @@ describe("CourseSection gating", () => {
 
   it("renders nothing for a non-staff member without access", () => {
     const { container } = render(
-      <CourseSection eventId="1" userRole="attendee" canManageCourse={false} eventStartTime="09:00" eventEndTime="17:00" />,
+      <CourseSection
+        eventId="1"
+        userRole={ROLES.ATTENDEE}
+        canManageCourse={false}
+        eventStartTime="09:00"
+        eventEndTime="17:00"
+      />,
     );
 
     expect(container.firstChild).toBeNull();
@@ -92,7 +113,13 @@ describe("CourseSection gating", () => {
 
   it("shows the waiting state for staff who are not assigned", () => {
     render(
-      <CourseSection eventId="1" userRole="facilitator" canManageCourse={false} eventStartTime="09:00" eventEndTime="17:00" />,
+      <CourseSection
+        eventId="1"
+        userRole={ROLES.FACILITATOR}
+        canManageCourse={false}
+        eventStartTime="09:00"
+        eventEndTime="17:00"
+      />,
     );
 
     expect(screen.getByText("Waiting for the speaker to create a course for this event.")).toBeTruthy();

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, listCases } = vi.hoisted(() => ({
@@ -11,9 +12,9 @@ vi.mock("@/shared/db/dao/chat.dao", () => ({ listCases }));
 
 import { GET } from "@/app/api/support/cases/route";
 
-const ATTENDEE = { id: 12, role: "attendee" };
-const FACILITATOR = { id: 3, role: "facilitator" };
-const ADMIN = { id: 1, role: "admin" };
+const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
+const FACILITATOR = { id: 3, role: ROLES.FACILITATOR };
+const ADMIN = { id: 1, role: ROLES.ADMIN };
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 
@@ -19,8 +20,8 @@ vi.mock("swr", () => ({
 
 import { useCourseRoomAccess } from "@/modules/courses/lib/use-course-room-access";
 
-const ATTENDEE = { id: 2, role: "attendee", full_name: "Bo", email: "bo@example.com", profile_image_url: null };
-const SPEAKER = { ...ATTENDEE, id: 3, role: "speaker" };
+const ATTENDEE = { id: 2, role: ROLES.ATTENDEE, full_name: "Bo", email: "bo@example.com", profile_image_url: null };
+const SPEAKER = { ...ATTENDEE, id: 3, role: ROLES.SPEAKER };
 
 const EVENT = {
   id: 9,
@@ -53,7 +54,7 @@ function roomData(overrides: Record<string, unknown> = {}) {
     isSpeakerAssigned: false,
     speakerProfileId: null,
     userId: 2,
-    userRole: "attendee",
+    userRole: ROLES.ATTENDEE,
     ...overrides,
   };
 }
@@ -136,7 +137,7 @@ describe("useCourseRoomAccess", () => {
 
     cleanup();
     signedIn(SPEAKER);
-    fetchCourseRoomAccess.mockResolvedValue(roomData({ isSpeakerAssigned: true, userRole: "speaker" }));
+    fetchCourseRoomAccess.mockResolvedValue(roomData({ isSpeakerAssigned: true, userRole: ROLES.SPEAKER }));
 
     const { result: speaker } = renderHook(() => useCourseRoomAccess("9"));
     await waitFor(() => expect(speaker.current.access).toBe("allowed"));

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -9,7 +10,7 @@ import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-se
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -20,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // The roster is the co-presenter list the builder offers for module
   // assignments, so an assigned speaker may read it for their event too. A
   // staff member passes through; only an exact speaker needs the assignment.
-  if (guard.user.role === "speaker" && !(await speakerDao.isAssignedByUserId(supabase, guard.user.id, Number(id)))) {
+  if (guard.user.role === ROLES.SPEAKER && !(await speakerDao.isAssignedByUserId(supabase, guard.user.id, Number(id)))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

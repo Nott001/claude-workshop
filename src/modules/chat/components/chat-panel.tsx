@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
@@ -27,7 +28,7 @@ export default function ChatPanel({ eventId, supportType, userRole, currentUserI
   const isAtBottomRef = useRef(true);
   const supabase = useMemo(() => getBrowserClient(), []);
 
-  const isStaff = userRole === "facilitator" || userRole === "admin" || userRole === "super_admin";
+  const isStaff = userRole === ROLES.FACILITATOR || userRole === ROLES.ADMIN || userRole === ROLES.SUPER_ADMIN;
 
   const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
 

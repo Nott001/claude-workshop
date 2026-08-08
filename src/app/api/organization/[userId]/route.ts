@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -9,11 +10,11 @@ import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 const updateSchema = z.object({
-  role: z.enum(["speaker", "facilitator", "admin"]),
+  role: z.enum([ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN]),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("admin");
+  const guard = await requireRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -25,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  if (parsed.data.role === "admin" && !hasMinRole(guard.user.role, "super_admin")) {
+  if (parsed.data.role === ROLES.ADMIN && !hasMinRole(guard.user.role, ROLES.SUPER_ADMIN)) {
     return NextResponse.json({ error: { message: "Only super admins can promote to admin" } }, { status: 403 });
   }
 
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("admin");
+  const guard = await requireRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

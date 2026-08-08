@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import CourseRoomPage from "@/app/courses/[courseId]/room/page";
@@ -20,7 +21,7 @@ function allowRoom(overrides: Record<string, unknown> = {}) {
     startTime: "",
     endTime: "",
     course: null,
-    userRole: "speaker",
+    userRole: ROLES.SPEAKER,
     liveModule: null,
     assignedSpeakerCount: 0,
     eventStarted: false,
@@ -76,7 +77,7 @@ describe("CourseRoomPage", () => {
   });
 
   it("offers the register CTA to a ticketless attendee", () => {
-    allowRoom({ access: "no_ticket", eventId: "42", userRole: "attendee" });
+    allowRoom({ access: "no_ticket", eventId: "42", userRole: ROLES.ATTENDEE });
 
     render(<CourseRoomPage />);
 

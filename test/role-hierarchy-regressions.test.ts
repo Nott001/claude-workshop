@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as eventDao from "@/modules/events/db/event.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -30,9 +31,9 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("eventDao.list draft visibility", () => {
   // Only admins may create a draft (`POST /api/events` requires admin), so a
-  // literal `role !== "facilitator"` test hid every draft from the one role
+  // literal `role !== ROLES.FACILITATOR` test hid every draft from the one role
   // allowed to make them.
-  it.each(["facilitator", "admin", "super_admin"])("does not filter drafts away for %s", async (role) => {
+  it.each([ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN])("does not filter drafts away for %s", async (role) => {
     const { client, calls } = queryStub();
 
     await eventDao.list(client, { role });
@@ -40,7 +41,7 @@ describe("eventDao.list draft visibility", () => {
     expect(statusFilter(calls)).toBeUndefined();
   });
 
-  it.each(["attendee", "speaker"])("restricts %s to published events", async (role) => {
+  it.each([ROLES.ATTENDEE, ROLES.SPEAKER])("restricts %s to published events", async (role) => {
     const { client, calls } = queryStub();
 
     await eventDao.list(client, { role });
@@ -95,7 +96,7 @@ describe("eventDao.list facilitator visibility", () => {
   it("limits a facilitator to the events assigned to them", async () => {
     const { client, calls } = listStub([41, 42]);
 
-    await eventDao.list(client, { role: "facilitator", userId: 3 });
+    await eventDao.list(client, { role: ROLES.FACILITATOR, userId: 3 });
 
     expect(calls).toContainEqual(["select", ["event_id"]]);
     expect(calls).toContainEqual(["eq", ["user_id", 3]]);
@@ -105,14 +106,14 @@ describe("eventDao.list facilitator visibility", () => {
   it("lists nothing for a facilitator with no assignments", async () => {
     const { client, calls } = listStub([]);
 
-    await eventDao.list(client, { role: "facilitator", userId: 3 });
+    await eventDao.list(client, { role: ROLES.FACILITATOR, userId: 3 });
 
     // An empty in() is vacuous to PostgREST, so the sentinel id is what
     // actually guarantees an empty list.
     expect(calls).toContainEqual(["in", ["id", [-1]]]);
   });
 
-  it.each(["admin", "super_admin"])("does not restrict %s to their own events", async (role) => {
+  it.each([ROLES.ADMIN, ROLES.SUPER_ADMIN])("does not restrict %s to their own events", async (role) => {
     const { client, calls } = listStub();
 
     await eventDao.list(client, { role, userId: 3 });
@@ -123,7 +124,7 @@ describe("eventDao.list facilitator visibility", () => {
   it("never consults assignments for non-facilitator roles", async () => {
     const { client, calls } = listStub();
 
-    await eventDao.list(client, { role: "attendee", userId: 3 });
+    await eventDao.list(client, { role: ROLES.ATTENDEE, userId: 3 });
 
     expect(calls).not.toContainEqual(["select", ["event_id"]]);
   });

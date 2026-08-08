@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
 import type { AuthUser } from "@/modules/auth/lib/types";
@@ -45,7 +46,7 @@ describe("fetchEventAccess", () => {
       "/api/tickets": [mockTicket],
     });
 
-    const result = await fetchEventAccess(eventId, user("attendee"));
+    const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));
 
     expect(result.hasTicket).toBe(true);
     expect(result.isSpeakerAssigned).toBe(false);
@@ -57,7 +58,7 @@ describe("fetchEventAccess", () => {
       "/api/tickets": [],
     });
 
-    const result = await fetchEventAccess(eventId, user("attendee"));
+    const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));
 
     expect(result.hasTicket).toBe(false);
   });
@@ -68,7 +69,7 @@ describe("fetchEventAccess", () => {
       "/api/auth/me": mockSpeakerProfile,
     });
 
-    const result = await fetchEventAccess(eventId, user("speaker"));
+    const result = await fetchEventAccess(eventId, user(ROLES.SPEAKER));
 
     expect(result.hasTicket).toBe(false);
     expect(result.isSpeakerAssigned).toBe(true);
@@ -80,7 +81,7 @@ describe("fetchEventAccess", () => {
       "/api/auth/me": mockSpeakerProfile,
     });
 
-    const result = await fetchEventAccess(eventId, user("speaker"));
+    const result = await fetchEventAccess(eventId, user(ROLES.SPEAKER));
 
     expect(result.isSpeakerAssigned).toBe(true);
   });
@@ -92,7 +93,7 @@ describe("fetchEventAccess", () => {
       "/api/auth/me": differentSpeaker,
     });
 
-    const result = await fetchEventAccess(eventId, user("speaker"));
+    const result = await fetchEventAccess(eventId, user(ROLES.SPEAKER));
 
     expect(result.isSpeakerAssigned).toBe(false);
   });
@@ -102,7 +103,7 @@ describe("fetchEventAccess", () => {
       [`/api/events/${eventId}`]: mockEvent,
     });
 
-    const result = await fetchEventAccess(eventId, user("facilitator"));
+    const result = await fetchEventAccess(eventId, user(ROLES.FACILITATOR));
 
     expect(result.hasTicket).toBe(false);
   });
@@ -113,7 +114,7 @@ describe("fetchEventAccess", () => {
       "/api/tickets": [mockCancelledTicket],
     });
 
-    const result = await fetchEventAccess(eventId, user("attendee"));
+    const result = await fetchEventAccess(eventId, user(ROLES.ATTENDEE));
 
     expect(result.hasTicket).toBe(false);
   });

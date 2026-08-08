@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import {
   serviceClient,
@@ -45,7 +46,7 @@ test.afterAll(async () => {
 });
 
 test("a facilitator adds a module to a course", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -64,7 +65,7 @@ test("a facilitator adds a module to a course", async ({ page }) => {
 });
 
 test("a facilitator adds a lesson to a module", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -87,7 +88,7 @@ test("a facilitator adds a lesson to a module", async ({ page }) => {
 });
 
 test("the curriculum reads back with its modules and lessons", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -115,7 +116,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
 });
 
 test("an invalid module is refused without writing", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -133,7 +134,7 @@ test("an invalid module is refused without writing", async ({ page }) => {
 });
 
 test("an unassigned facilitator cannot author course content", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);
@@ -154,7 +155,7 @@ test("an unassigned facilitator cannot author course content", async ({ page }) 
 });
 
 test("an attendee cannot author course content", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
 
   await signIn(page, attendee);
@@ -171,7 +172,7 @@ test("an attendee cannot author course content", async ({ page }) => {
 });
 
 test("a facilitator deleting a module removes its lessons", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -205,7 +206,7 @@ test("an assigned facilitator can create a course through the API", async ({ pag
   const ownEvent = await createEvent(db);
   events.push(ownEvent);
 
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, ownEvent.eventId);
 
@@ -222,7 +223,7 @@ test("an assigned facilitator can create a course through the API", async ({ pag
 });
 
 test("a second course for the same event is refused as a conflict", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -247,7 +248,7 @@ test("an assigned speaker can create a course through the API", async ({ page })
   const ownEvent = await createEvent(db);
   events.push(ownEvent);
 
-  const speaker = await createUser(db, "speaker");
+  const speaker = await createUser(db, ROLES.SPEAKER);
   users.push(speaker);
   await assignSpeaker(db, speaker.userId, ownEvent.eventId);
 

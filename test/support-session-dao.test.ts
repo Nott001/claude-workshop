@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import * as dao from "@/shared/db/dao/support-session.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -107,7 +108,7 @@ describe("support-session.dao listCases", () => {
         case_number: 100,
         user_id: 20,
         assigned_to: 5,
-        USER: { full_name: "Ana", role: "attendee" },
+        USER: { full_name: "Ana", role: ROLES.ATTENDEE },
         ASSIGNED: { full_name: "Bo" },
       },
       {
@@ -115,7 +116,7 @@ describe("support-session.dao listCases", () => {
         case_number: 101,
         user_id: 21,
         assigned_to: null,
-        USER: { full_name: "Ben", role: "attendee" },
+        USER: { full_name: "Ben", role: ROLES.ATTENDEE },
         ASSIGNED: null,
       },
     ];

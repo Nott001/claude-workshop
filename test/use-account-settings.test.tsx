@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup, act } from "@testing-library/react";
 
@@ -14,7 +15,7 @@ vi.mock("@/shared/db/browser-client", () => ({
 
 import { useAccountSettings } from "@/modules/user/lib/use-account-settings";
 
-const speaker = { id: 1, role: "speaker", full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+const speaker = { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 
 type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import useSWR from "swr";
@@ -26,7 +27,7 @@ export function useCourseRoomAccess(courseId: string) {
   const [assignedSpeakerCount, setAssignedSpeakerCount] = useState(0);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
-  const isStaff = hasMinRole(userRole, "speaker");
+  const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
@@ -199,7 +200,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
               {messages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
-                const isStaff = hasMinRole(msg.USER?.role as UserRole, "facilitator");
+                const isStaff = hasMinRole(msg.USER?.role as UserRole, ROLES.FACILITATOR);
                 if (isChatEnded) {
                   return (
                     <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">

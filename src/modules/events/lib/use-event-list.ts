@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -25,7 +26,7 @@ export type FilterTab = "upcoming" | "completed" | "drafts";
 
 export function useEventList() {
   const { user } = useSession();
-  const isFacilitator = hasMinRole(user?.role ?? null, "facilitator");
+  const isFacilitator = hasMinRole(user?.role ?? null, ROLES.FACILITATOR);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

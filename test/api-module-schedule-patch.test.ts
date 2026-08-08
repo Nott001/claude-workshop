@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireRole, dao, speakerDao, logAuditEvent, requireModuleAccess } = vi.hoisted(() => ({
@@ -22,7 +23,7 @@ vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess }));
 
 import { PATCH as patchModule } from "@/app/api/modules/[id]/route";
 
-const SPEAKER = { allowed: true, error: null, user: { id: 5, role: "speaker" } };
+const SPEAKER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
 const params = { params: Promise.resolve({ id: "11" }) };
 
 const MODULE_BODY = { module_name: "Week one", sequence_order: 1 };

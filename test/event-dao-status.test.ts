@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import * as eventDao from "@/modules/events/db/event.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -28,7 +29,7 @@ const pastComplete = { id: 4, status: "complete", event_date: "2000-01-01", star
 describe("eventDao effective status", () => {
   it("list serves a past active event as complete", async () => {
     const events = await eventDao.list(clientWith([pastActive, futureActive, pastDraft, pastComplete]), {
-      role: "attendee",
+      role: ROLES.ATTENDEE,
     });
 
     expect(events.map((e) => [e.id, e.status])).toEqual([
@@ -40,7 +41,7 @@ describe("eventDao effective status", () => {
   });
 
   it("list keeps a future active event as active", async () => {
-    const events = await eventDao.list(clientWith([futureActive]), { role: "attendee" });
+    const events = await eventDao.list(clientWith([futureActive]), { role: ROLES.ATTENDEE });
 
     expect(events[0].status).toBe("active");
   });

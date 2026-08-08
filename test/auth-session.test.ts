@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { getUser, cookieGet, findByAuthId, ensureUser } = vi.hoisted(() => ({
@@ -22,7 +23,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 const dbUser = {
   id: 5,
   auth_user_id: "auth_123",
-  role: "attendee",
+  role: ROLES.ATTENDEE,
   full_name: "Jane Doe",
   email: "jane@example.com",
 };
@@ -55,7 +56,7 @@ describe("requireAuth", () => {
   it("resolves the auth id to the application user record", async () => {
     await expect(requireAuth()).resolves.toEqual({
       id: 5,
-      role: "attendee",
+      role: ROLES.ATTENDEE,
       full_name: "Jane Doe",
       email: "jane@example.com",
     });
@@ -94,7 +95,7 @@ describe("requireRole", () => {
   it("denies an unauthenticated caller", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
 
-    await expect(requireRole("facilitator")).resolves.toEqual({
+    await expect(requireRole(ROLES.FACILITATOR)).resolves.toEqual({
       allowed: false,
       error: "Unauthenticated",
       user: null,
@@ -102,7 +103,7 @@ describe("requireRole", () => {
   });
 
   it("denies a caller holding a different role", async () => {
-    const result = await requireRole("facilitator");
+    const result = await requireRole(ROLES.FACILITATOR);
 
     expect(result.allowed).toBe(false);
     expect(result.error).toBe("Forbidden");
@@ -111,18 +112,18 @@ describe("requireRole", () => {
   });
 
   it("admits a caller holding the required role", async () => {
-    findByAuthId.mockResolvedValue({ ...dbUser, role: "facilitator" });
+    findByAuthId.mockResolvedValue({ ...dbUser, role: ROLES.FACILITATOR });
 
-    const result = await requireRole("facilitator");
+    const result = await requireRole(ROLES.FACILITATOR);
 
     expect(result.allowed).toBe(true);
-    expect(result.user).toMatchObject({ id: 5, role: "facilitator" });
+    expect(result.user).toMatchObject({ id: 5, role: ROLES.FACILITATOR });
   });
 
   it("admits a caller holding any one of several accepted roles", async () => {
-    findByAuthId.mockResolvedValue({ ...dbUser, role: "speaker" });
+    findByAuthId.mockResolvedValue({ ...dbUser, role: ROLES.SPEAKER });
 
-    await expect(requireRole("facilitator", "speaker")).resolves.toMatchObject({ allowed: true });
+    await expect(requireRole(ROLES.FACILITATOR, ROLES.SPEAKER)).resolves.toMatchObject({ allowed: true });
   });
 
   it("admits any authenticated caller when no role is named", async () => {

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, courseDao, eventDao } = vi.hoisted(() => ({
@@ -34,7 +35,7 @@ function roomRequest() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({ id: 2, role: "attendee" });
+  requireAuth.mockResolvedValue({ id: 2, role: ROLES.ATTENDEE });
   courseDao.findCourseWithDetails.mockResolvedValue(COURSE);
   courseDao.userHasCourseAccess.mockResolvedValue(true);
   eventDao.findByIdWithCourse.mockResolvedValue(EVENT);
@@ -68,7 +69,7 @@ describe("GET /api/courses/[courseId]/room", () => {
   });
 
   it("admits staff without asking the access gate, as their access is role-based", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: "facilitator" });
+    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
 
     const res = await GET(roomRequest(), params);
 

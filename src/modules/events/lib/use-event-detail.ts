@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
@@ -28,7 +29,7 @@ export function useEventDetail(eventId: string) {
   const [recentAttendees, setRecentAttendees] = useState<AttendeeRow[]>([]);
   const [attendeesTotal, setAttendeesTotal] = useState(0);
   const [attendeesLoaded, setAttendeesLoaded] = useState(false);
-  const attendeesLoading = userRole && hasMinRole(userRole, "facilitator") ? !attendeesLoaded : false;
+  const attendeesLoading = userRole && hasMinRole(userRole, ROLES.FACILITATOR) ? !attendeesLoaded : false;
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function useEventDetail(eventId: string) {
       if (access.speakerProfileId) setSpeakerProfileId(access.speakerProfileId);
     });
 
-    if (hasMinRole(user.role, "facilitator")) {
+    if (hasMinRole(user.role, ROLES.FACILITATOR)) {
       fetch(`/api/events/${eventId}/attendees?limit=5`)
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
@@ -79,7 +80,7 @@ export function useEventDetail(eventId: string) {
 
   const badgeProps = event ? getBadgeProps(event) : null;
 
-  const isFacilitator = hasMinRole(userRole, "facilitator");
+  const isFacilitator = hasMinRole(userRole, ROLES.FACILITATOR);
   const showCountdown = event?.status === "active";
 
   async function handleRegister() {

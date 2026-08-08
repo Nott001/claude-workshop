@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
@@ -36,14 +37,14 @@ vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }
 import { POST } from "@/app/api/organization/route";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 
-const admin = { allowed: true, error: null, user: { id: 3, role: "admin" } };
-const superAdmin = { allowed: true, error: null, user: { id: 1, role: "super_admin" } };
+const admin = { allowed: true, error: null, user: { id: 3, role: ROLES.ADMIN } };
+const superAdmin = { allowed: true, error: null, user: { id: 1, role: ROLES.SUPER_ADMIN } };
 
 function post(body: unknown) {
   return new Request("https://app.test/api/organization", { method: "POST", body: JSON.stringify(body) });
 }
 
-const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: "speaker" };
+const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: ROLES.SPEAKER };
 // Low-entropy on purpose; see test/invite-accept.test.ts.
 const TOKEN = "aaaabbbbccccddddeeeeffff";
 
@@ -74,8 +75,8 @@ describe("POST /api/organization", () => {
     const sent = send.mock.calls[0][0];
 
     expect(sent.to).toEqual({ email: "jane@example.com", name: "Jane Doe" });
-    expect(sent.htmlContent).toContain("speaker");
-    expect(sent.textContent).toContain("speaker");
+    expect(sent.htmlContent).toContain(ROLES.SPEAKER);
+    expect(sent.textContent).toContain(ROLES.SPEAKER);
   });
 
   it("carries a written plain-text alternative, not just HTML", async () => {
@@ -104,7 +105,7 @@ describe("POST /api/organization", () => {
     // supabase.auth.updateUser and would be able to promote themselves.
     expect(updateUserById).toHaveBeenCalledWith(
       "auth-1",
-      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "speaker" } }),
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: ROLES.SPEAKER } }),
     );
   });
 
@@ -173,11 +174,11 @@ describe("POST /api/organization", () => {
   it("hands the resent invitation whichever role was chosen this time", async () => {
     findAuthAccountByEmail.mockResolvedValue({ id: "auth-stale", accepted: false });
 
-    await POST(post({ ...INVITE, role: "facilitator" }));
+    await POST(post({ ...INVITE, role: ROLES.FACILITATOR }));
 
     expect(updateUserById).toHaveBeenCalledWith(
       "auth-1",
-      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "facilitator" } }),
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: ROLES.FACILITATOR } }),
     );
   });
 
@@ -231,7 +232,7 @@ describe("POST /api/organization", () => {
   });
 
   it("stops an admin from inviting another admin", async () => {
-    const res = await POST(post({ ...INVITE, role: "admin" }));
+    const res = await POST(post({ ...INVITE, role: ROLES.ADMIN }));
 
     expect(res.status).toBe(403);
     expect(generateLink).not.toHaveBeenCalled();
@@ -240,19 +241,19 @@ describe("POST /api/organization", () => {
   it("lets a super admin invite an admin", async () => {
     requireRole.mockResolvedValue(superAdmin);
 
-    const res = await POST(post({ ...INVITE, role: "admin" }));
+    const res = await POST(post({ ...INVITE, role: ROLES.ADMIN }));
 
     expect(res.status).toBe(201);
     expect(updateUserById).toHaveBeenCalledWith(
       "auth-1",
-      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: "admin" } }),
+      expect.objectContaining({ app_metadata: { [INVITED_ROLE_KEY]: ROLES.ADMIN } }),
     );
   });
 
   it("refuses to invite a super admin", async () => {
     requireRole.mockResolvedValue(superAdmin);
 
-    const res = await POST(post({ ...INVITE, role: "super_admin" }));
+    const res = await POST(post({ ...INVITE, role: ROLES.SUPER_ADMIN }));
 
     expect(res.status).toBe(400);
     expect(generateLink).not.toHaveBeenCalled();

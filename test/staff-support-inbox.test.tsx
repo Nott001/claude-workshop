@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent, within } from "@testing-library/react";
 
@@ -26,7 +27,7 @@ vi.mock("@/shared/integrations/realtime", () => ({
 
 import StaffSupportInbox from "@/modules/chat/components/staff-support-inbox";
 
-const ADMIN = { id: 1, role: "admin", full_name: "Ada", email: "ada@example.com" };
+const ADMIN = { id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" };
 
 interface CaseRow {
   id: number;
@@ -81,7 +82,7 @@ const MESSAGE = (id: number, user_id: number, message: string) => ({
   updated_at: "2026-08-05T09:00:00Z",
   support_type: "general",
   event_id: null,
-  USER: { full_name: user_id === 20 ? "Ana" : "Ada", role: user_id === 20 ? "attendee" : "admin" },
+  USER: { full_name: user_id === 20 ? "Ana" : "Ada", role: user_id === 20 ? ROLES.ATTENDEE : ROLES.ADMIN },
 });
 
 let fetchCalls: Array<{ method: string; url: string; body?: string }> = [];

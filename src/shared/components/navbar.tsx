@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,7 +59,7 @@ export function Navbar() {
   const { user, isSignedIn, signOut } = useSession();
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
-  const userRole: UserRole = (user?.role as UserRole) ?? "attendee";
+  const userRole: UserRole = (user?.role as UserRole) ?? ROLES.ATTENDEE;
   const navItems = isSignedIn ? (ROLE_NAV_ITEMS[userRole] ?? ROLE_NAV_ITEMS.attendee!) : GUEST_NAV_ITEMS;
   const profilePhoto = customPhoto ?? user?.profile_image_url ?? null;
 

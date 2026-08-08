@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, speakerDao, courseDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
@@ -30,8 +31,8 @@ const user = (id: number, role: string) => ({
   email: "fay@example.com",
   profile_image_url: null,
 });
-const facilitator = user(5, "facilitator");
-const attendee = user(6, "attendee");
+const facilitator = user(5, ROLES.FACILITATOR);
+const attendee = user(6, ROLES.ATTENDEE);
 const params = { params: Promise.resolve({ id: "9", profileId: "7" }) };
 
 beforeEach(() => {

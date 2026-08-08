@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
@@ -20,7 +21,7 @@ export function EventListPage() {
   const { filteredEvents, loading, error, activeTab, setActiveTab, tabCounts } = useEventList();
 
   useEffect(() => {
-    if (user && user.role !== "attendee") {
+    if (user && user.role !== ROLES.ATTENDEE) {
       router.replace("/staff/events");
     }
   }, [user, router]);

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -8,7 +9,7 @@ import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

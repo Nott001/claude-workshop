@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -39,7 +40,7 @@ import { POST, PATCH } from "@/app/api/qa/module/[moduleId]/route";
 const speaker = {
   allowed: true,
   error: null,
-  user: { id: 8, role: "speaker", full_name: "Sam", email: "sam@example.com", profile_image_url: null },
+  user: { id: 8, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com", profile_image_url: null },
 };
 
 // Module 2 is a qa module on course 1, whose event is 100.
@@ -57,7 +58,7 @@ function jsonRequest(method: string, body: unknown): Request {
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(speaker);
-  requireAuth.mockResolvedValue({ id: 5, role: "attendee" });
+  requireAuth.mockResolvedValue({ id: 5, role: ROLES.ATTENDEE });
   findModuleById.mockResolvedValue(qaModule);
   findCourseEvent.mockResolvedValue(course);
   findCourseByModule.mockResolvedValue(course);
@@ -108,7 +109,7 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
     requireRole.mockResolvedValue({
       allowed: true,
       error: null,
-      user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+      user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
     });
 
     const res = await PATCH(jsonRequest("PATCH", { is_locked: true }), {
@@ -123,7 +124,7 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
     requireRole.mockResolvedValue({
       allowed: true,
       error: null,
-      user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+      user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
     });
     isAssigned.mockResolvedValue(true);
 
@@ -137,7 +138,7 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
     requireRole.mockResolvedValue({
       allowed: true,
       error: null,
-      user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+      user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
     });
     isAssigned.mockResolvedValue(true);
 

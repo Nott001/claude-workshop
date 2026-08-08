@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -64,7 +65,7 @@ export async function list(
 
   // A facilitator's dashboard shows only the events they are assigned to;
   // admins and every other role keep the full listing.
-  if (role === "facilitator" && userId != null) {
+  if (role === ROLES.FACILITATOR && userId != null) {
     const { data: assigned } = await supabase.from("EVENT_FACILITATOR").select("event_id").eq("user_id", userId);
     const assignedIds = (assigned ?? []).map((row: { event_id: number }) => row.event_id);
     // PostgREST treats an empty in() as vacuous, so an unassigned facilitator
@@ -75,7 +76,7 @@ export async function list(
   // Drafts are staff-only, and "staff" is facilitator *and up* — a literal
   // inequality hid every draft from admins, who are the only role allowed to
   // create one.
-  if (!hasMinRole((role ?? null) as UserRole | null, "facilitator")) {
+  if (!hasMinRole((role ?? null) as UserRole | null, ROLES.FACILITATOR)) {
     query = query.in("status", ["active", "complete"]);
   }
 

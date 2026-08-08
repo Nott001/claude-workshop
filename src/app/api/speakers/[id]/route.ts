@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -8,7 +9,7 @@ import { deleteFromStorage } from "@/shared/integrations/storage/service";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator", "speaker");
+  const guard = await requireRole(ROLES.FACILITATOR, ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -28,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  if (!hasMinRole(guard.user.role, "facilitator") && guard.user.id !== (profile as { user_id: number }).user_id) {
+  if (!hasMinRole(guard.user.role, ROLES.FACILITATOR) && guard.user.id !== (profile as { user_id: number }).user_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -42,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

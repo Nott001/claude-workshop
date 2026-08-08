@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -35,7 +36,7 @@ import { GET, POST, PATCH } from "@/app/api/qa/module/[moduleId]/route";
 import { RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 
 const params = { params: Promise.resolve({ moduleId: "4" }) };
-const ATTENDEE = { id: 12, role: "attendee" };
+const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
 const QUESTION = { message: "How do I start?", module_id: 4 };
 const QA_MODULE = { id: 4, module_type: "qa", is_locked: false, course_id: 7 };
 
@@ -46,7 +47,7 @@ function post(payload: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireAuth.mockResolvedValue(ATTENDEE);
-  requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 3, role: "speaker" } });
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 3, role: ROLES.SPEAKER } });
   courseDao.findModuleById.mockResolvedValue(QA_MODULE);
   courseDao.findCourseByModule.mockResolvedValue({ id: 7, event_id: 9 });
   courseDao.findCourseEvent.mockResolvedValue({ id: 7, event_id: 9 });

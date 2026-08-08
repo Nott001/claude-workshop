@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { Navbar } from "@/shared/components/navbar";
@@ -30,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   const role = user?.role ?? null;
   const hideNavbar = shouldHideNavbar(pathname);
-  const showAssist = !shouldHideAssist(pathname) && !hasMinRole(role, "speaker");
+  const showAssist = !shouldHideAssist(pathname) && !hasMinRole(role, ROLES.SPEAKER);
 
   if (hideNavbar) {
     return <>{children}</>;

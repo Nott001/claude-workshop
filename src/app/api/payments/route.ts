@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const guard = await requireRole("attendee", "facilitator");
+  const guard = await requireRole(ROLES.ATTENDEE, ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -91,7 +92,7 @@ export async function GET() {
 
   // Scoped by entitlement, not by a literal role string: `requireRole` admits
   // every authenticated role, so anyone who is not staff sees only their own.
-  const payments = hasMinRole(guard.user.role, "facilitator")
+  const payments = hasMinRole(guard.user.role, ROLES.FACILITATOR)
     ? await paymentDao.listAll(supabase)
     : await paymentDao.listByUser(supabase, guard.user.id);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRouter } from "next/navigation";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
@@ -46,7 +47,7 @@ function actionColor(action: string): string {
 
 export default function StaffAuditLogsPage() {
   const router = useRouter();
-  const { allowed, pending } = useRoleGuard("admin");
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
   const { logs, loading, page, setPage, totalPages } = useAuditLogs();
 
   if (pending) {

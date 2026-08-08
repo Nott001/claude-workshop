@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { TicketStatus } from "@/shared/types";
 
@@ -29,7 +30,7 @@ function post(body: unknown) {
   });
 }
 
-const facilitator = { allowed: true, error: null, user: { id: 7, role: "facilitator" } };
+const facilitator = { allowed: true, error: null, user: { id: 7, role: ROLES.FACILITATOR } };
 
 function ticket(status: TicketStatus = "issued") {
   return {
@@ -71,7 +72,7 @@ describe("authorization", () => {
 
   it("only admits the facilitator role", async () => {
     await POST(post({ qr_token: "tok" }));
-    expect(requireRole).toHaveBeenCalledWith("facilitator");
+    expect(requireRole).toHaveBeenCalledWith(ROLES.FACILITATOR);
   });
 });
 

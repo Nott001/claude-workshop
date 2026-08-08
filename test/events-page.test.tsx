@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { EventListPage } from "@/modules/events/pages/event-list";
@@ -39,7 +40,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   const useSessionMock = useSession as unknown as ReturnType<typeof vi.fn>;
   useSessionMock.mockReturnValue({
-    user: { id: 1, role: "attendee", full_name: "Jane", email: "jane@example.com", profile_image_url: null },
+    user: { id: 1, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com", profile_image_url: null },
     loading: false,
     isSignedIn: true,
     signOut: vi.fn(),

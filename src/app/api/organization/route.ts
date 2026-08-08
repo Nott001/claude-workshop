@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -21,7 +22,7 @@ const inviteSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const guard = await requireRole("admin");
+  const guard = await requireRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("admin");
+  const guard = await requireRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  if (parsed.data.role === "admin" && !hasMinRole(guard.user.role, "super_admin")) {
+  if (parsed.data.role === ROLES.ADMIN && !hasMinRole(guard.user.role, ROLES.SUPER_ADMIN)) {
     return NextResponse.json({ error: { message: "Only super admins can invite admins" } }, { status: 403 });
   }
 

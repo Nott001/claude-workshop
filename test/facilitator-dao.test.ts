@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import { isAssigned, listCandidates, listEventAssignments, replaceEventAssignments } from "@/shared/db/dao/facilitator.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -106,7 +107,7 @@ describe("facilitator.dao listers", () => {
     const rows = await listCandidates(client);
 
     expect(rows).toEqual([{ id: 3, full_name: "Fay", email: "fay@example.com" }]);
-    expect(orderChain.eq).toHaveBeenCalledWith("role", "facilitator");
+    expect(orderChain.eq).toHaveBeenCalledWith("role", ROLES.FACILITATOR);
   });
 
   it("embeds the assignee's name and email", async () => {

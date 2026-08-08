@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,7 +15,7 @@ export default function SpeakerCoursePage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
-  const { allowed: isSpeaker, pending: sessionPending } = useRoleGuard("speaker");
+  const { allowed: isSpeaker, pending: sessionPending } = useRoleGuard(ROLES.SPEAKER);
 
   const { event: speakerEvent, loading: speakerLoading, error: speakerError } = useSpeakerEvent(eventId);
   const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);

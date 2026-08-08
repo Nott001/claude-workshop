@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -8,7 +9,7 @@ import { courseSchema } from "@/modules/courses/lib/schemas";
 import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET() {
-  const guard = await requireRole("admin");
+  const guard = await requireRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -20,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

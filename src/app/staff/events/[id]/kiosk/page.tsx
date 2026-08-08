@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -18,13 +19,13 @@ export default function StaffEventKioskPage() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn || !hasMinRole(userRole, "facilitator")) {
+    if (!isSignedIn || !hasMinRole(userRole, ROLES.FACILITATOR)) {
       router.push("/");
     }
   }, [isLoaded, isSignedIn, userRole, router]);
 
   useEffect(() => {
-    if (!hasMinRole(userRole, "facilitator")) return;
+    if (!hasMinRole(userRole, ROLES.FACILITATOR)) return;
     fetch("/api/events?filter=upcoming")
       .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load event")))
       .then((data) => {
@@ -43,7 +44,7 @@ export default function StaffEventKioskPage() {
     );
   }
 
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
     <div className="flex flex-1 flex-col">

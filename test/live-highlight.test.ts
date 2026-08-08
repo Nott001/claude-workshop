@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect } from "vitest";
 import type { LiveSessionState } from "@/shared/types";
 
@@ -37,23 +38,23 @@ describe("LiveSessionState type", () => {
 
 describe("Live highlight state transitions", () => {
   function canSetHighlight(userRole: string, eventStarted: boolean): boolean {
-    return (userRole === "speaker" || userRole === "facilitator") && eventStarted;
+    return (userRole === ROLES.SPEAKER || userRole === ROLES.FACILITATOR) && eventStarted;
   }
 
   it("allows speaker to set highlight when the session is live", () => {
-    expect(canSetHighlight("speaker", true)).toBe(true);
+    expect(canSetHighlight(ROLES.SPEAKER, true)).toBe(true);
   });
 
   it("allows facilitator to set highlight when the session is live", () => {
-    expect(canSetHighlight("facilitator", true)).toBe(true);
+    expect(canSetHighlight(ROLES.FACILITATOR, true)).toBe(true);
   });
 
   it("denies attendee from setting highlight", () => {
-    expect(canSetHighlight("attendee", true)).toBe(false);
+    expect(canSetHighlight(ROLES.ATTENDEE, true)).toBe(false);
   });
 
   it("denies setting highlight when the session has not started", () => {
-    expect(canSetHighlight("speaker", false)).toBe(false);
+    expect(canSetHighlight(ROLES.SPEAKER, false)).toBe(false);
   });
 
   it("denies setting highlight for anonymous user", () => {

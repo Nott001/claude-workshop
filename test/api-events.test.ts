@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -42,7 +43,7 @@ import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";
 const facilitator = {
   allowed: true,
   error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+  user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
 };
 const denied = { allowed: false, error: "Forbidden", user: null };
 
@@ -61,7 +62,7 @@ beforeEach(() => {
   requireRole.mockResolvedValue(facilitator);
   requireAuth.mockResolvedValue({
     id: 5,
-    role: "attendee",
+    role: ROLES.ATTENDEE,
     full_name: "Jane",
     email: "jane@example.com",
     profile_image_url: null,
@@ -79,7 +80,7 @@ describe("GET /api/events", () => {
   it("passes the caller's role to the query so listings can be filtered by it", async () => {
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: null });
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
@@ -94,13 +95,13 @@ describe("GET /api/events", () => {
   it("forwards the filter query parameter", async () => {
     await GET(new Request("https://app.test/api/events?filter=upcoming"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: "upcoming" });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming" });
   });
 
   it("passes the caller's id so a facilitator is filtered to their own events", async () => {
     requireAuth.mockResolvedValue({
       id: 7,
-      role: "facilitator",
+      role: ROLES.FACILITATOR,
       full_name: "Fay",
       email: "fay@example.com",
       profile_image_url: null,
@@ -108,7 +109,7 @@ describe("GET /api/events", () => {
 
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "facilitator", userId: 7, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.FACILITATOR, userId: 7, filter: null });
   });
 });
 
@@ -124,7 +125,7 @@ describe("POST /api/events authorization", () => {
 
   it("requires the admin role specifically", async () => {
     await POST(postEvent(validEvent));
-    expect(requireRole).toHaveBeenCalledWith("admin");
+    expect(requireRole).toHaveBeenCalledWith(ROLES.ADMIN);
   });
 });
 
@@ -223,7 +224,7 @@ describe("POST /api/events/[id]/publish", () => {
   const req = () => new Request("https://app.test/api/events/1/publish", { method: "POST" });
   const facilitatorUser = {
     id: 9,
-    role: "facilitator",
+    role: ROLES.FACILITATOR,
     full_name: "Fay",
     email: "fay@example.com",
     profile_image_url: null,
@@ -234,7 +235,7 @@ describe("POST /api/events/[id]/publish", () => {
   });
 
   it("refuses a caller below facilitator", async () => {
-    requireAuth.mockResolvedValue({ ...facilitatorUser, role: "attendee" });
+    requireAuth.mockResolvedValue({ ...facilitatorUser, role: ROLES.ATTENDEE });
 
     const res = await PUBLISH(req(), params("1"));
 

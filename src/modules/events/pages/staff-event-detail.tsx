@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
@@ -137,7 +138,7 @@ export function CourseSection({
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
   const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
-  const isStaff = hasMinRole(userRole, "facilitator");
+  const isStaff = hasMinRole(userRole, ROLES.FACILITATOR);
 
   if (loading || speakersLoading) {
     return (
@@ -197,7 +198,7 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
     handleRemove,
   } = useEventSpeakers(eventId);
 
-  if (!hasMinRole(userRole, "admin")) return null;
+  if (!hasMinRole(userRole, ROLES.ADMIN)) return null;
 
   return (
     <SectionCard title="Speakers" icon="record_voice_over">
@@ -258,7 +259,7 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
 }
 
 function SupportSection({ eventId, userRole, userId }: { eventId: string; userRole: UserRole | null; userId: number | null }) {
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
     <SectionCard title="Support" icon="support_agent" className="row-span-2">
@@ -270,7 +271,7 @@ function SupportSection({ eventId, userRole, userId }: { eventId: string; userRo
 function KioskSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
   const router = useRouter();
 
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
     <SectionCard title="Kiosk" icon="qr_code_scanner">
@@ -295,7 +296,7 @@ function CoverImageSection({
   coverImageUrl: string | null;
 }) {
   // Matches the facilitator floor that /api/upload/event-image enforces.
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
     <SectionCard title="Cover image" icon="image">
@@ -306,7 +307,7 @@ function CoverImageSection({
 }
 
 function SurveysSection({ userRole }: { userRole: UserRole | null }) {
-  if (!hasMinRole(userRole, "facilitator")) return null;
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
     <SectionCard title="Surveys" icon="poll">
@@ -321,7 +322,7 @@ export function StaffEventDetailPage() {
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const { role: userRole, allowed: isStaff, pending } = useRoleGuard("facilitator");
+  const { role: userRole, allowed: isStaff, pending } = useRoleGuard(ROLES.FACILITATOR);
 
   const {
     event,
@@ -354,7 +355,7 @@ export function StaffEventDetailPage() {
 
   if (!isStaff) return null;
 
-  const isAdmin = hasMinRole(userRole, "admin");
+  const isAdmin = hasMinRole(userRole, ROLES.ADMIN);
   // The page is facilitator-floor, and fetch-event-access only loads the
   // caller's speaker profile for the exact speaker role, so isSpeakerAssigned
   // can never be true here — the assignment term is the facilitator row.

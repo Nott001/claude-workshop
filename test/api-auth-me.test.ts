@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
@@ -27,7 +28,7 @@ function patch(body: unknown) {
 
 const speaker = {
   id: 5,
-  role: "speaker",
+  role: ROLES.SPEAKER,
   full_name: "Ada",
   email: "ada@example.com",
   profile_image_url: null,
@@ -42,7 +43,7 @@ beforeEach(() => {
 
 describe("PATCH /api/auth/me speaker profile guard", () => {
   it("forbids every non-speaker role from writing designation or bio", async () => {
-    for (const role of ["attendee", "facilitator", "admin", "super_admin"]) {
+    for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
       requireAuth.mockResolvedValue({ ...speaker, role });
 
       const res = await PATCH(patch({ designation: "CTO" }));

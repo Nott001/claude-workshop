@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireRole, listCandidates } = vi.hoisted(() => ({
@@ -17,7 +18,7 @@ import { GET } from "@/app/api/facilitators/route";
 const facilitator = {
   allowed: true,
   error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+  user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
 };
 const denied = { allowed: false, error: "Forbidden", user: null };
 

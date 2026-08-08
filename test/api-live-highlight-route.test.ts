@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, courseDao, canManageEvent, liveSessionService } = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ import { CourseServiceError } from "@/modules/courses/lib/course-errors";
 import { GET, POST, DELETE } from "@/app/api/courses/[courseId]/live/highlight/route";
 
 const params = { params: Promise.resolve({ courseId: "9" }) };
-const SPEAKER = { id: 3, role: "speaker" };
+const SPEAKER = { id: 3, role: ROLES.SPEAKER };
 const EMPTY_STATE = { highlighted_lesson_id: null, updated_by: null, updated_at: null, lesson: null };
 
 function post(payload: unknown) {
@@ -99,7 +100,7 @@ describe("POST /api/courses/[courseId]/live/highlight", () => {
     const res = await POST(post({ lesson_id: 4 }), params);
 
     expect(res.status).toBe(200);
-    expect(canManageEvent).toHaveBeenCalledWith(expect.anything(), 3, "speaker", 1);
+    expect(canManageEvent).toHaveBeenCalledWith(expect.anything(), 3, ROLES.SPEAKER, 1);
     expect(liveSessionService.setCourseHighlight).toHaveBeenCalledWith(expect.anything(), 9, 4, { id: 3 });
   });
 

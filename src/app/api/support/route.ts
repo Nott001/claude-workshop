@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+  if (supportType === "general" && !hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -76,11 +77,11 @@ export async function POST(req: Request) {
 
   const supportType = parsed.data.support_type ?? "general";
 
-  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+  if (supportType === "general" && !hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const isStaff = hasMinRole(user.role, supportType === "general" ? "admin" : "facilitator");
+  const isStaff = hasMinRole(user.role, supportType === "general" ? ROLES.ADMIN : ROLES.FACILITATOR);
 
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 

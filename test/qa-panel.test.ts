@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect } from "vitest";
 import { qaMessageSchema } from "@/modules/chat/lib/schemas";
 import type { QaMessage, UserRole } from "@/shared/types";
@@ -44,11 +45,11 @@ describe("qaMessageSchema requires module_id", () => {
 });
 
 describe("Q&A moderation — staff can delete questions", () => {
-  const staffRoles: UserRole[] = ["facilitator", "speaker"];
-  const nonStaffRoles: UserRole[] = ["attendee"];
+  const staffRoles: UserRole[] = [ROLES.FACILITATOR, ROLES.SPEAKER];
+  const nonStaffRoles: UserRole[] = [ROLES.ATTENDEE];
 
   it("facilitator and speaker are considered staff", () => {
-    const isStaff = (role: UserRole) => role === "facilitator" || role === "speaker";
+    const isStaff = (role: UserRole) => role === ROLES.FACILITATOR || role === ROLES.SPEAKER;
     expect(staffRoles.every(isStaff)).toBe(true);
     expect(nonStaffRoles.some(isStaff)).toBe(false);
   });

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "./types";
 import type { ChatMessage, UserRole } from "@/shared/types";
 
@@ -165,7 +166,7 @@ export async function listSupportMessages(
     }
   }
 
-  if (role !== "facilitator" && role !== "admin" && role !== "super_admin" && userId) {
+  if (role !== ROLES.FACILITATOR && role !== ROLES.ADMIN && role !== ROLES.SUPER_ADMIN && userId) {
     query = query.or(`user_id.eq.${userId},recipient_user_id.eq.${userId}`);
 
     session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);

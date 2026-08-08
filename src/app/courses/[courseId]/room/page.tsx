@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QAPanel from "@/modules/chat/components/qa-panel";
@@ -53,7 +54,7 @@ export default function CourseRoomPage() {
 
   const handleExit = useCallback(() => {
     if (!eventId) return;
-    if (userRole === "speaker") {
+    if (userRole === ROLES.SPEAKER) {
       router.push(`/speaker/event/${eventId}`);
     } else if (isStaff) {
       router.push(`/staff/events/${eventId}`);

@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 
@@ -28,7 +29,7 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { PATCH } from "@/app/api/events/[id]/route";
 
-const user = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null };
+const user = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 const stored = { id: 3, title: "Launch", event_date: "2026-09-01", start_time: "09:00", end_time: "17:00" };
 
@@ -117,7 +118,7 @@ describe("PATCH /api/events/[id] authorization", () => {
   });
 
   it("refuses a caller below facilitator", async () => {
-    requireAuth.mockResolvedValue({ ...user, role: "attendee" });
+    requireAuth.mockResolvedValue({ ...user, role: ROLES.ATTENDEE });
 
     const res = await patch({ title: "Renamed" });
 

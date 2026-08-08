@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, eventFindById, findActiveByUserAndEvent, findPendingByUserAndEvent } = vi.hoisted(() => ({
@@ -18,8 +19,8 @@ import { GET, POST } from "@/app/api/events/[id]/register/route";
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const req = () => new Request("https://app.test/api/events/1/register", { method: "POST" });
 
-const attendee = { id: 5, role: "attendee", full_name: "Jane Doe", email: "jane@example.com", profile_image_url: null };
-const facilitator = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null };
+const attendee = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane Doe", email: "jane@example.com", profile_image_url: null };
+const facilitator = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 const published = { id: 1, title: "Launch Day", status: "published" };
 const draft = { id: 1, title: "Secret Day", status: "draft" };

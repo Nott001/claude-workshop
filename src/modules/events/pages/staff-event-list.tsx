@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { useEventList } from "@/modules/events/lib/use-event-list";
@@ -18,7 +19,7 @@ const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export function StaffEventListPage() {
-  const { allowed, pending } = useRoleGuard("facilitator");
+  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR);
   const { filteredEvents, loading, error, activeTab, setActiveTab, isFacilitator, tabCounts } = useEventList();
 
   if (pending || loading) {

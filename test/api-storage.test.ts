@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { download, from, requireAuth, userHasCourseAccess, isPublished } = vi.hoisted(() => {
@@ -23,9 +24,9 @@ import { GET } from "@/app/api/storage/[bucket]/[...path]/route";
 const req = () => new Request("https://app.test/api/storage/x/y");
 const params = (bucket: string, path: string[]) => ({ params: Promise.resolve({ bucket, path }) });
 
-const attendee = { id: 5, role: "attendee", full_name: "Jane", email: "jane@example.com" };
-const facilitator = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com" };
-const speaker = { id: 7, role: "speaker", full_name: "Sam", email: "sam@example.com" };
+const attendee = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
+const facilitator = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com" };
+const speaker = { id: 7, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com" };
 
 const lesson = ["courses", "12", "modules", "3", "lessons", "8", "slides.pdf"];
 const cover = ["events", "1", "cover.png"];
@@ -227,7 +228,7 @@ describe("course entitlement", () => {
 
   // "Facilitator" here means facilitator *and up*. An equality test denied
   // admins and super_admins the material every facilitator already reads.
-  it.each(["admin", "super_admin"])("gives %s the same access as a facilitator", async (role) => {
+  it.each([ROLES.ADMIN, ROLES.SUPER_ADMIN])("gives %s the same access as a facilitator", async (role) => {
     requireAuth.mockResolvedValue({ ...facilitator, role });
 
     const res = await GET(req(), params("course_assets", lesson));

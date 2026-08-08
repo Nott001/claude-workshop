@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import { listCandidates, replaceEventAssignments, isAssignedByUserId, listEventAssignments } from "@/shared/db/dao/speaker.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -185,6 +186,6 @@ describe("speaker.dao listCandidates", () => {
         USER: { full_name: "Sam Speaker", email: "sam@example.com" },
       },
     ]);
-    expect(orderChain.eq).toHaveBeenCalledWith("USER.role", "speaker");
+    expect(orderChain.eq).toHaveBeenCalledWith("USER.role", ROLES.SPEAKER);
   });
 });

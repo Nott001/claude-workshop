@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
@@ -18,9 +19,9 @@ export async function canManageEvent(
   userRole: UserRole,
   eventId: number,
 ): Promise<boolean> {
-  if (hasMinRole(userRole, "admin")) return true;
-  if (userRole === "facilitator") return facilitatorDao.isAssigned(supabase, eventId, userId);
-  if (userRole === "speaker") return speakerDao.isAssignedByUserId(supabase, userId, eventId);
+  if (hasMinRole(userRole, ROLES.ADMIN)) return true;
+  if (userRole === ROLES.FACILITATOR) return facilitatorDao.isAssigned(supabase, eventId, userId);
+  if (userRole === ROLES.SPEAKER) return speakerDao.isAssignedByUserId(supabase, userId, eventId);
   return false;
 }
 
@@ -94,7 +95,7 @@ export async function requireCourseDeleteAccess(
   // Speakers — even assigned ones — may never delete, and anyone below
   // facilitator is refused without a query so the caller learns nothing about
   // whether the course exists.
-  if (!hasMinRole(userRole, "facilitator")) {
+  if (!hasMinRole(userRole, ROLES.FACILITATOR)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return requireEventAccess(userId, userRole, {}, (supabase) => courseDao.findCourseEvent(supabase, courseId), "Course");

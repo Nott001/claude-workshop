@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 
@@ -9,8 +10,8 @@ vi.mock("@/modules/auth/components/session-context", () => ({
 
 import { useSpeakerProfile } from "@/modules/user/lib/use-speaker-profile";
 
-const speaker = { id: 1, role: "speaker", full_name: "Ada", email: "ada@example.com", profile_image_url: null };
-const attendee = { id: 2, role: "attendee", full_name: "Bo", email: "bo@example.com", profile_image_url: null };
+const speaker = { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+const attendee = { id: 2, role: ROLES.ATTENDEE, full_name: "Bo", email: "bo@example.com", profile_image_url: null };
 
 type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -58,7 +59,7 @@ describe("useSpeakerProfile", () => {
 
     // Facilitators and admins outrank speakers, but the speaker profile section
     // belongs to the speaker row alone, so min-role must not admit them.
-    for (const role of ["attendee", "facilitator", "admin", "super_admin"]) {
+    for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
       sessionValue.mockReturnValue({ user: { ...attendee, role } });
       const { result } = renderHook(() => useSpeakerProfile(notify));
 

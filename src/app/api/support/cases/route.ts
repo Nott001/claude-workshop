@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
@@ -8,7 +9,7 @@ export async function GET() {
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, "admin")) {
+  if (!user || !hasMinRole(user.role, ROLES.ADMIN)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

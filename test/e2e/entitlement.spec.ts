@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import {
   serviceClient,
@@ -53,7 +54,7 @@ test.afterAll(async () => {
 });
 
 test("an attendee holding a ticket can read the course material", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
   await issueTicket(db, attendee.userId, event.eventId);
 
@@ -68,7 +69,7 @@ test("an attendee holding a ticket can read the course material", async ({ page 
 });
 
 test("an attendee without a ticket is refused the same object", async ({ page }) => {
-  const outsider = await createUser(db, "attendee");
+  const outsider = await createUser(db, ROLES.ATTENDEE);
   users.push(outsider);
 
   await signIn(page, outsider);
@@ -80,7 +81,7 @@ test("an attendee without a ticket is refused the same object", async ({ page })
 });
 
 test("a cancelled ticket does not grant access", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
   await issueTicket(db, attendee.userId, event.eventId);
   await db.from("TICKET").update({ status: "cancelled" }).eq("user_id", attendee.userId).eq("event_id", event.eventId);
@@ -93,7 +94,7 @@ test("a cancelled ticket does not grant access", async ({ page }) => {
 });
 
 test("a facilitator reads course material without holding a ticket", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);
@@ -104,7 +105,7 @@ test("a facilitator reads course material without holding a ticket", async ({ pa
 });
 
 test("an unknown bucket is refused", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
   await issueTicket(db, attendee.userId, event.eventId);
 
@@ -116,7 +117,7 @@ test("an unknown bucket is refused", async ({ page }) => {
 });
 
 test("a traversal-shaped key is refused", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
   await issueTicket(db, attendee.userId, event.eventId);
 

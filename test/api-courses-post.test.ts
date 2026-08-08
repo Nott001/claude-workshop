@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -22,7 +23,7 @@ import { POST } from "@/app/api/courses/route";
 const speaker = {
   allowed: true,
   error: null,
-  user: { id: 8, role: "speaker", full_name: "Sam", email: "sam@example.com", profile_image_url: null },
+  user: { id: 8, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com", profile_image_url: null },
 };
 
 function jsonRequest(body: unknown): Request {

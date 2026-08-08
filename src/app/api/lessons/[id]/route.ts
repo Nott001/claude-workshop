@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -9,7 +10,7 @@ import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireLessonAccess } from "@/modules/courses/lib/course-access";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -30,7 +31,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -73,7 +74,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("speaker");
+  const guard = await requireRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

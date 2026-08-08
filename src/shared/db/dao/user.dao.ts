@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "./types";
 import type { User } from "@/shared/types";
 
@@ -25,7 +26,7 @@ export async function listStaff(
   let query = supabase
     .from("USER")
     .select("id, full_name, email, role", { count: "exact" })
-    .in("role", ["facilitator", "speaker", "admin", "super_admin"])
+    .in("role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN])
     .order("full_name", { ascending: true });
 
   if (search) {

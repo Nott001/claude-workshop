@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import type { UserRole } from "@/shared/types";
@@ -45,30 +46,30 @@ afterEach(() => {
 // the second line, not the first.
 describe("Navbar role nav items", () => {
   it("shows a speaker Dashboard only — no route into /staff", () => {
-    renderAs("speaker");
+    renderAs(ROLES.SPEAKER);
     expect(navLabels()).toEqual(["Dashboard"]);
   });
 
   it("shows a facilitator Events only", () => {
-    renderAs("facilitator");
+    renderAs(ROLES.FACILITATOR);
     expect(navLabels()).toEqual(["Events"]);
   });
 
   it("shows an admin the full staff set", () => {
-    renderAs("admin");
+    renderAs(ROLES.ADMIN);
     expect(navLabels()).toEqual(["Events", "Create event", "Courses", "Organization", "Emails", "Support", "Audit Logs"]);
   });
 
   it("shows a super_admin the same set as an admin", () => {
-    renderAs("super_admin");
+    renderAs(ROLES.SUPER_ADMIN);
     const superAdmin = navLabels();
     cleanup();
-    renderAs("admin");
+    renderAs(ROLES.ADMIN);
     expect(superAdmin).toEqual(navLabels());
   });
 
   it("leaves the attendee nav alone", () => {
-    renderAs("attendee");
+    renderAs(ROLES.ATTENDEE);
     expect(navLabels()).toEqual(["Home", "Events", "Tickets"]);
   });
 

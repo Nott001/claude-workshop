@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -39,9 +40,9 @@ const user = (id: number, role: string) => ({
   email: "fay@example.com",
   profile_image_url: null,
 });
-const admin = user(9, "admin");
-const facilitator = user(10, "facilitator");
-const attendee = user(5, "attendee");
+const admin = user(9, ROLES.ADMIN);
+const facilitator = user(10, ROLES.FACILITATOR);
+const attendee = user(5, ROLES.ATTENDEE);
 
 const del = (id = "1") =>
   DELETE(new Request(`https://app.test/api/events/${id}`, { method: "DELETE" }), {

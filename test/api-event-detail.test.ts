@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned } = vi.hoisted(() => ({
@@ -52,7 +53,7 @@ beforeEach(() => {
 
 describe("GET /api/events/[id] facilitator assignment scoping", () => {
   it("admits a facilitator assigned to the event", async () => {
-    requireAuth.mockResolvedValue(staffUser("facilitator"));
+    requireAuth.mockResolvedValue(staffUser(ROLES.FACILITATOR));
 
     const res = await get();
 
@@ -61,7 +62,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("hides an event the facilitator is not assigned to", async () => {
-    requireAuth.mockResolvedValue(staffUser("facilitator"));
+    requireAuth.mockResolvedValue(staffUser(ROLES.FACILITATOR));
     facilitatorIsAssigned.mockResolvedValue(false);
 
     const res = await get();
@@ -71,7 +72,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("does not consult the assignment roster for an admin", async () => {
-    requireAuth.mockResolvedValue(staffUser("admin"));
+    requireAuth.mockResolvedValue(staffUser(ROLES.ADMIN));
 
     const res = await get();
 
@@ -80,7 +81,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("still lets an attendee read a published event without an assignment check", async () => {
-    requireAuth.mockResolvedValue(staffUser("attendee"));
+    requireAuth.mockResolvedValue(staffUser(ROLES.ATTENDEE));
 
     const res = await get();
 

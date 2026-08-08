@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -6,7 +7,7 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileSchema } from "@/modules/events/lib/schemas";
 
 export async function GET(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -15,13 +16,13 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const profiles =
-    searchParams.get("role") === "speaker" ? await speakerDao.listCandidates(supabase) : await speakerDao.list(supabase);
+    searchParams.get("role") === ROLES.SPEAKER ? await speakerDao.listCandidates(supabase) : await speakerDao.list(supabase);
 
   return NextResponse.json(profiles);
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

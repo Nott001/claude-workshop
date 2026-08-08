@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
@@ -30,7 +31,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
-  const { allowed, pending } = useRoleGuard("admin");
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
   const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } = useEmailLogs();
 
   if (pending) {

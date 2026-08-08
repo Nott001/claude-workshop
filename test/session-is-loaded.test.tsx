@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
@@ -19,7 +20,7 @@ vi.mock("@supabase/ssr", () => ({
 
 import { SessionProvider, useSession } from "@/modules/auth/components/session-context";
 
-const appUser = { id: 1, role: "admin", full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+const appUser = { id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 
 function Probe() {
   const { isLoaded, loading } = useSession();

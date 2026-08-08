@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireRole, requireAuth, speakerDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
@@ -53,7 +54,7 @@ beforeEach(() => {
 
 describe("GET /api/events/[id]/speakers", () => {
   it("serves the roster to a speaker assigned to the event", async () => {
-    requireRole.mockResolvedValue(speaker("speaker"));
+    requireRole.mockResolvedValue(speaker(ROLES.SPEAKER));
 
     const res = await GET(new Request("https://app.test/api/events/9/speakers"), params);
 
@@ -64,7 +65,7 @@ describe("GET /api/events/[id]/speakers", () => {
   });
 
   it("refuses an unassigned speaker before reading the roster", async () => {
-    requireRole.mockResolvedValue(speaker("speaker"));
+    requireRole.mockResolvedValue(speaker(ROLES.SPEAKER));
     speakerDao.isAssignedByUserId.mockResolvedValue(false);
 
     const res = await GET(new Request("https://app.test/api/events/9/speakers"), params);
@@ -75,7 +76,7 @@ describe("GET /api/events/[id]/speakers", () => {
   });
 
   it("lets staff through without the assignment check", async () => {
-    requireRole.mockResolvedValue(speaker("facilitator"));
+    requireRole.mockResolvedValue(speaker(ROLES.FACILITATOR));
 
     const res = await GET(new Request("https://app.test/api/events/9/speakers"), params);
 
@@ -95,7 +96,7 @@ describe("GET /api/events/[id]/speakers", () => {
 
 describe("POST /api/events/[id]/speakers", () => {
   it("lets an assigned facilitator assign a speaker", async () => {
-    requireAuth.mockResolvedValue(staffUser(9, "facilitator"));
+    requireAuth.mockResolvedValue(staffUser(9, ROLES.FACILITATOR));
 
     const res = await post();
 
@@ -106,7 +107,7 @@ describe("POST /api/events/[id]/speakers", () => {
   });
 
   it("refuses a facilitator who is not assigned to the event", async () => {
-    requireAuth.mockResolvedValue(staffUser(9, "facilitator"));
+    requireAuth.mockResolvedValue(staffUser(9, ROLES.FACILITATOR));
     facilitatorIsAssigned.mockResolvedValue(false);
 
     const res = await post();
@@ -117,7 +118,7 @@ describe("POST /api/events/[id]/speakers", () => {
   });
 
   it("refuses a caller below facilitator", async () => {
-    requireAuth.mockResolvedValue(staffUser(5, "attendee"));
+    requireAuth.mockResolvedValue(staffUser(5, ROLES.ATTENDEE));
 
     const res = await post();
 

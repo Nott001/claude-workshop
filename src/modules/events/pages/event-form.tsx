@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Toast } from "@/shared/components/toast";
@@ -12,7 +13,7 @@ export function EventFormPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams();
   const isEdit = mode === "edit";
   const eventId = isEdit ? (params.id as string) : "";
-  const { allowed, pending } = useRoleGuard(isEdit ? "facilitator" : "admin");
+  const { allowed, pending } = useRoleGuard(isEdit ? ROLES.FACILITATOR : ROLES.ADMIN);
   const [initialData, setInitialData] = useState<Record<string, unknown> | null>(isEdit ? null : {});
   const [showToast, setShowToast] = useState(false);
 

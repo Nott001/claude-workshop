@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as dao from "@/shared/db/dao/chat-message.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -27,7 +28,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("chat-message.dao reads", () => {
   it("carries the sender's name and role alongside a message", async () => {
-    const { client, calls } = stub({ data: { id: 1, USER: { full_name: "Ana", role: "attendee" } } });
+    const { client, calls } = stub({ data: { id: 1, USER: { full_name: "Ana", role: ROLES.ATTENDEE } } });
 
     await expect(dao.findMessageWithUser(client, 1)).resolves.toMatchObject({ USER: { full_name: "Ana" } });
     expect(argsOf(calls, "select")).toEqual(["*, USER:user_id(full_name, role)"]);

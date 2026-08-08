@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
@@ -8,7 +9,7 @@ export async function GET() {
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, "facilitator")) {
+  if (!user || !hasMinRole(user.role, ROLES.FACILITATOR)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -31,8 +32,8 @@ export async function POST(req: Request) {
   const supportType = body.support_type ?? "general";
 
   const isOwn = targetUserId === user.id;
-  const minRole = supportType === "general" ? "admin" : "facilitator";
-  const isStaff = hasMinRole(user.role, minRole as "admin" | "facilitator");
+  const minRole = supportType === "general" ? ROLES.ADMIN : ROLES.FACILITATOR;
+  const isStaff = hasMinRole(user.role, minRole as (typeof ROLES)["ADMIN" | "FACILITATOR"]);
 
   if (!isOwn && !isStaff) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

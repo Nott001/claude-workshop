@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
 import type { AuthUser } from "./types";
@@ -17,7 +18,7 @@ export async function ensureUser(supabase: ReturnType<typeof getServiceClient>, 
     auth_user_id: authUserId,
     email,
     full_name,
-    role: invitedRole ?? "attendee",
+    role: invitedRole ?? ROLES.ATTENDEE,
   });
 
   if (!created) return null;

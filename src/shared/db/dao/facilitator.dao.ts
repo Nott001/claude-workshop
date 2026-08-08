@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "./types";
 import type { User } from "@/shared/types";
 
@@ -17,7 +18,7 @@ export async function listCandidates(supabase: DbClient): Promise<FacilitatorCan
   const { data } = await supabase
     .from("USER")
     .select("id, full_name, email")
-    .eq("role", "facilitator")
+    .eq("role", ROLES.FACILITATOR)
     .order("full_name", { ascending: true });
   return data ?? [];
 }
@@ -54,7 +55,7 @@ export async function replaceEventAssignments(
   userIds: number[],
   assignedBy: number,
 ): Promise<boolean> {
-  const { data: valid } = await supabase.from("USER").select("id").in("id", userIds).eq("role", "facilitator");
+  const { data: valid } = await supabase.from("USER").select("id").in("id", userIds).eq("role", ROLES.FACILITATOR);
   const validIds = (valid ?? []).map((u: { id: number }) => u.id);
 
   const { error: deleteError } = await supabase.from("EVENT_FACILITATOR").delete().eq("event_id", eventId);

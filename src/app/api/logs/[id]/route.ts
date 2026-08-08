@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
@@ -5,7 +6,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

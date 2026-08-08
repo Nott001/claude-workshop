@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireRole, dao, isAssigned, isAssignedByUserId, storage, logAuditEvent } = vi.hoisted(() => ({
@@ -27,10 +28,10 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
 
 import { GET, PATCH, DELETE } from "@/app/api/courses/[id]/route";
 
-const OWNER = { allowed: true, error: null, user: { id: 5, role: "speaker" } };
-const OTHER_SPEAKER = { allowed: true, error: null, user: { id: 9, role: "speaker" } };
-const FACILITATOR = { allowed: true, error: null, user: { id: 9, role: "facilitator" } };
-const ADMIN = { allowed: true, error: null, user: { id: 9, role: "admin" } };
+const OWNER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
+const OTHER_SPEAKER = { allowed: true, error: null, user: { id: 9, role: ROLES.SPEAKER } };
+const FACILITATOR = { allowed: true, error: null, user: { id: 9, role: ROLES.FACILITATOR } };
+const ADMIN = { allowed: true, error: null, user: { id: 9, role: ROLES.ADMIN } };
 
 const params = { params: Promise.resolve({ id: "7" }) };
 const VALID_BODY = { course_name: "Fundamentals", course_description: "Week one", event_id: 3 };
