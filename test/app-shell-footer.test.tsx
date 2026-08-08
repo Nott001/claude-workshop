@@ -8,12 +8,12 @@ vi.mock("next/navigation", () => ({ usePathname }));
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
-vi.mock("@/shared/components/navbar", () => ({ Navbar: () => null }));
-vi.mock("@/modules/support/components/floating-assist-button", () => ({
+vi.mock("@/modules/shell/components/navbar", () => ({ Navbar: () => null }));
+vi.mock("@/modules/shell/components/floating-assist-button", () => ({
   FloatingAssistButton: () => null,
 }));
 
-import { AppShell } from "@/shared/components/app-shell";
+import { AppShell } from "@/modules/shell/components/app-shell";
 
 afterEach(() => {
   cleanup();

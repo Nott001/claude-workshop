@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
-import { Navbar } from "@/shared/components/navbar";
+import { Navbar } from "@/modules/shell/components/navbar";
 
 function renderAs(role: string | null) {
   useSession.mockReturnValue({

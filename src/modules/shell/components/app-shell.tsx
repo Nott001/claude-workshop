@@ -3,11 +3,11 @@
 import { ROLES } from "@/shared/lib/roles";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
-import { Navbar } from "@/shared/components/navbar";
-import { FloatingAssistButton } from "@/modules/support/components/floating-assist-button";
+import { Navbar } from "@/modules/shell/components/navbar";
+import { FloatingAssistButton } from "@/modules/shell/components/floating-assist-button";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { ErrorBoundary } from "@/shared/components/error-boundary";
-import { Footer } from "@/shared/components/footer";
+import { ErrorBoundary } from "@/modules/shell/components/error-boundary";
+import { Footer } from "@/modules/shell/components/footer";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
