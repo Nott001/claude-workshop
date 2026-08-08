@@ -29,14 +29,14 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
 }));
 
-import { GET, PATCH, DELETE } from "@/app/api/courses/[id]/route";
+import { GET, PATCH, DELETE } from "@/app/api/courses/[courseId]/route";
 
 const OWNER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
 const OTHER_SPEAKER = { allowed: true, error: null, user: { id: 9, role: ROLES.SPEAKER } };
 const FACILITATOR = { allowed: true, error: null, user: { id: 9, role: ROLES.FACILITATOR } };
 const ADMIN = { allowed: true, error: null, user: { id: 9, role: ROLES.ADMIN } };
 
-const params = { params: Promise.resolve({ id: "7" }) };
+const params = { params: Promise.resolve({ courseId: "7" }) };
 const VALID_BODY = { course_name: "Fundamentals", course_description: "Week one", event_id: 3 };
 
 function patch(body: unknown) {
@@ -60,7 +60,7 @@ beforeEach(() => {
   logAuditEvent.mockResolvedValue(undefined);
 });
 
-describe("GET /api/courses/[id]", () => {
+describe("GET /api/courses/[courseId]", () => {
   it("refuses a caller the guard turned away", async () => {
     requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
@@ -96,7 +96,7 @@ describe("GET /api/courses/[id]", () => {
   });
 });
 
-describe("PATCH /api/courses/[id]", () => {
+describe("PATCH /api/courses/[courseId]", () => {
   it("lets the owner edit their own course", async () => {
     isAssignedByUserId.mockResolvedValue(true);
     const res = await PATCH(patch(VALID_BODY), params);
@@ -161,7 +161,7 @@ describe("PATCH /api/courses/[id]", () => {
   });
 });
 
-describe("DELETE /api/courses/[id]", () => {
+describe("DELETE /api/courses/[courseId]", () => {
   it("lets an assigned facilitator delete the course they manage", async () => {
     requireRole.mockResolvedValue(FACILITATOR);
     isAssigned.mockResolvedValue(true);

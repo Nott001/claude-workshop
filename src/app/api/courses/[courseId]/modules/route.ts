@@ -8,14 +8,14 @@ import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireCourseAccess } from "@/modules/courses/lib/course-access";
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
-  const { id } = await params;
-  const accessError = await requireCourseAccess(Number(id), guard.user.id, guard.user.role);
+  const { courseId } = await params;
+  const accessError = await requireCourseAccess(Number(courseId), guard.user.id, guard.user.role);
   if (accessError) return accessError;
   const supabase = getServiceClient();
 
@@ -26,7 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const mod = await courseDao.createModule(supabase, {
-    course_id: Number(id),
+    course_id: Number(courseId),
     module_name: parsed.data.module_name,
     sequence_order: parsed.data.sequence_order,
     module_type: parsed.data.module_type,
@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   await requireAuditEvent(supabase, guard.user.id, "module.created", "module", mod.id, {
-    course_id: Number(id),
+    course_id: Number(courseId),
     name: mod.module_name,
   });
 
