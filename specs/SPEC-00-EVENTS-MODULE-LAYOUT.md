@@ -27,7 +27,7 @@ src/modules/events/
 ```
 
 - App-tree `page.tsx` files are thin shells: they render the module's page
-  component (e.g. `<EventRoom variant="staff" />`) or re-export it, and keep any
+  component or re-export it, and keep any
   `metadata`/`generateMetadata`/segment-config exports local to the app tree.
 - API `route.ts` handlers **stay in the app tree** as Next.js adapters (they use
   `NextResponse`, `req`, `params`); their domain logic lives in
@@ -42,7 +42,7 @@ src/modules/events/
   attendance/check-in code — a live attendee feed over `subscribeToCheckins` used
   only to verify a registered user's access to the in-person event. The events
   module never renders it (staff shows a count via `use-event-detail`), so it has
-  no bearing on the event room. Relocating it removes the cross-module dependency
+  no bearing on the course room (SPEC-05). Relocating it removes the cross-module dependency
   entirely: after the move no kiosk file imports events and no events file imports
   kiosk (the boundary test pins this).
 - Rename `lib/session-timeline.ts` → `lib/timeline.ts` to end the collision with

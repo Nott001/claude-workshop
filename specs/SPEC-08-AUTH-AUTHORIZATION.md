@@ -48,8 +48,8 @@ facilitator/speaker act on any record.
     facilitator (unassign).
   - `api/courses/[id]/route.ts:12` — GET `requireCourseAccess` (like PATCH/DELETE);
     any speaker no longer reads any course tree.
-  - `api/events/[id]/live/highlight/route.ts:44,102` — admin+ or assigned
-    facilitator/speaker (SPEC-03 matrix).
+  - `api/courses/[courseId]/live/highlight/route.ts` — admin+ or assigned
+    facilitator/speaker for that course (SPEC-03 matrix; route re-keyed by SPEC-05).
   - `api/qa/message/[messageId]/route.ts:12` — only the asker, or admin+ / a
     facilitator or speaker assigned to that course.
   - `api/support/[messageId]/route.ts:12` — only a participant, or admin+ / the
@@ -58,9 +58,9 @@ facilitator/speaker act on any record.
 - Standardize the page guards that bypass `useRoleGuard`:
   - `staff/courses/page.tsx:26,50` — render a redirect instead of returning `null`
     (currently a permanently blank page).
-  - `kiosk/page.tsx:19-24,46`, `staff/events/[id]/room/page.tsx:24-27,73` — keep
-    their current behavior but route through `useRoleGuard`-style handling where
-    practical.
+  - `kiosk/page.tsx:19-24,46`, `courses/[courseId]/room/page.tsx` (the unified
+    room, SPEC-05) — keep their current behavior but route through
+    `useRoleGuard`-style handling where practical.
 - Middleware: add `/speaker/*` to the auth-gated paths (`middleware.ts:28-35`) so
   unauthenticated visitors are 302'd instead of served the shell + spinner.
 

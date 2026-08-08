@@ -63,6 +63,11 @@ Migration defects:
     obligations if that is the rule, and orphaned order history is preserved.
   - `ALTER SEQUENCE support_case_seq OWNED BY <table>.<column>` — target the
     primary-key column of the support-case table so the sequence dies with its row.
+- **New migration** `00014_live_session_state_course.sql` (SPEC-05): re-keys
+  `LIVE_SESSION_STATE` to `course_id` (backfill from `COURSE.event_id`, new PK,
+  FK → COURSE ON DELETE CASCADE, drop `event_id`); grants/RLS unchanged. In the
+  same migration drop `LIVE_SESSION_STATE` from `supabase_realtime` — it has zero
+  consumers (the highlight is SWR-polled), so the publication entry is dead.
 - **Renumber the duplicate files** (content untouched) so each number is unique:
   - `00009_course_event_owned.sql` → `00012_course_event_owned.sql`
   - `00010_module_schedule.sql` → `00013_module_schedule.sql`
@@ -70,6 +75,8 @@ Migration defects:
     keep their numbers; no `00011` exists yet, the new migration takes it.)
   - Files replay in numeric order after the rename; verify against the apply tool's
     ordering (alphabetical or numeric) before finalizing.
+  - `00014` is reserved by SPEC-05 for the `LIVE_SESSION_STATE` re-key (sits after
+    the 00012/00013 renames).
 
 ## Non-goals
 

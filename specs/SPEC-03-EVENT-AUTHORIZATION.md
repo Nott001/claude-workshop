@@ -15,10 +15,13 @@ Today's guards check roles, not assignments:
   `requireRole("facilitator")` with no check that the caller actually manages the
   event — any facilitator can edit/delete any event.
 - The highlight POST/DELETE gate on `requireRole("speaker")` with no check the
-  caller is assigned to that event's course — any speaker can toggle any highlight.
+  caller is assigned to the course — any speaker can toggle any highlight. SPEC-05
+  re-keys the highlight to the course, so this hole closes under the courses-module
+  guard, not here.
 - `canManageEvent` in `src/modules/courses/lib/course-access.ts` already implements
-  the correct rule (admin+, assigned facilitator, assigned speaker) but lives in
-  courses; events must not import courses.
+  the correct rule (admin+, assigned facilitator, assigned speaker) and stays in
+  courses; the course-room guard consumes it (SPEC-05), so `event-service` must not
+  reimplement it. The boundary allows events → courses and forbids courses → events.
 
 ## Changes
 
@@ -26,6 +29,7 @@ Today's guards check roles, not assignments:
   `facilitator.dao`, `speaker.dao` and the `EVENT_COURSE` link) plus a
   `loadEventOr403`-style guard helper to the `event-service` created in SPEC-02.
 - Capability matrix (the single source of truth):
+
   | action         | admin+ | assigned facilitator | assigned speaker |
   | -------------- | ------ | -------------------- | ---------------- |
   | create         | no     | no (organizers only) | no               |
@@ -33,12 +37,17 @@ Today's guards check roles, not assignments:
   | delete         | yes    | no                   | no               |
   | publish        | yes    | yes                  | no               |
   | list attendees | yes    | yes                  | no               |
-  | highlight set  | yes    | yes                  | yes              |
   | register       | yes    | yes                  | yes              |
+
+  `highlight set` is not in this matrix: once SPEC-05 lands, the highlight is a
+  course resource whose gate (admin+, assigned facilitator/speaker) lives in the
+  courses module, not on an event action.
+
 - `src/modules/courses/lib/course-access.ts` `canManageEvent` delegates to the new
   `event-service` instead of its own body (behavior identical).
-- Room pages and the register/highlight client flows keep their current UX guards;
-  the server-side policy is what hardens.
+- The unified course room (SPEC-05) keeps its current UX guards; the highlight gate
+  is the courses-module assignment check. Event register flows keep their UX guards
+  too; the server-side policy is what hardens.
 
 ## Non-goals
 
@@ -50,7 +59,8 @@ Today's guards check roles, not assignments:
 ## Files touched
 
 - `src/modules/events/lib/event-service.ts` (extended in SPEC-03)
-- `src/modules/courses/lib/course-access.ts` (delegate `canManageEvent`)
+- `src/modules/courses/lib/course-access.ts` (unchanged; the course-room guard
+  consumes it per SPEC-05)
 - 6 app-tree handlers under `src/app/api/events/**/route.ts` (use the new guard)
 - Tests: new `test/event-service.test.ts`; update role-guard tests in api-handler
   suites (facilitator-without-assignment now 403s; assigned speaker may set highlight)
@@ -58,5 +68,6 @@ Today's guards check roles, not assignments:
 ## Verification
 
 - `pnpm test` green, including the new denial cases (unassigned facilitator → 403
-  on PATCH/DELETE/publish/attendees; unassigned speaker → 403 on highlight).
+  on PATCH/DELETE/publish/attendees; unassigned speaker → 403 on the course
+  highlight).
 - `pnpm cf:build` succeeds.

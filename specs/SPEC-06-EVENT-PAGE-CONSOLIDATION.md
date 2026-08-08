@@ -8,7 +8,8 @@ wiring shared by the staff dashboard and the speaker course page.
 
 ## Background
 
-With the room unified (SPEC-05), the remaining event pages are still written three
+With the room unified and moved to `/courses/[courseId]/room` (SPEC-05), the
+remaining event pages are still written three
 ways across `/events`, `/staff/events`, and `/speaker/event`. Meanwhile three
 `src/app/events/[id]/` pages are dead weight: `speakers/page.tsx` and
 `support/page.tsx` are redirect stubs, and `edit/page.tsx` is an ungated page whose
@@ -17,6 +18,9 @@ PATCH always 403s for attendees. And `courses/components/CourseSection`
 the same ~40 lines of course-builder wiring.
 
 ## Changes
+
+- The unified room is NOT an events `pages/` component — SPEC-05 moves it to the
+  courses module at `/courses/[courseId]/room`; nothing here relocates it.
 
 - Move each remaining event page's body into `src/modules/events/pages/` and leave
   the app-tree `page.tsx` files as thin shells that render the module component (or
@@ -41,7 +45,8 @@ the same ~40 lines of course-builder wiring.
 
 ## Non-goals
 
-- No URL restructuring.
+- No URL restructuring. The room's move to `/courses/[courseId]/room` is SPEC-05's
+  (a course page); this rule covers the event trees only.
 - No new auth surface beyond what `event-service` (SPEC-03) already provides.
 - Kiosk/check-in remains out of scope.
 

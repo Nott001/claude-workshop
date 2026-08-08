@@ -24,8 +24,10 @@ AGENTS.md requires small, single-purpose modules. Three files have grown past th
   (pure field groups) and `lib/event-form-schema.ts` (create/edit validation);
   `event-form.tsx` keeps the shell + mode switching.
 - `lib/use-room-access.ts` — split already done: `lib/room-access-policy.ts`
-  (`canAccessRoom`) exists and is imported, so nothing to extract here. The
-  live-module/`assignedSpeakerCount` wiring it gained is SPEC-05/SPEC-12 territory.
+  (`canAccessRoom`) exists and is imported, so nothing to extract here. SPEC-05
+  renames it to `use-course-room-access` and moves it into
+  `src/modules/courses/lib/` — it is no longer an events-module file, and the
+  live-module/`assignedSpeakerCount` wiring follows it there.
 - `lib/use-event-detail.ts` — no split: the fetch + status derivation stays put, and
   there is no timeline assembly to extract (`lib/timeline.ts` is SPEC-00's renamed
   roadmap builder — a different thing, the event-detail page does not build one).

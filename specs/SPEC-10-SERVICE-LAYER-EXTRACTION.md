@@ -37,6 +37,10 @@ modules have no server-side logic to test.
     `cleanupStaleAccounts`, `generateInviteLink`, `sendInviteEmail`.
   - `src/modules/events/lib/event-service.ts` (extended) — the DELETE cascade walk
     moves from `api/events/[id]/route.ts` into `deleteEventWithDependencies`.
+  - Sequencing: the highlight route is NOT extracted into an events service here.
+    SPEC-05 re-keys it to `/api/courses/[courseId]/live/highlight` and moves its
+    domain into `src/modules/courses/lib/live-session-service.ts`; if SPEC-05 has
+    not run yet, leave that handler alone in this spec.
 - Each service function takes `(supabase, ...args)` — no `Request`/`Response`/
   `NextResponse` in its signature.
 - The four route handlers shrink to: run the SPEC-08 guard, parse input, call the

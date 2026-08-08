@@ -52,6 +52,16 @@ buy nothing — vitest already imports `@/app/api/events/route` directly and cal
 - New `test/event-service.test.ts`; api-handler tests updated only where they
   asserted internals the service now owns
 
+## Amendment (post-SPEC-02 review)
+
+The three highlight functions extracted into `event-service` carry the only inline
+`supabase.from` chains left in the events module (`LIVE_SESSION_STATE` upserts/reads
+and the `COURSE` lookups). They are interim: SPEC-05 re-homes live session state to
+the courses module (course-keyed) and removes the highlight functions from
+`event-service`, and `deleteEvent`'s `COURSE` lookup is replaced by
+`course.dao.findCourseIdByEventId`. Net after SPEC-05: `event-service` holds only
+event-domain operations and no inline supabase.
+
 ## Verification
 
 - `pnpm test` — service tests and api-handler tests pass against the same URLs.

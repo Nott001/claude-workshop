@@ -17,7 +17,9 @@ The DAO layer has systemic error-handling problems:
   `speaker.dao.ts:15-18,22-24`, `user.dao.ts:4-7,9-12`, `ticket.dao.ts:42-55`,
   `payment.dao.ts:9-12`, `email.dao.ts:9-12`, `qa-message.dao.ts:62-65`,
   `chat-message.dao.ts:4-10,101-107`). The correct `.maybeSingle()` pattern already
-  exists (`support-session.dao.ts:35`, `payment.dao.ts:33-41,49-58`).
+  exists (`support-session.dao.ts:35`, `payment.dao.ts:33-41,49-58`). The new
+  `live-session.dao` `findStateWithLesson` (SPEC-05, courses module) uses
+  `.single()` and must get the same treatment.
 - List queries have no `.range()`/`.limit()` — every event, ticket, payment, email
   log row is fetched (`event.dao.list:53-90`, `ticket.dao.listAll/listByUser`,
   `payment.dao.listAll/listByUser`, `email.dao.list:14-44`,
@@ -77,7 +79,8 @@ The DAO layer has systemic error-handling problems:
 
 - DAOs: `event.dao`, `course.dao`, `speaker.dao`, `user.dao`, `ticket.dao`,
   `payment.dao`, `email.dao`, `qa-message.dao`, `chat-message.dao`,
-  `support-session.dao` (post-SPEC-01 locations)
+  `support-session.dao` (post-SPEC-01 locations); `live-session.dao`
+  (post-SPEC-05, courses module)
 - `src/modules/audit/lib/log-audit-event.ts`, `src/modules/notifications/lib/email.ts`
 - Callers of the changed DAO signatures in `src/app/api/**` and module services
 - Tests: extend DAO tests with failure-path cases (`.error` surfaces, empty-array
