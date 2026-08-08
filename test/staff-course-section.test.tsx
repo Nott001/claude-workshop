@@ -6,13 +6,9 @@ import { CourseSection } from "@/modules/events/pages/staff-event-detail";
 
 vi.mock("@/modules/courses/lib/use-course-by-event", () => ({ useCourseByEvent: vi.fn() }));
 vi.mock("@/modules/courses/lib/use-course-create", () => ({ useCourseCreate: vi.fn() }));
-vi.mock("@/modules/events/lib/use-event-speakers", () => ({ useEventSpeakers: vi.fn() }));
-vi.mock("@/modules/events/lib/use-assigned-speakers", () => ({ useAssignedSpeakers: vi.fn() }));
 
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
-import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
-import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
 
 const noop = vi.fn();
 
@@ -39,12 +35,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
   const create = useCourseCreate as unknown as ReturnType<typeof vi.fn>;
-  const speakers = useEventSpeakers as unknown as ReturnType<typeof vi.fn>;
-  const assigned = useAssignedSpeakers as unknown as ReturnType<typeof vi.fn>;
   byEvent.mockReturnValue({ course: null, loading: false, error: null });
   create.mockReturnValue(emptyBuilder());
-  speakers.mockReturnValue({ assignments: [], loading: false });
-  assigned.mockReturnValue({ speakers: [], loading: false, error: null });
 });
 
 afterEach(() => {
@@ -58,6 +50,8 @@ describe("CourseSection gating", () => {
         eventId="1"
         userRole={ROLES.FACILITATOR}
         canManageCourse={true}
+        eventSpeakers={[]}
+        speakersLoading={false}
         eventStartTime="09:00"
         eventEndTime="17:00"
       />,
@@ -72,6 +66,8 @@ describe("CourseSection gating", () => {
         eventId="1"
         userRole={ROLES.FACILITATOR}
         canManageCourse={false}
+        eventSpeakers={[]}
+        speakersLoading={false}
         eventStartTime="09:00"
         eventEndTime="17:00"
       />,
@@ -90,7 +86,15 @@ describe("CourseSection gating", () => {
     });
 
     render(
-      <CourseSection eventId="1" userRole={ROLES.ADMIN} canManageCourse={true} eventStartTime="09:00" eventEndTime="17:00" />,
+      <CourseSection
+        eventId="1"
+        userRole={ROLES.ADMIN}
+        canManageCourse={true}
+        eventSpeakers={[]}
+        speakersLoading={false}
+        eventStartTime="09:00"
+        eventEndTime="17:00"
+      />,
     );
 
     expect(screen.getByText("Intro to Cloudflare")).toBeTruthy();
@@ -103,6 +107,8 @@ describe("CourseSection gating", () => {
         eventId="1"
         userRole={ROLES.ATTENDEE}
         canManageCourse={false}
+        eventSpeakers={[]}
+        speakersLoading={false}
         eventStartTime="09:00"
         eventEndTime="17:00"
       />,
@@ -117,6 +123,8 @@ describe("CourseSection gating", () => {
         eventId="1"
         userRole={ROLES.FACILITATOR}
         canManageCourse={false}
+        eventSpeakers={[]}
+        speakersLoading={false}
         eventStartTime="09:00"
         eventEndTime="17:00"
       />,

@@ -1,14 +1,11 @@
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
+
 export interface LiveModuleSource {
   id: number;
   module_name: string;
   start_time: string | null;
   end_time: string | null;
   SPEAKER_PROFILE?: { id: number; USER: { full_name: string } | null } | null;
-}
-
-export function toDate(eventDate: string, time: string): Date | null {
-  const date = new Date(`${eventDate}T${time}`);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export type SessionStatus = "completed" | "live" | "upcoming";
@@ -26,8 +23,8 @@ export function moduleSessionStatus(
   now: Date,
 ): SessionStatus | null {
   if (!eventDate || !startTime || !endTime) return null;
-  const start = toDate(eventDate, startTime);
-  const end = toDate(eventDate, endTime);
+  const start = parseLocalDateTime(eventDate, startTime);
+  const end = parseLocalDateTime(eventDate, endTime);
   if (!start || !end) return null;
   const t = now.getTime();
   if (t < start.getTime()) return "upcoming";

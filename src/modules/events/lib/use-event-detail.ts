@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { getBadgeProps } from "@/modules/events/lib/schemas";
-import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
@@ -45,6 +45,10 @@ export function useEventDetail(eventId: string) {
         return;
       }
       const data = await res.json();
+      // /api/events/[id] answers the ticket and speaker facts alongside the
+      // event, so access needs no second round-trip and no paged ticket list.
+      setHasTicket(data.hasTicket ?? false);
+      if (data.speakerProfileId) setSpeakerProfileId(data.speakerProfileId);
       setEvent(data);
       setLoading(false);
     }
@@ -53,11 +57,6 @@ export function useEventDetail(eventId: string) {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user) return;
-
-    fetchEventAccess(eventId, user).then((access) => {
-      setHasTicket(access.hasTicket);
-      if (access.speakerProfileId) setSpeakerProfileId(access.speakerProfileId);
-    });
 
     if (hasMinRole(user.role, ROLES.FACILITATOR)) {
       fetch(`/api/events/${eventId}/attendees?limit=5`)
@@ -76,7 +75,8 @@ export function useEventDetail(eventId: string) {
   const isSpeakerAssigned =
     speakerProfileId != null && (event?.EVENT_SPEAKER?.some((es) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
-  const eventStarted = event ? new Date(`${event.event_date}T${event.start_time}`) <= new Date() : true;
+  const eventStart = event ? parseLocalDateTime(event.event_date, event.start_time) : null;
+  const eventStarted = event ? (eventStart ? eventStart <= new Date() : false) : true;
 
   const badgeProps = event ? getBadgeProps(event) : null;
 

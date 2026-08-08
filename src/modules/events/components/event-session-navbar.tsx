@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 
 interface EventSessionNavbarProps {
   eventName: string;
@@ -28,7 +29,8 @@ export function EventSessionNavbar({
   useEffect(() => {
     if (!eventDate || !startTime) return;
     function tick() {
-      const start = new Date(`${eventDate}T${startTime}`);
+      const start = parseLocalDateTime(eventDate, startTime);
+      if (!start) return;
       const now = new Date();
       const diff = start.getTime() - now.getTime();
       if (diff > 0) {
@@ -50,7 +52,8 @@ export function EventSessionNavbar({
     return () => clearInterval(id);
   }, [eventDate, startTime]);
 
-  const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
+  const sessionStart = eventDate && startTime ? parseLocalDateTime(eventDate, startTime) : null;
+  const eventStarted = !!sessionStart && sessionStart <= new Date();
 
   return (
     <div className="flex h-16 shrink-0 items-center border-b border-border bg-surface px-6">

@@ -28,6 +28,7 @@ export default function CourseRoomPage() {
     isStaff,
     liveModule,
     assignedSpeakerCount,
+    isSpeakerAssigned,
     eventStarted,
     eventEnded,
     elapsed,
@@ -151,6 +152,7 @@ export default function CourseRoomPage() {
                           <QAPanel
                             moduleId={mod.id}
                             userRole={userRole as UserRole | null}
+                            isSpeakerAssigned={isSpeakerAssigned}
                             eventStarted={eventStarted}
                             eventEnded={eventEnded}
                             isLocked={mod.is_locked}

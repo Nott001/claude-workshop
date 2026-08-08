@@ -4,6 +4,8 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
+import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -31,5 +33,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
 
   const event = await eventDao.findByIdWithCourse(supabase, course.event_id);
 
-  return NextResponse.json({ course, event });
+  // The ticket and speaker facts are computed here, against the exact event,
+  // so a caller's eligibility never depends on how many rows their own ticket
+  // listing returns.
+  let hasTicket = false;
+  let speakerProfileId: number | null = null;
+  let isSpeakerAssigned = false;
+  if (event) {
+    const [ticket, speakerProfile] = await Promise.all([
+      ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event.id),
+      speakerDao.findByUserId(supabase, user.id),
+    ]);
+    hasTicket = !!ticket;
+    speakerProfileId = speakerProfile?.id ?? null;
+    if (speakerProfileId !== null) {
+      isSpeakerAssigned = await speakerDao.checkSpeakerAssignment(supabase, speakerProfileId, event.id);
+    }
+  }
+
+  return NextResponse.json({ course, event, hasTicket, isSpeakerAssigned, speakerProfileId });
 }

@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/shared/lib/use-event-timer";
 import { findLiveModule } from "@/shared/lib/live-module";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { canAccessCourseRoom } from "@/modules/courses/lib/room-access-policy";
 import { fetchCourseRoomAccess, type CourseRoomCourse } from "@/modules/courses/lib/fetch-course-room-access";
@@ -25,11 +26,14 @@ export function useCourseRoomAccess(courseId: string) {
   const [course, setCourse] = useState<CourseRoomCourse | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [assignedSpeakerCount, setAssignedSpeakerCount] = useState(0);
+  const [isSpeakerAssigned, setIsSpeakerAssigned] = useState(false);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
   const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
-  const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
-  const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
+  const sessionStart = eventDate && startTime ? parseLocalDateTime(eventDate, startTime) : null;
+  const sessionEnd = eventDate && endTime ? parseLocalDateTime(eventDate, endTime) : null;
+  const eventStarted = !!sessionStart && sessionStart <= new Date();
+  const eventEnded = !!sessionEnd && sessionEnd <= new Date();
 
   const liveModule = findLiveModule(course?.MODULE ?? [], eventDate);
 
@@ -67,6 +71,7 @@ export function useCourseRoomAccess(courseId: string) {
       setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
       setAssignedSpeakerCount(eventData.EVENT_SPEAKER?.length ?? 0);
+      setIsSpeakerAssigned(accessData.isSpeakerAssigned);
 
       const gate = canAccessCourseRoom(user.role, accessData);
       if (gate !== "allowed") {
@@ -123,6 +128,7 @@ export function useCourseRoomAccess(courseId: string) {
     isStaff,
     liveModule,
     assignedSpeakerCount,
+    isSpeakerAssigned,
     eventStarted,
     eventEnded,
     elapsed,

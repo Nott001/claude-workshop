@@ -18,19 +18,15 @@ export function usePayments() {
   const [hasMore, setHasMore] = useState(false);
   const pageRef = useRef(1);
 
-  const load = useCallback(async (page: number, append: boolean) => {
+  const load = useCallback(async (page: number): Promise<{ rows: PaymentWithEvent[]; hasMore: boolean; ok: boolean }> => {
     try {
       const res = await fetch(`/api/payments?page=${page}&limit=${PAGE_SIZE}`);
-      if (!res.ok) {
-        setError("Failed to load payments");
-        return;
-      }
+      if (!res.ok) return { rows: [], hasMore: false, ok: false };
       const data = await res.json();
       const rows = (Array.isArray(data.data) ? data.data : []) as PaymentWithEvent[];
-      setPayments((prev) => (append ? [...prev, ...rows] : rows));
-      setHasMore((data.total ?? 0) > page * PAGE_SIZE);
+      return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
     } catch {
-      setError("Failed to load payments");
+      return { rows: [], hasMore: false, ok: false };
     }
   }, []);
 
@@ -44,11 +40,13 @@ export function usePayments() {
     async function loadFirstPage() {
       setLoading(true);
       setError(null);
-      try {
-        await load(1, false);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const result = await load(1);
+      // Not on a superseded run: that one leaves every flag to its replacement.
+      if (cancelled) return;
+      if (!result.ok) setError("Failed to load payments");
+      setPayments(result.rows);
+      setHasMore(result.hasMore);
+      setLoading(false);
     }
 
     loadFirstPage();
@@ -62,7 +60,10 @@ export function usePayments() {
     setLoadingMore(true);
     const next = pageRef.current + 1;
     pageRef.current = next;
-    await load(next, true);
+    const result = await load(next);
+    if (!result.ok) setError("Failed to load payments");
+    setPayments((prev) => [...prev, ...result.rows]);
+    setHasMore(result.hasMore);
     setLoadingMore(false);
   }, [load, loadingMore]);
 

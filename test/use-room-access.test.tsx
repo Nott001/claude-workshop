@@ -144,6 +144,19 @@ describe("useCourseRoomAccess", () => {
     expect(speaker.current.isStaff).toBe(true);
   });
 
+  it("surfaces the server-side speaker assignment fact", async () => {
+    const { result } = renderHook(() => useCourseRoomAccess("9"));
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+    expect(result.current.isSpeakerAssigned).toBe(false);
+
+    cleanup();
+    fetchCourseRoomAccess.mockResolvedValue(roomData({ isSpeakerAssigned: true }));
+
+    const { result: assigned } = renderHook(() => useCourseRoomAccess("9"));
+    await waitFor(() => expect(assigned.current.access).toBe("allowed"));
+    expect(assigned.current.isSpeakerAssigned).toBe(true);
+  });
+
   it("reads the highlighted lesson the room is polling for", async () => {
     const { result } = renderHook(() => useCourseRoomAccess("9"));
 

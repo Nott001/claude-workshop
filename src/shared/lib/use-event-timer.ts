@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 
 export function useEventTimer(eventDate: string, startTime: string, endTime: string) {
   const [elapsed, setElapsed] = useState("00:00:00");
@@ -9,8 +10,9 @@ export function useEventTimer(eventDate: string, startTime: string, endTime: str
   useEffect(() => {
     if (!eventDate || !startTime) return;
     function tick() {
-      const start = new Date(`${eventDate}T${startTime}`);
-      const end = endTime ? new Date(`${eventDate}T${endTime}`) : null;
+      const start = parseLocalDateTime(eventDate, startTime);
+      if (!start) return;
+      const end = endTime ? parseLocalDateTime(eventDate, endTime) : null;
       const now = new Date();
 
       const elapsedMs = now.getTime() - start.getTime();

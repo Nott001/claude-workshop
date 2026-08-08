@@ -14,8 +14,12 @@ export const DEFAULT_PAGE_LIMIT = 50;
  * floor and ceiling.
  */
 export function pageBounds(options?: PageOptions): { from: number; to: number; page: number; limit: number } {
-  const page = Math.max(1, options?.page ?? 1);
-  const limit = Math.max(1, Math.min(options?.limit ?? DEFAULT_PAGE_LIMIT, 100));
+  // NaN or Infinity (e.g. `Number("abc")` from a query string) must not leak
+  // into the range math — `Math.max(1, NaN)` is NaN, and a NaN from/to makes
+  // PostgREST answer with no rows at all.
+  const { page: rawPage = 1, limit: rawLimit = DEFAULT_PAGE_LIMIT } = options ?? {};
+  const page = Math.max(1, Number.isFinite(rawPage) ? Math.floor(rawPage) : 1);
+  const limit = Math.max(1, Math.min(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : DEFAULT_PAGE_LIMIT, 100));
   const from = (page - 1) * limit;
   return { from, to: from + limit - 1, page, limit };
 }

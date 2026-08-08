@@ -222,3 +222,48 @@ describe("course.dao userHasCourseAccess", () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("course.dao reads throw on a failed query", () => {
+  it("findCourseIdByEventId does not read a null off a dead database", async () => {
+    const { client } = stub({ COURSE: { data: null, error: { message: "connection reset" } } });
+
+    await expect(dao.findCourseIdByEventId(client, 9)).rejects.toThrow("course.dao.findCourseIdByEventId failed");
+  });
+
+  it("listCoursesWithEvents does not answer an empty page off a dead database", async () => {
+    const { client } = stub({ COURSE: { data: null, error: { message: "connection reset" } } });
+
+    await expect(dao.listCoursesWithEvents(client)).rejects.toThrow("course.dao.listCoursesWithEvents failed");
+  });
+
+  it("listCoursesWithEvents surfaces a failed event lookup rather than dropping courses", async () => {
+    const { client } = stub({
+      COURSE: { data: [{ id: 1, event_id: 9 }] },
+      EVENT: { data: null, error: { message: "denied" } },
+    });
+
+    await expect(dao.listCoursesWithEvents(client)).rejects.toThrow("course.dao.listCoursesWithEvents.events failed");
+  });
+
+  it("findModulesByCourse does not report no modules off a dead database", async () => {
+    const { client } = stub({ MODULE: { data: null, error: { message: "connection reset" } } });
+
+    await expect(dao.findModulesByCourse(client, 1)).rejects.toThrow("course.dao.findModulesByCourse failed");
+  });
+
+  it("findLessonsByModule does not report no lessons off a dead database", async () => {
+    const { client } = stub({ LESSON: { data: null, error: { message: "connection reset" } } });
+
+    await expect(dao.findLessonsByModule(client, 2)).rejects.toThrow("course.dao.findLessonsByModule failed");
+  });
+
+  it("userHasCourseAccess surfaces a failed speaker lookup rather than a refusal", async () => {
+    const { client } = stub({
+      COURSE: { data: { event_id: 9 } },
+      TICKET: { data: null },
+      EVENT_SPEAKER: { data: null, error: { message: "denied" } },
+    });
+
+    await expect(dao.userHasCourseAccess(client, 3, 1)).rejects.toThrow("course.dao.userHasCourseAccess.speaking failed");
+  });
+});

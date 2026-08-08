@@ -9,13 +9,22 @@ import { MessageComposer } from "./message-composer";
 interface QAPanelProps {
   moduleId: number;
   userRole: UserRole | null;
+  isSpeakerAssigned: boolean;
   eventStarted: boolean;
   eventEnded: boolean;
   isLocked: boolean;
   onToggleLock: () => void;
 }
 
-export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, isLocked, onToggleLock }: QAPanelProps) {
+export default function QAPanel({
+  moduleId,
+  userRole,
+  isSpeakerAssigned,
+  eventStarted,
+  eventEnded,
+  isLocked,
+  onToggleLock,
+}: QAPanelProps) {
   const [messages, setMessages] = useState<QaMessageWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
@@ -25,6 +34,10 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isStaff = isChatStaff(userRole);
+  // The server admits admins, facilitators and assigned speakers (course team);
+  // the client floor mirrors that so the delete/lock controls do not hide work
+  // the API would allow, or promise work it would refuse for unassigned staff.
+  const canModerate = isStaff || isSpeakerAssigned;
 
   useEffect(() => {
     fetch(`/api/qa/module/${moduleId}`)
@@ -103,7 +116,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
             </span>
           )}
         </div>
-        {isStaff && (
+        {canModerate && (
           <button
             onClick={onToggleLock}
             className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
@@ -144,7 +157,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
                     </span>
                   </div>
                   <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
-                  {isStaff && (
+                  {canModerate && (
                     <button
                       onClick={() => handleDelete(msg.id)}
                       className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"

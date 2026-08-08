@@ -1,16 +1,20 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned } = vi.hoisted(() => ({
+const { requireAuth, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned, ticketDao, speakerDao } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   findByIdWithCourse: vi.fn(),
   getAttendeeCount: vi.fn(),
   facilitatorIsAssigned: vi.fn(),
+  ticketDao: { findActiveTicketByUserAndEvent: vi.fn() },
+  speakerDao: { findByUserId: vi.fn(), checkSpeakerAssignment: vi.fn() },
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
+vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/modules/events/db/event.dao", () => ({
   findByIdWithCourse,
   getAttendeeCount,
@@ -22,7 +26,7 @@ vi.mock("@/shared/db/dao/facilitator.dao", () => ({
   isAssigned: facilitatorIsAssigned,
   replaceEventAssignments: vi.fn(),
 }));
-vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: vi.fn() }));
+vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 
 import { GET } from "@/app/api/events/[id]/route";
 
@@ -49,6 +53,9 @@ beforeEach(() => {
   });
   getAttendeeCount.mockResolvedValue(3);
   facilitatorIsAssigned.mockResolvedValue(true);
+  ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
+  speakerDao.findByUserId.mockResolvedValue(null);
+  speakerDao.checkSpeakerAssignment.mockResolvedValue(false);
 });
 
 describe("GET /api/events/[id] facilitator assignment scoping", () => {
@@ -87,5 +94,19 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
 
     expect(res.status).toBe(200);
     expect(facilitatorIsAssigned).not.toHaveBeenCalled();
+  });
+
+  it("answers the caller's ticket and speaker facts alongside the event", async () => {
+    requireAuth.mockResolvedValue(staffUser(ROLES.ATTENDEE));
+    ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 11, event_id: 1, status: "issued" });
+    speakerDao.findByUserId.mockResolvedValue({ id: 22, user_id: 9 });
+    speakerDao.checkSpeakerAssignment.mockResolvedValue(true);
+
+    const res = await get();
+
+    expect(ticketDao.findActiveTicketByUserAndEvent).toHaveBeenCalledWith(expect.anything(), 9, 1);
+    await expect(res.json()).resolves.toEqual(
+      expect.objectContaining({ hasTicket: true, isSpeakerAssigned: true, speakerProfileId: 22 }),
+    );
   });
 });

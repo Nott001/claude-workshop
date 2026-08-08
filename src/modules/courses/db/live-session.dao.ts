@@ -1,11 +1,18 @@
 import type { DbClient } from "@/shared/db/dao/types";
 import { throwOnDbError } from "@/shared/db/dao/helpers";
+import type { ContentType } from "@/shared/types";
+
+export type CourseHighlightLesson = {
+  id: number;
+  description: string;
+  content_type: ContentType;
+};
 
 export type CourseHighlightStateRow = {
   highlighted_lesson_id: number | null;
   updated_by: number | null;
   updated_at: string | null;
-  LESSON?: { id: number; description: string; content_type: string } | null;
+  LESSON?: CourseHighlightLesson | null;
 };
 
 export async function findStateWithLesson(supabase: DbClient, courseId: number): Promise<CourseHighlightStateRow | null> {

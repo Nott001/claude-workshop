@@ -5,15 +5,14 @@ import { CourseServiceError } from "@/modules/courses/lib/course-errors";
 
 export type CourseActor = { id: number };
 
-export async function getCourseHighlight(
-  supabase: DbClient,
-  courseId: number,
-): Promise<{
+export type CourseHighlight = {
   highlighted_lesson_id: number | null;
   updated_by: number | null;
   updated_at: string | null;
-  lesson: unknown;
-}> {
+  lesson: liveSessionDao.CourseHighlightLesson | null;
+};
+
+export async function getCourseHighlight(supabase: DbClient, courseId: number): Promise<CourseHighlight> {
   const course = await courseDao.findCourseById(supabase, courseId);
   if (!course) {
     throw new CourseServiceError(404, "Course not found");

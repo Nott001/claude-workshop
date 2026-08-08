@@ -18,21 +18,20 @@ export function useTickets() {
   const [hasMore, setHasMore] = useState(false);
   const pageRef = useRef(1);
 
-  const load = useCallback(async (page: number, append: boolean) => {
-    try {
-      const res = await fetch(`/api/tickets?page=${page}&limit=${PAGE_SIZE}`);
-      if (!res.ok) {
-        setError("Failed to load tickets");
-        return;
+  const load = useCallback(
+    async (page: number): Promise<{ rows: TicketWithPaymentAndEvent[]; hasMore: boolean; ok: boolean }> => {
+      try {
+        const res = await fetch(`/api/tickets?page=${page}&limit=${PAGE_SIZE}`);
+        if (!res.ok) return { rows: [], hasMore: false, ok: false };
+        const data = await res.json();
+        const rows = (Array.isArray(data.data) ? data.data : []) as TicketWithPaymentAndEvent[];
+        return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
+      } catch {
+        return { rows: [], hasMore: false, ok: false };
       }
-      const data = await res.json();
-      const rows = (Array.isArray(data.data) ? data.data : []) as TicketWithPaymentAndEvent[];
-      setTickets((prev) => (append ? [...prev, ...rows] : rows));
-      setHasMore((data.total ?? 0) > page * PAGE_SIZE);
-    } catch {
-      setError("Failed to load tickets");
-    }
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -41,11 +40,13 @@ export function useTickets() {
     async function loadFirstPage() {
       setLoading(true);
       setError(null);
-      try {
-        await load(1, false);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const result = await load(1);
+      // Not on a superseded run: that one leaves every flag to its replacement.
+      if (cancelled) return;
+      if (!result.ok) setError("Failed to load tickets");
+      setTickets(result.rows);
+      setHasMore(result.hasMore);
+      setLoading(false);
     }
 
     loadFirstPage();
@@ -59,7 +60,10 @@ export function useTickets() {
     setLoadingMore(true);
     const next = pageRef.current + 1;
     pageRef.current = next;
-    await load(next, true);
+    const result = await load(next);
+    if (!result.ok) setError("Failed to load tickets");
+    setTickets((prev) => [...prev, ...result.rows]);
+    setHasMore(result.hasMore);
     setLoadingMore(false);
   }, [load, loadingMore]);
 

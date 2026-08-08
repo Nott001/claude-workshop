@@ -1,4 +1,3 @@
-import { ROLES } from "@/shared/lib/roles";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import type { ModuleWithLessons } from "@/modules/courses/lib/types";
 
@@ -40,45 +39,22 @@ export interface CourseRoomAccessData extends CourseRoomData {
 }
 
 /**
- * The room's one feed round-trip: `/api/courses/[courseId]/room` returns both
- * the course and its linked event, and the speaker/ticket facts are derived
- * against the event — tickets and assignment are event-scoped, while the room
- * itself is course-keyed.
+ * The room's one feed round-trip: `/api/courses/[courseId]/room` returns the
+ * course, its linked event and the ticket/speaker facts. Those facts are
+ * derived server-side against the exact event, so the client does not page
+ * through the caller's own ticket list to decide admission.
  */
 export async function fetchCourseRoomAccess(courseId: string, user: AuthUser): Promise<CourseRoomAccessData> {
-  const role = user.role;
-
-  const [roomRes, speakerRes, ticketRes] = await Promise.all([
-    fetch(`/api/courses/${courseId}/room`),
-    // /api/auth/me carries the caller's own speaker_profile_id; a speaker is
-    // just a user, so there is no separate /api/speakers/me profile route.
-    role === ROLES.SPEAKER ? fetch("/api/auth/me") : Promise.resolve(null),
-    role !== ROLES.FACILITATOR && role !== ROLES.SPEAKER ? fetch("/api/tickets") : Promise.resolve(null),
-  ]);
-
-  const [room, speakerData, tickets] = await Promise.all([
-    roomRes.ok ? roomRes.json() : Promise.resolve(null),
-    speakerRes?.ok ? speakerRes.json() : Promise.resolve(null),
-    ticketRes?.ok ? ticketRes.json() : Promise.resolve({ data: [] }),
-  ]);
-
-  const eventId = room?.event?.id;
-  const speakerProfileId: number | null = speakerData?.speaker_profile_id ?? null;
-  const isSpeakerAssigned =
-    !!speakerProfileId &&
-    (room?.event?.EVENT_SPEAKER?.some((es: CourseRoomEventSpeaker) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
-
-  const hasTicket = ((tickets?.data ?? []) as Array<{ event_id: number; status: string }>).some(
-    (t) => t.event_id === eventId && t.status !== "cancelled",
-  );
+  const res = await fetch(`/api/courses/${courseId}/room`);
+  const room = res.ok ? await res.json() : null;
 
   return {
     course: room?.course ?? null,
     event: room?.event ?? null,
-    hasTicket,
-    isSpeakerAssigned,
-    speakerProfileId,
+    hasTicket: room?.hasTicket ?? false,
+    isSpeakerAssigned: room?.isSpeakerAssigned ?? false,
+    speakerProfileId: room?.speakerProfileId ?? null,
     userId: user.id,
-    userRole: role,
+    userRole: user.role,
   };
 }

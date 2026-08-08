@@ -9,9 +9,9 @@ import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
-import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
+import type { CourseSpeaker } from "@/modules/courses/lib/types";
 import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 
@@ -124,18 +124,21 @@ export function CourseSection({
   eventId,
   userRole,
   canManageCourse,
+  eventSpeakers,
+  speakersLoading,
   eventStartTime,
   eventEndTime,
 }: {
   eventId: string;
   userRole: UserRole | null;
   canManageCourse: boolean;
+  eventSpeakers: CourseSpeaker[];
+  speakersLoading: boolean;
   eventStartTime: string | null;
   eventEndTime: string | null;
 }) {
   const { course, loading } = useCourseByEvent(eventId);
   const courseBuilder = useCourseCreate(eventId);
-  const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
   const isStaff = hasMinRole(userRole, ROLES.FACILITATOR);
 
   if (loading || speakersLoading) {
@@ -165,7 +168,7 @@ export function CourseSection({
       <SectionCard title="Course" icon="school">
         <CourseBuilderSection
           builder={courseBuilder}
-          eventSpeakers={speakers}
+          eventSpeakers={eventSpeakers}
           eventStartTime={eventStartTime}
           eventEndTime={eventEndTime}
         />
@@ -184,7 +187,7 @@ export function CourseSection({
   );
 }
 
-function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: UserRole | null }) {
+function SpeakersSection({ speakers, userRole }: { speakers: ReturnType<typeof useEventSpeakers>; userRole: UserRole | null }) {
   const {
     assignments,
     allProfiles,
@@ -197,7 +200,7 @@ function SpeakersSection({ eventId, userRole }: { eventId: string; userRole: Use
     loadMoreProfiles,
     handleAssign,
     handleRemove,
-  } = useEventSpeakers(eventId);
+  } = speakers;
 
   if (!hasMinRole(userRole, ROLES.ADMIN)) return null;
 
@@ -332,6 +335,16 @@ export function StaffEventDetailPage() {
     handleDelete,
   } = useEventDetail(eventId);
 
+  // One speakers fetch for the page; the course builder's roster and the admin
+  // section both read from it rather than hitting /api/events/[id]/speakers twice.
+  const speakers = useEventSpeakers(eventId);
+  const eventSpeakers: CourseSpeaker[] = speakers.assignments
+    .map((row) => ({
+      speaker_profile_id: row.speaker_profile_id,
+      full_name: row.SPEAKER_PROFILE?.USER?.full_name ?? null,
+    }))
+    .filter((speaker): speaker is CourseSpeaker => speaker.full_name !== null);
+
   if (pending || loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -351,9 +364,7 @@ export function StaffEventDetailPage() {
   if (!isStaff) return null;
 
   const isAdmin = hasMinRole(userRole, ROLES.ADMIN);
-  // The page is facilitator-floor, and fetch-event-access only loads the
-  // caller's speaker profile for the exact speaker role, so isSpeakerAssigned
-  // can never be true here — the assignment term is the facilitator row.
+  // The page is facilitator-floor, so the assignment term is the facilitator row.
   const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
   const canManageCourse = isAdmin || isAssignedFacilitator;
 
@@ -399,11 +410,13 @@ export function StaffEventDetailPage() {
             eventId={eventId}
             userRole={userRole}
             canManageCourse={canManageCourse}
+            eventSpeakers={eventSpeakers}
+            speakersLoading={speakers.loading}
             eventStartTime={event.start_time}
             eventEndTime={event.end_time}
           />
 
-          <SpeakersSection eventId={eventId} userRole={userRole} />
+          <SpeakersSection speakers={speakers} userRole={userRole} />
 
           <KioskSection eventId={eventId} userRole={userRole} />
 
