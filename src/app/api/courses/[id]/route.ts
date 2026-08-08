@@ -7,7 +7,7 @@ import * as courseDao from "@/shared/db/dao/course.dao";
 import { requireCourseAccess, requireCourseDeleteAccess } from "@/modules/courses/lib/course-access";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "course.updated", "course", Number(id), {
+  await requireAuditEvent(supabase, guard.user.id, "course.updated", "course", Number(id), {
     changes: Object.keys(parsed.data),
   });
 
@@ -108,7 +108,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "course.deleted", "course", Number(id), {
+  await requireAuditEvent(supabase, guard.user.id, "course.deleted", "course", Number(id), {
     name: courseInfo?.course_name,
   });
 

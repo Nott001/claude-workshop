@@ -17,7 +17,7 @@ describe("ticket list payload", () => {
   it("carries the payment embed for a user's own tickets", async () => {
     const { client, selects } = fakePostgrest([row]);
 
-    const tickets = await ticketDao.listByUser(client, 5);
+    const { data: tickets } = await ticketDao.listByUser(client, 5);
 
     expect(selects[0]).toContain("PAYMENT(status, paid_at)");
     expect(tickets[0].PAYMENT).toEqual({ status: "paid", paid_at: "2026-08-01T00:00:00Z" });
@@ -26,7 +26,7 @@ describe("ticket list payload", () => {
   it("carries the payment embed for the staff listing too", async () => {
     const { client, selects } = fakePostgrest([row]);
 
-    const tickets = await ticketDao.listAll(client);
+    const { data: tickets } = await ticketDao.listAll(client);
 
     expect(selects[0]).toContain("PAYMENT(status, paid_at)");
     expect(tickets[0].PAYMENT).not.toBeNull();
@@ -43,6 +43,6 @@ describe("ticket list payload", () => {
   it("returns an empty list rather than null when the query yields nothing", async () => {
     const { client } = fakePostgrest([]);
 
-    await expect(ticketDao.listAll(client)).resolves.toEqual([]);
+    await expect(ticketDao.listAll(client)).resolves.toEqual({ data: [], total: 0, page: 1, limit: 50 });
   });
 });

@@ -7,7 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 const updateSchema = z.object({
   role: z.enum([ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN]),
@@ -38,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
+  await requireAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
     new_role: parsed.data.role,
   });
 
@@ -64,7 +64,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
     return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
+  await requireAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
 
   return NextResponse.json({ success: true });
 }

@@ -8,7 +8,7 @@ import * as eventDao from "@/modules/events/db/event.dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { afterResponse } from "@/shared/lib/after-response";
 
 export async function POST(req: Request) {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "checkin.performed", "ticket", ticket.payment_id, {
+  await requireAuditEvent(supabase, guard.user.id, "checkin.performed", "ticket", ticket.payment_id, {
     event_id: ticket.event_id,
     attendee_name: ticket.USER?.full_name,
   });

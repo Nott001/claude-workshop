@@ -16,7 +16,10 @@ vi.mock("@/modules/auth/lib/guard-response", () => ({
 vi.mock("@/modules/courses/lib/course-access", () => ({ canManageEvent }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ createCourse }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { POST } from "@/app/api/courses/route";
 

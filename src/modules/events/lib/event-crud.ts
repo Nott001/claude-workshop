@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { eventSchema, eventPartialSchema } from "@/modules/events/lib/schemas";
 import * as eventDao from "@/modules/events/db/event.dao";
 import * as facilitatorDao from "@/shared/db/dao/facilitator.dao";
@@ -13,7 +13,7 @@ import type { EventActor } from "@/modules/events/lib/event-authz";
 
 export async function listEvents(
   supabase: DbClient,
-  options: { role: string | null; userId: number | null; filter: string | null },
+  options: { role: string | null; userId: number | null; filter: string | null; page?: number; limit?: number },
 ): Promise<Awaited<ReturnType<typeof eventDao.list>>> {
   return eventDao.list(supabase, options);
 }
@@ -53,7 +53,7 @@ export async function createEvent(supabase: DbClient, input: z.infer<typeof even
     }
   }
 
-  await logAuditEvent(supabase, actor.id, "event.created", "event", event.id, {
+  await requireAuditEvent(supabase, actor.id, "event.created", "event", event.id, {
     title: event.title,
     facilitator_ids: facilitatorIds.length > 0 ? facilitatorIds : undefined,
     speaker_profile_ids: speakerProfileIds.length > 0 ? speakerProfileIds : undefined,
@@ -151,7 +151,7 @@ export async function updateEvent(
     throw new EventServiceError(500, "Failed to update event");
   }
 
-  await logAuditEvent(supabase, actor.id, "event.updated", "event", id, {
+  await requireAuditEvent(supabase, actor.id, "event.updated", "event", id, {
     changes: Object.keys(input),
   });
 
@@ -175,7 +175,7 @@ export async function publishEvent(supabase: DbClient, id: number, actor: EventA
     throw new EventServiceError(500, "Failed to publish event");
   }
 
-  await logAuditEvent(supabase, actor.id, "event.published", "event", id);
+  await requireAuditEvent(supabase, actor.id, "event.published", "event", id);
 
   return { success: true };
 }

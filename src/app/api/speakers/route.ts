@@ -15,8 +15,14 @@ export async function GET(req: Request) {
   const supabase = getServiceClient();
 
   const { searchParams } = new URL(req.url);
+  const options = {
+    page: Number(searchParams.get("page") ?? 1),
+    limit: Number(searchParams.get("limit") ?? 50),
+  };
   const profiles =
-    searchParams.get("role") === ROLES.SPEAKER ? await speakerDao.listCandidates(supabase) : await speakerDao.list(supabase);
+    searchParams.get("role") === ROLES.SPEAKER
+      ? await speakerDao.listCandidates(supabase, options)
+      : await speakerDao.list(supabase, options);
 
   return NextResponse.json(profiles);
 }

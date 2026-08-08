@@ -1,5 +1,5 @@
 import type { DbClient } from "@/shared/db/dao/types";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import * as eventDao from "@/modules/events/db/event.dao";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
@@ -69,7 +69,7 @@ export async function deleteEvent(supabase: DbClient, id: number, actor: EventAc
     // Storage cleanup is best-effort
   }
 
-  await logAuditEvent(supabase, actor.id, "event.deleted", "event", id, {
+  await requireAuditEvent(supabase, actor.id, "event.deleted", "event", id, {
     title: event?.title,
   });
 

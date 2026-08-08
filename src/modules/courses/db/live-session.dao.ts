@@ -1,4 +1,5 @@
 import type { DbClient } from "@/shared/db/dao/types";
+import { throwOnDbError } from "@/shared/db/dao/helpers";
 
 export type CourseHighlightStateRow = {
   highlighted_lesson_id: number | null;
@@ -12,11 +13,8 @@ export async function findStateWithLesson(supabase: DbClient, courseId: number):
     .from("LIVE_SESSION_STATE")
     .select("*, LESSON(id, description, content_type)")
     .eq("course_id", courseId)
-    .single();
-  if (error) {
-    console.error("live-session.dao.findStateWithLesson failed:", error.message, error.code);
-    return null;
-  }
+    .maybeSingle();
+  throwOnDbError(error, "live-session.dao.findStateWithLesson");
   return data;
 }
 

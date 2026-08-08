@@ -82,7 +82,9 @@ describe("user.dao listStaff", () => {
 
     await userDao.listStaff(client, 1, "ana");
 
-    expect(argsOf(calls, "or")).toEqual(["full_name.ilike.%ana%,email.ilike.%ana%"]);
+    // ilikePattern quotes and escapes the term so input cannot re-write the
+    // or-filter; the quotes are part of the generated expression.
+    expect(argsOf(calls, "or")).toEqual(['full_name.ilike."%ana%",email.ilike."%ana%"']);
   });
 
   it("reports an empty page rather than null when the query returns nothing", async () => {

@@ -1,24 +1,13 @@
 import { ROLES } from "@/shared/lib/roles";
-import type { DbClient } from "@/shared/db/dao/types";
+import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { isEventFinished } from "@/shared/lib/date-utils";
+import { effectiveEventStatus, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
 
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
-
-// The status column is only ever advanced to "active" by the publish flow, so a
-// past event lingers there forever and the UI has to lie about it. Every read
-// path that surfaces status derives the effective value instead: once an
-// active event's end time has passed it is served as complete.
-function effectiveStatus(event: Pick<Event, "event_date" | "start_time" | "end_time" | "status">): Event["status"] {
-  if (event.status === "active" && isEventFinished(event.event_date, event.end_time)) {
-    return "complete";
-  }
-  return event.status;
-}
 
 type EventSpeakerJoin = {
   speaker_profile_id: number;
@@ -31,24 +20,27 @@ type EventWithRelations = Event & {
 };
 
 export async function findById(supabase: DbClient, id: number): Promise<Event | null> {
-  const { data } = await supabase.from("EVENT").select("*").eq("id", id).single();
-  return data;
+  const { data, error } = await supabase.from("EVENT").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "event.dao.findById");
+  return data ? { ...data, status: effectiveEventStatus(data) } : null;
 }
 
 export async function findByIdWithCourse(supabase: DbClient, id: number): Promise<EventWithRelations | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("EVENT")
     .select(
       "*, COURSE!event_id(*), EVENT_SPEAKER(speaker_profile_id, SPEAKER_PROFILE(*, USER(full_name, email))), EVENT_FACILITATOR(user_id)",
     )
     .eq("id", id)
-    .single();
-  return data ? { ...data, status: effectiveStatus(data) } : null;
+    .maybeSingle();
+  throwOnDbError(error, "event.dao.findByIdWithCourse");
+  return data ? { ...data, status: effectiveEventStatus(data) } : null;
 }
 
 export async function findByIdWithCourseName(supabase: DbClient, id: number): Promise<EventWithCourseName | null> {
-  const { data } = await supabase.from("EVENT").select("*, COURSE!event_id(id, course_name)").eq("id", id).single();
-  return data ? { ...data, status: effectiveStatus(data) } : null;
+  const { data, error } = await supabase.from("EVENT").select("*, COURSE!event_id(id, course_name)").eq("id", id).maybeSingle();
+  throwOnDbError(error, "event.dao.findByIdWithCourseName");
+  return data ? { ...data, status: effectiveEventStatus(data) } : null;
 }
 
 export async function list(
@@ -57,11 +49,17 @@ export async function list(
     role?: string | null;
     userId?: number | null;
     filter?: string | null;
+    page?: number;
+    limit?: number;
   },
-): Promise<EventWithCourseName[]> {
+): Promise<PaginatedResult<EventWithCourseName>> {
   const { role, userId, filter } = options ?? {};
+  const { from, to, page, limit } = pageBounds(options);
 
-  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").order("event_date", { ascending: true });
+  let query = supabase
+    .from("EVENT")
+    .select("*, COURSE!event_id(course_name)", { count: "exact" })
+    .order("event_date", { ascending: true });
 
   // A facilitator's dashboard shows only the events they are assigned to;
   // admins and every other role keep the full listing.
@@ -86,8 +84,15 @@ export async function list(
     query = query.lt("event_date", new Date().toISOString().split("T")[0]);
   }
 
-  const { data } = await query;
-  return (data ?? []).map((row) => ({ ...row, status: effectiveStatus(row) }));
+  query = query.range(from, to);
+
+  const { data, count } = await query;
+  return {
+    data: (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) })),
+    total: count ?? 0,
+    page,
+    limit,
+  };
 }
 
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
@@ -185,6 +190,7 @@ export async function getAttendeeCount(supabase: DbClient, eventId: number): Pro
 }
 
 export async function findByIds(supabase: DbClient, ids: number[]): Promise<EventWithCourseName[]> {
+  if (ids.length === 0) return [];
   const { data } = await supabase
     .from("EVENT")
     .select("*, COURSE!event_id(course_name)")

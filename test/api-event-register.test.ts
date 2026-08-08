@@ -1,17 +1,17 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, eventFindById, findActiveByUserAndEvent, findPendingByUserAndEvent } = vi.hoisted(() => ({
+const { requireAuth, eventFindById, findActiveTicketByUserAndEvent, findPendingByUserAndEvent } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   eventFindById: vi.fn(),
-  findActiveByUserAndEvent: vi.fn(),
+  findActiveTicketByUserAndEvent: vi.fn(),
   findPendingByUserAndEvent: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById }));
-vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveByUserAndEvent }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent }));
 vi.mock("@/shared/db/dao/payment.dao", () => ({ findPendingByUserAndEvent }));
 
 import { GET, POST } from "@/app/api/events/[id]/register/route";
@@ -29,7 +29,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireAuth.mockResolvedValue(attendee);
   eventFindById.mockResolvedValue(published);
-  findActiveByUserAndEvent.mockResolvedValue([]);
+  findActiveTicketByUserAndEvent.mockResolvedValue(null);
   findPendingByUserAndEvent.mockResolvedValue(null);
 });
 
@@ -76,7 +76,7 @@ describe("GET draft visibility", () => {
 
 describe("GET registration state", () => {
   it("reports already_registered when an active ticket exists", async () => {
-    findActiveByUserAndEvent.mockResolvedValue([{ payment_id: 3 }]);
+    findActiveTicketByUserAndEvent.mockResolvedValue({ payment_id: 3 });
 
     const res = await GET(req(), params("1"));
 
@@ -105,7 +105,7 @@ describe("POST authentication", () => {
 
     expect(res.status).toBe(401);
     expect(eventFindById).not.toHaveBeenCalled();
-    expect(findActiveByUserAndEvent).not.toHaveBeenCalled();
+    expect(findActiveTicketByUserAndEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -120,7 +120,7 @@ describe("POST input validation", () => {
 
 describe("POST duplicate registration", () => {
   it("returns 409 when the user already holds an active ticket", async () => {
-    findActiveByUserAndEvent.mockResolvedValue([{ payment_id: 3 }]);
+    findActiveTicketByUserAndEvent.mockResolvedValue({ payment_id: 3 });
 
     const res = await POST(req(), params("1"));
 
@@ -153,12 +153,12 @@ describe("POST eligibility", () => {
     const res = await POST(req(), params("1"));
 
     expect(res.status).toBe(404);
-    expect(findActiveByUserAndEvent).not.toHaveBeenCalled();
+    expect(findActiveTicketByUserAndEvent).not.toHaveBeenCalled();
   });
 
   it("scopes the ticket lookup to the caller and the event in the url", async () => {
     await POST(req(), params("1"));
 
-    expect(findActiveByUserAndEvent).toHaveBeenCalledWith({}, 5, 1);
+    expect(findActiveTicketByUserAndEvent).toHaveBeenCalledWith({}, 5, 1);
   });
 });

@@ -5,7 +5,7 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { findTimeOverlaps } from "@/modules/courses/lib/scheduling";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export class CourseModuleServiceError extends Error {
   constructor(
@@ -89,7 +89,7 @@ export async function updateModule(
     throw new CourseModuleServiceError(500, "Failed to update module");
   }
 
-  await logAuditEvent(supabase, actorId, "module.updated", "module", id, {
+  await requireAuditEvent(supabase, actorId, "module.updated", "module", id, {
     changes: Object.keys(input),
   });
 
@@ -116,7 +116,7 @@ export async function deleteModuleWithStorage(supabase: DbClient, id: number, ac
     throw new CourseModuleServiceError(500, "Failed to delete module");
   }
 
-  await logAuditEvent(supabase, actorId, "module.deleted", "module", id, {
+  await requireAuditEvent(supabase, actorId, "module.deleted", "module", id, {
     course_id: mod?.course_id,
   });
 

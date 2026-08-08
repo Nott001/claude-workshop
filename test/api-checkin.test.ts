@@ -19,7 +19,10 @@ vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById }));
 
 vi.mock("@/modules/notifications/lib/email", () => ({ sendEmailNotification }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { POST } from "@/app/api/checkin/route";
 

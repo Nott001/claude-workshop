@@ -29,7 +29,10 @@ vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById, remov
 vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findCourseIdByEventId }));
 
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { DELETE } from "@/app/api/events/[id]/route";
 

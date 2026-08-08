@@ -19,6 +19,8 @@ export async function GET(req: Request) {
     user_id: searchParams.get("user_id") ?? undefined,
     date_from: searchParams.get("date_from") ?? undefined,
     date_to: searchParams.get("date_to") ?? undefined,
+    page: Number(searchParams.get("page") ?? 1),
+    limit: Number(searchParams.get("limit") ?? 50),
   };
 
   const parsed = emailLogFilterSchema.safeParse(filters);
@@ -31,6 +33,8 @@ export async function GET(req: Request) {
   const logs = await emailDao.list(supabase, {
     ...parsed.data,
     user_id: parsed.data.user_id?.toString(),
+    page: filters.page,
+    limit: filters.limit,
   });
 
   return NextResponse.json(logs);

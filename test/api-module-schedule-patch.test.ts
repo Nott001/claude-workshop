@@ -18,7 +18,10 @@ vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: r
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess }));
 
 import { PATCH as patchModule } from "@/app/api/modules/[id]/route";

@@ -1,4 +1,6 @@
-import type { DbClient } from "./types";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
+import { findActiveTicketByUserAndEvent } from "./ticket.dao";
 import type { Course, Module, Lesson } from "@/shared/types";
 
 export type CourseWithEvent = Course & {
@@ -7,7 +9,8 @@ export type CourseWithEvent = Course & {
 };
 
 export async function findCourseEvent(supabase: DbClient, courseId: number): Promise<{ id: number; event_id: number } | null> {
-  const { data } = await supabase.from("COURSE").select("id, event_id").eq("id", courseId).single();
+  const { data, error } = await supabase.from("COURSE").select("id, event_id").eq("id", courseId).maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseEvent");
   return data;
 }
 
@@ -16,9 +19,19 @@ export async function findCourseIdByEventId(supabase: DbClient, eventId: number)
   return data?.id ?? null;
 }
 
-export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseWithEvent[]> {
-  const { data: courses } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
-  if (!courses) return [];
+export async function listCoursesWithEvents(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<CourseWithEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data: courses, count } = await supabase
+    .from("COURSE")
+    .select("*", { count: "exact" })
+    .order("id", { ascending: false })
+    .range(from, to);
+  if (!courses) {
+    return { data: [], total: count ?? 0, page, limit };
+  }
 
   const courseList = courses as Course[];
   const eventIds = courseList.map((c) => c.event_id);
@@ -31,18 +44,24 @@ export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseW
     eventMap.set(e.id, e);
   }
 
-  return courseList.map((course) => {
-    const linked = eventMap.get(course.event_id);
-    return {
-      ...course,
-      event_title: linked?.title ?? null,
-      event_date: linked?.event_date ?? null,
-    };
-  });
+  return {
+    data: courseList.map((course) => {
+      const linked = eventMap.get(course.event_id);
+      return {
+        ...course,
+        event_title: linked?.title ?? null,
+        event_date: linked?.event_date ?? null,
+      };
+    }),
+    total: count ?? 0,
+    page,
+    limit,
+  };
 }
 
 export async function findCourseById(supabase: DbClient, id: number): Promise<Course | null> {
-  const { data } = await supabase.from("COURSE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("COURSE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseById");
   return data;
 }
 
@@ -176,7 +195,8 @@ export async function findModulesByCourse(supabase: DbClient, courseId: number):
 }
 
 export async function findModuleById(supabase: DbClient, id: number): Promise<Module | null> {
-  const { data } = await supabase.from("MODULE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("MODULE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findModuleById");
   return data;
 }
 
@@ -261,17 +281,20 @@ export async function findLessonsByModule(supabase: DbClient, moduleId: number):
 }
 
 export async function findLessonById(supabase: DbClient, id: number): Promise<Lesson | null> {
-  const { data } = await supabase.from("LESSON").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("LESSON").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findLessonById");
   return data;
 }
 
 export async function findLessonModule(supabase: DbClient, lessonId: number): Promise<{ module_id: number } | null> {
-  const { data } = await supabase.from("LESSON").select("module_id").eq("id", lessonId).single();
+  const { data, error } = await supabase.from("LESSON").select("module_id").eq("id", lessonId).maybeSingle();
+  throwOnDbError(error, "course.dao.findLessonModule");
   return data;
 }
 
 export async function findModuleCourse(supabase: DbClient, moduleId: number): Promise<{ course_id: number } | null> {
-  const { data } = await supabase.from("MODULE").select("course_id").eq("id", moduleId).single();
+  const { data, error } = await supabase.from("MODULE").select("course_id").eq("id", moduleId).maybeSingle();
+  throwOnDbError(error, "course.dao.findModuleCourse");
   return data;
 }
 
@@ -339,18 +362,14 @@ export async function userHasCourseAccess(supabase: DbClient, userId: number, co
   // what 00001_initial_schema.sql describes. This follows the database, since
   // that is what the query actually runs against. Revisit if the schemas are
   // ever reconciled — see SPEC-01-COURSE-OWNERSHIP.
-  const { data: course } = await supabase.from("COURSE").select("event_id").eq("id", courseId).single();
+  const { data: course, error } = await supabase.from("COURSE").select("event_id").eq("id", courseId).maybeSingle();
+  throwOnDbError(error, "course.dao.userHasCourseAccess");
   if (!course?.event_id) return false;
 
-  const { data: ticket } = await supabase
-    .from("TICKET")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("event_id", course.event_id)
-    .neq("status", "cancelled")
-    .limit(1);
-
-  if (ticket && ticket.length > 0) return true;
+  // A live (non-cancelled) ticket to the event entitles the holder. Same
+  // eligibility rule as the commerce module's duplicate-ticket check.
+  const activeTicket = await findActiveTicketByUserAndEvent(supabase, userId, course.event_id);
+  if (activeTicket) return true;
 
   const { data: speaking } = await supabase
     .from("EVENT_SPEAKER")

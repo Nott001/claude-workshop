@@ -12,7 +12,7 @@ function queryStub(result: { data?: unknown } = {}) {
   const calls: Array<[string, unknown[]]> = [];
   const chain: Record<string, unknown> = {};
 
-  for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit"]) {
+  for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit", "range"]) {
     chain[method] = vi.fn((...args: unknown[]) => {
       calls.push([method, args]);
       return chain;
@@ -71,7 +71,7 @@ describe("eventDao.list facilitator visibility", () => {
   function listStub(assignedEventIds: number[] = []) {
     const calls: Array<[string, unknown[]]> = [];
     const eventChain: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit"]) {
+    for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit", "range"]) {
       eventChain[method] = vi.fn((...args: unknown[]) => {
         calls.push([method, args]);
         return eventChain;

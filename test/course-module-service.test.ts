@@ -25,7 +25,10 @@ const { dao, speakerDao, storage, logAuditEvent } = vi.hoisted(() => ({
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/integrations/storage/service", () => storage);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 const supabase = {} as unknown as DbClient;
 

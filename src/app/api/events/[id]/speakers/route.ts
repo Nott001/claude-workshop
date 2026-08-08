@@ -7,7 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
 import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -54,7 +54,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Failed to assign speaker" }, { status: 500 });
     }
 
-    await logAuditEvent(supabase, user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
+    await requireAuditEvent(supabase, user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
       event_id: Number(id),
     });
 

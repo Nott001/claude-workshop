@@ -1,4 +1,5 @@
-import type { DbClient } from "./types";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
 import type { EmailLog, EmailType, EmailStatus, User } from "@/shared/types";
 
 /** An EMAIL_LOG row with the USER embed both reads alias from user_id. */
@@ -7,7 +8,12 @@ export interface EmailLogWithUser extends EmailLog {
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<EmailLogWithUser | null> {
-  const { data } = await supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("EMAIL_LOG")
+    .select("*, USER:user_id(full_name, email)")
+    .eq("id", id)
+    .maybeSingle();
+  throwOnDbError(error, "email.dao.findById");
   return data;
 }
 
@@ -19,9 +25,15 @@ export async function list(
     user_id?: string;
     date_from?: string;
     date_to?: string;
+    page?: number;
+    limit?: number;
   },
-): Promise<EmailLogWithUser[]> {
-  let query = supabase.from("EMAIL_LOG").select("*, USER:user_id(full_name, email)").order("sent_at", { ascending: false });
+): Promise<PaginatedResult<EmailLogWithUser>> {
+  const { from, to, page, limit } = pageBounds(filters);
+  let query = supabase
+    .from("EMAIL_LOG")
+    .select("*, USER:user_id(full_name, email)", { count: "exact" })
+    .order("sent_at", { ascending: false });
 
   if (filters?.email_type) {
     query = query.eq("email_type", filters.email_type);
@@ -39,8 +51,10 @@ export async function list(
     query = query.lte("sent_at", filters.date_to);
   }
 
-  const { data } = await query;
-  return data ?? [];
+  query = query.range(from, to);
+
+  const { data, count } = await query;
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
 export async function insert(

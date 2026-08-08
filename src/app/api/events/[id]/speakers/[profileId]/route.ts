@@ -4,7 +4,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; profileId: string }> }) {
   const { id, profileId } = await params;
@@ -26,7 +26,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
     await courseDao.clearModuleSpeakerForEvent(supabase, Number(id), Number(profileId));
 
-    await logAuditEvent(supabase, user.id, "speaker.unassigned", "speaker_profile", Number(profileId), {
+    await requireAuditEvent(supabase, user.id, "speaker.unassigned", "speaker_profile", Number(profileId), {
       event_id: Number(id),
     });
 

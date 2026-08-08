@@ -31,7 +31,10 @@ vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listStaff }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
 import { POST } from "@/app/api/organization/route";

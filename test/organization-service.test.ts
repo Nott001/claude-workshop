@@ -18,7 +18,10 @@ const { findStaffByEmail, findAuthAccountByEmail, logAuditEvent, generateLink, u
 
 vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail }));
 vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
 const supabase = { auth: { admin: { generateLink, updateUserById, deleteUser } } } as unknown as DbClient;

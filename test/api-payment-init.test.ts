@@ -1,12 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findEventForPayment, findLatestByUserAndEvent, findActiveByUserAndEvent, create, createPayment } =
+const { requireAuth, findEventForPayment, findLatestByUserAndEvent, findActiveTicketByUserAndEvent, create, createPayment } =
   vi.hoisted(() => ({
     requireAuth: vi.fn(),
     findEventForPayment: vi.fn(),
     findLatestByUserAndEvent: vi.fn(),
-    findActiveByUserAndEvent: vi.fn(),
+    findActiveTicketByUserAndEvent: vi.fn(),
     create: vi.fn(),
     createPayment: vi.fn(),
   }));
@@ -15,7 +15,7 @@ vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/payment.dao", () => ({ findEventForPayment, findLatestByUserAndEvent, create }));
-vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveByUserAndEvent }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent }));
 
 vi.mock("@/modules/commerce/lib/payment-gateway", () => ({
   SimulatedPaymentGateway: class {
@@ -34,7 +34,7 @@ beforeEach(() => {
   requireAuth.mockResolvedValue(user);
   findEventForPayment.mockResolvedValue(event);
   findLatestByUserAndEvent.mockResolvedValue(null);
-  findActiveByUserAndEvent.mockResolvedValue([]);
+  findActiveTicketByUserAndEvent.mockResolvedValue(null);
   create.mockResolvedValue({ id: 77 });
   createPayment.mockResolvedValue({ checkout_url: "https://pay.test/77" });
 });
@@ -44,7 +44,7 @@ describe("double-ticketing", () => {
   // active-ticket check, so a user holding a live ticket could check out again
   // and be issued a second one. Nothing in the schema prevents the duplicate.
   it("refuses a user who already holds an active ticket, even with a pending payment", async () => {
-    findActiveByUserAndEvent.mockResolvedValue([{ id: 1, status: "issued" }]);
+    findActiveTicketByUserAndEvent.mockResolvedValue({ id: 1, status: "issued" });
     findLatestByUserAndEvent.mockResolvedValue({ id: 42, status: "pending" });
 
     const res = await POST(post());
@@ -54,7 +54,7 @@ describe("double-ticketing", () => {
   });
 
   it("refuses a user who already holds an active ticket and has no pending payment", async () => {
-    findActiveByUserAndEvent.mockResolvedValue([{ id: 1, status: "issued" }]);
+    findActiveTicketByUserAndEvent.mockResolvedValue({ id: 1, status: "issued" });
 
     const res = await POST(post());
 
@@ -117,7 +117,7 @@ describe("round trips on the purchase path", () => {
 
     // Run in series, these would never be reached while the event read hangs.
     await vi.waitFor(() => {
-      expect(findActiveByUserAndEvent).toHaveBeenCalled();
+      expect(findActiveTicketByUserAndEvent).toHaveBeenCalled();
       expect(findLatestByUserAndEvent).toHaveBeenCalled();
     });
 

@@ -22,12 +22,12 @@ export async function getEventRegistrationState(
     throw new EventServiceError(404, "Event not found");
   }
 
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, id);
+  const activeTicket = await ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, id);
 
   return {
     event,
     user: { user_id: user.id, full_name: user.full_name, email: user.email },
-    already_registered: activeTickets.length > 0,
+    already_registered: activeTicket !== null,
   };
 }
 
@@ -45,9 +45,9 @@ export async function registerForEvent(
     throw new EventServiceError(404, "Event not found");
   }
 
-  const activeTickets = await ticketDao.findActiveByUserAndEvent(supabase, user.id, id);
+  const activeTicket = await ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, id);
 
-  if (activeTickets.length > 0) {
+  if (activeTicket) {
     throw new EventServiceError(409, "You already have an active ticket for this event");
   }
 

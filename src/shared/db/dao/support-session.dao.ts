@@ -1,4 +1,5 @@
-import type { DbClient } from "./types";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
 import type { SupportSession } from "@/shared/types";
 
 export interface CaseSummary {
@@ -11,6 +12,20 @@ export interface CaseSummary {
   assigned_name: string | null;
   last_message: string | null;
   last_message_at: string | null;
+}
+
+interface EventScopedQuery {
+  eq(column: string, value: unknown): unknown;
+  is(column: string, value: unknown): unknown;
+}
+
+// The event filter every session read shares: a session with no event (general
+// support) is matched with `is`, never `eq`, which would address no rows. The
+// generic version of this induced a deep Postgrest builder instantiation, so the
+// filter is applied through this narrow seam and the result cast back.
+function applyEventFilter<T extends EventScopedQuery>(query: T, eventId?: number): T {
+  const filtered: unknown = eventId !== undefined ? query.eq("event_id", eventId) : query.is("event_id", null);
+  return filtered as T;
 }
 
 export async function findActiveSession(
@@ -26,11 +41,7 @@ export async function findActiveSession(
     .eq("support_type", supportType)
     .eq("status", "active");
 
-  if (eventId !== undefined) {
-    query = query.eq("event_id", eventId);
-  } else {
-    query = query.is("event_id", null);
-  }
+  query = applyEventFilter(query, eventId);
 
   const { data } = await query.maybeSingle();
   return data;
@@ -56,11 +67,7 @@ export async function findLatestSession(
     .eq("user_id", userId)
     .eq("support_type", supportType);
 
-  if (eventId !== undefined) {
-    query = query.eq("event_id", eventId);
-  } else {
-    query = query.is("event_id", null);
-  }
+  query = applyEventFilter(query, eventId);
 
   const { data } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
   // PostgREST returns to-one embeds as objects; the generated client type can
@@ -72,7 +79,8 @@ export async function findById(
   supabase: DbClient,
   id: number,
 ): Promise<{ id: number; user_id: number; assigned_to: number | null } | null> {
-  const { data } = await supabase.from("SUPPORT_SESSION").select("id, user_id, assigned_to").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("SUPPORT_SESSION").select("id, user_id, assigned_to").eq("id", id).maybeSingle();
+  throwOnDbError(error, "support-session.dao.findById");
   return data;
 }
 
@@ -153,11 +161,7 @@ export async function endSession(
     query = opts.ownerId === null ? query.is("assigned_to", null) : query.eq("assigned_to", opts.ownerId);
   }
 
-  if (eventId !== undefined) {
-    query = query.eq("event_id", eventId);
-  } else {
-    query = query.is("event_id", null);
-  }
+  query = applyEventFilter(query, eventId);
 
   const { data, error } = await query.select("*").single();
 
@@ -181,13 +185,19 @@ export async function listActiveSessions(supabase: DbClient, supportType?: strin
   return data ?? [];
 }
 
-export async function listCases(supabase: DbClient, supportType: string): Promise<CaseSummary[]> {
-  const { data: sessions } = await supabase
+export async function listCases(
+  supabase: DbClient,
+  supportType: string,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<CaseSummary>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data: sessions, count } = await supabase
     .from("SUPPORT_SESSION")
-    .select("*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)")
+    .select("*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)", { count: "exact" })
     .eq("status", "active")
     .eq("support_type", supportType)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   const rows = (sessions ?? []) as Array<{
     id: number;
@@ -199,7 +209,9 @@ export async function listCases(supabase: DbClient, supportType: string): Promis
   }>;
 
   const sessionIds = rows.map((s) => s.id);
-  if (sessionIds.length === 0) return [];
+  if (sessionIds.length === 0) {
+    return { data: [], total: count ?? 0, page, limit };
+  }
 
   const { data: messages } = await supabase
     .from("CHAT_MESSAGE")
@@ -215,20 +227,25 @@ export async function listCases(supabase: DbClient, supportType: string): Promis
     }
   }
 
-  return rows.map((s) => {
-    const latest = latestBySession.get(s.id);
-    return {
-      id: s.id,
-      case_number: s.case_number,
-      status: "active",
-      user_id: s.user_id,
-      full_name: s.USER?.full_name ?? "Unknown",
-      assigned_to: s.assigned_to,
-      assigned_name: s.ASSIGNED?.full_name ?? null,
-      last_message: latest?.message ?? null,
-      last_message_at: latest?.sent_at ?? null,
-    };
-  });
+  return {
+    data: rows.map((s) => {
+      const latest = latestBySession.get(s.id);
+      return {
+        id: s.id,
+        case_number: s.case_number,
+        status: "active",
+        user_id: s.user_id,
+        full_name: s.USER?.full_name ?? "Unknown",
+        assigned_to: s.assigned_to,
+        assigned_name: s.ASSIGNED?.full_name ?? null,
+        last_message: latest?.message ?? null,
+        last_message_at: latest?.sent_at ?? null,
+      };
+    }),
+    total: count ?? 0,
+    page,
+    limit,
+  };
 }
 
 export async function listRecentSessions(supabase: DbClient, since: string): Promise<unknown[]> {

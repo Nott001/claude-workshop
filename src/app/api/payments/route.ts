@@ -31,9 +31,9 @@ export async function POST(req: Request) {
   // which is what the double-ticketing rule actually depends on. A missing
   // event now costs two reads that used to be skipped — a rare path, traded for
   // two fewer round trips on every real purchase.
-  const [event, activeTickets, existing] = await Promise.all([
+  const [event, activeTicket, existing] = await Promise.all([
     paymentDao.findEventForPayment(supabase, event_id),
-    ticketDao.findActiveByUserAndEvent(supabase, user.id, event_id),
+    ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event_id),
     paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id),
   ]);
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   // The active-ticket check has to come first. Resuming a stale pending payment
   // ahead of it let a user who already held a live ticket check out again and
   // receive a second one — nothing in the schema prevents the duplicate.
-  if (activeTickets.length > 0) {
+  if (activeTicket) {
     return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
   }
 
@@ -82,19 +82,24 @@ export async function POST(req: Request) {
   return NextResponse.json({ payment_id, checkout_url: result.checkout_url });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
+  const { searchParams } = new URL(req.url);
+  const options = {
+    page: Number(searchParams.get("page") ?? 1),
+    limit: Number(searchParams.get("limit") ?? 50),
+  };
 
   // Scoped by entitlement, not by a role test: `requireRole()` admits any
   // authenticated caller, so anyone who is not staff sees only their own.
   const payments = hasMinRole(guard.user.role, ROLES.FACILITATOR)
-    ? await paymentDao.listAll(supabase)
-    : await paymentDao.listByUser(supabase, guard.user.id);
+    ? await paymentDao.listAll(supabase, options)
+    : await paymentDao.listByUser(supabase, guard.user.id, options);
 
   return NextResponse.json(payments);
 }

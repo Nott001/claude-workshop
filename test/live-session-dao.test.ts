@@ -65,9 +65,15 @@ describe("live-session.dao findStateWithLesson", () => {
   });
 
   it("answers null rather than failing when no row exists yet", async () => {
-    const { client } = stub({ LIVE_SESSION_STATE: { data: null, error: { message: "PGRST116", code: "no rows" } } });
+    const { client } = stub({ LIVE_SESSION_STATE: { data: null, error: null } });
 
     await expect(findStateWithLesson(client, 4)).resolves.toBeNull();
+  });
+
+  it("throws when the query itself fails, so an outage is not a clean miss", async () => {
+    const { client } = stub({ LIVE_SESSION_STATE: { data: null, error: { message: "connection refused", code: "500" } } });
+
+    await expect(findStateWithLesson(client, 4)).rejects.toThrow(/connection refused/);
   });
 });
 

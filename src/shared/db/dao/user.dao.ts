@@ -1,14 +1,17 @@
 import { ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "./types";
+import { ilikePattern, throwOnDbError } from "./helpers";
 import type { User } from "@/shared/types";
 
 export async function findByAuthId(supabase: DbClient, authUserId: string): Promise<User | null> {
-  const { data } = await supabase.from("USER").select("*").eq("auth_user_id", authUserId).single();
+  const { data, error } = await supabase.from("USER").select("*").eq("auth_user_id", authUserId).maybeSingle();
+  throwOnDbError(error, "user.dao.findByAuthId");
   return data;
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<User | null> {
-  const { data } = await supabase.from("USER").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("USER").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "user.dao.findById");
   return data;
 }
 
@@ -30,7 +33,8 @@ export async function listStaff(
     .order("full_name", { ascending: true });
 
   if (search) {
-    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+    const pattern = ilikePattern(search);
+    query = query.or(`full_name.ilike.${pattern},email.ilike.${pattern}`);
   }
 
   const from = (page - 1) * pageSize;
@@ -121,6 +125,7 @@ export async function deleteByAuthId(supabase: DbClient, authUserId: string): Pr
 }
 
 export async function findByAuthIdWithRole(supabase: DbClient, authUserId: string): Promise<Pick<User, "id" | "role"> | null> {
-  const { data } = await supabase.from("USER").select("id, role").eq("auth_user_id", authUserId).single();
+  const { data, error } = await supabase.from("USER").select("id, role").eq("auth_user_id", authUserId).maybeSingle();
+  throwOnDbError(error, "user.dao.findByAuthIdWithRole");
   return data;
 }

@@ -16,7 +16,10 @@ vi.mock("@/modules/auth/lib/guard-response", () => ({
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ updateLesson }));
 vi.mock("@/shared/integrations/storage/service", () => ({ deleteFromStorage: vi.fn(), listStorageFolder: vi.fn() }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireLessonAccess }));
 
 import { PATCH } from "@/app/api/lessons/[id]/route";

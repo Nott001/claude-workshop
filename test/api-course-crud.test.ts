@@ -24,7 +24,10 @@ vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId }));
 vi.mock("@/shared/integrations/storage/service", () => storage);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { GET, PATCH, DELETE } from "@/app/api/courses/[id]/route";
 

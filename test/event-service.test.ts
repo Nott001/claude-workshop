@@ -11,6 +11,7 @@ const {
   listStorageFolder,
   deleteFromStorage,
   logAuditEvent,
+  requireAuditEvent,
 } = vi.hoisted(() => ({
   eventDao: {
     create: vi.fn(),
@@ -28,11 +29,12 @@ const {
     findLessonsByModule: vi.fn(),
     findCourseIdByEventId: vi.fn(),
   },
-  ticketDao: { findActiveByUserAndEvent: vi.fn(), getAttendees: vi.fn() },
+  ticketDao: { findActiveTicketByUserAndEvent: vi.fn(), getAttendees: vi.fn() },
   paymentDao: { findPendingByUserAndEvent: vi.fn() },
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
 }));
 
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
@@ -42,7 +44,7 @@ vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/payment.dao", () => paymentDao);
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent, requireAuditEvent }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 
 import { getServiceClient } from "@/shared/db/client";
@@ -331,12 +333,12 @@ describe("publishEvent", () => {
 describe("registerForEvent", () => {
   beforeEach(() => {
     eventDao.findById.mockResolvedValue({ id: 1, title: "Launch Day", status: "active" });
-    ticketDao.findActiveByUserAndEvent.mockResolvedValue([]);
+    ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
     paymentDao.findPendingByUserAndEvent.mockResolvedValue(null);
   });
 
   it("throws 409 when the caller already holds an active ticket", async () => {
-    ticketDao.findActiveByUserAndEvent.mockResolvedValue([{ payment_id: 3 }]);
+    ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ payment_id: 3 });
 
     await expect(registerForEvent(supabase, 1, { id: 5, role: ROLES.ATTENDEE })).rejects.toMatchObject({
       status: 409,
@@ -361,7 +363,7 @@ describe("getEventRegistrationState", () => {
   });
 
   it("reports already_registered from the caller's own tickets", async () => {
-    ticketDao.findActiveByUserAndEvent.mockResolvedValue([{ payment_id: 3 }]);
+    ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ payment_id: 3 });
 
     const state = await getEventRegistrationState(supabase, 1, {
       id: 5,
@@ -370,7 +372,7 @@ describe("getEventRegistrationState", () => {
       email: "jane@example.com",
     });
 
-    expect(ticketDao.findActiveByUserAndEvent).toHaveBeenCalledWith(supabase, 5, 1);
+    expect(ticketDao.findActiveTicketByUserAndEvent).toHaveBeenCalledWith(supabase, 5, 1);
     expect(state).toMatchObject({ already_registered: true, user: { user_id: 5 } });
   });
 });

@@ -5,7 +5,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { lessonSchema } from "@/modules/courses/lib/schemas";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to create lesson" }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "lesson.created", "lesson", lesson.id, {
+  await requireAuditEvent(supabase, guard.user.id, "lesson.created", "lesson", lesson.id, {
     module_id: Number(id),
     description: lesson.description,
   });

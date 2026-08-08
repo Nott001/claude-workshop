@@ -6,16 +6,20 @@ import { canManageEvent } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
-export async function GET() {
+export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
-  const courses = await courseDao.listCoursesWithEvents(supabase);
+  const { searchParams } = new URL(req.url);
+  const courses = await courseDao.listCoursesWithEvents(supabase, {
+    page: Number(searchParams.get("page") ?? 1),
+    limit: Number(searchParams.get("limit") ?? 50),
+  });
 
   return NextResponse.json(courses);
 }
@@ -51,7 +55,7 @@ export async function POST(req: Request) {
   }
   const course = result.course;
 
-  await logAuditEvent(supabase, guard.user.id, "course.created", "course", course.id, {
+  await requireAuditEvent(supabase, guard.user.id, "course.created", "course", course.id, {
     name: course.course_name,
   });
 

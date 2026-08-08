@@ -1,6 +1,6 @@
 import type { DbClient } from "@/shared/db/dao/types";
 import * as userDao from "@/shared/db/dao/user.dao";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 import { findAuthAccountByEmail } from "@/modules/auth/lib/auth-account";
 import { appBaseUrl } from "@/shared/lib/app-url";
@@ -133,7 +133,7 @@ export async function inviteUser(
   const link = await generateInviteLink(supabase, input);
   await sendInviteEmail(supabase, link, input);
 
-  await logAuditEvent(supabase, actorId, "organization.invited", "user", null, {
+  await requireAuditEvent(supabase, actorId, "organization.invited", "user", null, {
     email: input.email,
     role: input.role,
     resent,

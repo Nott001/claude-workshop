@@ -11,7 +11,7 @@ import type { DbClient } from "@/shared/db/dao/types";
 
 function chainStub(result: unknown) {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit", "single"]) {
+  for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit", "range", "single", "maybeSingle"]) {
     chain[method] = vi.fn(() => chain);
   }
   chain.then = (resolve: (v: unknown) => unknown) => resolve(result);
@@ -28,7 +28,7 @@ const pastComplete = { id: 4, status: "complete", event_date: "2000-01-01", star
 
 describe("eventDao effective status", () => {
   it("list serves a past active event as complete", async () => {
-    const events = await eventDao.list(clientWith([pastActive, futureActive, pastDraft, pastComplete]), {
+    const { data: events } = await eventDao.list(clientWith([pastActive, futureActive, pastDraft, pastComplete]), {
       role: ROLES.ATTENDEE,
     });
 
@@ -41,7 +41,7 @@ describe("eventDao effective status", () => {
   });
 
   it("list keeps a future active event as active", async () => {
-    const events = await eventDao.list(clientWith([futureActive]), { role: ROLES.ATTENDEE });
+    const { data: events } = await eventDao.list(clientWith([futureActive]), { role: ROLES.ATTENDEE });
 
     expect(events[0].status).toBe("active");
   });

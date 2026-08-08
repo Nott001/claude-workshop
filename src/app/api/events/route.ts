@@ -17,12 +17,14 @@ function mapError(err: unknown): NextResponse {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter");
+  const page = Number(searchParams.get("page") ?? 1);
+  const limit = Number(searchParams.get("limit") ?? 50);
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
   const userRole = user?.role ?? null;
 
-  const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter });
+  const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter, page, limit });
 
   return NextResponse.json(events);
 }

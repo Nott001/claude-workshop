@@ -25,7 +25,10 @@ vi.mock("@/shared/db/dao/facilitator.dao", () => ({
 }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: speakerReplace }));
 
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { PATCH } from "@/app/api/events/[id]/route";
 

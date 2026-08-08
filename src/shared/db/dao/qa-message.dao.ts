@@ -1,4 +1,5 @@
 import type { DbClient } from "./types";
+import { runCursorFeed, throwOnDbError } from "./helpers";
 import type { QaMessage } from "@/shared/types";
 
 export async function listQuestionsByModule(
@@ -10,34 +11,14 @@ export async function listQuestionsByModule(
     limit: number;
   },
 ): Promise<{ messages: QaMessage[]; nextCursor: string | null }> {
-  const { before, after, limit } = options;
-
-  let query = supabase
+  const query = supabase
     .from("QA_MESSAGE")
     .select("*, USER:user_id(full_name, role)")
     .eq("module_id", moduleId)
     .is("deleted_at", null);
 
-  if (after) {
-    query = query.gt("created_at", after).order("created_at", { ascending: true });
-  } else {
-    query = query.order("created_at", { ascending: false });
-  }
-
-  if (before) {
-    query = query.lt("created_at", before);
-  }
-
-  const { data } = await query.limit(limit + 1);
-
-  const messages = (data ?? []) as unknown as QaMessage[];
-  const hasMore = messages.length > limit;
-  const result = hasMore ? messages.slice(0, limit) : messages;
-  const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].created_at : null;
-
-  if (!after) result.reverse();
-
-  return { messages: result, nextCursor };
+  const { data, nextCursor } = await runCursorFeed<QaMessage>(query, "created_at", options);
+  return { messages: data, nextCursor };
 }
 
 export async function sendQuestion(
@@ -60,7 +41,8 @@ export async function sendQuestion(
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<QaMessage | null> {
-  const { data } = await supabase.from("QA_MESSAGE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("QA_MESSAGE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "qa-message.dao.findById");
   return data;
 }
 

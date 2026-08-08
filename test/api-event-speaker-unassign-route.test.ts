@@ -20,7 +20,10 @@ vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { DELETE } from "@/app/api/events/[id]/speakers/[profileId]/route";
 

@@ -19,6 +19,7 @@ function queryStub(result: { data?: unknown; error?: unknown; count?: number } =
   }
   const settled = { data: result.data ?? null, error: result.error ?? null, count: result.count ?? null };
   chain.single = vi.fn(() => Promise.resolve(settled));
+  chain.maybeSingle = vi.fn(() => Promise.resolve(settled));
   chain.then = (resolve: (v: unknown) => unknown) => resolve(settled);
 
   const from = vi.fn(() => chain);
@@ -77,11 +78,11 @@ describe("helpers.exists / deleteById", () => {
   });
 });
 
-describe("ticketDao.findActiveByUserAndEvent", () => {
+describe("ticketDao.findActiveTicketByUserAndEvent", () => {
   it("scopes to both the user and the event, and excludes cancelled tickets", async () => {
-    const { client, from, calls } = queryStub({ data: [] });
+    const { client, from, calls } = queryStub({ data: { id: 1 } });
 
-    await ticketDao.findActiveByUserAndEvent(client, 5, 10);
+    await ticketDao.findActiveTicketByUserAndEvent(client, 5, 10);
 
     expect(from).toHaveBeenCalledWith("TICKET");
     // Dropping either eq would let one user see another's tickets.
@@ -92,9 +93,14 @@ describe("ticketDao.findActiveByUserAndEvent", () => {
     ]);
   });
 
-  it("returns an empty array when the query yields nothing", async () => {
+  it("returns null when no ticket matches", async () => {
     const { client } = queryStub({ data: null });
-    await expect(ticketDao.findActiveByUserAndEvent(client, 5, 10)).resolves.toEqual([]);
+    await expect(ticketDao.findActiveTicketByUserAndEvent(client, 5, 10)).resolves.toBeNull();
+  });
+
+  it("throws when the query fails instead of reporting a clean miss", async () => {
+    const { client } = queryStub({ error: { message: "connection refused" } });
+    await expect(ticketDao.findActiveTicketByUserAndEvent(client, 5, 10)).rejects.toThrow(/connection refused/);
   });
 });
 

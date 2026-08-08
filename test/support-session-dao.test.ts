@@ -10,7 +10,21 @@ function makeChain(result: { data?: unknown; error?: unknown }) {
     maybeSingle: async () => result,
     then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
   };
-  for (const method of ["select", "eq", "is", "gt", "lt", "gte", "in", "order", "limit", "insert", "update", "delete"]) {
+  for (const method of [
+    "select",
+    "eq",
+    "is",
+    "gt",
+    "lt",
+    "gte",
+    "in",
+    "order",
+    "limit",
+    "range",
+    "insert",
+    "update",
+    "delete",
+  ]) {
     chain[method] = (...args: unknown[]) => {
       calls.push([method, args]);
       return chain;
@@ -127,7 +141,7 @@ describe("support-session.dao listCases", () => {
     ];
     const { client, callsList } = stub([{ data: sessions }, { data: messages }]);
 
-    const cases = await dao.listCases(client, "general");
+    const { data: cases } = await dao.listCases(client, "general");
 
     expect(cases[0]).toMatchObject({
       id: 1,
@@ -139,7 +153,10 @@ describe("support-session.dao listCases", () => {
     });
     expect(cases[1]).toMatchObject({ id: 2, case_number: 101, assigned_name: null, last_message: "hi" });
 
-    expect(argsOf(callsList[0], "select")).toEqual(["*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)"]);
+    expect(argsOf(callsList[0], "select")).toEqual([
+      "*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)",
+      { count: "exact" },
+    ]);
     expect(argsOf(callsList[1], "in")).toEqual(["session_id", [1, 2]]);
     expect(callsList[1].filter(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toHaveLength(1);
   });
@@ -147,6 +164,6 @@ describe("support-session.dao listCases", () => {
   it("returns an empty queue when there are no open cases", async () => {
     const { client } = stub([{ data: [] }]);
 
-    await expect(dao.listCases(client, "general")).resolves.toEqual([]);
+    await expect(dao.listCases(client, "general")).resolves.toEqual({ data: [], total: 0, page: 1, limit: 50 });
   });
 });

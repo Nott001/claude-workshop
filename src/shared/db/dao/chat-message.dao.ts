@@ -1,12 +1,18 @@
 import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "./types";
+import { escapeOrValue, runCursorFeed, throwOnDbError } from "./helpers";
 import type { ChatMessage, UserRole } from "@/shared/types";
 
 export async function findMessageWithUser(
   supabase: DbClient,
   messageId: number,
 ): Promise<(ChatMessage & { USER: { full_name: string; role: UserRole } }) | null> {
-  const { data } = await supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("id", messageId).single();
+  const { data, error } = await supabase
+    .from("CHAT_MESSAGE")
+    .select("*, USER:user_id(full_name, role)")
+    .eq("id", messageId)
+    .maybeSingle();
+  throwOnDbError(error, "chat-message.dao.findMessageWithUser");
   return data as unknown as (ChatMessage & { USER: { full_name: string; role: UserRole } }) | null;
 }
 import { findLatestSession, type LatestSession } from "./support-session.dao";
@@ -21,8 +27,6 @@ export async function listMessages(
     limit: number;
   },
 ): Promise<{ messages: ChatMessage[]; nextCursor: string | null }> {
-  const { before, after, limit } = options;
-
   let query = supabase
     .from("CHAT_MESSAGE")
     .select("*, USER:user_id(full_name, role)")
@@ -35,26 +39,8 @@ export async function listMessages(
     query = query.is("event_id", null);
   }
 
-  if (after) {
-    query = query.gt("sent_at", after).order("sent_at", { ascending: true });
-  } else {
-    query = query.order("sent_at", { ascending: false });
-  }
-
-  if (before) {
-    query = query.lt("sent_at", before);
-  }
-
-  const { data } = await query.limit(limit + 1);
-
-  const messages = (data ?? []) as unknown as ChatMessage[];
-  const hasMore = messages.length > limit;
-  const result = hasMore ? messages.slice(0, limit) : messages;
-  const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].sent_at : null;
-
-  if (!after) result.reverse();
-
-  return { messages: result, nextCursor };
+  const { data, nextCursor } = await runCursorFeed<ChatMessage>(query, "sent_at", options);
+  return { messages: data, nextCursor };
 }
 
 export async function sendMessage(
@@ -103,7 +89,8 @@ export async function findMessageById(
   supabase: DbClient,
   messageId: number,
 ): Promise<{ id: number; event_id?: number | null } | null> {
-  const { data } = await supabase.from("CHAT_MESSAGE").select("id, event_id").eq("id", messageId).single();
+  const { data, error } = await supabase.from("CHAT_MESSAGE").select("id, event_id").eq("id", messageId).maybeSingle();
+  throwOnDbError(error, "chat-message.dao.findMessageById");
   return data;
 }
 
@@ -167,7 +154,7 @@ export async function listSupportMessages(
   }
 
   if (role !== ROLES.FACILITATOR && role !== ROLES.ADMIN && role !== ROLES.SUPER_ADMIN && userId) {
-    query = query.or(`user_id.eq.${userId},recipient_user_id.eq.${userId}`);
+    query = query.or(`user_id.eq.${escapeOrValue(userId)},recipient_user_id.eq.${escapeOrValue(userId)}`);
 
     session = await findLatestSession(supabase, userId, supportType, eventId ?? undefined);
     if (session) {
@@ -175,7 +162,9 @@ export async function listSupportMessages(
       sessionId = session.id;
     }
   } else if (filterUserId && userId) {
-    query = query.or(`user_id.eq.${filterUserId},and(user_id.eq.${userId},recipient_user_id.eq.${filterUserId})`);
+    query = query.or(
+      `user_id.eq.${escapeOrValue(filterUserId)},and(user_id.eq.${escapeOrValue(userId)},recipient_user_id.eq.${escapeOrValue(filterUserId)})`,
+    );
 
     session = await findLatestSession(supabase, Number(filterUserId), supportType, eventId ?? undefined);
     if (session) {
@@ -190,26 +179,9 @@ export async function listSupportMessages(
     query = query.is("session_id", null);
   }
 
-  if (after) {
-    query = query.gt("sent_at", after).order("sent_at", { ascending: true });
-  } else {
-    query = query.order("sent_at", { ascending: false });
-  }
+  const { data, nextCursor } = await runCursorFeed<ChatMessage>(query, "sent_at", { before, after, limit });
 
-  if (before) {
-    query = query.lt("sent_at", before);
-  }
-
-  const { data } = await query.limit(limit + 1);
-
-  const messages = (data ?? []) as ChatMessage[];
-  const hasMore = messages.length > limit;
-  const result = hasMore ? messages.slice(0, limit) : messages;
-  const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].sent_at : null;
-
-  if (!after) result.reverse();
-
-  return { messages: result, nextCursor, sessionActive, session };
+  return { messages: data, nextCursor, sessionActive, session };
 }
 
 export async function listRecentSupportMessages(supabase: DbClient, since: string): Promise<unknown[]> {

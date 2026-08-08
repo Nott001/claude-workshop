@@ -75,9 +75,9 @@ describe("GET /api/tickets scopes by entitlement", () => {
   ])("%s sees only their own tickets", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_TICKETS();
+    await GET_TICKETS(req());
 
-    expect(ticketListByUser).toHaveBeenCalledWith({}, who.user.id);
+    expect(ticketListByUser).toHaveBeenCalledWith({}, who.user.id, { page: 1, limit: 50 });
     expect(ticketListAll).not.toHaveBeenCalled();
   });
 
@@ -88,9 +88,9 @@ describe("GET /api/tickets scopes by entitlement", () => {
   ])("%s sees every ticket", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_TICKETS();
+    await GET_TICKETS(req());
 
-    expect(ticketListAll).toHaveBeenCalled();
+    expect(ticketListAll).toHaveBeenCalledWith({}, { page: 1, limit: 50 });
     expect(ticketListByUser).not.toHaveBeenCalled();
   });
 });
@@ -102,9 +102,9 @@ describe("GET /api/payments scopes by entitlement", () => {
   ])("%s sees only their own payments", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_PAYMENTS();
+    await GET_PAYMENTS(req());
 
-    expect(paymentListByUser).toHaveBeenCalledWith({}, who.user.id);
+    expect(paymentListByUser).toHaveBeenCalledWith({}, who.user.id, { page: 1, limit: 50 });
     expect(paymentListAll).not.toHaveBeenCalled();
   });
 
@@ -115,9 +115,9 @@ describe("GET /api/payments scopes by entitlement", () => {
   ])("%s sees every payment", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_PAYMENTS();
+    await GET_PAYMENTS(req());
 
-    expect(paymentListAll).toHaveBeenCalled();
+    expect(paymentListAll).toHaveBeenCalledWith({}, { page: 1, limit: 50 });
     expect(paymentListByUser).not.toHaveBeenCalled();
   });
 });
