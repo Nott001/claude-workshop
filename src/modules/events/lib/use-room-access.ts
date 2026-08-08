@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/modules/events/lib/use-event-timer";
 import { fetchEventAccess } from "@/modules/events/lib/fetch-event-access";
+import { findLiveModule } from "@/modules/events/lib/live-module";
 import { canAccessRoom } from "@/modules/events/lib/room-access-policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
@@ -50,11 +51,14 @@ export function useRoomAccess(eventId: string) {
   const [endTime, setEndTime] = useState("");
   const [course, setCourse] = useState<CourseData | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [assignedSpeakerCount, setAssignedSpeakerCount] = useState(0);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
   const isStaff = hasMinRole(userRole, "speaker");
   const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
   const eventEnded = eventDate && endTime ? new Date(`${eventDate}T${endTime}`) <= new Date() : false;
+
+  const liveModule = findLiveModule(course?.MODULE ?? [], eventDate);
 
   const { elapsed, remaining } = useEventTimer(eventDate, startTime, endTime);
 
@@ -88,6 +92,7 @@ export function useRoomAccess(eventId: string) {
       setStartTime(eventData.start_time ?? "");
       setEndTime(eventData.end_time ?? "");
       setCurrentUserId(user.id);
+      setAssignedSpeakerCount(eventData.EVENT_SPEAKER?.length ?? 0);
 
       const gate = canAccessRoom(user.role, accessData);
       if (gate !== "allowed") {
@@ -146,6 +151,8 @@ export function useRoomAccess(eventId: string) {
     currentUserId,
     userRole,
     isStaff,
+    liveModule,
+    assignedSpeakerCount,
     eventStarted,
     eventEnded,
     elapsed,

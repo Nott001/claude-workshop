@@ -8,10 +8,21 @@ interface EventSessionNavbarProps {
   remaining: string;
   eventDate: string;
   startTime: string;
+  liveModuleName?: string | null;
+  liveSpeakerName?: string | null;
   onExit?: () => void;
 }
 
-export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, startTime, onExit }: EventSessionNavbarProps) {
+export function EventSessionNavbar({
+  eventName,
+  elapsed,
+  remaining,
+  eventDate,
+  startTime,
+  liveModuleName,
+  liveSpeakerName,
+  onExit,
+}: EventSessionNavbarProps) {
   const [startsIn, setStartsIn] = useState("");
 
   useEffect(() => {
@@ -73,6 +84,15 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
             <span className="font-mono text-base font-bold leading-6 text-fg">{startsIn}</span>
           </div>
         ) : null}
+
+        {liveModuleName && (
+          <div className="flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1">
+            <span className="size-2 animate-pulse rounded-full bg-brand" />
+            <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-brand">Live</span>
+            <span className="text-sm font-bold text-fg">{liveModuleName}</span>
+            {liveSpeakerName && <span className="text-xs text-muted-fg">· {liveSpeakerName}</span>}
+          </div>
+        )}
       </div>
 
       <button

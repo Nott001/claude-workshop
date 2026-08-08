@@ -31,6 +31,19 @@ const EVENT = {
   COURSE: { id: 4 },
 };
 
+function liveWindow() {
+  const now = new Date();
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(now);
+  dayEnd.setHours(23, 59, 59, 999);
+  const start = new Date(Math.max(now.getTime() - 5 * 60000, dayStart.getTime()));
+  const end = new Date(Math.min(now.getTime() + 5 * 60000, dayEnd.getTime()));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return { date: now.toISOString().slice(0, 10), start: fmt(start), end: fmt(end) };
+}
+
 function signedIn(user: unknown = ATTENDEE) {
   sessionValue.mockReturnValue({ isLoaded: true, isSignedIn: true, user });
 }
@@ -175,5 +188,71 @@ describe("useRoomAccess", () => {
     });
 
     expect(result.current.access).toBe("loading");
+  });
+
+  it("reports how many speakers the event is assigned", async () => {
+    fetchEventAccess.mockResolvedValue({
+      event: {
+        ...EVENT,
+        EVENT_SPEAKER: [{ SPEAKER_PROFILE: { id: 1 } }, { SPEAKER_PROFILE: { id: 2 } }],
+      },
+      hasTicket: true,
+      isSpeakerAssigned: false,
+    });
+
+    const { result } = renderHook(() => useRoomAccess("9"));
+
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+    expect(result.current.assignedSpeakerCount).toBe(2);
+  });
+
+  it("names the module whose session is live right now", async () => {
+    const window = liveWindow();
+    fetchEventAccess.mockResolvedValue({
+      event: { ...EVENT, event_date: window.date },
+      hasTicket: true,
+      isSpeakerAssigned: false,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          id: 4,
+          course_name: "Intro",
+          MODULE: [
+            {
+              id: 11,
+              module_name: "Keynote",
+              sequence_order: 1,
+              module_type: "lessons",
+              is_locked: false,
+              start_time: window.start,
+              end_time: window.end,
+              speaker_profile_id: null,
+              SPEAKER_PROFILE: null,
+              LESSONS: [],
+            },
+          ],
+        }),
+      })),
+    );
+
+    const { result } = renderHook(() => useRoomAccess("9"));
+
+    await waitFor(() => expect(result.current.liveModule?.module_name).toBe("Keynote"));
+  });
+
+  it("leaves the live module empty before the first session starts", async () => {
+    fetchEventAccess.mockResolvedValue({
+      event: { ...EVENT, event_date: "2030-01-01" },
+      hasTicket: true,
+      isSpeakerAssigned: false,
+    });
+
+    const { result } = renderHook(() => useRoomAccess("9"));
+
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+    expect(result.current.liveModule).toBeNull();
   });
 });
