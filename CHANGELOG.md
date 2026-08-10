@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Community groups are now listed on their own page for every visitor, with a management page for staff. The old community links table served a single hidden audience, so it carried platform and event tags that no longer meant anything and its links appeared only where a page chose to hard-code them. The table is reworked around an `is_hidden` flag and a staff-managed ordering: staff can add, edit, hide, reorder and delete group cards, and everyone else — anonymous visitors included — sees the visible ones. Visibility is enforced by row-level security with a role subquery, not by the application, and reads are public while every write is gated to admins and superadmins.
+
 ### Fixed
 
 - Assigned speakers can moderate their event's Q&A in the room. The course room admitted assigned speakers as course team, but the Q&A panel's delete and lock controls were gated on the facilitator role alone, so an assigned speaker could run a live session with no way to retire a bad question or lock the module once it was over. The control floor now matches the admission rule: admins, facilitators and assigned speakers all get the moderation controls.

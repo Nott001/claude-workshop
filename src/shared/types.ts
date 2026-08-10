@@ -211,3 +211,17 @@ export interface LandingEvent {
   course_name: string | null;
   cover_image_url: string | null;
 }
+
+/** A community group card shown on /community, managed by admins. */
+export interface CommunityLink {
+  id: number;
+  label: string;
+  url: string;
+  description: string | null;
+  icon_url: string | null;
+  sequence_order: number;
+  is_hidden: boolean;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}

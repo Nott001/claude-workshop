@@ -45,19 +45,28 @@ afterEach(() => {
 // from walking into a page they cannot use; the page guards (SPEC-01-B/C) are
 // the second line, not the first.
 describe("Navbar role nav items", () => {
-  it("shows a speaker Dashboard only — no route into /staff", () => {
+  it("shows a speaker Dashboard and Community — no route into /staff", () => {
     renderAs(ROLES.SPEAKER);
-    expect(navLabels()).toEqual(["Dashboard"]);
+    expect(navLabels()).toEqual(["Dashboard", "Community"]);
   });
 
-  it("shows a facilitator Events only", () => {
+  it("shows a facilitator Events and Community", () => {
     renderAs(ROLES.FACILITATOR);
-    expect(navLabels()).toEqual(["Events"]);
+    expect(navLabels()).toEqual(["Events", "Community"]);
   });
 
-  it("shows an admin the full staff set", () => {
+  it("shows an admin the full staff set, with Community pointing at management", () => {
     renderAs(ROLES.ADMIN);
-    expect(navLabels()).toEqual(["Events", "Create event", "Courses", "Organization", "Emails", "Support", "Audit Logs"]);
+    expect(navLabels()).toEqual([
+      "Events",
+      "Create event",
+      "Courses",
+      "Organization",
+      "Community",
+      "Emails",
+      "Support",
+      "Audit Logs",
+    ]);
   });
 
   it("shows a super_admin the same set as an admin", () => {
@@ -68,14 +77,14 @@ describe("Navbar role nav items", () => {
     expect(superAdmin).toEqual(navLabels());
   });
 
-  it("leaves the attendee nav alone", () => {
+  it("leaves the attendee nav with Community added", () => {
     renderAs(ROLES.ATTENDEE);
-    expect(navLabels()).toEqual(["Home", "Events", "Tickets"]);
+    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
   });
 
-  it("shows guests the signed-out nav", () => {
+  it("shows guests the signed-out nav including Community", () => {
     renderAs(null);
-    expect(navLabels()).toEqual(["Home", "Events"]);
+    expect(navLabels()).toEqual(["Home", "Events", "Community"]);
   });
 });
 
@@ -85,7 +94,7 @@ describe("Navbar fallback for an unrecognised role", () => {
   // staff nav.
   it("falls back to attendee, not facilitator", () => {
     renderAs("wizard" as UserRole);
-    expect(navLabels()).toEqual(["Home", "Events", "Tickets"]);
+    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
     expect(navLabels()).not.toContain("Create event");
   });
 });
