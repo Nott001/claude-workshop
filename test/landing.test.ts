@@ -83,5 +83,13 @@ describe("date-utils", () => {
       vi.setSystemTime(new Date("2026-06-16T00:00:00"));
       expect(isEventFinished("2026-06-15", "23:59")).toBe(true);
     });
+
+    it("returns false rather than crashing on missing or malformed edges", () => {
+      vi.setSystemTime(new Date("2026-06-15T13:00:00"));
+      expect(isEventFinished("", "")).toBe(false);
+      expect(isEventFinished(undefined as unknown as string, undefined as unknown as string)).toBe(false);
+      expect(isEventFinished("2026-06-15", "")).toBe(false);
+      expect(isEventFinished("not-a-date", "12:00")).toBe(false);
+    });
   });
 });

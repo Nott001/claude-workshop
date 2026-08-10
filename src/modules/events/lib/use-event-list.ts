@@ -1,9 +1,6 @@
 "use client";
 
-import { ROLES } from "@/shared/lib/roles";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession } from "@/modules/auth/components/session-context";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 interface Course {
   course_name: string;
@@ -20,15 +17,23 @@ interface Event {
   status: "draft" | "active" | "complete";
   cover_image_url: string | null;
   COURSE: Course | null;
+  attendee_count?: number;
 }
 
 export type FilterTab = "upcoming" | "completed" | "drafts";
 
 const PAGE_SIZE = 50;
 
-export function useEventList() {
-  const { user } = useSession();
-  const isFacilitator = hasMinRole(user?.role ?? null, ROLES.FACILITATOR);
+interface UseEventListOptions {
+  /**
+   * Include drafts under Upcoming. The general listing keeps drafts in their
+   * own tab, but a facilitator's assigned view must not hide an unpublished
+   * event they have been assigned to run.
+   */
+  upcomingIncludesDrafts?: boolean;
+}
+
+export function useEventList(options?: UseEventListOptions) {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -86,10 +91,13 @@ export function useEventList() {
     setLoadingMore(false);
   }, [load, loadingMore]);
 
+  const isUpcoming = (event: Event) =>
+    event.status === "active" || (options?.upcomingIncludesDrafts === true && event.status === "draft");
+
   const filteredEvents = events.filter((event) => {
     switch (activeTab) {
       case "upcoming":
-        return event.status === "active";
+        return isUpcoming(event);
       case "completed":
         return event.status === "complete";
       case "drafts":
@@ -100,7 +108,7 @@ export function useEventList() {
   });
 
   const tabCounts = {
-    upcoming: events.filter((e) => e.status === "active").length,
+    upcoming: events.filter(isUpcoming).length,
     completed: events.filter((e) => e.status === "complete").length,
     drafts: events.filter((e) => e.status === "draft").length,
   };
@@ -115,7 +123,6 @@ export function useEventList() {
     loadMore,
     activeTab,
     setActiveTab,
-    isFacilitator,
     tabCounts,
   };
 }

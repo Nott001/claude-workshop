@@ -6,9 +6,21 @@ import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 import { useSession } from "../components/session-context";
 
+export interface RoleGuardOptions {
+  /** Where to send a signed-in user who fails the check. Defaults to /access-denied. */
+  redirectTo?: string;
+  /**
+   * Require the role to equal `minRole` exactly rather than "at or above" it.
+   * The staff event list and the facilitator's assigned list bounce each other:
+   * an admin passes a facilitator minimum, so only an exact match keeps them off
+   * a page whose server payload does not scope to their own events.
+   */
+  exactRole?: boolean;
+}
+
 export interface ClientRoleGuard {
   role: UserRole | null;
-  /** The session resolved to a user who clears `minRole`. */
+  /** The session resolved to a user who clears the check. */
   allowed: boolean;
   /**
    * The session has not resolved yet — render a placeholder, never a denial.
@@ -29,19 +41,25 @@ export interface ClientRoleGuard {
  * from it runs. Sending that to /access-denied told people who had just logged
  * out that they lacked permission.
  */
-export function useRoleGuard(minRole: UserRole): ClientRoleGuard {
+export function useRoleGuard(minRole: UserRole, options?: RoleGuardOptions): ClientRoleGuard {
   const router = useRouter();
   const { user, loading } = useSession();
 
   const role = (user?.role as UserRole | undefined) ?? null;
-  const allowed = !!user && hasMinRole(role, minRole);
+  const allowed = !!user && passes(user?.role as UserRole | undefined, minRole, options?.exactRole);
 
   useEffect(() => {
     if (loading || !user) return;
-    if (!hasMinRole((user.role as UserRole | undefined) ?? null, minRole)) {
-      router.replace("/access-denied");
+    if (!passes(user.role as UserRole | undefined, minRole, options?.exactRole)) {
+      router.replace(options?.redirectTo ?? "/access-denied");
     }
-  }, [loading, user, minRole, router]);
+    // options is a fresh object per render; only its fields matter.
+  }, [loading, user, minRole, router, options?.redirectTo, options?.exactRole]);
 
   return { role, allowed, pending: loading };
+}
+
+function passes(actual: UserRole | undefined, minRole: UserRole, exactRole?: boolean): boolean {
+  if (!actual) return false;
+  return exactRole ? actual === minRole : hasMinRole(actual, minRole);
 }

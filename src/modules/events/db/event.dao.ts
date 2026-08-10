@@ -189,6 +189,22 @@ export async function getAttendeeCount(supabase: DbClient, eventId: number): Pro
   return count ?? 0;
 }
 
+/**
+ * Per-event attendee counts for a whole listing in one query. PostgREST has no
+ * GROUP BY, so the id column is fetched for every non-cancelled ticket and
+ * tallied here; an empty id set short-circuits so an empty list never scans.
+ */
+export async function getAttendeeCounts(supabase: DbClient, eventIds: number[]): Promise<Record<number, number>> {
+  if (eventIds.length === 0) return {};
+  const { data, error } = await supabase.from("TICKET").select("event_id").in("event_id", eventIds).neq("status", "cancelled");
+  throwOnDbError(error, "event.dao.getAttendeeCounts");
+  const counts: Record<number, number> = {};
+  for (const row of data ?? []) {
+    counts[row.event_id] = (counts[row.event_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function findByIds(supabase: DbClient, ids: number[]): Promise<EventWithCourseName[]> {
   if (ids.length === 0) return [];
   const { data } = await supabase

@@ -38,11 +38,15 @@ export function isEventLive(eventDate: string, startTime: string, endTime: strin
 
 // Follows the local-time convention of isEventLive: an event has ended the
 // moment its end time is in the past, which is what marks it completed.
+// Missing or unparseable edge values mean "not finished", so callers like the
+// registration guard and survey sender refuse to act on incomplete rows
+// instead of crashing on them.
 export function isEventFinished(eventDate: string, endTime: string): boolean {
   const now = new Date();
-  const [y, m, d] = eventDate.split("-").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
+  const [y, m, d] = (eventDate ?? "").split("-").map(Number);
+  const [eh, em] = (endTime ?? "").split(":").map(Number);
   const end = new Date(y, m - 1, d, eh, em);
+  if (Number.isNaN(end.getTime())) return false;
   return now > end;
 }
 

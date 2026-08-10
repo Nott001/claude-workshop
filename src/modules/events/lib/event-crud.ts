@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import type { z } from "zod";
-import type { DbClient } from "@/shared/db/dao/types";
+import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
@@ -11,11 +11,28 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { EventServiceError } from "@/modules/events/lib/event-errors";
 import type { EventActor } from "@/modules/events/lib/event-authz";
 
+export type EventListRow = Awaited<ReturnType<typeof eventDao.list>>["data"][number] & { attendee_count?: number };
+
 export async function listEvents(
   supabase: DbClient,
   options: { role: string | null; userId: number | null; filter: string | null; page?: number; limit?: number },
-): Promise<Awaited<ReturnType<typeof eventDao.list>>> {
-  return eventDao.list(supabase, options);
+): Promise<PaginatedResult<EventListRow>> {
+  const result = await eventDao.list(supabase, options);
+
+  // Only the staff table renders the Attendees column, and the same endpoint
+  // feeds the public list and the landing page. Counting every caller's tickets
+  // would leak attendance numbers and pay for a TICKET scan on every public
+  // render, so the join is limited to staff.
+  if (!hasMinRole((options.role ?? null) as UserRole | null, ROLES.FACILITATOR) || result.data.length === 0) {
+    return result;
+  }
+
+  const counts = await eventDao.getAttendeeCounts(
+    supabase,
+    result.data.map((row) => row.id),
+  );
+
+  return { ...result, data: result.data.map((row) => ({ ...row, attendee_count: counts[row.id] ?? 0 })) };
 }
 
 export async function createEvent(supabase: DbClient, input: z.infer<typeof eventSchema>, actor: EventActor): Promise<Event> {
@@ -31,6 +48,7 @@ export async function createEvent(supabase: DbClient, input: z.infer<typeof even
     currency: input.currency ?? "PHP",
     cover_image_url: input.cover_image_url ?? null,
     status: "draft",
+    survey_enabled: input.survey_enabled ?? false,
   });
 
   if (!event) {

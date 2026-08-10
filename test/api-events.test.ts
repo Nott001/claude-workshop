@@ -5,8 +5,10 @@ const {
   requireAuth,
   requireRole,
   list,
+  getAttendeeCounts,
   create,
   eventFindById,
+  eventUpdate,
   updateField,
   findCourseById,
   logAuditEvent,
@@ -17,8 +19,10 @@ const {
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
   list: vi.fn(),
+  getAttendeeCounts: vi.fn(),
   create: vi.fn(),
   eventFindById: vi.fn(),
+  eventUpdate: vi.fn(),
   updateField: vi.fn(),
   findCourseById: vi.fn(),
   logAuditEvent: vi.fn(),
@@ -30,7 +34,14 @@ const {
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/modules/events/db/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
+vi.mock("@/modules/events/db/event.dao", () => ({
+  list,
+  getAttendeeCounts,
+  create,
+  findById: eventFindById,
+  update: eventUpdate,
+  updateField,
+}));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseById }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments, isAssigned: facilitatorIsAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: speakerReplaceEventAssignments }));
@@ -42,6 +53,7 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({
 
 import { GET, POST } from "@/app/api/events/route";
 import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";
+import { PATCH } from "@/app/api/events/[id]/route";
 
 const facilitator = {
   allowed: true,
@@ -70,9 +82,11 @@ beforeEach(() => {
     email: "jane@example.com",
     profile_image_url: null,
   });
-  list.mockResolvedValue([]);
+  list.mockResolvedValue({ data: [], total: 0, page: 1, limit: 50 });
+  getAttendeeCounts.mockResolvedValue({});
   create.mockResolvedValue({ id: 1, ...validEvent });
   eventFindById.mockResolvedValue({ id: 1, status: "draft" });
+  eventUpdate.mockResolvedValue({ id: 1, ...validEvent });
   updateField.mockResolvedValue(true);
   replaceEventAssignments.mockResolvedValue(true);
   speakerReplaceEventAssignments.mockResolvedValue(true);
@@ -113,6 +127,45 @@ describe("GET /api/events", () => {
     await GET(new Request("https://app.test/api/events"));
 
     expect(list).toHaveBeenCalledWith({}, { role: ROLES.FACILITATOR, userId: 7, filter: null, page: 1, limit: 50 });
+  });
+
+  it("attaches attendee counts to the rows a staff caller receives", async () => {
+    requireAuth.mockResolvedValue({
+      id: 7,
+      role: ROLES.FACILITATOR,
+      full_name: "Fay",
+      email: "fay@example.com",
+      profile_image_url: null,
+    });
+    list.mockResolvedValue({
+      data: [
+        { id: 3, title: "Launch", event_date: "2026-09-01", start_time: "09:00", end_time: "17:00", venue_name: "Main Hall" },
+      ],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+    getAttendeeCounts.mockResolvedValue({ 3: 7 });
+
+    const res = await GET(new Request("https://app.test/api/events"));
+    const body = await res.json();
+
+    expect(getAttendeeCounts).toHaveBeenCalledWith({}, [3]);
+    expect(body.data[0].attendee_count).toBe(7);
+  });
+
+  it("does not count tickets for a non-staff caller", async () => {
+    list.mockResolvedValue({
+      data: [{ id: 3, title: "Launch" }],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+
+    const res = await GET(new Request("https://app.test/api/events"));
+
+    expect(res.status).toBe(200);
+    expect(getAttendeeCounts).not.toHaveBeenCalled();
   });
 });
 
@@ -225,8 +278,15 @@ describe("POST /api/events creation", () => {
 describe("POST /api/events/[id]/publish", () => {
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
   const req = () => new Request("https://app.test/api/events/1/publish", { method: "POST" });
-  const facilitatorUser = {
+  const adminUser = {
     id: 9,
+    role: ROLES.ADMIN,
+    full_name: "Alex",
+    email: "alex@example.com",
+    profile_image_url: null,
+  };
+  const facilitatorUser = {
+    id: 10,
     role: ROLES.FACILITATOR,
     full_name: "Fay",
     email: "fay@example.com",
@@ -234,11 +294,11 @@ describe("POST /api/events/[id]/publish", () => {
   };
 
   beforeEach(() => {
-    requireAuth.mockResolvedValue(facilitatorUser);
+    requireAuth.mockResolvedValue(adminUser);
   });
 
-  it("refuses a caller below facilitator", async () => {
-    requireAuth.mockResolvedValue({ ...facilitatorUser, role: ROLES.ATTENDEE });
+  it("refuses a caller below admin", async () => {
+    requireAuth.mockResolvedValue({ ...adminUser, role: ROLES.ATTENDEE });
 
     const res = await PUBLISH(req(), params("1"));
 
@@ -246,8 +306,9 @@ describe("POST /api/events/[id]/publish", () => {
     expect(updateField).not.toHaveBeenCalled();
   });
 
-  it("refuses a facilitator who is not assigned to the event", async () => {
-    facilitatorIsAssigned.mockResolvedValue(false);
+  it("refuses a facilitator even when assigned to the event", async () => {
+    requireAuth.mockResolvedValue(facilitatorUser);
+    facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await PUBLISH(req(), params("1"));
 
@@ -298,5 +359,40 @@ describe("POST /api/events/[id]/publish", () => {
 
     expect(res.status).toBe(500);
     expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/events/[id] edit capability", () => {
+  const params = (id: string) => ({ params: Promise.resolve({ id }) });
+  const req = (body: unknown) => new Request("https://app.test/api/events/1", { method: "PATCH", body: JSON.stringify(body) });
+
+  it("refuses an assigned facilitator even when they run the event", async () => {
+    requireAuth.mockResolvedValue({
+      id: 10,
+      role: ROLES.FACILITATOR,
+      full_name: "Fay",
+      email: "fay@example.com",
+      profile_image_url: null,
+    });
+    facilitatorIsAssigned.mockResolvedValue(true);
+
+    const res = await PATCH(req({ title: "Renamed" }), params("1"));
+
+    expect(res.status).toBe(403);
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+
+  it("admits an admin to the update path", async () => {
+    requireAuth.mockResolvedValue({
+      id: 9,
+      role: ROLES.ADMIN,
+      full_name: "Alex",
+      email: "alex@example.com",
+      profile_image_url: null,
+    });
+
+    const res = await PATCH(req({ title: "Renamed" }), params("1"));
+
+    expect(res.status).toBe(200);
   });
 });

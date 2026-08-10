@@ -2,27 +2,21 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { cn } from "@/shared/lib/utils";
-import { EventCard } from "@/modules/events/components/event-card";
+import { EventTable } from "@/modules/events/components/event-table";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { LoadMoreButton } from "@/shared/components/load-more";
 
-const FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
+const TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
   { key: "drafts", label: "Drafts" },
 ];
 
-const NON_FACILITATOR_TABS: { key: FilterTab; label: string }[] = [
-  { key: "upcoming", label: "Upcoming" },
-  { key: "completed", label: "Completed" },
-];
-
 export function StaffEventListPage() {
-  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR);
-  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, isFacilitator, tabCounts } =
-    useEventList();
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN, { redirectTo: "/staff/events/assigned" });
+  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList();
 
   if (pending || loading) {
     return (
@@ -42,8 +36,6 @@ export function StaffEventListPage() {
 
   if (!allowed) return null;
 
-  const filterTabs = isFacilitator ? FACILITATOR_TABS : NON_FACILITATOR_TABS;
-
   return (
     <>
       <div className="flex flex-1 flex-col p-5">
@@ -52,7 +44,7 @@ export function StaffEventListPage() {
         </div>
 
         <div className="mb-3 flex gap-1.5">
-          {filterTabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -68,30 +60,8 @@ export function StaffEventListPage() {
           ))}
         </div>
 
-        {filteredEvents.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <div className="text-sm text-muted-foreground">No events found.</div>
-          </div>
-        ) : (
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredEvents.map((event, index) => (
-              <EventCard
-                key={event.id}
-                eventId={event.id}
-                title={event.title}
-                status={event.status}
-                date={event.event_date}
-                startTime={event.start_time}
-                endTime={event.end_time}
-                venueName={event.venue_name}
-                coverImageUrl={event.cover_image_url}
-                accentIndex={index}
-                showEdit={isFacilitator}
-                detailHref={`/staff/events/${event.id}`}
-              />
-            ))}
-          </div>
-        )}
+        <EventTable events={filteredEvents} showEdit />
+
         {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </>

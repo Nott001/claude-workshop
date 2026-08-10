@@ -11,7 +11,7 @@ export function useEmailLogs() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [emailTypeFilter, setEmailTypeFilter] = useState<"" | "ticket_issued" | "check_in_confirmed">("");
+  const [emailTypeFilter, setEmailTypeFilter] = useState<"" | "ticket_issued" | "check_in_confirmed" | "event_survey">("");
   const [statusFilter, setStatusFilter] = useState<"" | "sent" | "failed">("");
   const pageRef = useRef(1);
 

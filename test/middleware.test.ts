@@ -45,11 +45,13 @@ describe("route protection", () => {
     ["/staff", undefined],
     ["/staff/events", undefined],
     ["/staff/events/new", undefined],
+    ["/staff/community", undefined],
     ["/staff/organization", undefined],
     ["/staff/kiosk", undefined],
     ["/speaker/dashboard", undefined],
     ["/speaker/event/42/course", undefined],
     ["/api/events", { method: "POST" }],
+    ["/api/community", { method: "POST" }],
     ["/api/tickets/1", undefined],
     ["/api/checkin", undefined],
   ];
@@ -92,11 +94,14 @@ describe("api responses", () => {
 });
 
 describe("public event reads", () => {
-  it.each(["/api/events", "/api/events/42"])("lets an anonymous GET on %s reach the handler", async (path) => {
-    getUser.mockResolvedValue(signedOut);
-    const res = await middleware(request(path));
-    expect(res.status).toBe(200);
-  });
+  it.each(["/api/events", "/api/events/42", "/api/community"])(
+    "lets an anonymous GET on %s reach the handler",
+    async (path) => {
+      getUser.mockResolvedValue(signedOut);
+      const res = await middleware(request(path));
+      expect(res.status).toBe(200);
+    },
+  );
 
   it("still refuses anonymous writes to the event endpoints", async () => {
     getUser.mockResolvedValue(signedOut);
@@ -104,14 +109,53 @@ describe("public event reads", () => {
     expect(res.status).toBe(401);
   });
 
-  it.each(["/api/events/1/register", "/api/events/1/attendees", "/api/events/1/publish"])(
-    "keeps %s behind the middleware",
-    async (path) => {
-      getUser.mockResolvedValue(signedOut);
-      const res = await middleware(request(path));
-      expect(res.status).toBe(401);
-    },
-  );
+  it.each([
+    "/api/events/1/register",
+    "/api/events/1/attendees",
+    "/api/events/1/publish",
+    "/api/events/1/survey",
+    "/api/events/1/survey/send",
+  ])("keeps %s behind the middleware", async (path) => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request(path));
+    expect(res.status).toBe(401);
+  });
+});
+
+// Survey links are emailed to attendees with no session, so the token routes
+// must pass through the middleware; the random token is the only credential.
+describe("public survey routes", () => {
+  it("lets an anonymous GET on a survey token reach the handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123"));
+    expect(res.status).toBe(200);
+  });
+
+  it("lets an anonymous POST of a submission reach the handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123/submit", { method: "POST" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("does not open a nested survey path beyond submit", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123/admin", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("public community reads", () => {
+  it.each(["/api/community/1", "/api/community/999"])("keeps %s behind the middleware", async (path) => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request(path));
+    expect(res.status).toBe(401);
+  });
+
+  it("still refuses anonymous writes to the community endpoint", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/community", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
 });
 
 // Covers are stored as /api/storage/event_images/... and rendered on `/` and

@@ -13,6 +13,7 @@ const eventBaseSchema = z.object({
   currency: z.string().length(3).optional(),
   cover_image_url: z.string().nullable().optional(),
   status: z.enum(["draft", "active", "complete"]).optional(),
+  survey_enabled: z.boolean().optional(),
   facilitator_ids: z.array(z.coerce.number().int().positive()).optional(),
   speaker_profile_ids: z.array(z.coerce.number().int().positive()).optional(),
 });

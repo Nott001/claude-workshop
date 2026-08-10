@@ -62,7 +62,6 @@ export async function POST(req: Request) {
         name: userInfo.full_name,
         email_type: "check_in_confirmed",
         eventTitle: eventData?.title ?? "",
-        eventDate: eventData?.event_date ?? "",
       });
     });
   }

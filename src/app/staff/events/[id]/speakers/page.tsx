@@ -2,12 +2,15 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
+import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
+import { ROLES } from "@/shared/lib/roles";
 import { LoadMoreButton } from "@/shared/components/load-more";
 
 export default function StaffEventSpeakersPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
+  const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
   const {
     assignments,
     loading,
@@ -22,7 +25,8 @@ export default function StaffEventSpeakersPage() {
     handleRemove,
   } = useEventSpeakers(eventId);
 
-  if (loading) return <div>Loading...</div>;
+  if (pending || loading) return <div>Loading...</div>;
+  if (!allowed) return null;
   if (error) return <div>{error}</div>;
 
   return (

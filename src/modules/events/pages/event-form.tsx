@@ -13,7 +13,7 @@ export function EventFormPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams();
   const isEdit = mode === "edit";
   const eventId = isEdit ? (params.id as string) : "";
-  const { allowed, pending } = useRoleGuard(isEdit ? ROLES.FACILITATOR : ROLES.ADMIN);
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
   const [initialData, setInitialData] = useState<Record<string, unknown> | null>(isEdit ? null : {});
   const [showToast, setShowToast] = useState(false);
 

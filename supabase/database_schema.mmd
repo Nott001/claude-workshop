@@ -186,12 +186,12 @@ erDiagram
     %% ============ Community ============
     COMMUNITY_LINK {
         int id PK
-        int event_id FK
-        varchar platform
         varchar label
         varchar url
+        text description
         varchar icon_url
         int sequence_order
+        boolean is_hidden
         int created_by FK
         timestamp created_at
         timestamp updated_at
@@ -289,7 +289,6 @@ erDiagram
     EVENT ||--o{ EVENT_FACILITATOR : "staffed by"
     EVENT |o--o{ CHAT_MESSAGE : "hosts"
     EVENT |o--o{ SURVEY : "surveyed by"
-    EVENT ||--o{ COMMUNITY_LINK : "lists"
     EVENT ||--o{ PAYMENT : "charges for"
     EVENT ||--o{ TICKET : "admits to"
 
