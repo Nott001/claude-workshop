@@ -11,12 +11,15 @@ import { LoadMoreButton } from "@/shared/components/load-more";
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
-  { key: "drafts", label: "Drafts" },
 ];
 
-export function StaffEventListPage() {
-  const { allowed, pending } = useRoleGuard(ROLES.ADMIN, { redirectTo: "/staff/events/assigned" });
-  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList();
+export function AssignedEventListPage() {
+  // Exact facilitator, not min-role: an admin clears a facilitator minimum, but
+  // the server hands admins every event and this page must not leak that.
+  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { redirectTo: "/staff/events", exactRole: true });
+  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList({
+    upcomingIncludesDrafts: true,
+  });
 
   if (pending || loading) {
     return (
@@ -40,7 +43,7 @@ export function StaffEventListPage() {
     <>
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-base font-bold text-foreground">Events</span>
+          <span className="text-base font-bold text-foreground">My Events</span>
         </div>
 
         <div className="mb-3 flex gap-1.5">
@@ -60,7 +63,7 @@ export function StaffEventListPage() {
           ))}
         </div>
 
-        <EventTable events={filteredEvents} showEdit />
+        <EventTable events={filteredEvents} showKiosk />
 
         {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>

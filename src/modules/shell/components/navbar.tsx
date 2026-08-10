@@ -26,7 +26,7 @@ const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
     { label: "Community", href: "/community", icon: "forum" },
   ],
   facilitator: [
-    { label: "Events", href: "/staff/events", icon: "event" },
+    { label: "My Events", href: "/staff/events/assigned", icon: "event" },
     { label: "Community", href: "/community", icon: "forum" },
   ],
   admin: [

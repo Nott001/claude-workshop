@@ -50,9 +50,17 @@ describe("Navbar role nav items", () => {
     expect(navLabels()).toEqual(["Dashboard", "Community"]);
   });
 
-  it("shows a facilitator Events and Community", () => {
+  it("shows a facilitator My Events and Community", () => {
     renderAs(ROLES.FACILITATOR);
-    expect(navLabels()).toEqual(["Events", "Community"]);
+    expect(navLabels()).toEqual(["My Events", "Community"]);
+  });
+
+  it("points the facilitator My Events item at the assigned list, not the general listing", () => {
+    renderAs(ROLES.FACILITATOR);
+    const link = within(screen.getByRole("navigation", { name: "Primary navigation" })).getByRole("link", {
+      name: /My Events/,
+    });
+    expect(link.getAttribute("href")).toBe("/staff/events/assigned");
   });
 
   it("shows an admin the full staff set, with Community pointing at management", () => {
