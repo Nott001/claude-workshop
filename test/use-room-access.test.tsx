@@ -43,7 +43,11 @@ function liveWindow() {
   const end = new Date(Math.min(now.getTime() + 5 * 60000, dayEnd.getTime()));
   const pad = (n: number) => String(n).padStart(2, "0");
   const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  return { date: now.toISOString().slice(0, 10), start: fmt(start), end: fmt(end) };
+  // The hook parses date+time as local wall clock (parseLocalDateTime), so the
+  // date must be the local one — toISOString is UTC and flips a day behind UTC
+  // around midnight, putting the "live" window on the wrong local day.
+  const fmtDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return { date: fmtDate(now), start: fmt(start), end: fmt(end) };
 }
 
 function roomData(overrides: Record<string, unknown> = {}) {
