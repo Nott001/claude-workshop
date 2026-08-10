@@ -4,10 +4,12 @@ import { ROLES } from "@/shared/lib/roles";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { Navbar } from "@/modules/shell/components/navbar";
+import { TopNavbar } from "@/modules/shell/components/top-navbar";
 import { FloatingAssistButton } from "@/modules/shell/components/floating-assist-button";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { ErrorBoundary } from "@/modules/shell/components/error-boundary";
 import { Footer } from "@/modules/shell/components/footer";
+import { cn } from "@/shared/lib/utils";
 
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
 
@@ -30,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useSession();
   const role = user?.role ?? null;
+  const usesTopNav = !role || role === ROLES.ATTENDEE;
   const hideNavbar = shouldHideNavbar(pathname);
   const showAssist = !shouldHideAssist(pathname) && !hasMinRole(role, ROLES.SPEAKER);
 
@@ -39,9 +42,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <Navbar />
+      {usesTopNav ? <TopNavbar /> : <Navbar />}
       <ErrorBoundary>
-        <main className="flex flex-1 flex-col overflow-auto lg:pl-[202px]">
+        <main className={cn("flex flex-1 flex-col overflow-auto", usesTopNav ? "pt-16" : "lg:pl-[202px]")}>
           {children}
           <Footer />
         </main>

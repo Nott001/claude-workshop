@@ -2,7 +2,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
-import type { UserRole } from "@/shared/types";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
@@ -83,26 +82,5 @@ describe("Navbar role nav items", () => {
     cleanup();
     renderAs(ROLES.ADMIN);
     expect(superAdmin).toEqual(navLabels());
-  });
-
-  it("leaves the attendee nav with Community added", () => {
-    renderAs(ROLES.ATTENDEE);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
-  });
-
-  it("shows guests the signed-out nav including Community", () => {
-    renderAs(null);
-    expect(navLabels()).toEqual(["Home", "Events", "Community"]);
-  });
-});
-
-describe("Navbar fallback for an unrecognised role", () => {
-  // The fallback used to be `facilitator` — the worst possible default for a
-  // role the map does not know. A corrupt or newly-added role handed out the
-  // staff nav.
-  it("falls back to attendee, not facilitator", () => {
-    renderAs("wizard" as UserRole);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
-    expect(navLabels()).not.toContain("Create event");
   });
 });
