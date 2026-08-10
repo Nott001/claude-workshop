@@ -43,7 +43,11 @@ function liveWindow() {
   const end = new Date(Math.min(now.getTime() + 5 * 60000, dayEnd.getTime()));
   const pad = (n: number) => String(n).padStart(2, "0");
   const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  return { date: now.toISOString().slice(0, 10), start: fmt(start), end: fmt(end) };
+  // The window edges are local (getHours), so the date has to be local too.
+  // toISOString() is UTC, which names the previous day west of the meridian
+  // — at UTC+8 every run before 08:00 put the window on yesterday.
+  const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return { date: localDate, start: fmt(start), end: fmt(end) };
 }
 
 function roomData(overrides: Record<string, unknown> = {}) {
