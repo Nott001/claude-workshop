@@ -1,49 +1,60 @@
 import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
 import { getEmailService } from "@/shared/integrations/email";
-import { emailTemplates, type EmailTemplateParams } from "@/shared/integrations/email/templates";
-import type { EmailType } from "@/shared/types";
+import { emailTemplates } from "@/shared/integrations/email/templates";
 
-const templateMap: Record<EmailType, keyof typeof emailTemplates> = {
-  ticket_issued: "ticketIssued",
-  check_in_confirmed: "checkInConfirmed",
-  event_survey: "eventSurvey",
-};
+/**
+ * One member per email_type, carrying exactly the fields that email's template
+ * interpolates. Picking an email_type narrows the params to what that template
+ * needs, so the dispatch below calls each template with its own param type
+ * rather than a superset cast.
+ */
+export type SendEmailNotificationParams =
+  | {
+      user_id: number;
+      email: string;
+      name: string;
+      email_type: "ticket_issued";
+      eventTitle: string;
+      eventDate: string;
+      qrDataUrl?: string;
+    }
+  | { user_id: number; email: string; name: string; email_type: "check_in_confirmed"; eventTitle: string }
+  | { user_id: number; email: string; name: string; email_type: "event_survey"; eventTitle: string; surveyUrl: string };
 
-export async function sendEmailNotification(params: {
-  user_id: number;
-  email: string;
-  name: string;
-  email_type: EmailType;
-  eventTitle: string;
-  eventDate?: string;
-  qrDataUrl?: string;
-  surveyUrl?: string;
-}): Promise<boolean> {
-  const template = emailTemplates[templateMap[params.email_type]];
+function compose<P>(
+  template: { subject: string; buildHtml: (params: P) => string; buildText: (params: P) => string },
+  params: P,
+): { subject: string; htmlContent: string; textContent: string } {
+  return { subject: template.subject, htmlContent: template.buildHtml(params), textContent: template.buildText(params) };
+}
 
-  const eventDate = params.eventDate ?? "";
+function buildMessage(params: SendEmailNotificationParams) {
+  const { name, eventTitle } = params;
+  switch (params.email_type) {
+    case "ticket_issued":
+      return compose(emailTemplates.ticketIssued, {
+        name,
+        eventTitle,
+        eventDate: params.eventDate,
+        qrDataUrl: params.qrDataUrl,
+      });
+    case "check_in_confirmed":
+      return compose(emailTemplates.checkInConfirmed, { name, eventTitle });
+    case "event_survey":
+      return compose(emailTemplates.eventSurvey, { name, eventTitle, surveyUrl: params.surveyUrl });
+  }
+}
+
+export async function sendEmailNotification(params: SendEmailNotificationParams): Promise<boolean> {
+  const message = buildMessage(params);
 
   try {
     const result = await getEmailService().send({
       to: { email: params.email, name: params.name },
-      subject: template.subject,
-      // The templates' params differ (QR vs survey URL); the union type wants
-      // the intersection, so the per-type fields are cast rather than widened
-      // to a shape no single template owns.
-      htmlContent: template.buildHtml({
-        name: params.name,
-        eventTitle: params.eventTitle,
-        eventDate,
-        qrDataUrl: params.qrDataUrl,
-        surveyUrl: params.surveyUrl,
-      } as EmailTemplateParams),
-      textContent: template.buildText({
-        name: params.name,
-        eventTitle: params.eventTitle,
-        eventDate,
-        surveyUrl: params.surveyUrl,
-      } as EmailTemplateParams),
+      subject: message.subject,
+      htmlContent: message.htmlContent,
+      textContent: message.textContent,
     });
 
     if (!result.success && result.error) {
