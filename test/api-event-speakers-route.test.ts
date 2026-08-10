@@ -98,8 +98,8 @@ describe("GET /api/events/[id]/speakers", () => {
 });
 
 describe("POST /api/events/[id]/speakers", () => {
-  it("lets an assigned facilitator assign a speaker", async () => {
-    requireAuth.mockResolvedValue(staffUser(9, ROLES.FACILITATOR));
+  it("lets an admin assign a speaker", async () => {
+    requireAuth.mockResolvedValue(staffUser(9, ROLES.ADMIN));
 
     const res = await post();
 
@@ -109,9 +109,9 @@ describe("POST /api/events/[id]/speakers", () => {
     expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "speaker.assigned", "speaker_profile", 7, { event_id: 9 });
   });
 
-  it("refuses a facilitator who is not assigned to the event", async () => {
+  it("refuses a facilitator even when assigned to the event", async () => {
     requireAuth.mockResolvedValue(staffUser(9, ROLES.FACILITATOR));
-    facilitatorIsAssigned.mockResolvedValue(false);
+    facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await post();
 
@@ -120,7 +120,7 @@ describe("POST /api/events/[id]/speakers", () => {
     expect(speakerDao.assignToEvent).not.toHaveBeenCalled();
   });
 
-  it("refuses a caller below facilitator", async () => {
+  it("refuses a caller below admin", async () => {
     requireAuth.mockResolvedValue(staffUser(5, ROLES.ATTENDEE));
 
     const res = await post();

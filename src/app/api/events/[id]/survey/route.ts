@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
-    const event = await loadEventOr403(supabase, Number(id), user, "attendees");
+    const event = await loadEventOr403(supabase, Number(id), user, "survey");
     const status = await getStaffSurveyStatus(supabase, event);
     return NextResponse.json(status);
   } catch (err) {

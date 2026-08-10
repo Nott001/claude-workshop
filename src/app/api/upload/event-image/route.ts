@@ -13,7 +13,7 @@ import {
 } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
-  const guard = await requireMinRole(ROLES.FACILITATOR);
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }

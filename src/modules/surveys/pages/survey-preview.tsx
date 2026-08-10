@@ -11,7 +11,7 @@ export function SurveyPreviewPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-  const { pending, allowed } = useRoleGuard(ROLES.FACILITATOR);
+  const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
 

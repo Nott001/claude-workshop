@@ -151,7 +151,7 @@ describe("loadEventOr403", () => {
   });
 
   it("admits an admin for every capability without checking assignments", async () => {
-    for (const capability of ["edit", "delete", "publish", "attendees"] as const) {
+    for (const capability of ["edit", "delete", "publish", "attendees", "survey"] as const) {
       await expect(loadEventOr403(supabase, 1, { id: 1, role: ROLES.ADMIN }, capability)).resolves.toMatchObject({ id: 1 });
     }
     expect(facilitatorDao.isAssigned).not.toHaveBeenCalled();
@@ -161,13 +161,17 @@ describe("loadEventOr403", () => {
     await expect(loadEventOr403(supabase, 1, { id: 1, role: ROLES.SUPER_ADMIN }, "delete")).resolves.toMatchObject({ id: 1 });
   });
 
-  it("admits an assigned facilitator for the write capabilities", async () => {
-    for (const capability of ["edit", "publish", "attendees"] as const) {
-      await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, capability)).resolves.toMatchObject({
-        id: 1,
+  it("admits an assigned facilitator only for the attendee read", async () => {
+    for (const capability of ["edit", "publish", "survey"] as const) {
+      await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, capability)).rejects.toMatchObject({
+        status: 403,
+        message: "Forbidden",
       });
     }
-    expect(facilitatorDao.isAssigned).toHaveBeenCalledWith(supabase, 1, 7);
+    await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, "attendees")).resolves.toMatchObject({
+      id: 1,
+    });
+    expect(facilitatorDao.isAssigned).toHaveBeenCalled();
   });
 
   it("throws 403 for an unassigned facilitator", async () => {

@@ -32,7 +32,8 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({
 
 import { PATCH } from "@/app/api/events/[id]/route";
 
-const user = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
+const user = { id: 9, role: ROLES.ADMIN, full_name: "Alex", email: "alex@example.com", profile_image_url: null };
+const facilitator = { id: 10, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 const stored = { id: 3, title: "Launch", event_date: "2026-09-01", start_time: "09:00", end_time: "17:00" };
 
@@ -110,8 +111,9 @@ describe("PATCH /api/events/[id] time range", () => {
 });
 
 describe("PATCH /api/events/[id] authorization", () => {
-  it("refuses a facilitator who is not assigned to the event", async () => {
-    facilitatorIsAssigned.mockResolvedValue(false);
+  it("refuses a facilitator even when assigned to the event", async () => {
+    requireAuth.mockResolvedValue(facilitator);
+    facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await patch({ title: "Renamed" });
 
@@ -120,7 +122,7 @@ describe("PATCH /api/events/[id] authorization", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("refuses a caller below facilitator", async () => {
+  it("refuses a caller below admin", async () => {
     requireAuth.mockResolvedValue({ ...user, role: ROLES.ATTENDEE });
 
     const res = await patch({ title: "Renamed" });

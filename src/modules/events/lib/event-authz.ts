@@ -11,7 +11,7 @@ export type EventActor = { id: number };
 
 export type EventGuardUser = { id: number; role: UserRole };
 
-export type EventCapability = "edit" | "delete" | "publish" | "attendees";
+export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "survey";
 
 // Courses keeps its own copy: the module boundary forbids courses → events, so
 // the course-room guard (SPEC-05) cannot import this one.
@@ -22,14 +22,16 @@ export async function canManageEvent(supabase: DbClient, user: EventGuardUser, e
   return false;
 }
 
-// The capability matrix — the single source of truth. Every write action
-// admits admin+ or an assigned facilitator; only delete is admin+, keeping an
-// assigned facilitator from destroying an event they merely help run.
+// The capability matrix — the single source of truth. Event management (edit,
+// publish, delete) and surveys are admin-only: facilitators are foot soldiers
+// who run kiosk check-in but never touch event details. Only the attendee read
+// stays open to an assigned facilitator, since the kiosk flow depends on it.
 const CAPABILITY_RULE: Record<EventCapability, { minRole: UserRole; assignment: boolean }> = {
-  edit: { minRole: ROLES.FACILITATOR, assignment: true },
+  edit: { minRole: ROLES.ADMIN, assignment: false },
   delete: { minRole: ROLES.ADMIN, assignment: false },
-  publish: { minRole: ROLES.FACILITATOR, assignment: true },
+  publish: { minRole: ROLES.ADMIN, assignment: false },
   attendees: { minRole: ROLES.FACILITATOR, assignment: true },
+  survey: { minRole: ROLES.ADMIN, assignment: false },
 };
 
 export async function loadEventOr403(

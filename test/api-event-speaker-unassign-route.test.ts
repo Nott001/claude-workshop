@@ -34,13 +34,14 @@ const user = (id: number, role: string) => ({
   email: "fay@example.com",
   profile_image_url: null,
 });
-const facilitator = user(5, ROLES.FACILITATOR);
-const attendee = user(6, ROLES.ATTENDEE);
+const admin = user(5, ROLES.ADMIN);
+const facilitator = user(6, ROLES.FACILITATOR);
+const attendee = user(7, ROLES.ATTENDEE);
 const params = { params: Promise.resolve({ id: "9", profileId: "7" }) };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(facilitator);
+  requireAuth.mockResolvedValue(admin);
   speakerDao.unassignFromEvent.mockResolvedValue(true);
   courseDao.clearModuleSpeakerForEvent.mockResolvedValue(true);
   logAuditEvent.mockResolvedValue(undefined);
@@ -49,7 +50,7 @@ beforeEach(() => {
 });
 
 describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
-  it("clears the module speaker reference when an assigned facilitator unassigns", async () => {
+  it("clears the module speaker reference when an admin unassigns", async () => {
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
     expect(res.status).toBe(200);
@@ -69,8 +70,9 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
     expect(courseDao.clearModuleSpeakerForEvent).not.toHaveBeenCalled();
   });
 
-  it("refuses a facilitator who is not assigned to the event", async () => {
-    facilitatorIsAssigned.mockResolvedValue(false);
+  it("refuses a facilitator even when assigned to the event", async () => {
+    requireAuth.mockResolvedValue(facilitator);
+    facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
@@ -80,7 +82,7 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
     expect(courseDao.clearModuleSpeakerForEvent).not.toHaveBeenCalled();
   });
 
-  it("refuses a caller below facilitator without touching the database", async () => {
+  it("refuses a caller below admin without touching the database", async () => {
     requireAuth.mockResolvedValue(attendee);
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
