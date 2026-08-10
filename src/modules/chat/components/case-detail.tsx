@@ -1,6 +1,7 @@
 "use client";
 
-import type { CaseSummary, ChatMessageWithUser } from "@/modules/chat/lib/use-support-cases";
+import type { CaseSummary } from "@/modules/chat/lib/use-support-cases";
+import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { CaseDetailHeader } from "./case-detail-header";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";

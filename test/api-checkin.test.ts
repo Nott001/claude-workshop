@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { TicketStatus } from "@/shared/types";
 
@@ -12,13 +13,16 @@ const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotificatio
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ findById }));
+vi.mock("@/modules/events/db/event.dao", () => ({ findById }));
 
 vi.mock("@/modules/notifications/lib/email", () => ({ sendEmailNotification }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { POST } from "@/app/api/checkin/route";
 
@@ -29,7 +33,7 @@ function post(body: unknown) {
   });
 }
 
-const facilitator = { allowed: true, error: null, user: { id: 7, role: "facilitator" } };
+const facilitator = { allowed: true, error: null, user: { id: 7, role: ROLES.FACILITATOR } };
 
 function ticket(status: TicketStatus = "issued") {
   return {
@@ -71,7 +75,7 @@ describe("authorization", () => {
 
   it("only admits the facilitator role", async () => {
     await POST(post({ qr_token: "tok" }));
-    expect(requireRole).toHaveBeenCalledWith("facilitator");
+    expect(requireRole).toHaveBeenCalledWith(ROLES.FACILITATOR);
   });
 });
 

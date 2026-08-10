@@ -1,9 +1,8 @@
 import type { UserRole } from "@/shared/types";
+import { INVITABLE_ROLES, type InvitableRole } from "@/shared/lib/roles";
 
-/** The roles an admin can hand out through the organization invite. */
-export const INVITABLE_ROLES = ["speaker", "facilitator", "admin"] as const;
-
-export type InvitableRole = (typeof INVITABLE_ROLES)[number];
+export { INVITABLE_ROLES };
+export type { InvitableRole };
 
 /**
  * The invited role travels in `app_metadata`, never `user_metadata`.

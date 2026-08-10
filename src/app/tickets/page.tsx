@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 
 import { useTickets } from "@/modules/commerce/lib/use-tickets";
 import { TicketCard } from "@/modules/commerce/components/ticket-card";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 export default function TicketsPage() {
   const router = useRouter();
-  const { tickets, loading, error } = useTickets();
+  const { tickets, loading, loadingMore, error, hasMore, loadMore } = useTickets();
 
   if (loading) {
     return (
@@ -58,6 +59,7 @@ export default function TicketsPage() {
             ))}
           </div>
         )}
+        {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </div>
   );

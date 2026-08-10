@@ -1,7 +1,8 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireRole, speakerDao, courseDao, logAuditEvent } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+const { requireAuth, speakerDao, courseDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
+  requireAuth: vi.fn(),
   speakerDao: {
     unassignFromEvent: vi.fn(),
   },
@@ -9,30 +10,46 @@ const { requireRole, speakerDao, courseDao, logAuditEvent } = vi.hoisted(() => (
     clearModuleSpeakerForEvent: vi.fn(),
   },
   logAuditEvent: vi.fn(),
+  eventFindById: vi.fn(),
+  facilitatorIsAssigned: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { DELETE } from "@/app/api/events/[id]/speakers/[profileId]/route";
 
-const facilitator = { allowed: true, error: null, user: { id: 5, role: "facilitator" } };
+const user = (id: number, role: string) => ({
+  id,
+  role,
+  full_name: "Fay",
+  email: "fay@example.com",
+  profile_image_url: null,
+});
+const facilitator = user(5, ROLES.FACILITATOR);
+const attendee = user(6, ROLES.ATTENDEE);
 const params = { params: Promise.resolve({ id: "9", profileId: "7" }) };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  requireAuth.mockResolvedValue(facilitator);
   speakerDao.unassignFromEvent.mockResolvedValue(true);
   courseDao.clearModuleSpeakerForEvent.mockResolvedValue(true);
   logAuditEvent.mockResolvedValue(undefined);
+  eventFindById.mockResolvedValue({ id: 9, status: "active" });
+  facilitatorIsAssigned.mockResolvedValue(true);
 });
 
 describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
-  it("clears the module speaker reference when a facilitator unassigns", async () => {
-    requireRole.mockResolvedValue(facilitator);
-
+  it("clears the module speaker reference when an assigned facilitator unassigns", async () => {
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
     expect(res.status).toBe(200);
@@ -43,7 +60,6 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
   });
 
   it("does not touch modules when the unassign fails", async () => {
-    requireRole.mockResolvedValue(facilitator);
     speakerDao.unassignFromEvent.mockResolvedValue(false);
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
@@ -53,13 +69,33 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
     expect(courseDao.clearModuleSpeakerForEvent).not.toHaveBeenCalled();
   });
 
+  it("refuses a facilitator who is not assigned to the event", async () => {
+    facilitatorIsAssigned.mockResolvedValue(false);
+
+    const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+    expect(speakerDao.unassignFromEvent).not.toHaveBeenCalled();
+    expect(courseDao.clearModuleSpeakerForEvent).not.toHaveBeenCalled();
+  });
+
   it("refuses a caller below facilitator without touching the database", async () => {
-    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+    requireAuth.mockResolvedValue(attendee);
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
     expect(res.status).toBe(403);
     expect(speakerDao.unassignFromEvent).not.toHaveBeenCalled();
     expect(courseDao.clearModuleSpeakerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an anonymous caller", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
+
+    expect(res.status).toBe(401);
+    expect(speakerDao.unassignFromEvent).not.toHaveBeenCalled();
   });
 });

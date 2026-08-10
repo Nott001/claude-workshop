@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
@@ -9,7 +10,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   const supabase = getServiceClient();
 
   const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, "facilitator")) {
+  if (!user || !hasMinRole(user.role, ROLES.FACILITATOR)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

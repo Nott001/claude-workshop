@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -11,6 +12,7 @@ const {
   logAuditEvent,
   replaceEventAssignments,
   speakerReplaceEventAssignments,
+  facilitatorIsAssigned,
 } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
@@ -22,17 +24,21 @@ const {
   logAuditEvent: vi.fn(),
   replaceEventAssignments: vi.fn(),
   speakerReplaceEventAssignments: vi.fn(),
+  facilitatorIsAssigned: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
+vi.mock("@/modules/events/db/event.dao", () => ({ list, create, findById: eventFindById, updateField }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseById }));
-vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments }));
+vi.mock("@/shared/db/dao/facilitator.dao", () => ({ replaceEventAssignments, isAssigned: facilitatorIsAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ replaceEventAssignments: speakerReplaceEventAssignments }));
 
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { GET, POST } from "@/app/api/events/route";
 import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";
@@ -40,7 +46,7 @@ import { POST as PUBLISH } from "@/app/api/events/[id]/publish/route";
 const facilitator = {
   allowed: true,
   error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+  user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
 };
 const denied = { allowed: false, error: "Forbidden", user: null };
 
@@ -59,7 +65,7 @@ beforeEach(() => {
   requireRole.mockResolvedValue(facilitator);
   requireAuth.mockResolvedValue({
     id: 5,
-    role: "attendee",
+    role: ROLES.ATTENDEE,
     full_name: "Jane",
     email: "jane@example.com",
     profile_image_url: null,
@@ -70,13 +76,14 @@ beforeEach(() => {
   updateField.mockResolvedValue(true);
   replaceEventAssignments.mockResolvedValue(true);
   speakerReplaceEventAssignments.mockResolvedValue(true);
+  facilitatorIsAssigned.mockResolvedValue(true);
 });
 
 describe("GET /api/events", () => {
   it("passes the caller's role to the query so listings can be filtered by it", async () => {
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: null, page: 1, limit: 50 });
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
@@ -85,19 +92,19 @@ describe("GET /api/events", () => {
     const res = await GET(new Request("https://app.test/api/events"));
 
     expect(res.status).toBe(200);
-    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null, page: 1, limit: 50 });
   });
 
   it("forwards the filter query parameter", async () => {
     await GET(new Request("https://app.test/api/events?filter=upcoming"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "attendee", userId: 5, filter: "upcoming" });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming", page: 1, limit: 50 });
   });
 
   it("passes the caller's id so a facilitator is filtered to their own events", async () => {
     requireAuth.mockResolvedValue({
       id: 7,
-      role: "facilitator",
+      role: ROLES.FACILITATOR,
       full_name: "Fay",
       email: "fay@example.com",
       profile_image_url: null,
@@ -105,7 +112,7 @@ describe("GET /api/events", () => {
 
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: "facilitator", userId: 7, filter: null });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.FACILITATOR, userId: 7, filter: null, page: 1, limit: 50 });
   });
 });
 
@@ -121,7 +128,7 @@ describe("POST /api/events authorization", () => {
 
   it("requires the admin role specifically", async () => {
     await POST(postEvent(validEvent));
-    expect(requireRole).toHaveBeenCalledWith("admin");
+    expect(requireRole).toHaveBeenCalledWith(ROLES.ADMIN);
   });
 });
 
@@ -218,13 +225,42 @@ describe("POST /api/events creation", () => {
 describe("POST /api/events/[id]/publish", () => {
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
   const req = () => new Request("https://app.test/api/events/1/publish", { method: "POST" });
+  const facilitatorUser = {
+    id: 9,
+    role: ROLES.FACILITATOR,
+    full_name: "Fay",
+    email: "fay@example.com",
+    profile_image_url: null,
+  };
 
-  it("refuses a caller who is not a facilitator", async () => {
-    requireRole.mockResolvedValue(denied);
+  beforeEach(() => {
+    requireAuth.mockResolvedValue(facilitatorUser);
+  });
+
+  it("refuses a caller below facilitator", async () => {
+    requireAuth.mockResolvedValue({ ...facilitatorUser, role: ROLES.ATTENDEE });
 
     const res = await PUBLISH(req(), params("1"));
 
     expect(res.status).toBe(403);
+    expect(updateField).not.toHaveBeenCalled();
+  });
+
+  it("refuses a facilitator who is not assigned to the event", async () => {
+    facilitatorIsAssigned.mockResolvedValue(false);
+
+    const res = await PUBLISH(req(), params("1"));
+
+    expect(res.status).toBe(403);
+    expect(updateField).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an anonymous caller", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await PUBLISH(req(), params("1"));
+
+    expect(res.status).toBe(401);
     expect(updateField).not.toHaveBeenCalled();
   });
 

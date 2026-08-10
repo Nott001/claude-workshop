@@ -1,8 +1,8 @@
 "use client";
 
-import { buildTimeline } from "@/modules/events/lib/session-timeline";
-import type { LiveModuleSource } from "@/modules/events/lib/live-module";
-import { formatTime } from "@/shared/lib/date-utils";
+import { buildTimeline } from "@/modules/events/lib/timeline";
+import type { LiveModuleSource } from "@/shared/lib/live-module";
+import { formatTime, parseLocalDateTime } from "@/shared/lib/date-utils";
 import { ProgressBar } from "@/modules/events/components/progress-bar";
 
 interface SessionTimelineProps {
@@ -21,9 +21,9 @@ function overallProgress(
   now: Date,
 ): number {
   if (!startTime || !endTime) return 0;
-  const start = new Date(`${eventDate}T${startTime}`);
-  const end = new Date(`${eventDate}T${endTime}`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end.getTime() <= start.getTime()) return 0;
+  const start = parseLocalDateTime(eventDate, startTime);
+  const end = parseLocalDateTime(eventDate, endTime);
+  if (!start || !end || end.getTime() <= start.getTime()) return 0;
   const t = now.getTime();
   if (t < start.getTime()) return 0;
   if (t >= end.getTime()) return 1;

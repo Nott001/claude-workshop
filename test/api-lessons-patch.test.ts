@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -8,14 +9,17 @@ const { requireRole, requireLessonAccess, updateLesson, logAuditEvent } = vi.hoi
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => NextResponse.json({ error: guard.error }, { status: 403 }),
 }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ updateLesson }));
 vi.mock("@/shared/integrations/storage/service", () => ({ deleteFromStorage: vi.fn(), listStorageFolder: vi.fn() }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireLessonAccess }));
 
 import { PATCH } from "@/app/api/lessons/[id]/route";
@@ -23,7 +27,7 @@ import { PATCH } from "@/app/api/lessons/[id]/route";
 const speaker = {
   allowed: true,
   error: null,
-  user: { id: 8, role: "speaker", full_name: "Sam", email: "sam@example.com", profile_image_url: null },
+  user: { id: 8, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com", profile_image_url: null },
 };
 
 function jsonRequest(body: unknown): Request {

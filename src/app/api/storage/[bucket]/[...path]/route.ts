@@ -1,8 +1,9 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { isStorageBucket, COURSE_CONTENT_BUCKETS } from "@/shared/integrations/storage/policy";
 import type { StorageBucket } from "@/shared/integrations/storage/policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -68,7 +69,7 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
       return { allowed: true, cacheable: true };
     }
     const viewer = await requireAuth(supabase);
-    return { allowed: hasMinRole(viewer?.role ?? null, "facilitator"), cacheable: false };
+    return { allowed: hasMinRole(viewer?.role ?? null, ROLES.FACILITATOR), cacheable: false };
   }
 
   const user = await requireAuth(supabase);
@@ -82,7 +83,7 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
 
   // Facilitator *and up*: an equality test denied admins and super_admins the
   // course material every facilitator can already read.
-  if (hasMinRole(user.role, "facilitator")) return { allowed: true, cacheable: false };
+  if (hasMinRole(user.role, ROLES.FACILITATOR)) return { allowed: true, cacheable: false };
 
   const courseId = courseIdFromPath(segments);
   if (courseId === null) return DENY;

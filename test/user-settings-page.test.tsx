@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
@@ -17,7 +18,7 @@ vi.mock("@/modules/user/components/account-settings", () => ({
 
 import UserSettingsPage from "@/app/user/[[...rest]]/page";
 
-const user = { id: 1, role: "speaker", full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+const user = { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 
 afterEach(() => {
   cleanup();

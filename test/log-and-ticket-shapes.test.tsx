@@ -87,7 +87,10 @@ describe("log list keys", () => {
   });
 
   it("gives every email row a defined, distinct id", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => emailRows }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: emailRows, total: 2, page: 1, limit: 50 }) }),
+    );
 
     const { result } = renderHook(() => useEmailLogs());
 
@@ -98,7 +101,10 @@ describe("log list keys", () => {
 
 describe("usePayments", () => {
   it("keys on id and reads the singular EVENT embed", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => paymentRows }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: paymentRows, total: 2, page: 1, limit: 50 }) }),
+    );
 
     const { result } = renderHook(() => usePayments());
 

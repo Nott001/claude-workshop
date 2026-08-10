@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent, within } from "@testing-library/react";
 
@@ -10,23 +11,18 @@ vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 const { getBrowserClient } = vi.hoisted(() => ({ getBrowserClient: vi.fn() }));
 vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient }));
 
-const { findMessageWithUser } = vi.hoisted(() => ({ findMessageWithUser: vi.fn() }));
-vi.mock("@/shared/db/dao/chat.dao", () => ({ findMessageWithUser }));
-
-const { subscribeToSupportSessions, subscribeToSupportMessages, unsubscribe } = vi.hoisted(() => ({
+const { subscribeToSupportSessions, unsubscribe } = vi.hoisted(() => ({
   subscribeToSupportSessions: vi.fn(),
-  subscribeToSupportMessages: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 vi.mock("@/shared/integrations/realtime", () => ({
   subscribeToSupportSessions,
-  subscribeToSupportMessages,
   unsubscribe,
 }));
 
 import StaffSupportInbox from "@/modules/chat/components/staff-support-inbox";
 
-const ADMIN = { id: 1, role: "admin", full_name: "Ada", email: "ada@example.com" };
+const ADMIN = { id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" };
 
 interface CaseRow {
   id: number;
@@ -81,7 +77,7 @@ const MESSAGE = (id: number, user_id: number, message: string) => ({
   updated_at: "2026-08-05T09:00:00Z",
   support_type: "general",
   event_id: null,
-  USER: { full_name: user_id === 20 ? "Ana" : "Ada", role: user_id === 20 ? "attendee" : "admin" },
+  USER: { full_name: user_id === 20 ? "Ana" : "Ada", role: user_id === 20 ? ROLES.ATTENDEE : ROLES.ADMIN },
 });
 
 let fetchCalls: Array<{ method: string; url: string; body?: string }> = [];
@@ -102,10 +98,10 @@ function mockFetch(routes: Array<{ match: (method: string, url: string) => boole
 
 function renderInbox() {
   useSession.mockReturnValue({ user: ADMIN, isSignedIn: true, signOut: vi.fn() });
-  getBrowserClient.mockReturnValue({ channel: vi.fn() });
+  getBrowserClient.mockReturnValue({
+    channel: vi.fn(() => ({ on: () => ({ subscribe: () => {} }) })),
+  });
   subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
-  subscribeToSupportMessages.mockReturnValue({ id: "messages" });
-  findMessageWithUser.mockResolvedValue(MESSAGE(3, 1, "on it"));
   return render(<StaffSupportInbox />);
 }
 
@@ -123,7 +119,9 @@ afterEach(() => {
 
 describe("StaffSupportInbox queue", () => {
   it("renders each open case with its number and handler state", async () => {
-    mockFetch([{ match: (m) => m === "GET", respond: () => ({ cases: [UNCLAIMED, MINE, OTHER] }) }]);
+    mockFetch([
+      { match: (m) => m === "GET", respond: () => ({ data: [UNCLAIMED, MINE, OTHER], total: 3, page: 1, limit: 50 }) },
+    ]);
 
     renderInbox();
 
@@ -136,7 +134,7 @@ describe("StaffSupportInbox queue", () => {
   });
 
   it("shows a quiet state when the queue is empty", async () => {
-    mockFetch([{ match: (m) => m === "GET", respond: () => ({ cases: [] }) }]);
+    mockFetch([{ match: (m) => m === "GET", respond: () => ({ data: [], total: 0, page: 1, limit: 50 }) }]);
 
     renderInbox();
 
@@ -147,7 +145,10 @@ describe("StaffSupportInbox queue", () => {
 describe("StaffSupportInbox claim flow", () => {
   it("opens an unclaimed case read-only and claims it", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [UNCLAIMED] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [UNCLAIMED], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=20"),
         respond: () => ({
@@ -173,7 +174,10 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("shows a case handled by someone else as read-only", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [OTHER] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [OTHER], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=22"),
         respond: () => ({
@@ -194,7 +198,10 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("lets the owner reply, relinquish and end a case", async () => {
     mockFetch([
-      { match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: [MINE] }) },
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: [MINE], total: 1, page: 1, limit: 50 }),
+      },
       {
         match: (m, url) => m === "GET" && url.includes("user_id=21"),
         respond: () => ({
@@ -229,7 +236,12 @@ describe("StaffSupportInbox claim flow", () => {
 
   it("keeps the claim button on the queue item's header actions", async () => {
     const queue = [UNCLAIMED];
-    mockFetch([{ match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"), respond: () => ({ cases: queue }) }]);
+    mockFetch([
+      {
+        match: (m, url) => m === "GET" && url.startsWith("/api/support/cases"),
+        respond: () => ({ data: queue, total: 1, page: 1, limit: 50 }),
+      },
+    ]);
 
     renderInbox();
 

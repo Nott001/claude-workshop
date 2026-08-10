@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import { serviceClient, createUser, createEvent, signIn, cleanup, type SeededUser, type SeededEvent } from "./fixtures";
 
@@ -21,7 +22,7 @@ test.afterAll(async () => {
 test.describe.configure({ mode: "serial" });
 
 test("an attendee can buy a ticket and see it afterwards", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   const event = await createEvent(db);
   users.push(attendee);
   events.push(event);
@@ -47,7 +48,7 @@ test("an attendee can buy a ticket and see it afterwards", async ({ page }) => {
 });
 
 test("buying twice for the same event is refused", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   const event = await createEvent(db);
   users.push(attendee);
   events.push(event);
@@ -71,7 +72,7 @@ test("buying twice for the same event is refused", async ({ page }) => {
 });
 
 test("a draft event cannot be bought", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   const event = await createEvent(db, { status: "draft" });
   users.push(attendee);
   events.push(event);
@@ -84,8 +85,8 @@ test("a draft event cannot be bought", async ({ page }) => {
 });
 
 test("a facilitator checks in a ticket, and a replay is reported as duplicate", async ({ page, browser }) => {
-  const attendee = await createUser(db, "attendee");
-  const facilitator = await createUser(db, "facilitator");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   const event = await createEvent(db);
   users.push(attendee, facilitator);
   events.push(event);
@@ -128,7 +129,7 @@ test("a facilitator checks in a ticket, and a replay is reported as duplicate", 
 });
 
 test("an attendee cannot check in a ticket", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   const event = await createEvent(db);
   users.push(attendee);
   events.push(event);
@@ -158,7 +159,7 @@ test("an attendee cannot check in a ticket", async ({ page }) => {
 });
 
 test("a forged qr token is refused", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);

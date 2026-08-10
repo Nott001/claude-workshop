@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 
@@ -17,7 +18,7 @@ function settings(overrides: Record<string, unknown> = {}) {
     toast: null,
     dismissToast: vi.fn(),
     notify: vi.fn(),
-    currentUser: { id: 1, role: "speaker", full_name: "Ada", email: "ada@example.com", profile_image_url: null },
+    currentUser: { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null },
     name: "Ada",
     setName: vi.fn(),
     savingName: false,
@@ -103,7 +104,7 @@ describe("AccountSettings", () => {
       settings({
         currentUser: {
           id: 1,
-          role: "speaker",
+          role: ROLES.SPEAKER,
           full_name: "Ada",
           email: "ada@example.com",
           profile_image_url: "https://cdn.example/a.jpg",

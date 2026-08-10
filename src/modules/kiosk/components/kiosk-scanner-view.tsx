@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Event } from "@/shared/types";
 import { QrScanner } from "./qr-scanner";
-import { AttendeesPanel } from "@/modules/events/components/attendees-panel";
+import { AttendeesPanel } from "./attendees-panel";
 
 interface CheckinResponse {
   status: "success" | "duplicate" | "rejected";

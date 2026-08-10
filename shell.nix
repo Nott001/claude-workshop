@@ -9,5 +9,6 @@ pkgs.mkShell {
         nodejs
         pnpm
         ngrok
+        supabase-cli
     ];
 }

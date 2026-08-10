@@ -27,12 +27,15 @@ export function useSpeakerEvent(eventId: string) {
 
     async function fetchEvent() {
       const res = await fetch(`/api/speakers/me/events/${eventId}`);
-      const data = await res.json();
       if (!res.ok) {
-        if (!cancelled) setError(data.error ?? "Failed to load event details");
-        setLoading(false);
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!cancelled) {
+          setError(body?.error ?? "Failed to load event details");
+          setLoading(false);
+        }
         return;
       }
+      const data = await res.json();
       if (!cancelled) {
         setEvent(data);
         setLoading(false);

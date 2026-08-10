@@ -1,10 +1,11 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import StaffSupportInbox from "@/modules/chat/components/staff-support-inbox";
 
 export default function StaffSupportPage() {
-  const { allowed, pending } = useRoleGuard("admin");
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
 
   if (pending) {
     return (

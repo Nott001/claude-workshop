@@ -1,5 +1,6 @@
 export type UserRole = "attendee" | "speaker" | "facilitator" | "admin" | "super_admin";
-export type SupportType = "general" | "event";
+/** Support chat is general-only; the event branch was removed. */
+export type SupportType = "general";
 
 export interface User {
   id: number;
@@ -114,7 +115,6 @@ export interface Ticket {
 
 export interface ChatMessage {
   id: number;
-  event_id: number | null;
   session_id: number | null;
   support_type: SupportType;
   user_id: number;
@@ -168,7 +168,7 @@ export interface AuditLog {
 }
 
 export interface LiveSessionState {
-  event_id: number;
+  course_id: number;
   highlighted_lesson_id: number | null;
   updated_by: number;
   updated_at: string;
@@ -181,7 +181,6 @@ export interface SupportSession {
   user_id: number;
   status: SupportSessionStatus;
   support_type: SupportType;
-  event_id: number | null;
   case_number: number;
   assigned_to: number | null;
   created_at: string;

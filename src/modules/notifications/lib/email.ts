@@ -51,6 +51,10 @@ export async function sendEmailNotification(params: {
       sent_at: new Date().toISOString(),
     });
   } catch (err) {
+    // A failed send used to vanish here. The caller decides whether a mail
+    // failure should fail its own operation, so the error is logged and
+    // rethrown — both send sites run inside afterResponse, which records it.
     console.error("Email notification failed:", err);
+    throw err;
   }
 }

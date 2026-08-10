@@ -1,0 +1,449 @@
+import { ROLES } from "@/shared/lib/roles";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const {
+  requireRole,
+  requireMinRole,
+  requireAuth,
+  requireModuleAccess,
+  qaFindById,
+  qaFindByIdWithUser,
+  qaSoftDelete,
+  findMessageWithUser,
+  updateMessage,
+  sessionFindById,
+  speakerFindById,
+  speakerUpdate,
+  speakerRemove,
+  deleteFromStorage,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  requireMinRole: vi.fn(),
+  requireAuth: vi.fn(),
+  requireModuleAccess: vi.fn(),
+  qaFindById: vi.fn(),
+  qaFindByIdWithUser: vi.fn(),
+  qaSoftDelete: vi.fn(),
+  findMessageWithUser: vi.fn(),
+  updateMessage: vi.fn(),
+  sessionFindById: vi.fn(),
+  speakerFindById: vi.fn(),
+  speakerUpdate: vi.fn(),
+  speakerRemove: vi.fn(),
+  deleteFromStorage: vi.fn(),
+}));
+
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole }));
+vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
+vi.mock("@/shared/db/dao/chat.dao", () => ({
+  qaMessageDao: { findById: qaFindById, findByIdWithUser: qaFindByIdWithUser, softDelete: qaSoftDelete },
+  findMessageWithUser,
+  updateMessage,
+}));
+vi.mock("@/shared/db/dao/support-session.dao", () => ({ findById: sessionFindById }));
+vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess }));
+vi.mock("@/shared/db/dao/speaker.dao", () => ({
+  findById: speakerFindById,
+  update: speakerUpdate,
+  remove: speakerRemove,
+}));
+vi.mock("@/shared/integrations/storage/service", () => ({ deleteFromStorage }));
+
+import { GET as GET_QA, DELETE as DELETE_QA } from "@/app/api/qa/message/[messageId]/route";
+import { GET as GET_SUPPORT, DELETE as DELETE_SUPPORT } from "@/app/api/support/[messageId]/route";
+import { PATCH as PATCH_SPEAKER, DELETE as DELETE_SPEAKER } from "@/app/api/speakers/[id]/route";
+
+const req = () => new Request("https://app.test/x");
+const msgParams = { params: Promise.resolve({ messageId: "42" }) };
+const speakerParams = { params: Promise.resolve({ id: "7" }) };
+
+const user = (id: number, role: string) => ({ id, role, full_name: "U", email: "u@example.com", profile_image_url: null });
+const speakerProfile = (userId: number) => ({ id: 7, user_id: userId, bio: null, photo_url: null, designation: null });
+
+function patch(body: unknown) {
+  return new Request("https://app.test/api/speakers/7", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  deleteFromStorage.mockResolvedValue(undefined);
+});
+
+describe("DELETE /api/qa/message/[messageId]", () => {
+  it("answers 401 before any lookups", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await DELETE_QA(req(), msgParams);
+
+    expect(res.status).toBe(401);
+    expect(qaFindById).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a message that does not exist", async () => {
+    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    qaFindById.mockResolvedValue(null);
+
+    const res = await DELETE_QA(req(), msgParams);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("lets the asker take their own question down", async () => {
+    requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
+    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
+    qaSoftDelete.mockResolvedValue(true);
+
+    const res = await DELETE_QA(req(), msgParams);
+
+    expect(res.status).toBe(200);
+    expect(requireModuleAccess).not.toHaveBeenCalled();
+    expect(qaSoftDelete).toHaveBeenCalledWith({}, [42]);
+  });
+
+  it("lets an assigned team member remove someone else's question", async () => {
+    requireAuth.mockResolvedValue(user(9, ROLES.SPEAKER));
+    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
+    requireModuleAccess.mockResolvedValue(null);
+    qaSoftDelete.mockResolvedValue(true);
+
+    const res = await DELETE_QA(req(), msgParams);
+
+    expect(res.status).toBe(200);
+    expect(requireModuleAccess).toHaveBeenCalledWith(9, 9, ROLES.SPEAKER);
+  });
+
+  it("refuses a caller who is neither the asker nor on the course's team", async () => {
+    requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
+    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
+    requireModuleAccess.mockResolvedValue(new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }));
+
+    const res = await DELETE_QA(req(), msgParams);
+
+    expect(res.status).toBe(403);
+    expect(qaSoftDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/support/[messageId]", () => {
+  const supportMessage = (
+    over: Partial<{ user_id: number; recipient_user_id: number | null; session_id: number | null }> = {},
+  ) => ({
+    id: 42,
+    user_id: 5,
+    recipient_user_id: 9,
+    session_id: 11,
+    ...over,
+    USER: { full_name: "U", role: ROLES.ATTENDEE },
+  });
+
+  it("answers 401 before any lookups", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(401);
+    expect(findMessageWithUser).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a message that does not exist", async () => {
+    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    findMessageWithUser.mockResolvedValue(null);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("lets the sender delete their own message", async () => {
+    requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    updateMessage.mockResolvedValue(true);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+    expect(sessionFindById).not.toHaveBeenCalled();
+  });
+
+  it("lets the recipient of the conversation delete it", async () => {
+    requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    updateMessage.mockResolvedValue(true);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets an admin delete any message", async () => {
+    requireAuth.mockResolvedValue(user(12, ROLES.ADMIN));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    updateMessage.mockResolvedValue(true);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets the facilitator assigned to the case delete it", async () => {
+    requireAuth.mockResolvedValue(user(15, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
+    updateMessage.mockResolvedValue(true);
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a bystander who is not on the conversation and not assigned", async () => {
+    requireAuth.mockResolvedValue(user(99, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
+
+    const res = await DELETE_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(403);
+    expect(updateMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/qa/message/[messageId]", () => {
+  const joinedQuestion = (over: Partial<{ user_id: number }> = {}) => ({
+    id: 42,
+    event_id: 9,
+    module_id: 4,
+    user_id: 5,
+    message: "Question?",
+    created_at: "2026-08-05T09:00:00Z",
+    deleted_at: null,
+    updated_at: "2026-08-05T09:00:00Z",
+    ...over,
+    USER: { full_name: "Ana", role: ROLES.ATTENDEE },
+  });
+
+  it("answers 401 before any lookups", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await GET_QA(req(), msgParams);
+
+    expect(res.status).toBe(401);
+    expect(qaFindByIdWithUser).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a message that does not exist", async () => {
+    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    qaFindByIdWithUser.mockResolvedValue(null);
+
+    const res = await GET_QA(req(), msgParams);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns the pre-joined question to any authenticated user", async () => {
+    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    qaFindByIdWithUser.mockResolvedValue(joinedQuestion());
+
+    const res = await GET_QA(req(), msgParams);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      id: 42,
+      module_id: 4,
+      USER: { full_name: "Ana", role: ROLES.ATTENDEE },
+    });
+  });
+});
+
+describe("GET /api/support/[messageId]", () => {
+  const supportMessage = (
+    over: Partial<{ user_id: number; recipient_user_id: number | null; session_id: number | null }> = {},
+  ) => ({
+    id: 42,
+    user_id: 5,
+    recipient_user_id: 9,
+    session_id: 11,
+    support_type: "general",
+    event_id: null,
+    message: "Need help",
+    sent_at: "2026-08-05T09:00:00Z",
+    deleted_at: null,
+    updated_at: "2026-08-05T09:00:00Z",
+    ...over,
+    USER: { full_name: "U", role: ROLES.ATTENDEE },
+  });
+
+  it("answers 401 before any lookups", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(401);
+    expect(findMessageWithUser).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a message that does not exist", async () => {
+    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    findMessageWithUser.mockResolvedValue(null);
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("lets a sender read their own message", async () => {
+    requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ id: 42, USER: { full_name: "U" } });
+    expect(sessionFindById).not.toHaveBeenCalled();
+  });
+
+  it("lets the recipient of the conversation read it", async () => {
+    requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets an admin read any message", async () => {
+    requireAuth.mockResolvedValue(user(12, ROLES.ADMIN));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets the facilitator assigned to the case read it", async () => {
+    requireAuth.mockResolvedValue(user(15, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a bystander who is not on the conversation and not assigned", async () => {
+    requireAuth.mockResolvedValue(user(99, ROLES.FACILITATOR));
+    findMessageWithUser.mockResolvedValue(supportMessage());
+    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
+
+    const res = await GET_SUPPORT(req(), msgParams);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /api/speakers/[id]", () => {
+  it("lets an admin edit any profile", async () => {
+    requireMinRole.mockResolvedValue({ allowed: true, error: null, user: user(12, ROLES.ADMIN) });
+    speakerFindById.mockResolvedValue(speakerProfile(5));
+    speakerUpdate.mockResolvedValue(speakerProfile(5));
+
+    const res = await PATCH_SPEAKER(patch({ bio: "x" }), speakerParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets a facilitator edit a profile that is not theirs", async () => {
+    requireMinRole.mockResolvedValue({ allowed: true, error: null, user: user(9, ROLES.FACILITATOR) });
+    speakerFindById.mockResolvedValue(speakerProfile(5));
+    speakerUpdate.mockResolvedValue(speakerProfile(5));
+
+    const res = await PATCH_SPEAKER(patch({ bio: "x" }), speakerParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets a speaker edit their own profile", async () => {
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(7, ROLES.SPEAKER) });
+    speakerFindById.mockResolvedValue(speakerProfile(7));
+    speakerUpdate.mockResolvedValue(speakerProfile(7));
+
+    const res = await PATCH_SPEAKER(patch({ bio: "x" }), speakerParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a speaker editing someone else's profile", async () => {
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(7, ROLES.SPEAKER) });
+    speakerFindById.mockResolvedValue(speakerProfile(5));
+
+    const res = await PATCH_SPEAKER(patch({ bio: "x" }), speakerParams);
+
+    expect(res.status).toBe(403);
+    expect(speakerUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a caller who is neither staff nor a speaker", async () => {
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+
+    const res = await PATCH_SPEAKER(patch({ bio: "x" }), speakerParams);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /api/speakers/[id]", () => {
+  it("answers 401 before any lookups", async () => {
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
+
+    const res = await DELETE_SPEAKER(req(), speakerParams);
+
+    expect(res.status).toBe(401);
+    expect(speakerFindById).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a profile that does not exist", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(12, ROLES.ADMIN) });
+    speakerFindById.mockResolvedValue(null);
+
+    const res = await DELETE_SPEAKER(req(), speakerParams);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("lets the profile owner delete their own profile", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(7, ROLES.SPEAKER) });
+    speakerFindById.mockResolvedValue(speakerProfile(7));
+    speakerRemove.mockResolvedValue(true);
+
+    const res = await DELETE_SPEAKER(req(), speakerParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets an admin delete anyone's profile", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(12, ROLES.ADMIN) });
+    speakerFindById.mockResolvedValue(speakerProfile(5));
+    speakerRemove.mockResolvedValue(true);
+
+    const res = await DELETE_SPEAKER(req(), speakerParams);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a facilitator who is not the owner", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(9, ROLES.FACILITATOR) });
+    speakerFindById.mockResolvedValue(speakerProfile(5));
+
+    const res = await DELETE_SPEAKER(req(), speakerParams);
+
+    expect(res.status).toBe(403);
+    expect(speakerRemove).not.toHaveBeenCalled();
+  });
+});

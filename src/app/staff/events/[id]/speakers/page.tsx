@@ -2,6 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 export default function StaffEventSpeakersPage() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function StaffEventSpeakersPage() {
     selectedProfileId,
     setSelectedProfileId,
     availableProfiles,
+    profilesLoadingMore,
+    profilesHasMore,
+    loadMoreProfiles,
     handleAssign,
     handleRemove,
   } = useEventSpeakers(eventId);
@@ -70,6 +74,9 @@ export default function StaffEventSpeakersPage() {
             </div>
             <button type="submit">Assign</button>
           </form>
+        )}
+        {profilesHasMore && (
+          <LoadMoreButton loading={profilesLoadingMore} onLoadMore={loadMoreProfiles} label="Load more speakers" />
         )}
       </div>
     </>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
+import { paymentDestination } from "@/modules/events/lib/event-registration-policy";
 
 interface EventData {
   event_id: number;
@@ -62,47 +63,31 @@ export function useEventRegistration(eventId: string) {
       return;
     }
 
-    const body = await res.json();
-
-    if (body.pending_payment_id) {
-      const payRes = await fetch("/api/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: Number(eventId) }),
-      });
-
-      const payBody = await payRes.json();
-      if (payBody.payment_id) {
-        router.push(`/checkout/${payBody.payment_id}?success=true`);
-      } else {
-        setError(payBody.error ?? "Failed to process payment");
-        setSubmitting(false);
-      }
-      return;
-    }
-
+    const registerBody = await res.json();
     const payRes = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event_id: Number(eventId) }),
     });
 
-    if (!payRes.ok) {
-      const errBody = await payRes.json();
-      if (errBody.payment_id) {
-        router.push(`/checkout/${errBody.payment_id}?success=true`);
-        return;
-      }
-      setError(errBody.error ?? "Failed to initiate payment");
-      setSubmitting(false);
-      return;
-    }
+    const destination = paymentDestination(await payRes.json(), {
+      pending: registerBody.pending_payment_id != null,
+      ok: payRes.ok,
+    });
 
-    const { payment_id, checkout_url } = await payRes.json();
-    if (payment_id) {
-      router.push(`/checkout/${payment_id}?success=true`);
-    } else if (checkout_url) {
-      window.location.href = checkout_url;
+    switch (destination.kind) {
+      case "checkout":
+        router.push(`/checkout/${destination.paymentId}?success=true`);
+        break;
+      case "checkout-url":
+        window.location.href = destination.url;
+        break;
+      case "error":
+        setError(destination.message);
+        setSubmitting(false);
+        break;
+      case "nothing":
+        break;
     }
   }
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { usePayments } from "@/modules/commerce/lib/use-payments";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 export default function PaymentsPage() {
-  const { payments, loading, error } = usePayments();
+  const { payments, loading, loadingMore, error, hasMore, loadMore } = usePayments();
 
   if (loading) return <div>Loading payments...</div>;
   if (error) return <div>{error}</div>;
@@ -36,6 +37,7 @@ export default function PaymentsPage() {
           </tbody>
         </table>
       )}
+      {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
     </div>
   );
 }

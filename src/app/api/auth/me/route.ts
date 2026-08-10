@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
@@ -48,7 +49,7 @@ export async function PATCH(req: Request) {
   // because facilitators and admins carry no speaker bio. Guard before touching
   // anything so a rejected caller never leaves half a profile updated.
   const wantsSpeakerUpdate = body.designation !== undefined || body.bio !== undefined;
-  if (wantsSpeakerUpdate && guard.role !== "speaker") {
+  if (wantsSpeakerUpdate && guard.role !== ROLES.SPEAKER) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -12,6 +12,20 @@ export function formatTime(timeStr: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+/**
+ * A local-time Date for an event window edge. Times arrive unpadded ("9:00"),
+ * which the ISO parse rejects, so hours and minutes are zero-padded before
+ * parsing; a falsy or unparseable input yields null so callers can branch
+ * instead of comparing against Invalid Date.
+ */
+export function parseLocalDateTime(dateStr: string, timeStr: string): Date | null {
+  if (!dateStr || !timeStr) return null;
+  const [hours, minutes = "00", seconds = "00"] = timeStr.split(":");
+  const padded = `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`;
+  const d = new Date(`${dateStr}T${padded}`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function isEventLive(eventDate: string, startTime: string, endTime: string): boolean {
   const now = new Date();
   const [y, m, d] = eventDate.split("-").map(Number);

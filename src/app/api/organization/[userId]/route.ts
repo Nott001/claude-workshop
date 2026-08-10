@@ -1,19 +1,20 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 const updateSchema = z.object({
-  role: z.enum(["speaker", "facilitator", "admin"]),
+  role: z.enum([ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN]),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("admin");
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -25,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  if (parsed.data.role === "admin" && !hasMinRole(guard.user.role, "super_admin")) {
+  if (parsed.data.role === ROLES.ADMIN && !hasMinRole(guard.user.role, ROLES.SUPER_ADMIN)) {
     return NextResponse.json({ error: { message: "Only super admins can promote to admin" } }, { status: 403 });
   }
 
@@ -37,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
+  await requireAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
     new_role: parsed.data.role,
   });
 
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const guard = await requireRole("admin");
+  const guard = await requireMinRole(ROLES.ADMIN);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -63,7 +64,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
     return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
+  await requireAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
 
   return NextResponse.json({ success: true });
 }

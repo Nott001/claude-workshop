@@ -1,8 +1,10 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
 type EmailType = "ticket_issued" | "check_in_confirmed";
 type EmailStatus = "sent" | "failed";
@@ -30,8 +32,9 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
-  const { allowed, pending } = useRoleGuard("admin");
-  const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } = useEmailLogs();
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
+  const { logs, loading, loadingMore, hasMore, loadMore, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } =
+    useEmailLogs();
 
   if (pending) {
     return (
@@ -121,6 +124,7 @@ export default function StaffEmailsPage() {
             </table>
           </div>
         )}
+        {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </>
   );

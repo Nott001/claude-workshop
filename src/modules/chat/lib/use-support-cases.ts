@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getBrowserClient } from "@/shared/db/browser-client";
-import * as chatDao from "@/shared/db/dao/chat.dao";
-import { subscribeToSupportSessions, subscribeToSupportMessages, unsubscribe } from "@/shared/integrations/realtime";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import { useSession } from "@/modules/auth/components/session-context";
-import type { ChatMessage } from "@/shared/types";
+import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 
 export interface CaseSummary {
   id: number;
@@ -19,17 +18,15 @@ export interface CaseSummary {
   last_message_at: string | null;
 }
 
-export interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string; role: string };
-}
-
 export function useSupportCases() {
-  const supabase = useMemo(() => getBrowserClient(), []);
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
+  const [loadingMoreCases, setLoadingMoreCases] = useState(false);
+  const [hasMoreCases, setHasMoreCases] = useState(false);
+  const casesPageRef = useRef(1);
   const [selected, setSelected] = useState<CaseSummary | null>(null);
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -42,15 +39,17 @@ export function useSupportCases() {
 
   const loadCases = useCallback(async () => {
     try {
+      casesPageRef.current = 1;
       const res = await fetch("/api/support/cases");
       if (!res.ok) return;
       const data = await res.json();
-      setCases(data.cases ?? []);
+      const rows = (Array.isArray(data.data) ? data.data : []) as CaseSummary[];
+      setCases(rows);
+      setHasMoreCases((data.total ?? 0) > (data.limit ?? 50));
       // Keep the open case in sync with the queue, closing it when it ends.
       setSelected((prev) => {
         if (!prev) return prev;
-        const fresh = (data.cases ?? []).find((c: CaseSummary) => c.id === prev.id);
-        return fresh ?? null;
+        return rows.find((c) => c.id === prev.id) ?? null;
       });
     } catch {
       // A failed refresh keeps the queue already on screen.
@@ -58,6 +57,29 @@ export function useSupportCases() {
       setLoadingCases(false);
     }
   }, []);
+
+  const loadMoreCases = useCallback(async () => {
+    if (loadingMoreCases) return;
+    setLoadingMoreCases(true);
+    const next = casesPageRef.current + 1;
+    casesPageRef.current = next;
+    try {
+      const res = await fetch(`/api/support/cases?page=${next}&limit=50`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = (Array.isArray(data.data) ? data.data : []) as CaseSummary[];
+      setCases((prev) => {
+        const merged = new Map<number, CaseSummary>();
+        for (const c of [...prev, ...rows]) merged.set(c.id, c);
+        return [...merged.values()];
+      });
+      setHasMoreCases((data.total ?? 0) > next * (data.limit ?? 50));
+    } catch {
+      // A failed page keeps the queue already on screen.
+    } finally {
+      setLoadingMoreCases(false);
+    }
+  }, [loadingMoreCases]);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -70,24 +92,23 @@ export function useSupportCases() {
     void load();
 
     const sessionSub = subscribeToSupportSessions(() => loadCases());
-    const messageSub = subscribeToSupportMessages("general", undefined, async (msg) => {
-      loadCases();
-      const sel = selectedRef.current;
-      if (sel && msg.session_id === sel.id) {
-        const full = await chatDao.findMessageWithUser(supabase, msg.id);
-        if (full) {
-          setMessages((prev) =>
-            prev.some((m) => m.id === full.id) ? prev : [...prev, full as unknown as ChatMessageWithUser],
-          );
-        }
-      }
-    });
 
     return () => {
       unsubscribe(sessionSub);
-      unsubscribe(messageSub);
     };
-  }, [loadCases, supabase]);
+  }, [loadCases]);
+
+  useRealtimeMessages<ChatMessageWithUser>({
+    channelName: "support-inbox-general",
+    table: CHAT_TABLE,
+    filter: "support_type=eq.general",
+    relevant: (row) => row.session_id === selectedRef.current?.id,
+    onInsert: (msg) =>
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      }),
+  });
 
   const openCase = useCallback(async (c: CaseSummary) => {
     setSelected(c);
@@ -175,6 +196,9 @@ export function useSupportCases() {
   return {
     cases,
     loadingCases,
+    loadingMoreCases,
+    hasMoreCases,
+    loadMoreCases,
     selected,
     messages,
     loadingMessages,

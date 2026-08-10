@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, chatDao } = vi.hoisted(() => ({
@@ -21,9 +22,9 @@ vi.mock("@/shared/db/dao/chat.dao", () => chatDao);
 import { GET as listUsers } from "@/app/api/support/users/route";
 import { GET as listSessions, POST as sessionAction } from "@/app/api/support/sessions/route";
 
-const ATTENDEE = { id: 12, role: "attendee" };
-const FACILITATOR = { id: 3, role: "facilitator" };
-const ADMIN = { id: 1, role: "admin" };
+const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
+const FACILITATOR = { id: 3, role: ROLES.FACILITATOR };
+const ADMIN = { id: 1, role: ROLES.ADMIN };
 
 function action(payload: unknown) {
   return new Request("https://app.test/api/support/sessions", { method: "POST", body: JSON.stringify(payload) });
@@ -70,7 +71,7 @@ describe("GET /api/support/users", () => {
         message: "newer",
         sent_at: "2026-08-05T10:00:00Z",
         session_id: 2,
-        USER: { full_name: "Ana", role: "attendee" },
+        USER: { full_name: "Ana", role: ROLES.ATTENDEE },
       },
       {
         user_id: 21,
@@ -78,7 +79,7 @@ describe("GET /api/support/users", () => {
         message: "older",
         sent_at: "2026-08-05T09:00:00Z",
         session_id: 1,
-        USER: { full_name: "Ben", role: "attendee" },
+        USER: { full_name: "Ben", role: ROLES.ATTENDEE },
       },
     ]);
 
@@ -99,7 +100,7 @@ describe("GET /api/support/users", () => {
         message: "on it",
         sent_at: "2026-08-05T10:00:00Z",
         session_id: 3,
-        USER: { full_name: "Staffer", role: "facilitator" },
+        USER: { full_name: "Staffer", role: ROLES.FACILITATOR },
       },
     ]);
 
@@ -117,7 +118,7 @@ describe("GET /api/support/users", () => {
         message: "from an old session",
         sent_at: "2026-08-05T10:00:00Z",
         session_id: 8,
-        USER: { full_name: "Cara", role: "attendee" },
+        USER: { full_name: "Cara", role: ROLES.ATTENDEE },
       },
     ]);
 
@@ -135,7 +136,7 @@ describe("GET /api/support/users", () => {
         message: "my question",
         sent_at: "2026-08-05T10:00:00Z",
         session_id: 5,
-        USER: { full_name: "Dee", role: "attendee" },
+        USER: { full_name: "Dee", role: ROLES.ATTENDEE },
       },
       {
         user_id: 3,
@@ -143,7 +144,7 @@ describe("GET /api/support/users", () => {
         message: "our answer",
         sent_at: "2026-08-05T11:00:00Z",
         session_id: 5,
-        USER: { full_name: "Staffer", role: "facilitator" },
+        USER: { full_name: "Staffer", role: ROLES.FACILITATOR },
       },
     ]);
 
@@ -223,18 +224,11 @@ describe("POST /api/support/sessions", () => {
     expect(chatDao.endSession).not.toHaveBeenCalled();
   });
 
-  it("needs admin, not facilitator, to end a general conversation for someone else", async () => {
-    // General support is the admin queue; event support is the facilitator one.
-    const res = await sessionAction(action({ action: "end", user_id: 99, support_type: "general" }));
+  it("needs admin, not facilitator, to end a conversation for someone else", async () => {
+    // Support is the admin queue; facilitators stay out of other people's cases.
+    const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(403);
-  });
-
-  it("lets a facilitator end somebody's event conversation", async () => {
-    const res = await sessionAction(action({ action: "end", user_id: 99, support_type: "event" }));
-
-    expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "event");
   });
 
   it("lets an admin end an unclaimed general conversation for someone else", async () => {
@@ -245,7 +239,7 @@ describe("POST /api/support/sessions", () => {
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: null });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: null });
   });
 
   it("lets the assigned handler end a claimed general conversation", async () => {
@@ -255,7 +249,7 @@ describe("POST /api/support/sessions", () => {
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
     expect(res.status).toBe(200);
-    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", undefined, { ownerId: 1 });
+    expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: 1 });
   });
 
   it("stops an admin ending a case that belongs to another handler", async () => {
@@ -318,15 +312,6 @@ describe("POST /api/support/sessions", () => {
     requireAuth.mockResolvedValue(ADMIN);
 
     const res = await sessionAction(action({ action: "claim", user_id: 1 }));
-
-    expect(res.status).toBe(400);
-    expect(chatDao.claimSession).not.toHaveBeenCalled();
-  });
-
-  it("refuses case claiming for event support until it gets the same overhaul", async () => {
-    requireAuth.mockResolvedValue(FACILITATOR);
-
-    const res = await sessionAction(action({ action: "claim", user_id: 99, support_type: "event" }));
 
     expect(res.status).toBe(400);
     expect(chatDao.claimSession).not.toHaveBeenCalled();

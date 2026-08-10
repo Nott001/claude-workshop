@@ -1,4 +1,6 @@
-import type { DbClient } from "./types";
+import { ROLES } from "@/shared/lib/roles";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
 import type { SpeakerProfile, User } from "@/shared/types";
 
 /** A SPEAKER_PROFILE row with the USER embed `list` selects. Note both are singular. */
@@ -14,31 +16,46 @@ export interface EventSpeakerAssignment {
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<SpeakerProfile | null> {
-  const { data } = await supabase.from("SPEAKER_PROFILE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("SPEAKER_PROFILE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "speaker.dao.findById");
   return data;
 }
 
 export async function findByUserId(supabase: DbClient, userId: number): Promise<SpeakerProfile | null> {
-  const { data } = await supabase.from("SPEAKER_PROFILE").select("*").eq("user_id", userId).single();
+  const { data, error } = await supabase.from("SPEAKER_PROFILE").select("*").eq("user_id", userId).maybeSingle();
+  throwOnDbError(error, "speaker.dao.findByUserId");
   return data;
 }
 
-export async function list(supabase: DbClient): Promise<SpeakerProfileWithUser[]> {
-  const { data } = await supabase.from("SPEAKER_PROFILE").select("*, USER(full_name, email)").order("id", { ascending: false });
-  return data ?? [];
+export async function list(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<SpeakerProfileWithUser>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
+    .from("SPEAKER_PROFILE")
+    .select("*, USER(full_name, email)", { count: "exact" })
+    .order("id", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
 /**
  * Speaker profiles whose owner still holds the speaker role. A profile whose
  * user was re-roled is not assignable, so the create/edit form must not offer it.
  */
-export async function listCandidates(supabase: DbClient): Promise<SpeakerProfileWithUser[]> {
-  const { data } = await supabase
+export async function listCandidates(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<SpeakerProfileWithUser>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
     .from("SPEAKER_PROFILE")
-    .select("*, USER(full_name, email)")
-    .eq("USER.role", "speaker")
-    .order("id", { ascending: false });
-  return data ?? [];
+    .select("*, USER(full_name, email)", { count: "exact" })
+    .eq("USER.role", ROLES.SPEAKER)
+    .order("id", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
 export async function create(
@@ -113,7 +130,7 @@ export async function replaceEventAssignments(
     .from("SPEAKER_PROFILE")
     .select("id, USER(role)")
     .in("id", speakerProfileIds)
-    .eq("USER.role", "speaker");
+    .eq("USER.role", ROLES.SPEAKER);
   const validIds = (valid ?? []).map((s: { id: number }) => s.id);
 
   const { error: deleteError } = await supabase.from("EVENT_SPEAKER").delete().eq("event_id", eventId);

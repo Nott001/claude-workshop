@@ -8,9 +8,17 @@ interface MessageComposerProps {
   onSend: () => void;
   sending: boolean;
   error: string | null;
+  placeholder?: string;
 }
 
-export function MessageComposer({ value, onChange, onSend, sending, error }: MessageComposerProps) {
+export function MessageComposer({
+  value,
+  onChange,
+  onSend,
+  sending,
+  error,
+  placeholder = "Type a message...",
+}: MessageComposerProps) {
   return (
     <form
       onSubmit={(e) => {
@@ -24,7 +32,7 @@ export function MessageComposer({ value, onChange, onSend, sending, error }: Mes
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Type a message..."
+          placeholder={placeholder}
           maxLength={1000}
           className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20"
         />

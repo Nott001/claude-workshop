@@ -1,25 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { getBrowserClient } from "@/shared/db/browser-client";
-import * as chatDao from "@/shared/db/dao/chat.dao";
+import { useState, useRef, useEffect } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
-import type { ChatMessage, UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
-
-interface ChatMessageWithUser extends ChatMessage {
-  USER: { full_name: string; role: UserRole };
-}
+import { isChatStaff, type ChatMessageWithUser } from "@/modules/chat/lib/types";
+import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import { MessageComposer } from "@/modules/chat/components/message-composer";
 
 interface GlobalSupportChatProps {
   isOpen: boolean;
   onClose: () => void;
-  supportType?: "general" | "event";
-  eventId?: string;
 }
 
-export default function GlobalSupportChat({ isOpen, onClose, supportType = "general", eventId }: GlobalSupportChatProps) {
+export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
@@ -32,12 +25,11 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
     assigned_staff_name: string | null;
   }>({ case_number: null, assigned_to: null, assigned_staff_name: null });
   const bottomRef = useRef<HTMLDivElement>(null);
-  const supabase = useMemo(() => getBrowserClient(), []);
 
   const { user: currentUser } = useSession();
   const currentUserId = currentUser?.id ?? null;
 
-  const apiUrl = supportType === "general" ? "/api/support" : `/api/support?support_type=event&event_id=${eventId}`;
+  const apiUrl = "/api/support";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,32 +58,6 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
 
     load();
 
-    const channelName = `global-support-${supportType}-${eventId ?? "general"}-${Date.now()}`;
-    const sub = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "CHAT_MESSAGE",
-          filter: `support_type=eq.${supportType}`,
-        },
-        async (payload) => {
-          const msg = payload.new as ChatMessageWithUser;
-          if (supportType === "event" && eventId && msg.event_id !== Number(eventId)) return;
-          if (supportType === "general" && msg.event_id !== null) return;
-          const full = await chatDao.findMessageWithUser(supabase, msg.id);
-          if (full) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === full.id)) return prev;
-              return [...prev, full as unknown as ChatMessageWithUser];
-            });
-          }
-        },
-      )
-      .subscribe();
-
     const sessionSub = subscribeToSupportSessions((session) => {
       // A case number or handler change on the user's own session: refetch so
       // the header shows the fresh number and the handler's name. A purged
@@ -102,10 +68,21 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
 
     return () => {
       active = false;
-      supabase.removeChannel(sub);
       unsubscribe(sessionSub);
     };
-  }, [isOpen, supportType, eventId, supabase]);
+  }, [isOpen, apiUrl]);
+
+  useRealtimeMessages<ChatMessageWithUser>({
+    channelName: "support-panel-general",
+    table: CHAT_TABLE,
+    filter: "support_type=eq.general",
+    enabled: isOpen,
+    onInsert: (msg) =>
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      }),
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -117,8 +94,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSend() {
     if (!newMessage.trim() || sending || currentUserId == null) return;
 
     const text = newMessage.trim();
@@ -129,9 +105,8 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        support_type: supportType,
+        support_type: "general",
         message: text,
-        ...(supportType === "event" && eventId ? { event_id: Number(eventId) } : {}),
       }),
     });
 
@@ -159,7 +134,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
           <span className="material-symbols-rounded text-lg text-brand">support_agent</span>
           <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-fg">{supportType === "general" ? "Support" : "Event Support"}</span>
+              <span className="text-sm font-semibold text-fg">Support</span>
               {sessionInfo.case_number != null && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-fg">
                   CASE-{sessionInfo.case_number}
@@ -199,7 +174,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
               {messages.map((msg) => {
                 const isChatEnded = msg.message.startsWith("[Chat ended");
                 const isOwn = msg.user_id === currentUserId;
-                const isStaff = hasMinRole(msg.USER?.role as UserRole, "facilitator");
+                const isStaff = isChatStaff(msg.USER?.role);
                 if (isChatEnded) {
                   return (
                     <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
@@ -241,30 +216,7 @@ export default function GlobalSupportChat({ isOpen, onClose, supportType = "gene
             </div>
           )}
 
-          <form onSubmit={handleSend} className="shrink-0 border-t border-border px-4 py-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                maxLength={1000}
-                className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20"
-              />
-              <button
-                type="submit"
-                disabled={sending || !newMessage.trim()}
-                className="flex items-center gap-1 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {sending ? (
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <span className="material-symbols-rounded text-sm">send</span>
-                )}
-              </button>
-            </div>
-            {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
-          </form>
+          <MessageComposer value={newMessage} onChange={setNewMessage} onSend={handleSend} sending={sending} error={error} />
         </>
       )}
     </div>

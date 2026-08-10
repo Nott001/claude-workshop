@@ -28,6 +28,7 @@ const isPublicApi = (req: NextRequest) => {
 const isProtectedRoute = (req: NextRequest) => {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/staff")) return true;
+  if (pathname.startsWith("/speaker")) return true;
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
     return !isPublicApi(req);
   }

@@ -14,6 +14,9 @@ export default function StaffSupportInbox() {
       <CaseList
         cases={q.cases}
         loading={q.loadingCases}
+        loadingMore={q.loadingMoreCases}
+        hasMore={q.hasMoreCases}
+        onLoadMore={q.loadMoreCases}
         selectedId={q.selected?.id ?? null}
         currentUserId={q.currentUserId}
         onSelect={q.openCase}

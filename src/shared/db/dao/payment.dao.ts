@@ -1,4 +1,5 @@
-import type { DbClient } from "./types";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
 import type { Payment, PaymentStatus } from "@/shared/types";
 
 /** A PAYMENT row with the EVENT embed these reads select. Singular, not EVENTS. */
@@ -7,22 +8,37 @@ export interface PaymentWithEvent extends Payment {
 }
 
 export async function findById(supabase: DbClient, id: number): Promise<PaymentWithEvent | null> {
-  const { data } = await supabase.from("PAYMENT").select("*, EVENT(title)").eq("id", id).single();
+  const { data, error } = await supabase.from("PAYMENT").select("*, EVENT(title)").eq("id", id).maybeSingle();
+  throwOnDbError(error, "payment.dao.findById");
   return data;
 }
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<PaymentWithEvent[]> {
-  const { data } = await supabase
+export async function listByUser(
+  supabase: DbClient,
+  userId: number,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<PaymentWithEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
     .from("PAYMENT")
-    .select("*, EVENT(title)")
+    .select("*, EVENT(title)", { count: "exact" })
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
-export async function listAll(supabase: DbClient): Promise<PaymentWithEvent[]> {
-  const { data } = await supabase.from("PAYMENT").select("*, EVENT(title)").order("created_at", { ascending: false });
-  return data ?? [];
+export async function listAll(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<PaymentWithEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
+    .from("PAYMENT")
+    .select("*, EVENT(title)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
 export async function findPendingByUserAndEvent(
@@ -92,11 +108,12 @@ export async function deleteByEvent(supabase: DbClient, eventId: number): Promis
 }
 
 export async function findByIdWithEvent(supabase: DbClient, id: number): Promise<Record<string, unknown> | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("PAYMENT")
     .select("id, status, EVENT(title, price, currency, status)")
     .eq("id", id)
-    .single();
+    .maybeSingle();
+  throwOnDbError(error, "payment.dao.findByIdWithEvent");
   return data;
 }
 
@@ -104,6 +121,11 @@ export async function findEventForPayment(
   supabase: DbClient,
   eventId: number,
 ): Promise<{ title: string; price: number; currency: string; status: string; event_date: string } | null> {
-  const { data } = await supabase.from("EVENT").select("title, price, currency, status, event_date").eq("id", eventId).single();
+  const { data, error } = await supabase
+    .from("EVENT")
+    .select("title, price, currency, status, event_date")
+    .eq("id", eventId)
+    .maybeSingle();
+  throwOnDbError(error, "payment.dao.findEventForPayment");
   return data;
 }

@@ -1,10 +1,10 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// `requireRole("attendee", ...)` admits every authenticated role, because
-// hasMinRole treats "attendee" as the floor. The routes below therefore have to
-// scope their reads by entitlement rather than by a literal role string — the
-// role that exposed the bug is `speaker`, which is neither an attendee nor
-// staff and used to fall straight through to the unscoped listing.
+// `requireRole()` admits any authenticated caller, so the routes scope their
+// reads by entitlement rather than by a role string — the role that exposed
+// the bug was `speaker`, which is neither an attendee nor staff and used to
+// fall straight through to the unscoped listing.
 const {
   requireRole,
   ticketListByUser,
@@ -51,11 +51,11 @@ const guard = (id: number, role: string) => ({
   user: { id, role, full_name: "U", email: "u@example.com", profile_image_url: null },
 });
 
-const attendee = guard(5, "attendee");
-const speaker = guard(7, "speaker");
-const facilitator = guard(9, "facilitator");
-const admin = guard(11, "admin");
-const superAdmin = guard(12, "super_admin");
+const attendee = guard(5, ROLES.ATTENDEE);
+const speaker = guard(7, ROLES.SPEAKER);
+const facilitator = guard(9, ROLES.FACILITATOR);
+const admin = guard(11, ROLES.ADMIN);
+const superAdmin = guard(12, ROLES.SUPER_ADMIN);
 
 const req = () => new Request("https://app.test/x");
 
@@ -70,54 +70,54 @@ beforeEach(() => {
 
 describe("GET /api/tickets scopes by entitlement", () => {
   it.each([
-    ["attendee", attendee],
-    ["speaker", speaker],
+    [ROLES.ATTENDEE, attendee],
+    [ROLES.SPEAKER, speaker],
   ])("%s sees only their own tickets", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_TICKETS();
+    await GET_TICKETS(req());
 
-    expect(ticketListByUser).toHaveBeenCalledWith({}, who.user.id);
+    expect(ticketListByUser).toHaveBeenCalledWith({}, who.user.id, { page: 1, limit: 50 });
     expect(ticketListAll).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["facilitator", facilitator],
-    ["admin", admin],
-    ["super_admin", superAdmin],
+    [ROLES.FACILITATOR, facilitator],
+    [ROLES.ADMIN, admin],
+    [ROLES.SUPER_ADMIN, superAdmin],
   ])("%s sees every ticket", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_TICKETS();
+    await GET_TICKETS(req());
 
-    expect(ticketListAll).toHaveBeenCalled();
+    expect(ticketListAll).toHaveBeenCalledWith({}, { page: 1, limit: 50 });
     expect(ticketListByUser).not.toHaveBeenCalled();
   });
 });
 
 describe("GET /api/payments scopes by entitlement", () => {
   it.each([
-    ["attendee", attendee],
-    ["speaker", speaker],
+    [ROLES.ATTENDEE, attendee],
+    [ROLES.SPEAKER, speaker],
   ])("%s sees only their own payments", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_PAYMENTS();
+    await GET_PAYMENTS(req());
 
-    expect(paymentListByUser).toHaveBeenCalledWith({}, who.user.id);
+    expect(paymentListByUser).toHaveBeenCalledWith({}, who.user.id, { page: 1, limit: 50 });
     expect(paymentListAll).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["facilitator", facilitator],
-    ["admin", admin],
-    ["super_admin", superAdmin],
+    [ROLES.FACILITATOR, facilitator],
+    [ROLES.ADMIN, admin],
+    [ROLES.SUPER_ADMIN, superAdmin],
   ])("%s sees every payment", async (_label, who) => {
     requireRole.mockResolvedValue(who);
 
-    await GET_PAYMENTS();
+    await GET_PAYMENTS(req());
 
-    expect(paymentListAll).toHaveBeenCalled();
+    expect(paymentListAll).toHaveBeenCalledWith({}, { page: 1, limit: 50 });
     expect(paymentListByUser).not.toHaveBeenCalled();
   });
 });
@@ -126,8 +126,8 @@ describe("GET /api/payments/[id] hides other users' payments", () => {
   const params = { params: Promise.resolve({ id: "42" }) };
 
   it.each([
-    ["attendee", attendee],
-    ["speaker", speaker],
+    [ROLES.ATTENDEE, attendee],
+    [ROLES.SPEAKER, speaker],
   ])("%s is refused someone else's payment", async (_label, who) => {
     requireRole.mockResolvedValue(who);
     paymentFindById.mockResolvedValue({ id: 42, user_id: 999, amount: 100 });
@@ -160,8 +160,8 @@ describe("GET /api/tickets/[paymentId] hides other users' tickets", () => {
   const params = { params: Promise.resolve({ paymentId: "42" }) };
 
   it.each([
-    ["attendee", attendee],
-    ["speaker", speaker],
+    [ROLES.ATTENDEE, attendee],
+    [ROLES.SPEAKER, speaker],
   ])("%s is refused someone else's ticket, and no QR is rendered", async (_label, who) => {
     requireRole.mockResolvedValue(who);
     findWithPaymentAndEvent.mockResolvedValue({ id: 1, user_id: 999, qr_token: "secret-token" });

@@ -8,12 +8,12 @@ vi.mock("next/navigation", () => ({ usePathname }));
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
-vi.mock("@/shared/components/navbar", () => ({ Navbar: () => null }));
-vi.mock("@/modules/support/components/floating-assist-button", () => ({
+vi.mock("@/modules/shell/components/navbar", () => ({ Navbar: () => null }));
+vi.mock("@/modules/shell/components/floating-assist-button", () => ({
   FloatingAssistButton: () => null,
 }));
 
-import { AppShell } from "@/shared/components/app-shell";
+import { AppShell } from "@/modules/shell/components/app-shell";
 
 afterEach(() => {
   cleanup();
@@ -41,7 +41,7 @@ describe("AppShell footer placement", () => {
   });
 
   it("omits the footer when the navbar is hidden (room pages)", () => {
-    vi.mocked(usePathname).mockReturnValue("/events/42/room");
+    vi.mocked(usePathname).mockReturnValue("/courses/42/room");
     const { container } = renderShell();
     expect(container.querySelector("footer")).toBeNull();
   });

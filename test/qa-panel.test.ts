@@ -1,6 +1,8 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect } from "vitest";
 import { qaMessageSchema } from "@/modules/chat/lib/schemas";
-import type { QaMessage, UserRole } from "@/shared/types";
+import { isChatStaff } from "@/modules/chat/lib/types";
+import type { QaMessage } from "@/shared/types";
 
 describe("QAPanel uses QA_MESSAGE", () => {
   it("accepts valid question message via qaMessageSchema", () => {
@@ -44,13 +46,17 @@ describe("qaMessageSchema requires module_id", () => {
 });
 
 describe("Q&A moderation — staff can delete questions", () => {
-  const staffRoles: UserRole[] = ["facilitator", "speaker"];
-  const nonStaffRoles: UserRole[] = ["attendee"];
+  it("applies the shared chat staff floor, not the old speaker floor", () => {
+    expect(isChatStaff(ROLES.ATTENDEE)).toBe(false);
+    expect(isChatStaff(ROLES.SPEAKER)).toBe(false);
+    expect(isChatStaff(ROLES.FACILITATOR)).toBe(true);
+    expect(isChatStaff(ROLES.ADMIN)).toBe(true);
+    expect(isChatStaff(ROLES.SUPER_ADMIN)).toBe(true);
+    expect(isChatStaff(null)).toBe(false);
+  });
 
-  it("facilitator and speaker are considered staff", () => {
-    const isStaff = (role: UserRole) => role === "facilitator" || role === "speaker";
-    expect(staffRoles.every(isStaff)).toBe(true);
-    expect(nonStaffRoles.some(isStaff)).toBe(false);
+  it("names a speaker who is not staff so the panel hides moderation UI", () => {
+    expect(isChatStaff(ROLES.SPEAKER)).toBe(false);
   });
 });
 

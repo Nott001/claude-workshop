@@ -1,4 +1,6 @@
-import type { DbClient } from "./types";
+import type { DbClient, PaginatedResult } from "./types";
+import { pageBounds, throwOnDbError } from "./helpers";
+import { findActiveTicketByUserAndEvent } from "./ticket.dao";
 import type { Course, Module, Lesson } from "@/shared/types";
 
 export type CourseWithEvent = Course & {
@@ -7,37 +9,64 @@ export type CourseWithEvent = Course & {
 };
 
 export async function findCourseEvent(supabase: DbClient, courseId: number): Promise<{ id: number; event_id: number } | null> {
-  const { data } = await supabase.from("COURSE").select("id, event_id").eq("id", courseId).single();
+  const { data, error } = await supabase.from("COURSE").select("id, event_id").eq("id", courseId).maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseEvent");
   return data;
 }
 
-export async function listCoursesWithEvents(supabase: DbClient): Promise<CourseWithEvent[]> {
-  const { data: courses } = await supabase.from("COURSE").select("*").order("id", { ascending: false });
-  if (!courses) return [];
+export async function findCourseIdByEventId(supabase: DbClient, eventId: number): Promise<number | null> {
+  const { data, error } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseIdByEventId");
+  return data?.id ?? null;
+}
+
+export async function listCoursesWithEvents(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<CourseWithEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const {
+    data: courses,
+    count,
+    error,
+  } = await supabase.from("COURSE").select("*", { count: "exact" }).order("id", { ascending: false }).range(from, to);
+  throwOnDbError(error, "course.dao.listCoursesWithEvents");
+  if (!courses) {
+    return { data: [], total: count ?? 0, page, limit };
+  }
 
   const courseList = courses as Course[];
   const eventIds = courseList.map((c) => c.event_id);
 
-  const events =
-    eventIds.length > 0 ? (await supabase.from("EVENT").select("id, title, event_date").in("id", eventIds)).data : null;
+  const { data: events, error: eventsError } =
+    eventIds.length > 0
+      ? await supabase.from("EVENT").select("id, title, event_date").in("id", eventIds)
+      : { data: null, error: null };
+  throwOnDbError(eventsError, "course.dao.listCoursesWithEvents.events");
 
   const eventMap = new Map<number, { id: number; title: string; event_date: string }>();
   for (const e of (events ?? []) as Array<{ id: number; title: string; event_date: string }>) {
     eventMap.set(e.id, e);
   }
 
-  return courseList.map((course) => {
-    const linked = eventMap.get(course.event_id);
-    return {
-      ...course,
-      event_title: linked?.title ?? null,
-      event_date: linked?.event_date ?? null,
-    };
-  });
+  return {
+    data: courseList.map((course) => {
+      const linked = eventMap.get(course.event_id);
+      return {
+        ...course,
+        event_title: linked?.title ?? null,
+        event_date: linked?.event_date ?? null,
+      };
+    }),
+    total: count ?? 0,
+    page,
+    limit,
+  };
 }
 
 export async function findCourseById(supabase: DbClient, id: number): Promise<Course | null> {
-  const { data } = await supabase.from("COURSE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("COURSE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseById");
   return data;
 }
 
@@ -79,7 +108,7 @@ function toLessonsKey<T extends { MODULE: ModuleContent[] }>(
 }
 
 export async function findCourseWithDetails(supabase: DbClient, id: number): Promise<CourseWithDetails | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("COURSE")
     .select(
       `
@@ -104,12 +133,13 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
       ascending: true,
     })
     .maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseWithDetails");
 
   return toLessonsKey(data as (Course & { MODULE: ModuleContent[]; EVENT: CourseWithDetails["EVENT"] }) | null);
 }
 
 export async function findCourseByEvent(supabase: DbClient, eventId: number): Promise<CourseWithModules | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("COURSE")
     .select(
       `
@@ -125,6 +155,7 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
     .order("sequence_order", { foreignTable: "MODULE", ascending: true })
     .order("sequence_order", { foreignTable: "MODULE.LESSON", ascending: true })
     .maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseByEvent");
 
   return toLessonsKey(data as (Course & { MODULE: ModuleContent[] }) | null);
 }
@@ -166,12 +197,14 @@ export async function deleteCourse(supabase: DbClient, id: number): Promise<bool
 }
 
 export async function findModulesByCourse(supabase: DbClient, courseId: number): Promise<Module[]> {
-  const { data } = await supabase.from("MODULE").select("*").eq("course_id", courseId);
+  const { data, error } = await supabase.from("MODULE").select("*").eq("course_id", courseId);
+  throwOnDbError(error, "course.dao.findModulesByCourse");
   return (data ?? []) as Module[];
 }
 
 export async function findModuleById(supabase: DbClient, id: number): Promise<Module | null> {
-  const { data } = await supabase.from("MODULE").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("MODULE").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findModuleById");
   return data;
 }
 
@@ -219,13 +252,13 @@ export async function clearModuleSpeakerForEvent(
   eventId: number,
   speakerProfileId: number,
 ): Promise<boolean> {
-  const { data: course } = await supabase.from("COURSE").select("id").eq("event_id", eventId).maybeSingle();
-  if (!course) return true;
+  const courseId = await findCourseIdByEventId(supabase, eventId);
+  if (courseId === null) return true;
 
   const { error } = await supabase
     .from("MODULE")
     .update({ speaker_profile_id: null })
-    .eq("course_id", course.id)
+    .eq("course_id", courseId)
     .eq("speaker_profile_id", speakerProfileId);
   return !error;
 }
@@ -251,22 +284,26 @@ export async function deleteModule(supabase: DbClient, id: number): Promise<bool
 }
 
 export async function findLessonsByModule(supabase: DbClient, moduleId: number): Promise<Lesson[]> {
-  const { data } = await supabase.from("LESSON").select("*").eq("module_id", moduleId);
+  const { data, error } = await supabase.from("LESSON").select("*").eq("module_id", moduleId);
+  throwOnDbError(error, "course.dao.findLessonsByModule");
   return (data ?? []) as Lesson[];
 }
 
 export async function findLessonById(supabase: DbClient, id: number): Promise<Lesson | null> {
-  const { data } = await supabase.from("LESSON").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("LESSON").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "course.dao.findLessonById");
   return data;
 }
 
 export async function findLessonModule(supabase: DbClient, lessonId: number): Promise<{ module_id: number } | null> {
-  const { data } = await supabase.from("LESSON").select("module_id").eq("id", lessonId).single();
+  const { data, error } = await supabase.from("LESSON").select("module_id").eq("id", lessonId).maybeSingle();
+  throwOnDbError(error, "course.dao.findLessonModule");
   return data;
 }
 
 export async function findModuleCourse(supabase: DbClient, moduleId: number): Promise<{ course_id: number } | null> {
-  const { data } = await supabase.from("MODULE").select("course_id").eq("id", moduleId).single();
+  const { data, error } = await supabase.from("MODULE").select("course_id").eq("id", moduleId).maybeSingle();
+  throwOnDbError(error, "course.dao.findModuleCourse");
   return data;
 }
 
@@ -334,25 +371,22 @@ export async function userHasCourseAccess(supabase: DbClient, userId: number, co
   // what 00001_initial_schema.sql describes. This follows the database, since
   // that is what the query actually runs against. Revisit if the schemas are
   // ever reconciled — see SPEC-01-COURSE-OWNERSHIP.
-  const { data: course } = await supabase.from("COURSE").select("event_id").eq("id", courseId).single();
+  const { data: course, error } = await supabase.from("COURSE").select("event_id").eq("id", courseId).maybeSingle();
+  throwOnDbError(error, "course.dao.userHasCourseAccess");
   if (!course?.event_id) return false;
 
-  const { data: ticket } = await supabase
-    .from("TICKET")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("event_id", course.event_id)
-    .neq("status", "cancelled")
-    .limit(1);
+  // A live (non-cancelled) ticket to the event entitles the holder. Same
+  // eligibility rule as the commerce module's duplicate-ticket check.
+  const activeTicket = await findActiveTicketByUserAndEvent(supabase, userId, course.event_id);
+  if (activeTicket) return true;
 
-  if (ticket && ticket.length > 0) return true;
-
-  const { data: speaking } = await supabase
+  const { data: speaking, error: speakingError } = await supabase
     .from("EVENT_SPEAKER")
     .select("event_id, SPEAKER_PROFILE!inner(user_id)")
     .eq("event_id", course.event_id)
     .eq("SPEAKER_PROFILE.user_id", userId)
     .limit(1);
+  throwOnDbError(speakingError, "course.dao.userHasCourseAccess.speaking");
 
   return !!speaking && speaking.length > 0;
 }
