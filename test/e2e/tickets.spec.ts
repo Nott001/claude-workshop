@@ -41,8 +41,8 @@ test("an attendee can buy a ticket and see it afterwards", async ({ page }) => {
   const tickets = await page.request.get("/api/tickets");
   expect(tickets.status()).toBe(200);
 
-  const body = await tickets.json();
-  const mine = body.filter((t: { event_id: number }) => t.event_id === event.eventId);
+  const { data } = await tickets.json();
+  const mine = data.filter((t: { event_id: number }) => t.event_id === event.eventId);
   expect(mine).toHaveLength(1);
   expect(mine[0].status).toBe("issued");
 });
