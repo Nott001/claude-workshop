@@ -3,16 +3,16 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 
-const { useSession, usePathname, Navbar, TopNavbar } = vi.hoisted(() => ({
+const { useSession, usePathname, TopNavbar, StaffNavbar } = vi.hoisted(() => ({
   useSession: vi.fn(),
   usePathname: vi.fn(() => "/home"),
-  Navbar: vi.fn(() => null),
   TopNavbar: vi.fn(() => null),
+  StaffNavbar: vi.fn(() => null),
 }));
 vi.mock("next/navigation", () => ({ usePathname }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
-vi.mock("@/modules/shell/components/navbar", () => ({ Navbar }));
 vi.mock("@/modules/shell/components/top-navbar", () => ({ TopNavbar }));
+vi.mock("@/modules/shell/components/staff-navbar", () => ({ StaffNavbar }));
 
 import { AppShell } from "@/modules/shell/components/app-shell";
 
@@ -38,39 +38,43 @@ afterEach(() => {
 });
 
 describe("AppShell navbar branch", () => {
-  it("gives a guest the top navbar, not the sidebar", () => {
+  it("gives a guest the top navbar, not the staff navbar", () => {
     renderShell(null);
     expect(TopNavbar).toHaveBeenCalledTimes(1);
-    expect(Navbar).not.toHaveBeenCalled();
+    expect(StaffNavbar).not.toHaveBeenCalled();
   });
 
   it("gives an attendee the top navbar", () => {
     renderShell(ROLES.ATTENDEE);
     expect(TopNavbar).toHaveBeenCalledTimes(1);
-    expect(Navbar).not.toHaveBeenCalled();
+    expect(StaffNavbar).not.toHaveBeenCalled();
   });
 
-  it("keeps the sidebar for an admin", () => {
+  it("gives an admin the staff navbar, not the attendee top navbar", () => {
     renderShell(ROLES.ADMIN);
-    expect(Navbar).toHaveBeenCalledTimes(1);
+    expect(StaffNavbar).toHaveBeenCalledTimes(1);
     expect(TopNavbar).not.toHaveBeenCalled();
   });
 
-  it("keeps the sidebar for a speaker", () => {
+  it("gives a speaker the staff navbar", () => {
     renderShell(ROLES.SPEAKER);
-    expect(Navbar).toHaveBeenCalledTimes(1);
+    expect(StaffNavbar).toHaveBeenCalledTimes(1);
     expect(TopNavbar).not.toHaveBeenCalled();
   });
 });
 
 describe("AppShell main column offset", () => {
-  it("uses pt-16 for the top navbar case", () => {
+  it("uses only pt-16 for the top-navbar-only case", () => {
     const { container } = renderShell(ROLES.ATTENDEE);
-    expect(container.querySelector("main")?.className).toContain("pt-16");
+    const className = container.querySelector("main")?.className;
+    expect(className).toContain("pt-16");
+    expect(className).not.toContain("lg:pl-[72px]");
   });
 
-  it("uses lg:pl-[202px] for the sidebar case", () => {
+  it("adds the collapsed rail offset for the staff-navbar case", () => {
     const { container } = renderShell(ROLES.ADMIN);
-    expect(container.querySelector("main")?.className).toContain("lg:pl-[202px]");
+    const className = container.querySelector("main")?.className;
+    expect(className).toContain("pt-16");
+    expect(className).toContain("lg:pl-[72px]");
   });
 });

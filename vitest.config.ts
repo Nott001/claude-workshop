@@ -20,15 +20,12 @@ export default defineConfig({
       // reports but cannot fail the ratchet.
       exclude: ["src/**/*.d.ts", "src/shared/types.ts", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
-      // regress; raise these as the API-route and DAO gaps close. Branches was
-      // re-baselined after the top-navbar split: the sidebar no longer serves
-      // attendee/guest roles, so its guest/fallback branches are unreachable
-      // dead assertions that U-05 retired.
+      // regress; raise these as the API-route and DAO gaps close.
       thresholds: {
-        statements: 69.43,
-        branches: 64.03,
-        functions: 66.88,
-        lines: 70.61,
+        statements: 69.45,
+        branches: 64.14,
+        functions: 66.93,
+        lines: 70.63,
       },
     },
   },

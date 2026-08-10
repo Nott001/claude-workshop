@@ -16,7 +16,7 @@ function renderAs(role: string | null) {
     isSignedIn: role !== null,
     signOut: vi.fn(),
   });
-  render(<Navbar />);
+  return render(<Navbar />);
 }
 
 /** The labels of the primary nav, in render order, with the icon glyph stripped. */
@@ -82,5 +82,27 @@ describe("Navbar role nav items", () => {
     cleanup();
     renderAs(ROLES.ADMIN);
     expect(superAdmin).toEqual(navLabels());
+  });
+});
+
+describe("Navbar collapsed rail", () => {
+  it("collapses to an icon-only rail that expands on hover and focus", () => {
+    const { container } = renderAs(ROLES.ADMIN);
+    const aside = container.querySelector("aside");
+    const className = aside?.className ?? "";
+    expect(className).toContain("w-[72px]");
+    expect(className).toContain("hover:w-[202px]");
+    expect(className).toContain("focus-within:w-[202px]");
+    expect(className).toContain("transition-[width]");
+  });
+
+  it("keeps the labels in the DOM, hidden while collapsed and revealed on hover", () => {
+    const { container } = renderAs(ROLES.ADMIN);
+    const label = within(container.querySelector("aside") as HTMLElement).getByText("Create event");
+    const className = label.className;
+    expect(className).toContain("w-0");
+    expect(className).toContain("opacity-0");
+    expect(className).toContain("group-hover:w-auto");
+    expect(className).toContain("group-hover:opacity-100");
   });
 });
