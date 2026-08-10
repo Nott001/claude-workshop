@@ -31,12 +31,12 @@ test("a draft event is hidden from an attendee and visible to a facilitator", as
 });
 
 test("publishing moves a draft to active", async ({ page }) => {
-  const facilitator = await createUser(db, ROLES.FACILITATOR);
+  const admin = await createUser(db, ROLES.ADMIN);
   const event = await createEvent(db, { status: "draft" });
-  users.push(facilitator);
+  users.push(admin);
   events.push(event);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post(`/api/events/${event.eventId}/publish`);
   expect(res.status()).toBe(200);
@@ -46,16 +46,17 @@ test("publishing moves a draft to active", async ({ page }) => {
 });
 
 test("an already published event cannot be published again", async ({ page }) => {
-  const facilitator = await createUser(db, ROLES.FACILITATOR);
+  const admin = await createUser(db, ROLES.ADMIN);
   const event = await createEvent(db);
-  users.push(facilitator);
+  users.push(admin);
   events.push(event);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post(`/api/events/${event.eventId}/publish`);
 
-  // Guards against re-firing whatever publishing triggers downstream.
+  // Admin, so the capability guard passes and the state check is the one that
+  // answers. A lower role would 403 here and never reach the rule under test.
   expect(res.status()).toBe(400);
 });
 
