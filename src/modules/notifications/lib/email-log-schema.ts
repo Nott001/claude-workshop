@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const emailTypeEnum = z.enum(["ticket_issued", "check_in_confirmed"]);
+const emailTypeEnum = z.enum(["ticket_issued", "check_in_confirmed", "event_survey"]);
 const emailStatusEnum = z.enum(["sent", "failed"]);
 
 export const emailLogFilterSchema = z.object({

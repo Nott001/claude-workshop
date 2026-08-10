@@ -4,6 +4,7 @@
 
 ### Added
 
+- Post-event surveys can now be emailed to an event's registered attendees. Once an event ends, staff with edit access can opt the event into surveys, preview the form, and send it from the event page; every non-cancelled ticket holder receives a personalized link with a required 1–5 rating and an optional comment. Responses land on the same page as a star breakdown and attributed comments. Sending is a deliberate staff action, not a scheduler: there is no cron, so nothing goes out unless a staff member presses send. Undelivered emails are retried by sending again, and a survey link stops working 14 days after the send — earlier than that it submits at most once per attendee.
 - Community groups are now listed on their own page for every visitor, with a management page for staff. The old community links table served a single hidden audience, so it carried platform and event tags that no longer meant anything and its links appeared only where a page chose to hard-code them. The table is reworked around an `is_hidden` flag and a staff-managed ordering: staff can add, edit, hide, reorder and delete group cards, and everyone else — anonymous visitors included — sees the visible ones. Visibility is enforced by row-level security with a role subquery, not by the application, and reads are public while every write is gated to admins and superadmins.
 
 ### Fixed

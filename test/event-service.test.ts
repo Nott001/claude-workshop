@@ -332,7 +332,13 @@ describe("publishEvent", () => {
 
 describe("registerForEvent", () => {
   beforeEach(() => {
-    eventDao.findById.mockResolvedValue({ id: 1, title: "Launch Day", status: "active" });
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: "2099-01-01",
+      end_time: "10:00",
+    });
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
     paymentDao.findPendingByUserAndEvent.mockResolvedValue(null);
   });
@@ -355,11 +361,35 @@ describe("registerForEvent", () => {
       pending_payment_id: 77,
     });
   });
+
+  it("refuses registration once the event has ended", async () => {
+    const ended = new Date();
+    ended.setDate(ended.getDate() - 1);
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: ended.toISOString().slice(0, 10),
+      end_time: "10:00",
+    });
+
+    await expect(registerForEvent(supabase, 1, { id: 5, role: ROLES.ATTENDEE })).rejects.toMatchObject({
+      status: 400,
+      message: "Registration is closed — this event has ended",
+    });
+    expect(ticketDao.findActiveTicketByUserAndEvent).not.toHaveBeenCalled();
+  });
 });
 
 describe("getEventRegistrationState", () => {
   beforeEach(() => {
-    eventDao.findById.mockResolvedValue({ id: 1, title: "Launch Day", status: "active" });
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: "2099-01-01",
+      end_time: "10:00",
+    });
   });
 
   it("reports already_registered from the caller's own tickets", async () => {
@@ -374,6 +404,25 @@ describe("getEventRegistrationState", () => {
 
     expect(ticketDao.findActiveTicketByUserAndEvent).toHaveBeenCalledWith(supabase, 5, 1);
     expect(state).toMatchObject({ already_registered: true, user: { user_id: 5 } });
+  });
+
+  it("refuses to show registration state once the event has ended", async () => {
+    const ended = new Date();
+    ended.setDate(ended.getDate() - 1);
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: ended.toISOString().slice(0, 10),
+      end_time: "10:00",
+    });
+
+    await expect(
+      getEventRegistrationState(supabase, 1, { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Registration is closed — this event has ended",
+    });
   });
 });
 

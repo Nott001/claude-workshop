@@ -66,6 +66,7 @@ export interface Event {
   currency: string;
   cover_image_url: string | null;
   status: EventStatus;
+  survey_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -187,7 +188,7 @@ export interface SupportSession {
   updated_at: string;
 }
 
-export type EmailType = "ticket_issued" | "check_in_confirmed";
+export type EmailType = "ticket_issued" | "check_in_confirmed" | "event_survey";
 export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
@@ -222,6 +223,33 @@ export interface CommunityLink {
   sequence_order: number;
   is_hidden: boolean;
   created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * One post-event survey per event, created when the bulk send runs. `sent_at`
+ * anchors the 14-day expiry/retry window for every recipient.
+ */
+export interface Survey {
+  id: number;
+  event_id: number;
+  sent_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One row per recipient. The token is the attendee's link into the form. */
+export interface SurveyResponse {
+  id: number;
+  survey_id: number;
+  user_id: number;
+  token: string;
+  /** Set when that recipient's email actually delivered; retries key off null. */
+  sent_at: string | null;
+  submitted_at: string | null;
+  rating: number | null;
+  comment: string | null;
   created_at: string;
   updated_at: string;
 }

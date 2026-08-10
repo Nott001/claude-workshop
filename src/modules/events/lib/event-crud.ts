@@ -31,6 +31,7 @@ export async function createEvent(supabase: DbClient, input: z.infer<typeof even
     currency: input.currency ?? "PHP",
     cover_image_url: input.cover_image_url ?? null,
     status: "draft",
+    survey_enabled: input.survey_enabled ?? false,
   });
 
   if (!event) {

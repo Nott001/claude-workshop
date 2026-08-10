@@ -17,6 +17,12 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   "dev/profiler/route.ts":
     "Dev-only browser profiler sink. Self-404s on production builds, and anonymous visitors' " +
     "samples must still reach the dev terminal, so it cannot sit behind a session.",
+  "surveys/[token]/route.ts":
+    "Survey form opener — the random per-recipient token in the URL is the credential, " +
+    "so no session is required or appropriate.",
+  "surveys/[token]/submit/route.ts":
+    "Survey form submit — same token credential as the GET opener; the submission is " +
+    "idempotent (a token only submits once) so a drive-by cannot do damage.",
 };
 
 /**
@@ -52,7 +58,7 @@ describe("api route authorization sweep", () => {
 
   it("keeps the public list minimal", () => {
     // A guard rail on the guard rail: if this list grows, someone should notice.
-    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(3);
+    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(5);
   });
 
   it.each(Object.keys(PUBLIC_BY_DESIGN))("%s is genuinely unguarded, so the list stays honest", (rel) => {

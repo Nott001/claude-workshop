@@ -25,6 +25,7 @@ export interface EventWithCourse {
   price: number;
   currency: string;
   description: string | null;
+  survey_enabled: boolean;
   COURSE: { id: number; course_name: string; course_description: string | null } | null;
   EVENT_SPEAKER: EventSpeakerEntry[];
   EVENT_FACILITATOR?: { user_id: number }[];

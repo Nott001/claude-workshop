@@ -109,14 +109,39 @@ describe("public event reads", () => {
     expect(res.status).toBe(401);
   });
 
-  it.each(["/api/events/1/register", "/api/events/1/attendees", "/api/events/1/publish"])(
-    "keeps %s behind the middleware",
-    async (path) => {
-      getUser.mockResolvedValue(signedOut);
-      const res = await middleware(request(path));
-      expect(res.status).toBe(401);
-    },
-  );
+  it.each([
+    "/api/events/1/register",
+    "/api/events/1/attendees",
+    "/api/events/1/publish",
+    "/api/events/1/survey",
+    "/api/events/1/survey/send",
+  ])("keeps %s behind the middleware", async (path) => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request(path));
+    expect(res.status).toBe(401);
+  });
+});
+
+// Survey links are emailed to attendees with no session, so the token routes
+// must pass through the middleware; the random token is the only credential.
+describe("public survey routes", () => {
+  it("lets an anonymous GET on a survey token reach the handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123"));
+    expect(res.status).toBe(200);
+  });
+
+  it("lets an anonymous POST of a submission reach the handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123/submit", { method: "POST" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("does not open a nested survey path beyond submit", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/surveys/abc123/admin", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("public community reads", () => {

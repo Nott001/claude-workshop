@@ -2,10 +2,19 @@ import { ROLES } from "@/shared/lib/roles";
 import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { isEventFinished } from "@/shared/lib/date-utils";
 import * as eventDao from "@/modules/events/db/event.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as paymentDao from "@/shared/db/dao/payment.dao";
 import { EventServiceError } from "@/modules/events/lib/event-errors";
+
+/** The registration window closes with the event, so the ticket-holder set the
+ * survey mails is frozen the moment the end time passes. */
+function ensureRegistrable(event: Event): void {
+  if (isEventFinished(event.event_date, event.end_time)) {
+    throw new EventServiceError(400, "Registration is closed — this event has ended");
+  }
+}
 
 export async function getEventRegistrationState(
   supabase: DbClient,
@@ -21,6 +30,8 @@ export async function getEventRegistrationState(
   if (event.status === "draft" && !hasMinRole(user.role, ROLES.FACILITATOR)) {
     throw new EventServiceError(404, "Event not found");
   }
+
+  ensureRegistrable(event);
 
   const activeTicket = await ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, id);
 
@@ -44,6 +55,8 @@ export async function registerForEvent(
   if (event.status === "draft" && !hasMinRole(user.role, ROLES.FACILITATOR)) {
     throw new EventServiceError(404, "Event not found");
   }
+
+  ensureRegistrable(event);
 
   const activeTicket = await ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, id);
 

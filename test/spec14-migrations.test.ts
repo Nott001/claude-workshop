@@ -50,6 +50,7 @@ describe("SPEC-14 migrations", () => {
       "00016_remove_live_session_state_realtime.sql",
       "00017_remove_event_support_chat.sql",
       "00018_community_link_cards.sql",
+      "00019_event_survey.sql",
     ]);
   });
 

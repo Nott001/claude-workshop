@@ -19,15 +19,24 @@ const isPublicApiGet = (req: NextRequest) => {
     pathname === "/api/events" ||
     pathname === "/api/community" ||
     /^\/api\/events\/\d+$/.test(pathname) ||
+    /^\/api\/surveys\/[^/]+$/.test(pathname) ||
     pathname.startsWith("/api/storage/event_images/")
   );
+};
+
+// Survey links are emailed to attendees with no session, so both reading the
+// form and submitting it must pass through the middleware. The token is the
+// credential; nothing else gates these routes.
+const isPublicSurveyApi = (req: NextRequest) => {
+  const { pathname } = req.nextUrl;
+  return /^\/api\/surveys\/[^/]+\/submit$/.test(pathname);
 };
 
 // The profiler sink must be reachable without a session so samples from
 // anonymous visitors still reach the dev terminal. The route itself 404s on a
 // production build, so whitelisting it costs nothing deployed.
 const isPublicApi = (req: NextRequest) => {
-  return req.nextUrl.pathname === "/api/dev/profiler" || isPublicApiGet(req);
+  return req.nextUrl.pathname === "/api/dev/profiler" || isPublicApiGet(req) || isPublicSurveyApi(req);
 };
 
 const isProtectedRoute = (req: NextRequest) => {

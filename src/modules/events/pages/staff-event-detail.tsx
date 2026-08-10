@@ -2,15 +2,18 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
+import { useSurveyStatus } from "@/modules/surveys/lib/use-survey-status";
 import type { CourseSpeaker } from "@/modules/courses/lib/types";
 import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
@@ -304,13 +307,198 @@ function CoverImageSection({
   );
 }
 
-function SurveysSection({ userRole }: { userRole: UserRole | null }) {
+function SurveysSection({
+  event,
+  userRole,
+  canManage,
+}: {
+  event: NonNullable<ReturnType<typeof useEventDetail>["event"]>;
+  userRole: UserRole | null;
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const eventId = String(event.id);
+  const [enabled, setEnabled] = useState(event.survey_enabled);
+  const { status, loading, error, mutate } = useSurveyStatus(eventId, enabled);
+  const [saving, setSaving] = useState(false);
+  const [settingError, setSettingError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendMessage, setSendMessage] = useState<string | null>(null);
+
+  // enabled is mutated only by the toggle below; the server value may drift if
+  // another staff member changed it, but a reload resets it via useState.
+  const eventEnd = parseLocalDateTime(event.event_date, event.end_time);
+  const finished = eventEnd != null && eventEnd <= new Date();
+
   if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
+
+  async function handleToggle(next: boolean) {
+    setSaving(true);
+    setSettingError(null);
+    const res = await fetch(`/api/events/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ survey_enabled: next }),
+    });
+    if (!res.ok) {
+      const body = await res.json();
+      setSettingError(body.error?.message ?? "Failed to update survey setting");
+      setSaving(false);
+      return;
+    }
+    setEnabled(next);
+    setSaving(false);
+  }
+
+  async function handleSend() {
+    setSending(true);
+    setSendMessage(null);
+    setSettingError(null);
+    const res = await fetch(`/api/events/${eventId}/survey/send`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json();
+      setSettingError(body.error ?? "Failed to send survey");
+      setSending(false);
+      return;
+    }
+    const result = await res.json();
+    if (result.failed > 0) {
+      setSendMessage(`Delivered ${result.delivered} of ${result.recipients}; the rest will be retried on the next send.`);
+    } else {
+      setSendMessage(`Survey emailed to ${result.delivered} attendee${result.delivered === 1 ? "" : "s"}.`);
+    }
+    setSending(false);
+    mutate();
+  }
+
+  const canSend = enabled && finished && canManage;
+  const showSend = canSend && (!status?.survey || (status.survey.undelivered_count > 0 && !status.survey.expired));
+  const respondedCount = status?.results.counts.reduce((sum, count) => sum + count, 0) ?? 0;
 
   return (
     <SectionCard title="Surveys" icon="poll">
-      <p className="text-sm text-muted-fg">Create and manage surveys for attendees.</p>
-      <p className="mt-2 text-xs italic text-muted-fg">Coming soon.</p>
+      {enabled && loading ? (
+        <p className="text-sm text-muted-fg">Loading survey...</p>
+      ) : (
+        <>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-fg">Post-event survey</p>
+              <p className="text-xs text-muted-fg">Email a rating + comment form to registered attendees.</p>
+            </div>
+            {canManage && (
+              <button
+                onClick={() => handleToggle(!enabled)}
+                disabled={saving}
+                role="switch"
+                aria-checked={enabled}
+                aria-label="Enable post-event survey"
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${enabled ? "bg-brand" : "bg-muted"}`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${enabled ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                />
+              </button>
+            )}
+          </div>
+
+          {settingError && <p className="mb-3 text-xs text-error">{settingError}</p>}
+          {error && <p className="mb-3 text-xs text-error">{error}</p>}
+
+          {enabled && (
+            <>
+              <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                {showSend && (
+                  <button
+                    onClick={handleSend}
+                    disabled={sending}
+                    className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
+                  >
+                    {sending ? "Sending..." : status?.survey ? "Retry send" : "Send survey"}
+                  </button>
+                )}
+                <button
+                  onClick={() => router.push(`/staff/events/${eventId}/survey-preview`)}
+                  className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
+                >
+                  Preview form
+                </button>
+              </div>
+
+              {sendMessage && <p className="mb-3 text-xs text-success">{sendMessage}</p>}
+
+              {status?.survey ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-lg font-bold text-fg">{status.survey.total_recipients}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-fg">Recipients</p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-lg font-bold text-fg">{respondedCount}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-fg">Responded</p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-lg font-bold text-fg">{status.results.average ?? "\u2014"}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-fg">Average</p>
+                    </div>
+                  </div>
+
+                  {status.survey.undelivered_count > 0 && !status.survey.expired && (
+                    <p className="text-xs text-muted-fg">
+                      {status.survey.undelivered_count} email{status.survey.undelivered_count === 1 ? "" : "s"} not yet
+                      delivered &mdash; use &ldquo;Retry send&rdquo;.
+                    </p>
+                  )}
+
+                  {status.results.counts.some((count) => count > 0) && (
+                    <div className="space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = status.results.counts[star - 1];
+                        const max = Math.max(...status.results.counts);
+                        const width = max > 0 ? (count / max) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-xs text-muted-fg">
+                            <span className="w-3 text-fg">{star}</span>
+                            <span className="material-symbols-rounded text-[14px] text-amber-400">star</span>
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                              <div className="h-full rounded-full bg-brand" style={{ width: `${width}%` }} />
+                            </div>
+                            <span className="w-5 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {status.results.comments.length > 0 && (
+                    <ul className="space-y-2">
+                      {status.results.comments.map((comment, i) => (
+                        <li key={i} className="rounded-lg border border-border bg-muted p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-rounded text-[14px] text-amber-400">star</span>
+                            <span className="text-xs font-semibold text-fg">{comment.rating}</span>
+                            {comment.attendee_name && <span className="text-xs text-muted-fg">{comment.attendee_name}</span>}
+                          </div>
+                          <p className="mt-1 text-sm text-fg">{comment.comment}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {respondedCount === 0 && <p className="text-xs text-muted-fg">No responses yet.</p>}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-fg">
+                  {finished
+                    ? "Send the survey to email it to every registered attendee."
+                    : "Surveys can be sent once the event has ended."}
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
     </SectionCard>
   );
 }
@@ -367,6 +555,8 @@ export function StaffEventDetailPage() {
   // The page is facilitator-floor, so the assignment term is the facilitator row.
   const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
   const canManageCourse = isAdmin || isAssignedFacilitator;
+  // Survey sends and the enable toggle need the same event-edit capability as courses.
+  const canManage = canManageCourse;
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
@@ -420,7 +610,7 @@ export function StaffEventDetailPage() {
 
           <KioskSection eventId={eventId} userRole={userRole} />
 
-          <SurveysSection userRole={userRole} />
+          <SurveysSection event={event} userRole={userRole} canManage={canManage} />
         </div>
       </div>
     </div>
