@@ -48,7 +48,7 @@
     "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^22.20.1",
+    "@types/node": "^26.2.0",
     "@types/png-chunks-encode": "^1.0.2",
     "@types/png-chunks-extract": "^1.0.2",
     "@types/qrcode": "^1.5.6",
