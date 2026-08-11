@@ -156,7 +156,8 @@ export type AuditAction =
   | "module.deleted"
   | "lesson.created"
   | "lesson.updated"
-  | "lesson.deleted";
+  | "lesson.deleted"
+  | "auth.password_reset_completed";
 
 export interface AuditLog {
   id: number;
@@ -188,8 +189,16 @@ export interface SupportSession {
   updated_at: string;
 }
 
-export type EmailType = "ticket_issued" | "check_in_confirmed" | "event_survey";
-export type EmailStatus = "sent" | "failed";
+/**
+ * Tuples rather than bare unions: the runtime needs the member list too, for
+ * the zod filter schema and the staff filter dropdowns. Deriving the type from
+ * the tuple keeps one declaration where a PG enum change has to land.
+ */
+export const EMAIL_TYPES = ["ticket_issued", "check_in_confirmed", "event_survey"] as const;
+export type EmailType = (typeof EMAIL_TYPES)[number];
+
+export const EMAIL_STATUSES = ["sent", "failed"] as const;
+export type EmailStatus = (typeof EMAIL_STATUSES)[number];
 
 export interface EmailLog {
   id: number;

@@ -26,6 +26,28 @@ describe("GET /api/auth/callback", () => {
     expect(new URL(res.headers.get("location")!).pathname).toBe("/email-verified");
   });
 
+  it("forwards a safe redirect_url to /email-verified", async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const req = new Request("https://app.test/api/auth/callback?code=valid_code&redirect_url=%2Fevents%2F5");
+    const res = await GET(req);
+
+    const location = new URL(res.headers.get("location")!);
+    expect(location.pathname).toBe("/email-verified");
+    expect(location.searchParams.get("redirect_url")).toBe("/events/5");
+  });
+
+  it("drops an unsafe redirect_url on success", async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const req = new Request("https://app.test/api/auth/callback?code=valid_code&redirect_url=https%3A%2F%2Fevil.com");
+    const res = await GET(req);
+
+    const location = new URL(res.headers.get("location")!);
+    expect(location.pathname).toBe("/email-verified");
+    expect(location.searchParams.has("redirect_url")).toBe(false);
+  });
+
   it("redirects to /sign-in with error when the code exchange fails", async () => {
     exchangeCodeForSession.mockResolvedValue({ error: new Error("invalid code") });
 

@@ -5,7 +5,6 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
-import { deleteFromStorage } from "@/shared/integrations/storage/service";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { AuthUser } from "@/modules/auth/lib/types";
 
@@ -68,17 +67,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  // Deleting a profile wipes the speaker's image and history, so only admin+
+  // Deleting a profile wipes the speaker's history, so only admin+
   // or the owner may do it — a facilitator editing someone else's profile
   // cannot, and the profile fetch above keeps existence private below admin.
   if (!hasMinRole(guard.user.role, ROLES.ADMIN) && guard.user.id !== (profile as { user_id: number }).user_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if ((profile as { photo_url?: string | null } | null)?.photo_url) {
-    const { data: userFiles } = await supabase.storage.from("profile_images").list(`users/${profile!.user_id}`);
-    const paths = (userFiles ?? []).map((f) => `users/${profile!.user_id}/${f.name}`);
-    await deleteFromStorage("profile_images", paths);
   }
 
   const ok = await speakerDao.remove(supabase, Number(id));

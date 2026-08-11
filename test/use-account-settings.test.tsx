@@ -8,6 +8,8 @@ vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => sessionValue(),
 }));
 
+const sessionUpdateUser = vi.fn();
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -31,11 +33,9 @@ function response(body: unknown, ok = true): Promise<Response> {
 
 const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
-const updateSessionUser = vi.fn();
-
 beforeEach(() => {
   vi.clearAllMocks();
-  sessionValue.mockReturnValue({ user: speaker, updateUser: updateSessionUser });
+  sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
 afterEach(() => {
@@ -72,7 +72,7 @@ describe("useAccountSettings", () => {
       await result.current.saveName(submitEvent);
     });
 
-    expect(updateSessionUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
   });
 
   it("sends a trimmed name and keeps the field on what was stored", async () => {
@@ -98,7 +98,7 @@ describe("useAccountSettings", () => {
       await result.current.saveName(submitEvent);
     });
 
-    expect(updateSessionUser).not.toHaveBeenCalled();
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
   });
 
   it("toasts an error when saving the name fails", async () => {
@@ -164,7 +164,7 @@ describe("useAccountSettings", () => {
     });
   });
 
-  it("uploads the photo and pushes the new URL into the session", async () => {
+  it("uploads the photo and updates the session user's profile_image_url", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation((url: string | URL | Request) =>
       response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
@@ -181,7 +181,30 @@ describe("useAccountSettings", () => {
     const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
     expect(post).toBeTruthy();
     expect(post![1]!.body).toBeInstanceOf(FormData);
-    expect(updateSessionUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+  });
+
+  it("hands the uploaded URL back through the session so the settings preview updates", async () => {
+    let user = speaker;
+    sessionUpdateUser.mockImplementation((patch) => {
+      user = { ...user, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
+    const fetch = stubFetch();
+    fetch.mockImplementation((url: string | URL | Request) =>
+      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
+    );
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
   });
 
   it("leaves the session photo alone when the upload fails", async () => {
@@ -195,7 +218,7 @@ describe("useAccountSettings", () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
 
-    expect(updateSessionUser).not.toHaveBeenCalled();
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
     expect(result.current.toast?.type).toBe("error");
   });
 });

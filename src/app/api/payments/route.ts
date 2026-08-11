@@ -7,7 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as paymentDao from "@/shared/db/dao/payment.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
-import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
+import { getPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function POST(req: Request) {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     payment_id = payment.id;
   }
 
-  const result = await new SimulatedPaymentGateway().createPayment({
+  const result = await getPaymentGateway().createPayment({
     amount: event.price,
     currency: event.currency,
     payment_id,
@@ -78,6 +78,13 @@ export async function POST(req: Request) {
     // Already loaded above; the gateway used to re-read the same row.
     event: { title: event.title, event_date: event.event_date },
   });
+
+  // The provider's id must land on the PAYMENT row before the buyer can reach
+  // its checkout page, or the confirmation webhook has nothing to match.
+  const referenceStored = await paymentDao.updateGatewayReference(supabase, payment_id, result.gateway_reference_id);
+  if (!referenceStored) {
+    return NextResponse.json({ error: "Failed to record payment reference" }, { status: 500 });
+  }
 
   return NextResponse.json({ payment_id, checkout_url: result.checkout_url });
 }

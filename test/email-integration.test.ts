@@ -4,6 +4,8 @@ import { UnconfiguredEmailProvider } from "@/shared/integrations/email/providers
 import { SmtpEmailProvider } from "@/shared/integrations/email/providers/smtp";
 import { getEmailService, configureEmailService, createDefaultProvider, resetEmailService } from "@/shared/integrations/email";
 import type { EmailProvider } from "@/shared/integrations/email/types";
+import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
+import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
 
 /** workerd is identified by its user agent; vitest runs on Node, which is not. */
 function pretendWorkerd() {
@@ -141,5 +143,52 @@ describe("EmailService singleton", () => {
     configureEmailService({ send: async () => ({ success: true }) });
     resetEmailService();
     expect(getEmailService()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+});
+
+describe("sendTemplatedEmail", () => {
+  afterEach(() => {
+    resetEmailService();
+  });
+
+  function recordingProvider(result: { success: boolean; error?: string } = { success: true }) {
+    const send = vi.fn().mockResolvedValue(result);
+    configureEmailService({ send });
+    return send;
+  }
+
+  it("composes both parts from the template and addresses the recipient", async () => {
+    const send = recordingProvider();
+
+    await sendTemplatedEmail(
+      memberInvitedTemplate,
+      { name: "Ada", role: "admin", acceptUrl: "https://startuplab.center/invite?token=abc" },
+      { email: "ada@example.com", name: "Ada" },
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const sent = send.mock.calls[0][0];
+    expect(sent.to).toEqual({ email: "ada@example.com", name: "Ada" });
+    expect(sent.subject).toBe(memberInvitedTemplate.subject);
+    expect(sent.htmlContent).toContain("Ada");
+    expect(sent.htmlContent).toContain("https://startuplab.center/invite?token=abc");
+    // The text part is written, not derived, so it has to arrive populated.
+    expect(sent.textContent).toContain("Ada");
+    expect(sent.textContent).not.toContain("<");
+  });
+
+  // The invite route deletes the half-created account on `!success`, so a
+  // swallowed provider failure would strand an account nobody can re-invite.
+  it("passes the provider's failure back to the caller", async () => {
+    recordingProvider({ success: false, error: "550 mailbox unavailable" });
+
+    const result = await sendTemplatedEmail(
+      memberInvitedTemplate,
+      { name: "Ada", role: "admin", acceptUrl: "https://startuplab.center/invite?token=abc" },
+      { email: "ada@example.com", name: "Ada" },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("550 mailbox unavailable");
   });
 });

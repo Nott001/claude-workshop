@@ -7,6 +7,8 @@ interface CountdownTimerProps {
   eventDate: string;
   startTime: string;
   light?: boolean;
+  /** Optional eyebrow label rendered above the units while the countdown runs. */
+  label?: string;
 }
 
 interface TimeLeft {
@@ -36,7 +38,7 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-export function CountdownTimer({ eventDate, startTime, light }: CountdownTimerProps) {
+export function CountdownTimer({ eventDate, startTime, light, label }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(() => computeTimeLeft(eventDate, startTime));
 
   useEffect(() => {
@@ -56,18 +58,25 @@ export function CountdownTimer({ eventDate, startTime, light }: CountdownTimerPr
   ];
 
   return (
-    <div className="flex items-center gap-4">
-      {units.map((unit, i) => (
-        <div key={unit.label} className="flex items-center gap-4">
-          <div className="text-center">
-            <div className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-fg"}`}>{unit.value}</div>
-            <div className={`text-[10px] font-bold uppercase tracking-[0.05em] ${light ? "text-white/70" : "text-muted-fg"}`}>
-              {unit.label}
+    <div>
+      {label && (
+        <span className={`mt-6 block text-xs font-bold uppercase tracking-wide ${light ? "text-white/70" : "text-muted-fg"}`}>
+          {label}
+        </span>
+      )}
+      <div className={`flex items-center gap-4 ${label ? "mt-2" : ""}`}>
+        {units.map((unit, i) => (
+          <div key={unit.label} className="flex items-center gap-4">
+            <div className="text-center">
+              <div className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-fg"}`}>{unit.value}</div>
+              <div className={`text-[10px] font-bold uppercase tracking-[0.05em] ${light ? "text-white/70" : "text-muted-fg"}`}>
+                {unit.label}
+              </div>
             </div>
+            {i < units.length - 1 && <div className={`pb-4 text-2xl font-bold ${light ? "text-white" : "text-fg"}`}>:</div>}
           </div>
-          {i < units.length - 1 && <div className={`pb-4 text-2xl font-bold ${light ? "text-white" : "text-fg"}`}>:</div>}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

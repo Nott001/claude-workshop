@@ -13,12 +13,13 @@ export function getInitials(fullName?: string | null): string {
 /**
  * The user object's profile_image_url is the app profile photo; the speaker
  * profile may carry a separate photo_url that only /api/auth/me knows about, so
- * that endpoint is consulted as a fallback when the user has no app photo of
- * their own. An upload reaches this hook through the session, which the upload
- * caller refreshes from the URL the route persisted.
+ * that endpoint is consulted for a fallback. Uploads update the session user
+ * directly, so reading profile_image_url here picks them up the instant they
+ * land — and it wins over the speaker fallback so a new app photo is never
+ * hidden by a stale speaker one.
  */
 export function useProfilePhoto(user: Pick<AuthUser, "profile_image_url"> | null): string | null {
-  const [customPhoto, setCustomPhoto] = useState<string | null>(null);
+  const [speakerPhoto, setSpeakerPhoto] = useState<string | null>(null);
   const signedIn = !!user;
   const profileImageUrl = user?.profile_image_url ?? null;
 
@@ -32,7 +33,7 @@ export function useProfilePhoto(user: Pick<AuthUser, "profile_image_url"> | null
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data?.photo_url) setCustomPhoto(data.photo_url);
+        if (!cancelled && data?.photo_url) setSpeakerPhoto(data.photo_url);
       })
       .catch(() => {});
 
@@ -41,8 +42,5 @@ export function useProfilePhoto(user: Pick<AuthUser, "profile_image_url"> | null
     };
   }, [signedIn, profileImageUrl]);
 
-  // The app photo outranks the speaker one: a user who had neither, then
-  // uploaded, holds a fetched speaker photo in state, and reading that first
-  // would keep showing it over the picture they just chose.
-  return profileImageUrl ?? customPhoto;
+  return profileImageUrl ?? speakerPhoto;
 }

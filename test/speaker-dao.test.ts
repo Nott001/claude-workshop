@@ -1,6 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
-import { listCandidates, replaceEventAssignments, isAssignedByUserId, listEventAssignments } from "@/shared/db/dao/speaker.dao";
+import {
+  listCandidates,
+  replaceEventAssignments,
+  isAssignedByUserId,
+  listEventAssignments,
+  isSpeakerOnPublishedEvent,
+} from "@/shared/db/dao/speaker.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 function replaceStub({
@@ -117,6 +123,66 @@ describe("speaker.dao isAssignedByUserId", () => {
     const ok = await isAssignedByUserId(client, 881, 353);
 
     expect(ok).toBe(false);
+  });
+});
+
+describe("speaker.dao isSpeakerOnPublishedEvent", () => {
+  function stub(statuses: (string | null)[] | null) {
+    const profileChain = {
+      select: vi.fn(() => profileChain),
+      eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: statuses ? { id: 2 } : null, error: null })) })),
+    };
+    const esChain = {
+      select: vi.fn(() => esChain),
+      eq: vi.fn(() =>
+        Promise.resolve({
+          data: (statuses ?? []).map((status) => ({ EVENT: status ? { status } : null })),
+          error: null,
+        }),
+      ),
+    };
+    const from = vi.fn((table: string) => (table === "SPEAKER_PROFILE" ? profileChain : esChain));
+    return { client: { from } as unknown as DbClient, esChain, from };
+  }
+
+  it("is true when the speaker profile sits on an active event", async () => {
+    const { client } = stub(["active"]);
+
+    await expect(isSpeakerOnPublishedEvent(client, 881)).resolves.toBe(true);
+  });
+
+  it("is true when the speaker profile sits on a complete event", async () => {
+    const { client } = stub(["complete"]);
+
+    await expect(isSpeakerOnPublishedEvent(client, 881)).resolves.toBe(true);
+  });
+
+  it("is false when the profile is only on draft events", async () => {
+    const { client } = stub(["draft"]);
+
+    await expect(isSpeakerOnPublishedEvent(client, 881)).resolves.toBe(false);
+  });
+
+  it("ignores assignment rows whose event embed is missing", async () => {
+    const { client } = stub([null, "active"]);
+
+    await expect(isSpeakerOnPublishedEvent(client, 881)).resolves.toBe(true);
+  });
+
+  it("is false when the user has no speaker profile", async () => {
+    const { client, esChain } = stub(null);
+
+    await expect(isSpeakerOnPublishedEvent(client, 999)).resolves.toBe(false);
+    expect(esChain.select).not.toHaveBeenCalled();
+  });
+
+  it("resolves the profile by user id, then checks event status by profile id", async () => {
+    const { client, from } = stub(["active"]);
+
+    await isSpeakerOnPublishedEvent(client, 881);
+
+    expect(from).toHaveBeenCalledWith("SPEAKER_PROFILE");
+    expect(from).toHaveBeenCalledWith("EVENT_SPEAKER");
   });
 });
 

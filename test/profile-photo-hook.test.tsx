@@ -96,13 +96,14 @@ describe("useProfilePhoto", () => {
 
   // The user had no app photo, so the speaker one was fetched into state. Read
   // in the wrong order that stale photo outlives the upload that replaced it.
-  it("prefers a newly uploaded app photo over an already-fetched speaker photo", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ photo_url: "https://cdn/speaker.jpg" }) });
+  it("adopts the session user's profile_image_url when it appears after a speaker fallback", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ photo_url: "https://cdn/b.jpg" }) });
     const { rerender } = render(<Host user={{ profile_image_url: null }} />);
-    await waitFor(() => expect(photoText()).toBe("https://cdn/speaker.jpg"));
 
-    rerender(<Host user={{ profile_image_url: "https://cdn/uploaded.jpg" }} />);
-    expect(photoText()).toBe("https://cdn/uploaded.jpg");
+    await waitFor(() => expect(photoText()).toBe("https://cdn/b.jpg"));
+
+    rerender(<Host user={{ profile_image_url: "https://cdn/a.jpg" }} />);
+    expect(photoText()).toBe("https://cdn/a.jpg");
   });
 
   it("does not re-request the speaker photo when an unrelated session field changes", async () => {

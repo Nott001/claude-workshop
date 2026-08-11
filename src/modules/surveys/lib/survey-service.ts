@@ -4,7 +4,7 @@ import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, SurveyResponse } from "@/shared/types";
 import { isEventFinished } from "@/shared/lib/date-utils";
 import { appBaseUrl } from "@/shared/lib/app-url";
-import { sendEmailNotification } from "@/modules/notifications/lib/email";
+import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 import * as surveyDao from "@/modules/surveys/db/survey.dao";
 import type { SurveyResponseWithAttendee } from "@/modules/surveys/db/survey.dao";
 

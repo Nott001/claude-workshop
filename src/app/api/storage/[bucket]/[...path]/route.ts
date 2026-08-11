@@ -4,6 +4,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { isStorageBucket, COURSE_CONTENT_BUCKETS } from "@/shared/integrations/storage/policy";
 import type { StorageBucket } from "@/shared/integrations/storage/policy";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -39,6 +40,13 @@ function eventIdFromPath(segments: string[]): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+/** Avatars live at `users/{userId}/profile_{ts}.{ext}` — see buildProfileImagePath. */
+function userIdFromPath(segments: string[]): number | null {
+  if (segments[0] !== "users") return null;
+  const id = Number(segments[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 interface Access {
   allowed: boolean;
   /** The bytes carry no per-user entitlement, so a shared cache may hold them. */
@@ -70,6 +78,21 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
     }
     const viewer = await requireAuth(supabase);
     return { allowed: hasMinRole(viewer?.role ?? null, ROLES.FACILITATOR), cacheable: false };
+  }
+
+  if (bucket === "profile_images") {
+    const userId = userIdFromPath(segments);
+    if (userId === null) return DENY;
+
+    // The speaker avatars on public event pages must load for guests, so the
+    // image of anyone whose speaker profile sits on a published event is
+    // public and cacheable. Everyone else's account photo keeps the signed-in
+    // access it has today — any authenticated user may read it.
+    if (await speakerDao.isSpeakerOnPublishedEvent(supabase, userId)) {
+      return { allowed: true, cacheable: true };
+    }
+    const viewer = await requireAuth(supabase);
+    return viewer ? { allowed: true, cacheable: false } : DENY;
   }
 
   const user = await requireAuth(supabase);

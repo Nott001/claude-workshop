@@ -2,6 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { isEventStarted } from "@/shared/lib/date-utils";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
@@ -48,6 +49,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
     speakerProfileId = speakerProfile?.id ?? null;
     if (speakerProfileId !== null) {
       isSpeakerAssigned = await speakerDao.checkSpeakerAssignment(supabase, speakerProfileId, event.id);
+    }
+
+    // The room stays shut to the audience until the event starts. Staff set
+    // it up and assigned speakers run it, but a ticket holder must not
+    // receive the curriculum early — so the course is withheld from the
+    // response rather than refused outright, letting the page show the lock
+    // with the event's own opening window.
+    const isStaff = hasMinRole(user.role, ROLES.FACILITATOR);
+    if (!isEventStarted(event.event_date, event.start_time) && !isStaff && !isSpeakerAssigned) {
+      return NextResponse.json({ course: null, event, hasTicket, isSpeakerAssigned, speakerProfileId });
     }
   }
 

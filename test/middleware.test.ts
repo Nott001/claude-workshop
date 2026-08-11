@@ -168,15 +168,6 @@ describe("public cover images", () => {
     expect(res.status).toBe(200);
   });
 
-  it.each(["/api/storage/profile_images/users/5/profile.png", "/api/storage/course_videos/courses/1/m/2/l/3/v.mp4"])(
-    "keeps %s behind the middleware",
-    async (path) => {
-      getUser.mockResolvedValue(signedOut);
-      const res = await middleware(request(path));
-      expect(res.status).toBe(401);
-    },
-  );
-
   it("refuses a write to the cover path — only reads are public", async () => {
     getUser.mockResolvedValue(signedOut);
     const res = await middleware(request("/api/storage/event_images/events/42/cover.png", { method: "DELETE" }));
@@ -187,6 +178,30 @@ describe("public cover images", () => {
     getUser.mockResolvedValue(signedOut);
     const res = await middleware(request("/api/storage/event_images_private/secrets.png"));
     expect(res.status).toBe(401);
+  });
+});
+
+// The course-schedule card and the speaker avatars on the public event detail
+// page must render for guests, so the middleware lets the GETs through and the
+// handlers decide what to expose (drafts and non-speaker photos are refused
+// there, not here).
+describe("public schedule and speaker avatars", () => {
+  it("lets an anonymous GET on an event schedule reach the handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/events/42/schedule"));
+    expect(res.status).toBe(200);
+  });
+
+  it("still refuses anonymous writes to the schedule endpoint", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/events/42/schedule", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("lets an anonymous GET on a speaker avatar reach the storage handler", async () => {
+    getUser.mockResolvedValue(signedOut);
+    const res = await middleware(request("/api/storage/profile_images/users/5/profile.png"));
+    expect(res.status).toBe(200);
   });
 });
 

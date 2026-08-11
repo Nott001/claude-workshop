@@ -19,11 +19,8 @@ interface SessionContextValue {
   isSignedIn: boolean;
   signOut: () => Promise<void>;
   /**
-   * Merges fields into the cached user after a write elsewhere has already
-   * persisted them. Everything chrome-level reads its copy of the user from
-   * here — the navbar name and initials, the home greeting — so without this
-   * an edit stayed invisible until the next refetch, which only a reload, a
-   * tab switch or an auth event triggers.
+   * Merges a patch into the in-memory user so a mutation that already landed
+   * server-side shows up everywhere the session is read without a refetch.
    */
   updateUser: (patch: Partial<AuthUser>) => void;
 }
