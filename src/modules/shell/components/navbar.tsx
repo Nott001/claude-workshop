@@ -16,7 +16,10 @@ export function Navbar() {
   const navItems = getNavItems(isSignedIn, userRole);
 
   return (
-    <aside className="group fixed bottom-0 left-0 top-16 z-10 hidden w-[72px] flex-col overflow-hidden border-r border-border bg-surface px-3 py-5 transition-[width] duration-300 hover:w-[202px] focus-within:w-[202px] lg:flex">
+    // Expand on hover or keyboard focus only. A mouse-clicked link keeps focus
+    // across navigation, so plain :focus-within would pin the rail open until
+    // focus moves; :focus-visible matches keyboard focus alone.
+    <aside className="group fixed bottom-0 left-0 top-16 z-10 hidden w-[72px] flex-col overflow-hidden border-r border-border bg-surface px-3 py-5 transition-[width] duration-300 hover:w-[202px] has-[:focus-visible]:w-[202px] lg:flex">
       <nav className="space-y-2" aria-label="Primary navigation">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -26,12 +29,14 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex w-full items-center justify-center overflow-hidden rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition hover:bg-muted hover:text-fg group-hover:justify-start",
+                "flex w-full items-center overflow-hidden rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition hover:bg-muted hover:text-fg",
                 isActive ? "bg-brand/10 text-brand" : "text-muted-fg",
               )}
             >
-              <span className="material-symbols-rounded shrink-0 text-[18px]">{item.icon}</span>
-              <span className="ml-0 w-0 overflow-hidden text-nowrap opacity-0 transition-[width,margin-left,opacity] duration-300 group-hover:ml-3 group-hover:w-auto group-hover:opacity-100">
+              <span className="flex w-6 shrink-0 items-center justify-center">
+                <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
+              </span>
+              <span className="max-w-0 overflow-hidden text-nowrap opacity-0 transition-[max-width,margin-left,opacity] duration-300 group-hover:ml-3 group-hover:max-w-[140px] group-hover:opacity-100 group-has-[:focus-visible]:ml-3 group-has-[:focus-visible]:max-w-[140px] group-has-[:focus-visible]:opacity-100">
                 {item.label}
               </span>
             </Link>
