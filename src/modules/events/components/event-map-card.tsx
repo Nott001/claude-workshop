@@ -16,12 +16,6 @@ export function EventMapCard({ event }: EventMapCardProps) {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <div className="mb-4 flex items-center gap-2.5 border-b border-border pb-3">
-        <div className="rounded-lg bg-info/10 p-2">
-          <span className="material-symbols-rounded text-[20px] text-brand">map_pin</span>
-        </div>
-        <span className="text-xs font-bold tracking-[0.1em] text-fg uppercase">Location</span>
-      </div>
       <p className="text-sm text-muted-fg">{formatVenue(event.venue_name, event.venue_address)}</p>
       {/* A real <a>: the Base UI Button forces button semantics on its render
           target, so a link would be mislabelled to screen readers. */}
