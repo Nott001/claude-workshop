@@ -156,7 +156,8 @@ export type AuditAction =
   | "module.deleted"
   | "lesson.created"
   | "lesson.updated"
-  | "lesson.deleted";
+  | "lesson.deleted"
+  | "auth.password_reset_completed";
 
 export interface AuditLog {
   id: number;

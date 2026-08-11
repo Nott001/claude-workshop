@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRouteClient } from "@/shared/db/route-client";
 import { appBaseUrl } from "@/shared/lib/app-url";
-import { isInviteToken } from "@/modules/auth/lib/invite-token";
+import { isAuthToken } from "@/modules/auth/lib/auth-token";
 
 /**
  * Accepts the invitation the page at /invite offers.
@@ -21,7 +21,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   const form = await req.formData();
   const token = form.get("token");
 
-  if (!isInviteToken(token)) {
+  if (!isAuthToken(token)) {
     return invalid();
   }
 
