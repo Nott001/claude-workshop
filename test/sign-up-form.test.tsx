@@ -21,7 +21,7 @@ afterEach(() => {
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jane Doe" } });
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jane@example.com" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "the quiet kettle sings" } });
   fireEvent.click(screen.getByRole("button", { name: /create account/i }));
 }
 
@@ -74,5 +74,39 @@ describe("SignUpForm redirect_url plumbing", () => {
 
     const link = screen.getByRole("link", { name: /sign in/i });
     expect(link.getAttribute("href")).toBe("/sign-in");
+  });
+});
+
+describe("SignUpForm password policy", () => {
+  it("refuses to create the account on a weak password, naming the rule", async () => {
+    render(<SignUpForm />);
+
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jane Doe" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jane@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("At least 12 characters");
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it("refuses a decorated common password that clears the length rule", async () => {
+    render(<SignUpForm />);
+
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jane Doe" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jane@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password1234" } });
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Not built on a commonly used password");
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it("shows the requirements as the password is typed", () => {
+    render(<SignUpForm />);
+
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "abc" } });
+
+    expect(screen.getByRole("status").textContent).toContain("of 5 password requirements met");
   });
 });

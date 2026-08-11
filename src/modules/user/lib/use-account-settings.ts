@@ -6,6 +6,7 @@ import type { AuthUser } from "@/modules/auth/lib/types";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
+import { evaluatePassword } from "@/shared/lib/password-policy";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
@@ -165,6 +166,18 @@ export function useAccountSettings() {
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
+
+    // Named before the request, because the provider answers a rejected
+    // password with one generic message for every rule it could have broken.
+    const verdict = evaluatePassword(newPassword, {
+      email: currentUser?.email,
+      fullName: currentUser?.full_name,
+    });
+    if (!verdict.ok) {
+      notify({ title: "Choose a stronger password", description: verdict.problem!, type: "error" });
+      return;
+    }
+
     setSavingPassword(true);
 
     const { error: authError } = await supabase.auth.updateUser({ password: newPassword });

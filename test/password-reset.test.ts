@@ -6,8 +6,8 @@ import {
   normalizeEmail,
   RESET_MAX_PER_EMAIL,
   RESET_MAX_PER_IP,
-  MIN_PASSWORD_LENGTH,
 } from "@/modules/auth/lib/password-reset";
+import { MIN_PASSWORD_LENGTH } from "@/shared/lib/password-policy";
 
 const { recordAttempt, countByEmail, countByIp, sendTemplatedEmail, generateLink, verifyOtp, updateUser } = vi.hoisted(() => ({
   recordAttempt: vi.fn(),

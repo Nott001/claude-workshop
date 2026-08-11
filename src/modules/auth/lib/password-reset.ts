@@ -3,6 +3,7 @@ import * as passwordResetDao from "@/shared/db/dao/password-reset.dao";
 import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
 import { passwordResetTemplate } from "@/shared/integrations/email/templates";
 import { appBaseUrl } from "@/shared/lib/app-url";
+import { evaluatePassword } from "@/shared/lib/password-policy";
 
 /**
  * Fifteen minutes rather than the chat limiter's one: a reset is a once-in-a-
@@ -16,8 +17,6 @@ export const RESET_MAX_PER_EMAIL = 3;
 
 /** Per origin, so one host cannot walk many addresses inside the window. */
 export const RESET_MAX_PER_IP = 10;
-
-export const MIN_PASSWORD_LENGTH = 8;
 
 /** Lowercased and trimmed so casing cannot be used to buy extra attempts. */
 export function normalizeEmail(value: string): string {
@@ -83,7 +82,11 @@ export type ConfirmResult = { ok: true; authUserId: string } | { ok: false; reas
  * `updateUser` run without the caller ever holding the old password.
  */
 export async function confirmPasswordReset(supabase: DbClient, token: string, newPassword: string): Promise<ConfirmResult> {
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+  // Judged before the token is spent, for the same reason the confirmation
+  // field is: a refused password costs a retry on the same link rather than a
+  // second reset email. That is also why no account context is passed — who the
+  // token belongs to is not known until it has been verified below.
+  if (!evaluatePassword(newPassword).ok) {
     return { ok: false, reason: "weak_password" };
   }
 

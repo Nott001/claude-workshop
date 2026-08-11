@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
 import { AuthLayout } from "@/modules/auth/components/auth-layout";
 import { isAuthToken } from "@/modules/auth/lib/auth-token";
-import { MIN_PASSWORD_LENGTH } from "@/modules/auth/lib/password-reset";
+import { evaluatePassword, MIN_PASSWORD_LENGTH } from "@/shared/lib/password-policy";
+
+/** The canonical rule list, so this page cannot describe a policy it does not enforce. */
+const REQUIREMENTS = evaluatePassword("").rules.map((rule) => rule.label);
 
 const ERRORS: Record<string, string> = {
-  weak_password: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`,
+  weak_password: `That password does not meet the requirements: ${REQUIREMENTS.join("; ").toLowerCase()}.`,
   mismatch: "Those passwords did not match. Try again.",
 };
 
