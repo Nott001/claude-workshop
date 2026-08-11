@@ -2,13 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { formatTime } from "@/shared/lib/date-utils";
-import type { EventScheduleItem } from "@/modules/events/lib/types";
+import type { EventScheduleItem, EventWithCourse } from "@/modules/events/lib/types";
 
-export function EventSchedule({ eventId }: { eventId: string }) {
+function moduleWindow(item: EventScheduleItem): string | null {
+  if (item.start_time && item.end_time) return `${formatTime(item.start_time)} – ${formatTime(item.end_time)}`;
+  if (item.start_time) return formatTime(item.start_time);
+  return null;
+}
+
+export function EventSchedule({
+  eventId,
+  event,
+}: {
+  eventId: string;
+  event: Pick<EventWithCourse, "event_date" | "start_time" | "end_time">;
+}) {
   const [modules, setModules] = useState<EventScheduleItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -41,15 +52,6 @@ export function EventSchedule({ eventId }: { eventId: string }) {
     };
   }, [eventId]);
 
-  function toggle(id: number) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   return (
     <div className="rounded-xl border border-border bg-surface p-6 sm:p-7 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
       <h2 className="text-lg font-bold">Course schedule</h2>
@@ -57,43 +59,38 @@ export function EventSchedule({ eventId }: { eventId: string }) {
         <p className="mt-4 text-sm text-muted-fg">Loading schedule…</p>
       ) : error ? (
         <p className="mt-4 text-sm text-error">Couldn&apos;t load the schedule.</p>
-      ) : modules && modules.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-fg">No schedule yet.</p>
       ) : (
         <ol className="mt-5">
-          {modules!.map((item) => {
-            const start = item.start_time && item.end_time ? item.start_time : null;
-            const toggleable = start && item.speaker != null;
-            return (
-              <li key={item.id} className="relative border-l-2 border-border pl-8 pb-6 last:border-transparent last:pb-0">
-                <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
-                {toggleable ? (
-                  <button
-                    type="button"
-                    aria-expanded={expanded.has(item.id)}
-                    onClick={() => toggle(item.id)}
-                    className="flex w-full items-center gap-3 text-left"
-                  >
-                    <span className="w-16 shrink-0 text-xs font-bold text-brand">{formatTime(start!)}</span>
-                    <span className="flex-1 text-sm font-semibold">{item.module_name}</span>
-                    <span
-                      className={`material-symbols-rounded text-xs text-muted-fg transition-transform ${expanded.has(item.id) ? "rotate-180" : ""}`}
-                    >
-                      expand_more
+          <li className="relative border-l-2 border-border pl-8 pb-5">
+            <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
+            <div className="flex items-baseline gap-3">
+              <span className="w-32 shrink-0 text-xs font-bold text-brand">
+                {formatTime(event.start_time)} – {formatTime(event.end_time)}
+              </span>
+              <span className="flex-1 text-sm font-bold">Event</span>
+            </div>
+          </li>
+          {modules && modules.length === 0 ? (
+            <p className="text-sm text-muted-fg">No schedule yet.</p>
+          ) : (
+            (modules ?? []).map((item) => {
+              const window = moduleWindow(item);
+              return (
+                <li key={item.id} className="relative border-l-2 border-border pl-8 pb-6 last:border-transparent last:pb-0">
+                  <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
+                  <div className="flex items-start gap-3">
+                    {window && <span className="w-32 shrink-0 pt-px text-xs font-bold text-brand">{window}</span>}
+                    <span className="min-w-0 flex-1 text-sm font-semibold">
+                      <span className="block">{item.module_name}</span>
+                      {item.speaker && (
+                        <span className="mt-0.5 block text-xs font-normal text-muted-fg">Speaker: {item.speaker}</span>
+                      )}
                     </span>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-3 text-left">
-                    {start && <span className="w-16 shrink-0 text-xs font-bold text-brand">{formatTime(start)}</span>}
-                    <span className="flex-1 text-sm font-semibold">{item.module_name}</span>
                   </div>
-                )}
-                {toggleable && expanded.has(item.id) && (
-                  <p className="mt-2 pl-[76px] text-sm text-muted-fg">Speaker: {item.speaker}</p>
-                )}
-              </li>
-            );
-          })}
+                </li>
+              );
+            })
+          )}
         </ol>
       )}
     </div>

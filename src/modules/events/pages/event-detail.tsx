@@ -63,7 +63,7 @@ export function EventDetailPage() {
                 <p className="mt-3 text-sm leading-relaxed text-muted-fg">{event.description}</p>
               </div>
             )}
-            <EventSchedule eventId={eventId} />
+            <EventSchedule eventId={eventId} event={event} />
             {speakers.length > 0 && (
               <div>
                 <h2 className="text-lg font-bold">Speakers</h2>

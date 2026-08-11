@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import { EventSchedule } from "@/modules/events/components/event-schedule";
 
 const fetchMock = vi.fn();
@@ -8,6 +8,8 @@ const fetchMock = vi.fn();
 function ok(json: unknown) {
   return Promise.resolve({ ok: true, json: async () => json });
 }
+
+const event = { event_date: "2026-09-01", start_time: "09:00", end_time: "17:00" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -20,23 +22,15 @@ afterEach(() => {
 });
 
 describe("EventSchedule", () => {
-  it("renders a row per module with the formatted time and module name", async () => {
-    fetchMock.mockReturnValue(
-      ok({
-        modules: [
-          { id: 1, module_name: "Introduction", start_time: "09:00", end_time: "10:00", speaker: "John Doe" },
-          { id: 2, module_name: "Break", start_time: null, end_time: null, speaker: null },
-        ],
-      }),
-    );
-    render(<EventSchedule eventId="7" />);
+  it("leads the timeline with the event's own start and end time", async () => {
+    fetchMock.mockReturnValue(ok({ modules: [] }));
+    render(<EventSchedule eventId="7" event={event} />);
 
-    expect(await screen.findByText("Introduction")).toBeTruthy();
-    expect(screen.getByText("9:00 AM")).toBeTruthy();
-    expect(screen.getByText("Break")).toBeTruthy();
+    expect(await screen.findByText("Event")).toBeTruthy();
+    expect(screen.getByText("9:00 AM – 5:00 PM")).toBeTruthy();
   });
 
-  it("reveals the speaker on toggle and omits the line for a speaker-less module", async () => {
+  it("renders a row per module with its full time window and inline speaker", async () => {
     fetchMock.mockReturnValue(
       ok({
         modules: [
@@ -45,21 +39,48 @@ describe("EventSchedule", () => {
         ],
       }),
     );
-    render(<EventSchedule eventId="7" />);
+    render(<EventSchedule eventId="7" event={event} />);
 
-    const trigger = await screen.findByRole("button", { name: /introduction/i });
-    expect(screen.queryByText("Speaker: John Doe")).toBeNull();
-
-    fireEvent.click(trigger);
+    expect(await screen.findByText("Introduction")).toBeTruthy();
+    expect(screen.getByText("9:00 AM – 10:00 AM")).toBeTruthy();
     expect(screen.getByText("Speaker: John Doe")).toBeTruthy();
+    expect(screen.getByText("10:30 AM – 10:45 AM")).toBeTruthy();
+    expect(screen.getByText("Break")).toBeTruthy();
+  });
 
-    expect(screen.queryByRole("button", { name: /break/i })).toBeNull();
-    expect(screen.queryByText(/Speaker:/)).toBeTruthy();
+  it("shows just the start edge when the module has no end time", async () => {
+    fetchMock.mockReturnValue(
+      ok({ modules: [{ id: 1, module_name: "Intro", start_time: "09:00", end_time: null, speaker: null }] }),
+    );
+    render(<EventSchedule eventId="7" event={event} />);
+
+    expect(await screen.findByText("Intro")).toBeTruthy();
+    expect(screen.getByText("9:00 AM")).toBeTruthy();
+  });
+
+  it("renders a name-only row when the module has no time", async () => {
+    fetchMock.mockReturnValue(
+      ok({ modules: [{ id: 1, module_name: "No window", start_time: null, end_time: null, speaker: null }] }),
+    );
+    render(<EventSchedule eventId="7" event={event} />);
+
+    expect(await screen.findByText("No window")).toBeTruthy();
+    expect(screen.queryByText("9:00 AM")).toBeNull();
+  });
+
+  it("omits the speaker line for a module without one", async () => {
+    fetchMock.mockReturnValue(
+      ok({ modules: [{ id: 1, module_name: "Intro", start_time: "09:00", end_time: "10:00", speaker: null }] }),
+    );
+    render(<EventSchedule eventId="7" event={event} />);
+
+    expect(await screen.findByText("Intro")).toBeTruthy();
+    expect(screen.queryByText(/Speaker:/)).toBeNull();
   });
 
   it("renders the card with a notice when the event has no scheduled modules", async () => {
     fetchMock.mockReturnValue(ok({ modules: [] }));
-    render(<EventSchedule eventId="7" />);
+    render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("No schedule yet.")).toBeTruthy();
     expect(screen.getByText("Course schedule")).toBeTruthy();
@@ -67,7 +88,7 @@ describe("EventSchedule", () => {
 
   it("renders the card with an error when the schedule fetch fails", async () => {
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
-    render(<EventSchedule eventId="7" />);
+    render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
     expect(screen.getByText("Course schedule")).toBeTruthy();
@@ -75,29 +96,9 @@ describe("EventSchedule", () => {
 
   it("renders the card with an error when the schedule fetch rejects", async () => {
     fetchMock.mockRejectedValue(new Error("network down"));
-    render(<EventSchedule eventId="7" />);
+    render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
     expect(screen.getByText("Course schedule")).toBeTruthy();
-  });
-
-  it("expands and collapses the speaker detail, toggling aria-expanded", async () => {
-    fetchMock.mockReturnValue(
-      ok({
-        modules: [{ id: 1, module_name: "Introduction", start_time: "09:00", end_time: "10:00", speaker: "John Doe" }],
-      }),
-    );
-    render(<EventSchedule eventId="7" />);
-
-    const trigger = await screen.findByRole("button", { name: /introduction/i });
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
-
-    fireEvent.click(trigger);
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("Speaker: John Doe")).toBeTruthy();
-
-    fireEvent.click(trigger);
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("Speaker: John Doe")).toBeNull();
   });
 });
