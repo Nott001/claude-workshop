@@ -30,7 +30,7 @@ describe("PostLoginRedirect destination per role", () => {
   it.each([
     [ROLES.ADMIN, "/staff/events"],
     [ROLES.SUPER_ADMIN, "/staff/events"],
-    [ROLES.FACILITATOR, "/staff/events"],
+    [ROLES.FACILITATOR, "/staff/events/assigned"],
     [ROLES.SPEAKER, "/speaker/dashboard"],
     [ROLES.ATTENDEE, "/home"],
   ])("sends %s to %s", async (role, dest) => {

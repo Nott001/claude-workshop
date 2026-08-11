@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
+import { resolvePostSignInDestination } from "@/modules/auth/lib/post-sign-in-destination";
 
 export function SignInForm({ redirectUrl = null }: { redirectUrl?: string | null }) {
   const [email, setEmail] = useState("");
@@ -32,7 +33,7 @@ export function SignInForm({ redirectUrl = null }: { redirectUrl?: string | null
       return;
     }
 
-    window.location.assign(redirectUrl ?? "/events");
+    window.location.assign(await resolvePostSignInDestination(redirectUrl));
   }
 
   return (
