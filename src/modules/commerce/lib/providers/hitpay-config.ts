@@ -22,8 +22,8 @@ export type HitPayEnvironment = keyof typeof HITPAY_BASE_URLS;
  * failing earlier with a clear message beats a 403 from HitPay.
  */
 export function readHitPayConfig(env: Record<string, string | undefined> = process.env): HitPayCredentials | null {
-  const apiKey = env.HITPAY_API_KEY?.trim();
-  const salt = env.HITPAY_SALT?.trim();
+  const apiKey = env.PAYMENT_API_KEY?.trim();
+  const salt = env.PAYMENT_WEBHOOK_SALT?.trim();
 
   if (!apiKey || !salt) return null;
 

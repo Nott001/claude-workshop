@@ -95,7 +95,7 @@ export function createDefaultPaymentGateway(env: Record<string, string | undefin
     case "hitpay": {
       const hitPay = readHitPayConfig(env);
       if (!hitPay) {
-        throw new Error("provider is 'hitpay' but HITPAY_API_KEY or HITPAY_SALT is not set");
+        throw new Error("provider is 'hitpay' but PAYMENT_API_KEY or PAYMENT_WEBHOOK_SALT is not set");
       }
       return new HitPayPaymentGateway({
         ...hitPay,

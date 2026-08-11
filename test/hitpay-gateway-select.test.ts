@@ -15,14 +15,14 @@ import { SimulatedPaymentGateway } from "@/modules/commerce/lib/providers/simula
 
 describe("provider selection from config/payments.yaml", () => {
   it("builds a HitPay gateway against the sandbox when the config says hitpay", () => {
-    const gateway = createDefaultPaymentGateway({ HITPAY_API_KEY: "k", HITPAY_SALT: "s" });
+    const gateway = createDefaultPaymentGateway({ PAYMENT_API_KEY: "k", PAYMENT_WEBHOOK_SALT: "s" });
 
     expect(gateway).toBeInstanceOf(HitPayPaymentGateway);
   });
 
   it("fails fast when hitpay is configured but its secrets are missing", () => {
-    expect(() => createDefaultPaymentGateway({})).toThrow(/HITPAY_API_KEY or HITPAY_SALT/);
-    expect(() => createDefaultPaymentGateway({ HITPAY_API_KEY: "k" })).toThrow(/HITPAY_API_KEY or HITPAY_SALT/);
+    expect(() => createDefaultPaymentGateway({})).toThrow(/PAYMENT_API_KEY or PAYMENT_WEBHOOK_SALT/);
+    expect(() => createDefaultPaymentGateway({ PAYMENT_API_KEY: "k" })).toThrow(/PAYMENT_API_KEY or PAYMENT_WEBHOOK_SALT/);
   });
 
   it("still offers the simulated provider, selected from the same config", () => {
