@@ -63,6 +63,44 @@ describe("useAccountSettings", () => {
     });
   });
 
+  it("pushes the saved name into the session so the navbar follows", async () => {
+    stubFetch().mockImplementation(() => response({ ...speaker, full_name: "Grace Hopper" }));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
+  });
+
+  it("sends a trimmed name and keeps the field on what was stored", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("  Grace Hopper  "));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(result.current.name).toBe("Grace Hopper");
+  });
+
+  it("leaves the session alone when the save fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "boom" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+  });
+
   it("toasts an error when saving the name fails", async () => {
     stubFetch().mockImplementation(() => response({ error: "boom" }, false));
     const { result } = renderHook(() => useAccountSettings());
@@ -167,5 +205,20 @@ describe("useAccountSettings", () => {
 
     rerender();
     expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
+  });
+
+  it("leaves the session photo alone when the upload fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "too large" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.type).toBe("error");
   });
 });

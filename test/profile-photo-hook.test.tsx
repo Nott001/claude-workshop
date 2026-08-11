@@ -48,13 +48,11 @@ describe("getInitials", () => {
 });
 
 describe("useProfilePhoto", () => {
-  it("returns null when signed out and never fetches or listens", () => {
-    const addSpy = vi.spyOn(window, "addEventListener");
+  it("returns null when signed out and never fetches", () => {
     render(<Host user={null} />);
 
     expect(photoText()).toBe("none");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(addSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(false);
   });
 
   it("returns profile_image_url as-is and does not fetch", () => {
@@ -88,6 +86,16 @@ describe("useProfilePhoto", () => {
     expect(photoText()).toBe("none");
   });
 
+  it("shows a photo arriving on the session, having had none", async () => {
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
+    await act(async () => {});
+
+    rerender(<Host user={{ profile_image_url: "https://cdn/new.jpg" }} />);
+    expect(photoText()).toBe("https://cdn/new.jpg");
+  });
+
+  // The user had no app photo, so the speaker one was fetched into state. Read
+  // in the wrong order that stale photo outlives the upload that replaced it.
   it("adopts the session user's profile_image_url when it appears after a speaker fallback", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ photo_url: "https://cdn/b.jpg" }) });
     const { rerender } = render(<Host user={{ profile_image_url: null }} />);
@@ -96,5 +104,16 @@ describe("useProfilePhoto", () => {
 
     rerender(<Host user={{ profile_image_url: "https://cdn/a.jpg" }} />);
     expect(photoText()).toBe("https://cdn/a.jpg");
+  });
+
+  it("does not re-request the speaker photo when an unrelated session field changes", async () => {
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    // A rename hands down a new user object with the same photo URL.
+    rerender(<Host user={{ profile_image_url: null }} />);
+    await act(async () => {});
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
