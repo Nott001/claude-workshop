@@ -1,6 +1,6 @@
 import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
-import { getEmailService } from "./index";
+import { sendTemplatedEmail } from "./send-templated";
 import { emailTemplates } from "./templates";
 import type { EmailType } from "@/shared/types";
 
@@ -24,40 +24,28 @@ export type SendEmailNotificationParams = {
   [K in EmailType]: { user_id: number; email: string; name: string; email_type: K } & EmailPayloads[K];
 }[EmailType];
 
-function compose<P>(
-  template: { subject: string; buildHtml: (params: P) => string; buildText: (params: P) => string },
-  params: P,
-): { subject: string; htmlContent: string; textContent: string } {
-  return { subject: template.subject, htmlContent: template.buildHtml(params), textContent: template.buildText(params) };
-}
-
-function buildMessage(params: SendEmailNotificationParams) {
+/** Each branch applies its own param type, so no superset cast is needed. */
+function sendForType(params: SendEmailNotificationParams) {
   const { name, eventTitle } = params;
+  const to = { email: params.email, name };
+
   switch (params.email_type) {
     case "ticket_issued":
-      return compose(emailTemplates.ticketIssued, {
-        name,
-        eventTitle,
-        eventDate: params.eventDate,
-        qrDataUrl: params.qrDataUrl,
-      });
+      return sendTemplatedEmail(
+        emailTemplates.ticketIssued,
+        { name, eventTitle, eventDate: params.eventDate, qrDataUrl: params.qrDataUrl },
+        to,
+      );
     case "check_in_confirmed":
-      return compose(emailTemplates.checkInConfirmed, { name, eventTitle });
+      return sendTemplatedEmail(emailTemplates.checkInConfirmed, { name, eventTitle }, to);
     case "event_survey":
-      return compose(emailTemplates.eventSurvey, { name, eventTitle, surveyUrl: params.surveyUrl });
+      return sendTemplatedEmail(emailTemplates.eventSurvey, { name, eventTitle, surveyUrl: params.surveyUrl }, to);
   }
 }
 
 export async function sendEmailNotification(params: SendEmailNotificationParams): Promise<boolean> {
-  const message = buildMessage(params);
-
   try {
-    const result = await getEmailService().send({
-      to: { email: params.email, name: params.name },
-      subject: message.subject,
-      htmlContent: message.htmlContent,
-      textContent: message.textContent,
-    });
+    const result = await sendForType(params);
 
     if (!result.success && result.error) {
       console.warn("Email send failed:", result.error);
