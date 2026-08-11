@@ -1,26 +1,54 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
+import type { AuthUser } from "@/modules/auth/lib/types";
 import { getBrowserClient } from "@/shared/db/browser-client";
+import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
+import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
+import { evaluatePassword } from "@/shared/lib/password-policy";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
 
+// Matches the provider's own minimum gap between messages, so the countdown
+// runs out at about the moment a second send would be accepted.
+const RESEND_COOLDOWN_SECONDS = 60;
+
 export function useAccountSettings() {
-  const { user: currentUser } = useSession();
+  const { user: currentUser, updateUser } = useSession();
   const supabase = getBrowserClient();
 
   const [toast, setToast] = useState<ToastData | null>(null);
   // Shared with the speaker profile hook so every section toasts in one place.
   const notify = useCallback((data: ToastData) => setToast(data), []);
 
-  const [name, setName] = useState(currentUser?.full_name ?? "");
+  // The page renders before the session resolves, so the field cannot simply be
+  // seeded once at mount — it would stay empty and Save would then write that
+  // blank over a real name. Adopt the session's name whenever it actually
+  // changes, which leaves an edit in progress untouched on unrelated renders.
+  const sessionName = currentUser?.full_name ?? "";
+  const [name, setName] = useState(sessionName);
+  const [lastSessionName, setLastSessionName] = useState(sessionName);
   const [savingName, setSavingName] = useState(false);
+
+  if (sessionName !== lastSessionName) {
+    setLastSessionName(sessionName);
+    setName(sessionName);
+  }
 
   const [newEmail, setNewEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+
+  // One timeout per remaining second rather than a repeating interval: it
+  // cancels itself on unmount and cannot outlive the countdown it belongs to.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -30,18 +58,25 @@ export function useAccountSettings() {
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
+    const fullName = name.trim();
     setSavingName(true);
     try {
       const res = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: name }),
+        body: JSON.stringify({ full_name: fullName }),
       });
-      if (res.ok) {
-        notify({ title: "Profile updated", description: "Your name has been saved.", type: "success" });
-      } else {
-        notify({ title: "Error", description: "Failed to update profile.", type: "error" });
-      }
+      if (!res.ok) throw new Error("PATCH /api/auth/me failed");
+
+      // The route echoes the stored row, so the session is refreshed from what
+      // was actually written rather than from what we hoped to write. This is
+      // what repaints the navbar, which renders the name off the session.
+      const saved: Partial<AuthUser> = await res.json();
+      const persisted = saved.full_name ?? fullName;
+      updateUser({ full_name: persisted });
+      setName(persisted);
+
+      notify({ title: "Profile updated", description: "Your name has been saved.", type: "success" });
     } catch {
       notify({ title: "Error", description: "Failed to update profile.", type: "error" });
     } finally {
@@ -49,13 +84,72 @@ export function useAccountSettings() {
     }
   }
 
-  async function changeEmail(e: React.FormEvent) {
-    e.preventDefault();
-    setSavingEmail(true);
-
-    const { error: authError } = await supabase.auth.updateUser({ email: newEmail });
+  /** Asks Supabase to mail the confirmation link, and starts the resend clock. */
+  async function sendVerification(email: string): Promise<boolean> {
+    const { error: authError } = await supabase.auth.updateUser({ email });
     if (authError) {
       notify({ title: "Error", description: authError.message, type: "error" });
+      return false;
+    }
+    setResendIn(RESEND_COOLDOWN_SECONDS);
+    return true;
+  }
+
+  /**
+   * A link that never arrived is the only signal a wrong address gives, so the
+   * sent state has to offer a way forward. Sending again is rate limited at the
+   * provider, and the countdown says so rather than letting the press fail.
+   */
+  async function resendVerification() {
+    if (resendIn > 0 || savingEmail) return;
+
+    setSavingEmail(true);
+    if (await sendVerification(newEmail.trim())) {
+      notify({ title: "Link sent again", description: `Sent to ${newEmail.trim()}.`, type: "success" });
+    }
+    setSavingEmail(false);
+  }
+
+  /** Returns to the form with the address still in it, so a typo is one edit away. */
+  function useDifferentEmail() {
+    setEmailSent(false);
+    setResendIn(0);
+  }
+
+  async function changeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const email = newEmail.trim();
+
+    // Caught before the request rather than after: asking Supabase to move the
+    // address to the one it already holds spends a slot of the per-address
+    // rate limit that a real change would need, and answers by mailing a
+    // confirmation link to the inbox the user is already reading.
+    if (isSameEmail(email, currentUser?.email)) {
+      notify({ title: "Error", description: "That is already your email address.", type: "error" });
+      return;
+    }
+
+    setSavingEmail(true);
+
+    // A mistyped domain is the one failure worth catching before sending,
+    // because its confirmation link goes nowhere and the account is left
+    // waiting on a message that cannot arrive. An inconclusive lookup lets the
+    // address through: the confirmation is what actually proves it works.
+    const domain = emailDomain(email);
+    if (domain && (await checkMailDomain(domain)) === "no-mail-server") {
+      const suggestion = suggestEmailCorrection(email);
+      notify({
+        title: "Check the address",
+        description: suggestion
+          ? `We could not find a mail server for ${domain}. Did you mean ${suggestion}?`
+          : `We could not find a mail server for ${domain}. Check the spelling.`,
+        type: "error",
+      });
+      setSavingEmail(false);
+      return;
+    }
+
+    if (!(await sendVerification(email))) {
       setSavingEmail(false);
       return;
     }
@@ -63,7 +157,7 @@ export function useAccountSettings() {
     await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newEmail }),
+      body: JSON.stringify({ email }),
     });
 
     setEmailSent(true);
@@ -72,6 +166,18 @@ export function useAccountSettings() {
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
+
+    // Named before the request, because the provider answers a rejected
+    // password with one generic message for every rule it could have broken.
+    const verdict = evaluatePassword(newPassword, {
+      email: currentUser?.email,
+      fullName: currentUser?.full_name,
+    });
+    if (!verdict.ok) {
+      notify({ title: "Choose a stronger password", description: verdict.problem!, type: "error" });
+      return;
+    }
+
     setSavingPassword(true);
 
     const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
@@ -100,7 +206,10 @@ export function useAccountSettings() {
         return;
       }
 
-      window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl: result.url } }));
+      // The upload route has already written this URL to the user row, so the
+      // session is only being caught up to it — that is what repaints both the
+      // preview beside this button and the navbar avatar.
+      updateUser({ profile_image_url: result.url });
       notify({ title: "Photo updated", description: "Your profile photo has been changed.", type: "success" });
     } finally {
       setUploading(false);
@@ -121,6 +230,9 @@ export function useAccountSettings() {
     emailSent,
     savingEmail,
     changeEmail,
+    resendIn,
+    resendVerification,
+    useDifferentEmail,
     currentPassword,
     setCurrentPassword,
     newPassword,

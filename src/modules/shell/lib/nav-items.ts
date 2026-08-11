@@ -23,8 +23,6 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   ],
   admin: [
     { label: "Events", href: "/staff/events", icon: "event" },
-    { label: "Create event", href: "/staff/events/new", icon: "add_circle" },
-    { label: "Courses", href: "/staff/courses", icon: "school" },
     { label: "Organization", href: "/staff/organization", icon: "groups" },
     { label: "Community", href: "/staff/community", icon: "forum" },
     { label: "Emails", href: "/staff/emails", icon: "mail" },
@@ -33,8 +31,6 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   ],
   super_admin: [
     { label: "Events", href: "/staff/events", icon: "event" },
-    { label: "Create event", href: "/staff/events/new", icon: "add_circle" },
-    { label: "Courses", href: "/staff/courses", icon: "school" },
     { label: "Organization", href: "/staff/organization", icon: "groups" },
     { label: "Community", href: "/staff/community", icon: "forum" },
     { label: "Emails", href: "/staff/emails", icon: "mail" },

@@ -35,13 +35,11 @@ export const eventPartialSchema = eventBaseSchema
 export const speakerProfileSchema = z.object({
   user_id: z.coerce.number().int().positive(),
   bio: z.string().nullable().optional(),
-  photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
 });
 
 export const speakerProfileUpdateSchema = z.object({
   bio: z.string().nullable().optional(),
-  photo_url: z.string().nullable().optional(),
   designation: z.string().nullable().optional(),
 });
 

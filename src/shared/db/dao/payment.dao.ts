@@ -7,6 +7,15 @@ export interface PaymentWithEvent extends Payment {
   EVENT: { title: string } | null;
 }
 
+/**
+ * The PAYMENT row the webhook path needs: enough to fulfill a payment without a
+ * second round trip, since it carries the buyer and the event alongside.
+ */
+export interface PaymentWithEventAndUser extends Payment {
+  EVENT: { title: string; event_date: string } | null;
+  USER: { full_name: string; email: string } | null;
+}
+
 export async function findById(supabase: DbClient, id: number): Promise<PaymentWithEvent | null> {
   const { data, error } = await supabase.from("PAYMENT").select("*, EVENT(title)").eq("id", id).maybeSingle();
   throwOnDbError(error, "payment.dao.findById");
@@ -92,8 +101,32 @@ export async function create(
 }
 
 export async function updateStatus(supabase: DbClient, id: number, status: PaymentStatus): Promise<boolean> {
-  const { error } = await supabase.from("PAYMENT").update({ status, paid_at: new Date().toISOString() }).eq("id", id);
-  return !error;
+  const updateData: Record<string, unknown> = { status };
+  if (status === "paid") {
+    updateData.paid_at = new Date().toISOString();
+  }
+
+  // `select` so an update that matched nothing is a failure rather than a
+  // silent success; without it a no-op update is indistinguishable from a real one.
+  const { data, error } = await supabase.from("PAYMENT").update(updateData).eq("id", id).select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
+/** Stores the provider's id for the payment so an inbound webhook can map back. */
+export async function updateGatewayReference(supabase: DbClient, id: number, reference: string): Promise<boolean> {
+  const { data, error } = await supabase.from("PAYMENT").update({ gateway_reference_id: reference }).eq("id", id).select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
+/** The payment a webhook names, with the buyer and event it needs to fulfill. */
+export async function findByGatewayReference(supabase: DbClient, reference: string): Promise<PaymentWithEventAndUser | null> {
+  const { data, error } = await supabase
+    .from("PAYMENT")
+    .select("*, EVENT(title, event_date), USER:user_id(full_name, email)")
+    .eq("gateway_reference_id", reference)
+    .maybeSingle();
+  throwOnDbError(error, "payment.dao.findByGatewayReference");
+  return data;
 }
 
 export async function deleteByEvent(supabase: DbClient, eventId: number): Promise<number[]> {

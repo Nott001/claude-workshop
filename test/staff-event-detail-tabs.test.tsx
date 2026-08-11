@@ -42,6 +42,8 @@ const event = {
   COURSE: null,
   EVENT_FACILITATOR: [],
   EVENT_SPEAKER: [],
+  facilitator_ids: [],
+  speaker_profile_ids: [],
 };
 
 function emptyBuilder() {
@@ -49,6 +51,7 @@ function emptyBuilder() {
     modules: [],
     lessonDialogModuleId: null,
     setLessonDialogModuleId: noop,
+    setModules: noop,
     handleCreateCourse: noop,
     handleAddModule: noop,
     handleAddQaModule: noop,
@@ -111,7 +114,8 @@ function renderDetail(role: UserRole, initialTab?: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // The embedded edit form fetches facilitator/speaker candidates on mount.
+  // The embedded edit form and the facilitator table fetch candidate rosters on
+  // mount; return empty ones so the admin assertions stay on the page's own UI.
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => ({ ok: true, json: async () => [] })),
@@ -124,31 +128,34 @@ afterEach(() => {
 });
 
 describe("Staff event detail tabs", () => {
-  it("shows all six tabs to an admin, defaulting to Overview with the action buttons", () => {
+  it("shows the merged tab set to an admin with the hero, action buttons and edit form", () => {
     renderDetail(ROLES.ADMIN);
 
-    for (const label of ["Overview", "Event Details", "Course", "Kiosk", "Speakers", "Surveys"]) {
+    expect(screen.getByRole("heading", { name: "Launch" })).toBeTruthy();
+    for (const label of ["Overview", "Course", "Kiosk", "Surveys"]) {
       expect(screen.getByRole("button", { name: label })).toBeTruthy();
     }
+    expect(screen.queryByRole("button", { name: "Event Details" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Speakers" })).toBeNull();
+
+    // Overview is the default and the single merged panel: actions, edit form,
+    // cover upload and both assignment tables render together.
     expect(screen.getByRole("button", { name: "Publish" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
-  });
-
-  it("switches panels for an admin", () => {
-    renderDetail(ROLES.ADMIN);
-
-    fireEvent.click(screen.getByRole("button", { name: "Event Details" }));
     expect(screen.getByText("Edit Event")).toBeTruthy();
     expect(screen.getByText("Upload image")).toBeTruthy();
+    expect(screen.getByText("No facilitators assigned to this event.")).toBeTruthy();
+    expect(screen.getByText("No speakers assigned to this event.")).toBeTruthy();
+  });
+
+  it("switches the other panels for an admin", () => {
+    renderDetail(ROLES.ADMIN);
 
     fireEvent.click(screen.getByRole("button", { name: "Course" }));
     expect(screen.getByRole("button", { name: "Create Course" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Kiosk" }));
     expect(screen.getByRole("button", { name: "Open Kiosk" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Speakers" }));
-    expect(screen.getByText("SPEAKERS")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Surveys" }));
     expect(screen.getByText("Post-event survey")).toBeTruthy();
@@ -160,25 +167,24 @@ describe("Staff event detail tabs", () => {
     expect(screen.getByRole("button", { name: "Overview" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Course" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kiosk" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Event Details" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Speakers" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Surveys" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(screen.queryByText("Edit Event")).toBeNull();
+    expect(screen.queryByText("No facilitators assigned to this event.")).toBeNull();
   });
 
-  it("seeds the Event Details tab from the C-02 edit link for an admin", () => {
+  it("seeds the Overview panel from the C-02 edit link for an admin", () => {
     renderDetail(ROLES.ADMIN, "details");
 
     expect(screen.getByText("Edit Event")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeTruthy();
   });
 
   it("clamps a requested tab the role cannot use to Overview", () => {
-    renderDetail(ROLES.FACILITATOR, "details");
+    renderDetail(ROLES.FACILITATOR, "surveys");
 
     expect(screen.getByText("OVERVIEW")).toBeTruthy();
-    expect(screen.queryByText("Edit Event")).toBeNull();
+    expect(screen.queryByText("Post-event survey")).toBeNull();
   });
 });

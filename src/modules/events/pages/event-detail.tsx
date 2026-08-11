@@ -5,14 +5,19 @@ import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
-import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
+import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
+import { EventSchedule } from "@/modules/events/components/event-schedule";
+import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card";
+import { EventRegisterCard } from "@/modules/events/components/event-register-card";
+import { EventMapCard } from "@/modules/events/components/event-map-card";
+import { EventShare } from "@/modules/events/components/event-share";
 
 export function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const { event, loading, error, badgeProps, handleRegister } = useEventDetail(eventId);
+  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId);
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
@@ -36,43 +41,39 @@ export function EventDetailPage() {
     );
   }
 
-  const venue = formatVenue(event.venue_name, event.venue_address);
-  const price = formatEventPrice(event.price, event.currency);
+  const speakers = event.EVENT_SPEAKER.map((entry) => entry.SPEAKER_PROFILE).filter(
+    (profile): profile is NonNullable<typeof profile> => profile != null,
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[896px] px-5 py-12 sm:px-8">
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <span className="mb-2 inline-flex items-center rounded-full bg-info/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-brand">
-              {badgeProps?.label ?? event.status}
-            </span>
-            <h1 className="text-[32px] font-bold tracking-[-0.02em] text-fg">{event.title}</h1>
-            <p className="mt-2 text-sm text-muted-fg">
-              {event.event_date} &middot; {event.start_time} - {event.end_time}
-            </p>
-            {venue && <p className="mt-1 text-sm text-muted-fg">{venue}</p>}
-            <p className="mt-1 text-sm font-semibold text-fg">{price ?? "Free"}</p>
+      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
+        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
+        <div className="mt-8 grid gap-6 lg:grid-cols-[65%_35%]">
+          <div className="min-w-0 space-y-6">
+            {event.description && (
+              <div className="rounded-xl border border-border bg-surface p-6 sm:p-7">
+                <h2 className="text-lg font-bold">About this event</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-fg">{event.description}</p>
+              </div>
+            )}
+            <EventSchedule eventId={eventId} event={event} />
+            {speakers.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold">Speakers</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {speakers.map((speaker) => (
+                    <EventSpeakerCard key={speaker.id} speaker={speaker} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-
-        {event.description && <p className="mb-8 text-sm leading-relaxed text-fg">{event.description}</p>}
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleRegister}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/80"
-          >
-            Register
-          </button>
-          {event.COURSE?.id && (
-            <button
-              onClick={() => router.push(`/courses/${event.COURSE?.id}/room`)}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
-            >
-              Enter Course Room
-            </button>
-          )}
+          <aside className="space-y-6 self-start lg:sticky lg:top-24">
+            <EventRegisterCard event={event} hasTicket={hasTicket} isSignedIn={isSignedIn} onRegister={handleRegister} />
+            <EventMapCard event={event} />
+            <EventShare />
+          </aside>
         </div>
       </div>
     </div>

@@ -36,7 +36,8 @@ const COURSE = {
   event_id: 9,
   MODULE: [],
 };
-const EVENT = { id: 9, title: "Demo Day", event_date: "2026-09-01" };
+const STARTED_EVENT = { id: 9, title: "Demo Day", event_date: "2020-01-01", start_time: "09:00" };
+const FUTURE_EVENT = { id: 9, title: "Demo Day", event_date: "2099-01-01", start_time: "09:00" };
 
 function roomRequest() {
   return new Request("https://app.test/api/courses/4/room");
@@ -47,7 +48,7 @@ beforeEach(() => {
   requireAuth.mockResolvedValue({ id: 2, role: ROLES.ATTENDEE });
   courseDao.findCourseWithDetails.mockResolvedValue(COURSE);
   courseDao.userHasCourseAccess.mockResolvedValue(true);
-  eventDao.findByIdWithCourse.mockResolvedValue(EVENT);
+  eventDao.findByIdWithCourse.mockResolvedValue(STARTED_EVENT);
   ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
   speakerDao.findByUserId.mockResolvedValue(null);
   speakerDao.checkSpeakerAssignment.mockResolvedValue(false);
@@ -101,12 +102,52 @@ describe("GET /api/courses/[courseId]/room", () => {
 
     await expect(res.json()).resolves.toEqual({
       course: COURSE,
-      event: EVENT,
+      event: STARTED_EVENT,
       hasTicket: false,
       isSpeakerAssigned: false,
       speakerProfileId: null,
     });
     expect(eventDao.findByIdWithCourse).toHaveBeenCalledWith(expect.anything(), 9);
+  });
+
+  it("withholds the course from an attendee until the event starts", async () => {
+    eventDao.findByIdWithCourse.mockResolvedValue(FUTURE_EVENT);
+
+    const res = await GET(roomRequest(), params);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      course: null,
+      event: FUTURE_EVENT,
+      hasTicket: false,
+      isSpeakerAssigned: false,
+      speakerProfileId: null,
+    });
+  });
+
+  it("still serves the course to staff before the event starts, so they can set the room up", async () => {
+    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
+    eventDao.findByIdWithCourse.mockResolvedValue(FUTURE_EVENT);
+
+    const res = await GET(roomRequest(), params);
+
+    await expect(res.json()).resolves.toEqual({
+      course: COURSE,
+      event: FUTURE_EVENT,
+      hasTicket: false,
+      isSpeakerAssigned: false,
+      speakerProfileId: null,
+    });
+  });
+
+  it("still serves the course to an assigned speaker before the event starts", async () => {
+    eventDao.findByIdWithCourse.mockResolvedValue(FUTURE_EVENT);
+    speakerDao.findByUserId.mockResolvedValue({ id: 22, user_id: 2 });
+    speakerDao.checkSpeakerAssignment.mockResolvedValue(true);
+
+    const res = await GET(roomRequest(), params);
+
+    await expect(res.json()).resolves.toEqual(expect.objectContaining({ course: COURSE, isSpeakerAssigned: true }));
   });
 
   it("derives the ticket and speaker facts against the linked event", async () => {

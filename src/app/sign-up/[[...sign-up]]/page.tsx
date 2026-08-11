@@ -1,10 +1,14 @@
 import { SignUpForm } from "@/modules/auth/components/sign-up-form";
 import { AuthLayout } from "@/modules/auth/components/auth-layout";
+import { isSafeRedirectPath } from "@/modules/auth/lib/redirect-url";
 
-export default function SignUpPage() {
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ redirect_url?: string }> }) {
+  const { redirect_url } = await searchParams;
+  const redirectUrl = isSafeRedirectPath(redirect_url) ? redirect_url : null;
+
   return (
     <AuthLayout>
-      <SignUpForm />
+      <SignUpForm redirectUrl={redirectUrl} />
     </AuthLayout>
   );
 }

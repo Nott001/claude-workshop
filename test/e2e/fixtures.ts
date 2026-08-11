@@ -1,4 +1,5 @@
 import { ROLES } from "../../src/shared/lib/roles";
+import { roleHome } from "../../src/modules/auth/lib/role-home";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
@@ -26,11 +27,14 @@ export function serviceClient(): SupabaseClient {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+type SeedRole = (typeof ROLES)["ATTENDEE" | "FACILITATOR" | "SPEAKER" | "ADMIN"];
+
 export interface SeededUser {
   authId: string;
   userId: number;
   email: string;
   password: string;
+  role: SeedRole;
 }
 
 /**
@@ -41,8 +45,6 @@ export interface SeededUser {
  * The role is written directly because ensure-user hardcodes every new user to
  * `attendee`, so there is no path to facilitator through the app itself.
  */
-type SeedRole = (typeof ROLES)["ATTENDEE" | "FACILITATOR" | "SPEAKER" | "ADMIN"];
-
 export async function createUser(db: SupabaseClient, role: SeedRole): Promise<SeededUser> {
   const email = `${E2E_PREFIX}${role}-${RUN}-${randomUUID().slice(0, 6)}@example.test`;
 
@@ -65,7 +67,7 @@ export async function createUser(db: SupabaseClient, role: SeedRole): Promise<Se
     .single();
   if (rowError || !row) throw new Error(`USER insert failed: ${rowError?.message}`);
 
-  return { authId: data.user.id, userId: row.id, email, password: PASSWORD };
+  return { authId: data.user.id, userId: row.id, email, password: PASSWORD, role };
 }
 
 export interface SeededEvent {
@@ -175,13 +177,20 @@ export async function issueTicket(db: SupabaseClient, userId: number, eventId: n
  * Signs in through the real form rather than injecting a cookie, so the tests
  * exercise the same session the application issues. Requests made through the
  * page afterwards carry that session.
+ *
+ * The destination comes from the application's own role map rather than a
+ * literal here: sign-in routes each role to its own home, so a fixture holding
+ * a second copy of those paths would go red every time one of them moved.
  */
 export async function signIn(page: import("@playwright/test").Page, user: SeededUser): Promise<void> {
   await page.goto("/sign-in");
   await page.locator("#signin-email").fill(user.email);
   await page.locator("#signin-password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/events/, { timeout: 20_000 });
+  // Anchored to the end of the path, so a role whose home is a prefix of
+  // another's — /staff/events against /staff/events/assigned — cannot pass on
+  // the wrong page, while a query or hash the app appends is still tolerated.
+  await page.waitForURL(new RegExp(`${roleHome(user.role)}(?:[?#]|$)`), { timeout: 20_000 });
 }
 
 /**

@@ -20,7 +20,7 @@ const dao = vi.hoisted(() => ({
 const email = vi.hoisted(() => ({ sendEmailNotification: vi.fn() }));
 
 vi.mock("@/modules/surveys/db/survey.dao", () => dao);
-vi.mock("@/modules/notifications/lib/email", () => email);
+vi.mock("@/shared/integrations/email/send-notification", () => email);
 
 import {
   sendEventSurvey,

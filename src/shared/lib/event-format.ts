@@ -17,3 +17,34 @@ export function formatVenue(venueName: string | null | undefined, venueAddress: 
   if (name && address) return `${name}, ${address}`;
   return name || address;
 }
+
+/** Seconds since midnight for an "HH:MM[:SS]" time, or null when unparseable. */
+function parseTimeToSeconds(time: string | null | undefined): number | null {
+  if (!time) return null;
+  const [hours, minutes = "0", seconds = "0"] = time.split(":");
+  const h = Number(hours);
+  const m = Number(minutes);
+  const s = Number(seconds);
+  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) return null;
+  return h * 3600 + m * 60 + s;
+}
+
+/**
+ * A human duration ("7 hours") for an event window, or null when the edges
+ * are missing, unparseable or inverted. A sub-minute window is treated as
+ * nonsense too, so the hero simply omits the duration line.
+ */
+export function formatDuration(startTime: string | null | undefined, endTime: string | null | undefined): string | null {
+  const start = parseTimeToSeconds(startTime);
+  const end = parseTimeToSeconds(endTime);
+  if (start === null || end === null || end <= start) return null;
+
+  const minutes = Math.floor((end - start) / 60);
+  if (minutes < 1) return null;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  if (rest === 0) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return `${hours} hr ${rest} min`;
+}

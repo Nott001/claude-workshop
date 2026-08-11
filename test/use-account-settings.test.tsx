@@ -8,6 +8,13 @@ vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => sessionValue(),
 }));
 
+const sessionUpdateUser = vi.fn();
+
+// vi.mock is hoisted above the module body, so this double must be created
+// inside vi.hoisted rather than as a plain const.
+const { checkMailDomain } = vi.hoisted(() => ({ checkMailDomain: vi.fn() }));
+vi.mock("@/shared/integrations/dns/mail-domain", () => ({ checkMailDomain }));
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -33,7 +40,8 @@ const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sessionValue.mockReturnValue({ user: speaker });
+  checkMailDomain.mockResolvedValue("deliverable");
+  sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
 afterEach(() => {
@@ -59,6 +67,44 @@ describe("useAccountSettings", () => {
       description: "Your name has been saved.",
       type: "success",
     });
+  });
+
+  it("pushes the saved name into the session so the navbar follows", async () => {
+    stubFetch().mockImplementation(() => response({ ...speaker, full_name: "Grace Hopper" }));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
+  });
+
+  it("sends a trimmed name and keeps the field on what was stored", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("  Grace Hopper  "));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(result.current.name).toBe("Grace Hopper");
+  });
+
+  it("leaves the session alone when the save fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "boom" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
   });
 
   it("toasts an error when saving the name fails", async () => {
@@ -88,6 +134,125 @@ describe("useAccountSettings", () => {
     expect(result.current.emailSent).toBe(true);
   });
 
+  it("refuses the address already on the account without calling supabase or the API", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.toast).toEqual({
+      title: "Error",
+      description: "That is already your email address.",
+      type: "error",
+    });
+  });
+
+  it("refuses it however it is capitalised or padded", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
+      act(() => result.current.setNewEmail(typed));
+      await act(async () => {
+        await result.current.changeEmail(submitEvent);
+      });
+
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
+  it("sends a trimmed address so stray space cannot pass as a different one", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("  grace@example.com  "));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "grace@example.com" });
+  });
+
+  it("refuses a domain with no mail server and suggests the likely typo", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.toast?.description).toBe(
+      "We could not find a mail server for gmial.com. Did you mean ada@gmail.com?",
+    );
+  });
+
+  it("refuses an unrecognisable dead domain without inventing a suggestion", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@nowhere-at-all.test"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.toast?.description).toBe(
+      "We could not find a mail server for nowhere-at-all.test. Check the spelling.",
+    );
+  });
+
+  // A resolver that is down or blocked must not be able to lock someone out of
+  // changing their email; the confirmation link is the real proof.
+  it("lets the change through when the lookup cannot answer", async () => {
+    checkMailDomain.mockResolvedValue("unknown");
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@obscure.test"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ email: "ada@obscure.test" });
+    expect(result.current.emailSent).toBe(true);
+  });
+
+  it("checks the domain only after the address is known to be a real change", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(checkMailDomain).not.toHaveBeenCalled();
+  });
+
+  it("stops showing progress after refusing the domain", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.savingEmail).toBe(false);
+  });
+
   it("toasts the supabase error and skips the PATCH when the email update fails", async () => {
     updateUser.mockResolvedValue({ error: { message: "Email already in use" } });
     const fetch = stubFetch();
@@ -108,13 +273,13 @@ describe("useAccountSettings", () => {
 
     act(() => {
       result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("new-pass");
+      result.current.setNewPassword("the quiet kettle sings");
     });
     await act(async () => {
       await result.current.changePassword(submitEvent);
     });
 
-    expect(updateUser).toHaveBeenCalledWith({ password: "new-pass" });
+    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.currentPassword).toBe("");
     expect(result.current.newPassword).toBe("");
     expect(result.current.toast).toEqual({
@@ -124,8 +289,7 @@ describe("useAccountSettings", () => {
     });
   });
 
-  it("uploads the photo and announces the new URL", async () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+  it("uploads the photo and updates the session user's profile_image_url", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation((url: string | URL | Request) =>
       response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
@@ -142,6 +306,192 @@ describe("useAccountSettings", () => {
     const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
     expect(post).toBeTruthy();
     expect(post![1]!.body).toBeInstanceOf(FormData);
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ detail: { photoUrl: "https://cdn.example/x.jpg" } }));
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+  });
+
+  it("hands the uploaded URL back through the session so the settings preview updates", async () => {
+    let user = speaker;
+    sessionUpdateUser.mockImplementation((patch) => {
+      user = { ...user, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
+    const fetch = stubFetch();
+    fetch.mockImplementation((url: string | URL | Request) =>
+      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
+    );
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
+  });
+
+  it("leaves the session photo alone when the upload fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "too large" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.type).toBe("error");
+  });
+});
+
+describe("the sent state", () => {
+  it("starts a cooldown so a second link cannot be asked for immediately", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.resendIn).toBe(60);
+  });
+
+  it("ignores a resend while the cooldown is running", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+    updateUser.mockClear();
+
+    await act(async () => {
+      await result.current.resendVerification();
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("counts the cooldown down and then sends again", async () => {
+    vi.useFakeTimers();
+    try {
+      updateUser.mockResolvedValue({ error: null });
+      stubFetch();
+      const { result } = renderHook(() => useAccountSettings());
+
+      act(() => result.current.setNewEmail("grace@example.com"));
+      await act(async () => {
+        await result.current.changeEmail(submitEvent);
+      });
+
+      // Each second is scheduled by the render the previous one caused, so the
+      // clock has to be walked forward a tick at a time rather than in one jump.
+      for (let i = 0; i < 60; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      expect(result.current.resendIn).toBe(0);
+
+      updateUser.mockClear();
+      await act(async () => {
+        await result.current.resendVerification();
+      });
+
+      expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+      expect(result.current.toast?.title).toBe("Link sent again");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("goes back to the form with the address still in it, so a typo is one edit away", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    act(() => result.current.useDifferentEmail());
+
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.newEmail).toBe("grace@gmial.com");
+    expect(result.current.resendIn).toBe(0);
+  });
+});
+
+describe("changing the password", () => {
+  it("refuses a weak one before asking the provider, naming the rule", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("short"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      title: "Choose a stronger password",
+      description: "At least 12 characters",
+      type: "error",
+    });
+  });
+
+  // Long enough to pass a length rule on its own, which is the point of screening.
+  it("refuses a decorated common password", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("password1234"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.description).toBe("Not built on a commonly used password");
+  });
+
+  it("refuses one built from the account's own name", async () => {
+    sessionValue.mockReturnValue({
+      user: { ...speaker, full_name: "Ada Lovelace", email: "ada.lovelace@example.com" },
+      updateUser: sessionUpdateUser,
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("lovelace kettle brew"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.description).toBe("Not your name or email address");
+  });
+
+  it("passes a strong one through and clears the fields", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword("the quiet kettle sings");
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
+    expect(result.current.newPassword).toBe("");
+    expect(result.current.toast?.title).toBe("Password updated");
   });
 });

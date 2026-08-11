@@ -55,14 +55,14 @@ describe("EventTable", () => {
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("/staff/events/7");
     expect(hrefs).toContain("/staff/events/7/kiosk");
-    expect(hrefs.some((href) => href?.startsWith("/staff/events/7?tab=details"))).toBe(false);
   });
 
-  it("shows the Edit action pointing at the details tab for admins", () => {
+  it("shows the Edit action pointing at the event detail page for admins", () => {
     render(<EventTable events={rows} showEdit />);
 
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("/staff/events/7?tab=details");
+    expect(hrefs).toContain("/staff/events/7");
+    expect(hrefs.some((href) => href?.includes("?tab="))).toBe(false);
   });
 
   it("renders the attendee count per row", () => {

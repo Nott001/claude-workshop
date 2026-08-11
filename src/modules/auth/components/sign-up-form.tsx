@@ -6,9 +6,12 @@ import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
+import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 import { VerifyEmailCard } from "./verify-email-card";
+import { PasswordRequirements } from "./password-requirements";
+import { evaluatePassword, MIN_PASSWORD_LENGTH } from "@/shared/lib/password-policy";
 
-export function SignUpForm() {
+export function SignUpForm({ redirectUrl = null }: { redirectUrl?: string | null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -20,15 +23,24 @@ export function SignUpForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    // Checked here as well as by the provider so the reason is the specific
+    // unmet rule rather than the generic refusal an auth error carries.
+    const verdict = evaluatePassword(password, { email, fullName });
+    if (!verdict.ok) {
+      setError(verdict.problem);
+      return;
+    }
+
+    setLoading(true);
 
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/api/auth/callback${redirectUrlParam(redirectUrl)}`,
       },
     });
 
@@ -41,7 +53,7 @@ export function SignUpForm() {
     setSubmitted(true);
   }
 
-  if (submitted) return <VerifyEmailCard email={email} />;
+  if (submitted) return <VerifyEmailCard email={email} redirectUrl={redirectUrl} />;
 
   return (
     <div className="w-full max-w-sm">
@@ -83,15 +95,16 @@ export function SignUpForm() {
           <Input
             id="signup-password"
             type="password"
-            placeholder="At least 6 characters"
+            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
           />
+          <PasswordRequirements password={password} context={{ email, fullName }} />
         </FormField>
 
-        {error && <FormMessage>{error}</FormMessage>}
+        {error && <FormMessage role="alert">{error}</FormMessage>}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Creating account\u2026" : "Create account"}
@@ -100,7 +113,10 @@ export function SignUpForm() {
 
       <p className="mt-6 text-center text-sm text-muted-fg">
         Already have an account?{" "}
-        <Link href="/sign-in" className="font-medium text-brand hover:text-brand/80 transition-colors">
+        <Link
+          href={`/sign-in${redirectUrlParam(redirectUrl)}`}
+          className="font-medium text-brand hover:text-brand/80 transition-colors"
+        >
           Sign in
         </Link>
       </p>

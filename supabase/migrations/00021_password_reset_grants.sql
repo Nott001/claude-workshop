@@ -1,0 +1,21 @@
+-- ============================================================
+-- Grant the password-reset limiter to the service role
+--
+-- 00020 created PASSWORD_RESET_ATTEMPT and granted nothing, on the assumption
+-- that the service client needs no grant. It does. The blanket
+-- `GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role` at the end of
+-- 00001 applies to the tables that existed when it ran; it is not a default
+-- privilege, so nothing created afterwards inherits it. QA_MESSAGE hit this in
+-- 00006 and carries its own grant for the same reason.
+--
+-- Left unfixed this fails closed and silently: the DAO treats an unreadable
+-- counter as "over the limit" so that a broken count cannot become an open
+-- mail relay, which means every reset request would be dropped with nothing
+-- but a console warning, and no user could ever recover an account.
+--
+-- service_role only. anon and authenticated still get nothing: the table
+-- records which addresses have asked for a reset, and RLS stays on with no
+-- policies behind it.
+-- ============================================================
+
+GRANT ALL ON "PASSWORD_RESET_ATTEMPT" TO service_role;

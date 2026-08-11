@@ -82,3 +82,36 @@ describe("PATCH /api/auth/me speaker profile guard", () => {
     });
   });
 });
+
+describe("PATCH /api/auth/me email change", () => {
+  it("refuses the address already on the account and writes nothing", async () => {
+    const res = await PATCH(patch({ email: "ada@example.com" }));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "New email must be different from your current email." });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses it however it is capitalised or padded", async () => {
+    for (const email of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
+      const res = await PATCH(patch({ email }));
+
+      expect(res.status).toBe(400);
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still accepts a genuinely different address", async () => {
+    const res = await PATCH(patch({ email: "grace@example.com" }));
+
+    expect(res.status).toBe(200);
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", { email: "grace@example.com" });
+  });
+
+  it("leaves a request that does not touch the email alone", async () => {
+    const res = await PATCH(patch({ full_name: "Ada Lovelace" }));
+
+    expect(res.status).toBe(200);
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", { full_name: "Ada Lovelace" });
+  });
+});

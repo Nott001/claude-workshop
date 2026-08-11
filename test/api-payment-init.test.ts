@@ -1,26 +1,37 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findEventForPayment, findLatestByUserAndEvent, findActiveTicketByUserAndEvent, create, createPayment } =
-  vi.hoisted(() => ({
-    requireAuth: vi.fn(),
-    findEventForPayment: vi.fn(),
-    findLatestByUserAndEvent: vi.fn(),
-    findActiveTicketByUserAndEvent: vi.fn(),
-    create: vi.fn(),
-    createPayment: vi.fn(),
-  }));
+const {
+  requireAuth,
+  findEventForPayment,
+  findLatestByUserAndEvent,
+  findActiveTicketByUserAndEvent,
+  create,
+  updateGatewayReference,
+  createPayment,
+} = vi.hoisted(() => ({
+  requireAuth: vi.fn(),
+  findEventForPayment: vi.fn(),
+  findLatestByUserAndEvent: vi.fn(),
+  findActiveTicketByUserAndEvent: vi.fn(),
+  create: vi.fn(),
+  updateGatewayReference: vi.fn(),
+  createPayment: vi.fn(),
+}));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/payment.dao", () => ({ findEventForPayment, findLatestByUserAndEvent, create }));
+vi.mock("@/shared/db/dao/payment.dao", () => ({
+  findEventForPayment,
+  findLatestByUserAndEvent,
+  create,
+  updateGatewayReference,
+}));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent }));
 
 vi.mock("@/modules/commerce/lib/payment-gateway", () => ({
-  SimulatedPaymentGateway: class {
-    createPayment = createPayment;
-  },
+  getPaymentGateway: () => ({ createPayment }),
 }));
 
 import { POST } from "@/app/api/payments/route";
@@ -36,7 +47,8 @@ beforeEach(() => {
   findLatestByUserAndEvent.mockResolvedValue(null);
   findActiveTicketByUserAndEvent.mockResolvedValue(null);
   create.mockResolvedValue({ id: 77 });
-  createPayment.mockResolvedValue({ checkout_url: "https://pay.test/77" });
+  updateGatewayReference.mockResolvedValue(true);
+  createPayment.mockResolvedValue({ checkout_url: "https://pay.test/77", gateway_reference_id: "hp_77" });
 });
 
 describe("double-ticketing", () => {
@@ -90,6 +102,22 @@ describe("checkout", () => {
 
     expect(res.status).toBe(404);
     expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("stores the gateway reference the provider returned", async () => {
+    await POST(post());
+
+    // The webhook confirms by this id, so it must land on the row before the
+    // buyer can reach the provider's checkout page.
+    expect(updateGatewayReference).toHaveBeenCalledWith({}, 77, "hp_77");
+  });
+
+  it("fails the checkout when the reference cannot be stored", async () => {
+    updateGatewayReference.mockResolvedValue(false);
+
+    const res = await POST(post());
+
+    expect(res.status).toBe(500);
   });
 });
 

@@ -160,6 +160,30 @@ export async function findCourseByEvent(supabase: DbClient, eventId: number): Pr
   return toLessonsKey(data as (Course & { MODULE: ModuleContent[] }) | null);
 }
 
+export interface EventScheduleModule {
+  id: number;
+  module_name: string;
+  start_time: string | null;
+  end_time: string | null;
+  sequence_order: number;
+  speaker_profile_id: number | null;
+  SPEAKER_PROFILE: { USER: { full_name: string } | null } | null;
+}
+
+/** The public schedule of an event's course, or null when no course exists. */
+export async function findCourseScheduleByEvent(supabase: DbClient, eventId: number): Promise<EventScheduleModule[] | null> {
+  const { data, error } = await supabase
+    .from("COURSE")
+    .select(
+      "MODULE(id, module_name, start_time, end_time, sequence_order, speaker_profile_id, SPEAKER_PROFILE(USER(full_name)))",
+    )
+    .eq("event_id", eventId)
+    .order("sequence_order", { foreignTable: "MODULE", ascending: true })
+    .maybeSingle();
+  throwOnDbError(error, "course.dao.findCourseScheduleByEvent");
+  return (data?.MODULE ?? null) as EventScheduleModule[] | null;
+}
+
 export type CreateCourseResult = { course: Course } | { course: null; reason: "conflict" | "failed" };
 
 export async function createCourse(

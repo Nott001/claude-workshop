@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type MultiSelectOption } from "@/shared/components/multi-select";
+import { type AssignmentRow } from "@/modules/events/components/assignment-table";
 import { EventFormFields } from "@/modules/events/components/event-form-fields";
 import {
   EMPTY_EVENT_FORM,
@@ -55,6 +55,8 @@ export function EventForm({
   const [facilitatorsError, setFacilitatorsError] = useState(false);
   const [speakers, setSpeakers] = useState<SpeakerCandidate[]>([]);
   const [speakersError, setSpeakersError] = useState(false);
+  const [selectedFacilitatorId, setSelectedFacilitatorId] = useState("");
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,17 +88,31 @@ export function EventForm({
   const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
 
-  const facilitatorOptions: MultiSelectOption[] = facilitators.map((f) => ({
+  const facilitatorRows: AssignmentRow[] = facilitators.map((f) => ({
     id: f.id,
-    label: f.full_name,
-    sublabel: f.email,
+    name: f.full_name,
+    detail: f.email,
   }));
 
-  const speakerOptions: MultiSelectOption[] = speakers.map((s) => ({
+  const speakerRows: AssignmentRow[] = speakers.map((s) => ({
     id: s.id,
-    label: s.USER?.full_name ?? `User #${s.user_id}`,
-    sublabel: s.designation ?? s.USER?.email ?? undefined,
+    name: s.USER?.full_name ?? `User #${s.user_id}`,
+    detail: s.designation ?? s.USER?.email ?? undefined,
   }));
+
+  function addFacilitator() {
+    if (!selectedFacilitatorId) return;
+    const id = Number(selectedFacilitatorId);
+    if (!values.facilitator_ids.includes(id)) set("facilitator_ids", [...values.facilitator_ids, id]);
+    setSelectedFacilitatorId("");
+  }
+
+  function addSpeaker() {
+    if (!selectedSpeakerId) return;
+    const id = Number(selectedSpeakerId);
+    if (!values.speaker_profile_ids.includes(id)) set("speaker_profile_ids", [...values.speaker_profile_ids, id]);
+    setSelectedSpeakerId("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,10 +154,16 @@ export function EventForm({
           <EventFormFields
             values={values}
             set={set}
-            facilitatorOptions={facilitatorOptions}
-            speakerOptions={speakerOptions}
+            facilitatorCandidates={facilitatorRows}
+            speakerCandidates={speakerRows}
             facilitatorsError={facilitatorsError}
             speakersError={speakersError}
+            selectedFacilitatorId={selectedFacilitatorId}
+            setSelectedFacilitatorId={setSelectedFacilitatorId}
+            selectedSpeakerId={selectedSpeakerId}
+            setSelectedSpeakerId={setSelectedSpeakerId}
+            onAddFacilitator={addFacilitator}
+            onAddSpeaker={addSpeaker}
           />
 
           {error && <p className="text-sm text-error">{error}</p>}

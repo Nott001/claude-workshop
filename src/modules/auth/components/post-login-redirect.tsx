@@ -3,14 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
-
-const ROLE_HOME: Record<string, string> = {
-  speaker: "/speaker/dashboard",
-  facilitator: "/staff/events",
-  admin: "/staff/events",
-  super_admin: "/staff/events",
-  attendee: "/home",
-};
+import { roleHome } from "@/modules/auth/lib/role-home";
 
 export function PostLoginRedirect() {
   const router = useRouter();
@@ -21,12 +14,7 @@ export function PostLoginRedirect() {
 
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.role) {
-          const dest = ROLE_HOME[data.role] ?? "/";
-          router.replace(dest);
-        }
-      })
+      .then((data) => router.replace(roleHome(data?.role)))
       .catch(() => {});
   }, [isLoaded, isSignedIn, router]);
 
