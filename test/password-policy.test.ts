@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluatePassword, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/shared/lib/password-policy";
+import { evaluatePassword, MAX_PASSWORD_BYTES, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/shared/lib/password-policy";
 
 /** The id of every rule this password fails. */
 function failures(password: string, context = {}) {
@@ -29,6 +29,32 @@ describe("password length", () => {
 
   it("does not require an uppercase, a digit or a symbol", () => {
     expect(evaluatePassword("verandah tapestry").ok).toBe(true);
+  });
+
+  // String.length counts UTF-16 code units, so a passphrase inside the
+  // character ceiling can still be past what bcrypt will hash — and the tail
+  // would be dropped without anyone being told.
+  it("measures the ceiling in bytes, not in code units", () => {
+    const emoji = "\u{1F510}".repeat(32);
+    expect(emoji.length).toBeLessThanOrEqual(MAX_PASSWORD_LENGTH);
+    expect(new TextEncoder().encode(emoji).length).toBeGreaterThan(MAX_PASSWORD_BYTES);
+    expect(failures(emoji)).toContain("maximum");
+  });
+
+  it("refuses a non-latin passphrase that crosses the byte ceiling", () => {
+    const cjk = "静かな水音と遠い汽笛と朝の珈琲".repeat(2);
+    expect(new TextEncoder().encode(cjk).length).toBeGreaterThan(MAX_PASSWORD_BYTES);
+    expect(failures(cjk)).toContain("maximum");
+  });
+
+  it("names the byte ceiling rather than a character count it is inside", () => {
+    const verdict = evaluatePassword("\u{1F510}".repeat(32));
+
+    expect(verdict.problem).toBe("Short enough for the password to be stored whole");
+  });
+
+  it("still accepts a non-latin passphrase that fits", () => {
+    expect(evaluatePassword("静かな水音と遠い汽笛と朝の珈琲").ok).toBe(true);
   });
 
   it("allows spaces and non-latin characters rather than stripping them", () => {

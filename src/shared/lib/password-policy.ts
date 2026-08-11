@@ -10,11 +10,23 @@ import { COMMON_PASSWORD_WORDS } from "./common-passwords";
 export const MIN_PASSWORD_LENGTH = 12;
 
 /**
- * Supabase hashes with bcrypt, which silently ignores anything past 72 bytes —
- * a cap the user is told about beats one that quietly truncates their
- * passphrase. Under the byte limit so multi-byte characters cannot cross it.
+ * A comfortable ceiling to state in the form. Characters, so it reads the way a
+ * person counts, which is why it cannot be the only ceiling — see below.
  */
 export const MAX_PASSWORD_LENGTH = 64;
+
+/**
+ * bcrypt, which is what Supabase hashes with, does not consider anything past
+ * 72 bytes of the password.
+ *
+ * Bytes, and measured as such: `String.length` counts UTF-16 code units, so a
+ * passphrase well inside 64 of those can be far past 72 bytes once encoded —
+ * 32 emoji are 64 code units and 128 bytes, and 24 CJK characters are already
+ * 72. Judged by length alone, the tail of such a passphrase would be quietly
+ * disregarded and the user would believe they had set something longer than
+ * they had.
+ */
+export const MAX_PASSWORD_BYTES = 72;
 
 export type PasswordRuleId = "length" | "maximum" | "not-common" | "no-runs" | "not-personal";
 
@@ -114,6 +126,7 @@ function personalWords({ email, fullName }: PasswordContext): string[] {
  */
 export function evaluatePassword(password: string, context: PasswordContext = {}): PasswordVerdict {
   const reduced = cores(password);
+  const bytes = new TextEncoder().encode(password).length;
 
   const rules: PasswordRule[] = [
     {
@@ -123,8 +136,14 @@ export function evaluatePassword(password: string, context: PasswordContext = {}
     },
     {
       id: "maximum",
-      label: `No more than ${MAX_PASSWORD_LENGTH} characters`,
-      passed: password.length <= MAX_PASSWORD_LENGTH,
+      // Named for whichever ceiling is the binding one, so a passphrase in a
+      // non-Latin script is not refused by a message about a character count it
+      // is comfortably inside.
+      label:
+        bytes > MAX_PASSWORD_BYTES
+          ? "Short enough for the password to be stored whole"
+          : `No more than ${MAX_PASSWORD_LENGTH} characters`,
+      passed: password.length <= MAX_PASSWORD_LENGTH && bytes <= MAX_PASSWORD_BYTES,
     },
     {
       id: "not-common",
