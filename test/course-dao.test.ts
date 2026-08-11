@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { findCourseByEvent, findCourseWithDetails } from "@/shared/db/dao/course.dao";
+import { findCourseByEvent, findCourseWithDetails, findCourseScheduleByEvent } from "@/shared/db/dao/course.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 function courseQueryStub(payload: unknown) {
@@ -76,5 +76,37 @@ describe("course.dao module payload", () => {
     const course = await findCourseByEvent(client, 7);
 
     expect(course?.MODULE[0]?.SPEAKER_PROFILE?.USER?.full_name).toBe("Ada");
+  });
+});
+
+describe("course.dao public schedule", () => {
+  it("findCourseScheduleByEvent asks for schedule facts only and orders by sequence", async () => {
+    const { client, selects } = courseQueryStub({
+      MODULE: [
+        {
+          id: 1,
+          module_name: "Intro",
+          start_time: "09:00",
+          end_time: "10:00",
+          sequence_order: 1,
+          speaker_profile_id: 7,
+          SPEAKER_PROFILE: { USER: { full_name: "Ada" } },
+        },
+      ],
+    });
+
+    const modules = await findCourseScheduleByEvent(client, 7);
+
+    expect(selects[0]).toContain(
+      "MODULE(id, module_name, start_time, end_time, sequence_order, speaker_profile_id, SPEAKER_PROFILE(USER(full_name)))",
+    );
+    expect(selects[0]).not.toContain("LESSON");
+    expect(modules?.[0]?.SPEAKER_PROFILE?.USER?.full_name).toBe("Ada");
+  });
+
+  it("findCourseScheduleByEvent resolves null when the event has no course", async () => {
+    const { client } = courseQueryStub(null);
+
+    await expect(findCourseScheduleByEvent(client, 7)).resolves.toBeNull();
   });
 });

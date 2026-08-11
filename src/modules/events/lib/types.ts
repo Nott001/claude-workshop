@@ -4,11 +4,24 @@ export interface EventSpeakerProfile {
   bio: string | null;
   designation: string | null;
   photo_url: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
   USER: { full_name: string; email: string } | null;
 }
 
 export interface EventSpeakerEntry {
   SPEAKER_PROFILE: EventSpeakerProfile;
+}
+
+export interface EventScheduleItem {
+  id: number;
+  module_name: string;
+  start_time: string | null;
+  end_time: string | null;
+  /** Speaker full name, or null when the module has no assigned speaker. */
+  speaker: string | null;
 }
 
 export interface EventWithCourse {
