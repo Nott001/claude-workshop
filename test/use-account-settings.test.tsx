@@ -347,3 +347,87 @@ describe("useAccountSettings", () => {
     expect(result.current.toast?.type).toBe("error");
   });
 });
+
+describe("the sent state", () => {
+  it("starts a cooldown so a second link cannot be asked for immediately", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.resendIn).toBe(60);
+  });
+
+  it("ignores a resend while the cooldown is running", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+    updateUser.mockClear();
+
+    await act(async () => {
+      await result.current.resendVerification();
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("counts the cooldown down and then sends again", async () => {
+    vi.useFakeTimers();
+    try {
+      updateUser.mockResolvedValue({ error: null });
+      stubFetch();
+      const { result } = renderHook(() => useAccountSettings());
+
+      act(() => result.current.setNewEmail("grace@example.com"));
+      await act(async () => {
+        await result.current.changeEmail(submitEvent);
+      });
+
+      // Each second is scheduled by the render the previous one caused, so the
+      // clock has to be walked forward a tick at a time rather than in one jump.
+      for (let i = 0; i < 60; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      expect(result.current.resendIn).toBe(0);
+
+      updateUser.mockClear();
+      await act(async () => {
+        await result.current.resendVerification();
+      });
+
+      expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+      expect(result.current.toast?.title).toBe("Link sent again");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("goes back to the form with the address still in it, so a typo is one edit away", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    act(() => result.current.useDifferentEmail());
+
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.newEmail).toBe("grace@gmial.com");
+    expect(result.current.resendIn).toBe(0);
+  });
+});
