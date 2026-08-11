@@ -4,7 +4,7 @@ import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
-import { emailLogFilterSchema } from "@/modules/notifications/lib/email-log-schema";
+import { emailLogFilterSchema } from "@/shared/integrations/email/log-filter-schema";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.ADMIN);

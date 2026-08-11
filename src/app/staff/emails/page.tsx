@@ -3,7 +3,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
-import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { useEmailLogs } from "@/shared/integrations/email/use-email-logs";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { EMAIL_TYPES, EMAIL_STATUSES } from "@/shared/types";
 import type { EmailType, EmailStatus } from "@/shared/types";

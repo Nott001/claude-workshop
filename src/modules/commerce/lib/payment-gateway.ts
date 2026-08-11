@@ -1,7 +1,7 @@
 import { getServiceClient } from "@/shared/db/client";
 import * as paymentDao from "@/shared/db/dao/payment.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
-import { sendEmailNotification } from "@/modules/notifications/lib/email";
+import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 import { afterResponse } from "@/shared/lib/after-response";
 import { appBaseUrl } from "@/shared/lib/app-url";
 import { generateQRDataUrl } from "@/shared/integrations/qr";

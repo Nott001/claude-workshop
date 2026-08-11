@@ -1,7 +1,7 @@
 import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
-import { getEmailService } from "@/shared/integrations/email";
-import { emailTemplates } from "@/shared/integrations/email/templates";
+import { getEmailService } from "./index";
+import { emailTemplates } from "./templates";
 import type { EmailType } from "@/shared/types";
 
 /**

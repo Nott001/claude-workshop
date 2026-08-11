@@ -10,7 +10,7 @@ vi.mock("@/shared/integrations/email", () => ({ getEmailService }));
 vi.mock("@/shared/db/dao/email.dao", () => ({ insert }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 
-import { sendEmailNotification } from "@/modules/notifications/lib/email";
+import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 
 const provider = () => ({ send: vi.fn().mockResolvedValue({ success: true }) });
 
