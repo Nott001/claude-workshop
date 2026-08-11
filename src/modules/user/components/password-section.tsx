@@ -3,6 +3,8 @@
 import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel } from "@/shared/components/form";
+import { PasswordRequirements } from "@/modules/auth/components/password-requirements";
+import { MIN_PASSWORD_LENGTH, type PasswordContext } from "@/shared/lib/password-policy";
 
 interface PasswordSectionProps {
   currentPassword: string;
@@ -11,6 +13,8 @@ interface PasswordSectionProps {
   onNewPasswordChange: (value: string) => void;
   saving: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  /** The account's own details, which the new password may not be built from. */
+  context?: PasswordContext;
 }
 
 export function PasswordSection({
@@ -20,6 +24,7 @@ export function PasswordSection({
   onNewPasswordChange,
   saving,
   onSubmit,
+  context,
 }: PasswordSectionProps) {
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
@@ -45,8 +50,9 @@ export function PasswordSection({
             value={newPassword}
             onChange={(e) => onNewPasswordChange(e.target.value)}
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
           />
+          <PasswordRequirements password={newPassword} context={context} />
         </FormField>
         <Button type="submit" disabled={saving || !currentPassword || !newPassword}>
           {saving ? "Updating\u2026" : "Update password"}

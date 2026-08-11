@@ -57,6 +57,7 @@ export function AccountSettings() {
             onNewPasswordChange={settings.setNewPassword}
             saving={settings.savingPassword}
             onSubmit={settings.changePassword}
+            context={{ email: settings.currentUser?.email, fullName: settings.currentUser?.full_name }}
           />
           {speaker.isSpeaker && (
             <SpeakerProfileSection

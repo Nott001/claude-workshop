@@ -273,13 +273,13 @@ describe("useAccountSettings", () => {
 
     act(() => {
       result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("new-pass");
+      result.current.setNewPassword("the quiet kettle sings");
     });
     await act(async () => {
       await result.current.changePassword(submitEvent);
     });
 
-    expect(updateUser).toHaveBeenCalledWith({ password: "new-pass" });
+    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.currentPassword).toBe("");
     expect(result.current.newPassword).toBe("");
     expect(result.current.toast).toEqual({
@@ -429,5 +429,69 @@ describe("the sent state", () => {
     expect(result.current.emailSent).toBe(false);
     expect(result.current.newEmail).toBe("grace@gmial.com");
     expect(result.current.resendIn).toBe(0);
+  });
+});
+
+describe("changing the password", () => {
+  it("refuses a weak one before asking the provider, naming the rule", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("short"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      title: "Choose a stronger password",
+      description: "At least 12 characters",
+      type: "error",
+    });
+  });
+
+  // Long enough to pass a length rule on its own, which is the point of screening.
+  it("refuses a decorated common password", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("password1234"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.description).toBe("Not built on a commonly used password");
+  });
+
+  it("refuses one built from the account's own name", async () => {
+    sessionValue.mockReturnValue({
+      user: { ...speaker, full_name: "Ada Lovelace", email: "ada.lovelace@example.com" },
+      updateUser: sessionUpdateUser,
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewPassword("lovelace kettle brew"));
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.description).toBe("Not your name or email address");
+  });
+
+  it("passes a strong one through and clears the fields", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword("the quiet kettle sings");
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
+    expect(result.current.newPassword).toBe("");
+    expect(result.current.toast?.title).toBe("Password updated");
   });
 });
