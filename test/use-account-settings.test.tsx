@@ -10,6 +10,11 @@ vi.mock("@/modules/auth/components/session-context", () => ({
 
 const sessionUpdateUser = vi.fn();
 
+// vi.mock is hoisted above the module body, so this double must be created
+// inside vi.hoisted rather than as a plain const.
+const { checkMailDomain } = vi.hoisted(() => ({ checkMailDomain: vi.fn() }));
+vi.mock("@/shared/integrations/dns/mail-domain", () => ({ checkMailDomain }));
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -35,6 +40,7 @@ const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  checkMailDomain.mockResolvedValue("deliverable");
   sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
@@ -126,6 +132,125 @@ describe("useAccountSettings", () => {
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "new@example.com" });
     expect(result.current.emailSent).toBe(true);
+  });
+
+  it("refuses the address already on the account without calling supabase or the API", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.toast).toEqual({
+      title: "Error",
+      description: "That is already your email address.",
+      type: "error",
+    });
+  });
+
+  it("refuses it however it is capitalised or padded", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
+      act(() => result.current.setNewEmail(typed));
+      await act(async () => {
+        await result.current.changeEmail(submitEvent);
+      });
+
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
+  it("sends a trimmed address so stray space cannot pass as a different one", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("  grace@example.com  "));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "grace@example.com" });
+  });
+
+  it("refuses a domain with no mail server and suggests the likely typo", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.toast?.description).toBe(
+      "We could not find a mail server for gmial.com. Did you mean ada@gmail.com?",
+    );
+  });
+
+  it("refuses an unrecognisable dead domain without inventing a suggestion", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@nowhere-at-all.test"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.toast?.description).toBe(
+      "We could not find a mail server for nowhere-at-all.test. Check the spelling.",
+    );
+  });
+
+  // A resolver that is down or blocked must not be able to lock someone out of
+  // changing their email; the confirmation link is the real proof.
+  it("lets the change through when the lookup cannot answer", async () => {
+    checkMailDomain.mockResolvedValue("unknown");
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@obscure.test"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ email: "ada@obscure.test" });
+    expect(result.current.emailSent).toBe(true);
+  });
+
+  it("checks the domain only after the address is known to be a real change", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(checkMailDomain).not.toHaveBeenCalled();
+  });
+
+  it("stops showing progress after refusing the domain", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@gmial.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.savingEmail).toBe(false);
   });
 
   it("toasts the supabase error and skips the PATCH when the email update fails", async () => {
