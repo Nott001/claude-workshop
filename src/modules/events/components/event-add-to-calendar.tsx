@@ -41,7 +41,7 @@ export function AddToCalendar({ event }: AddToCalendarProps) {
   return (
     <div>
       <Button variant="secondary" className="w-full" onClick={() => setOpen(true)}>
-        <span className="material-symbols-rounded">calendar_plus</span>
+        <span className="material-symbols-rounded">calendar_add_on</span>
         Add to Calendar
       </Button>
       {addedTo && (
