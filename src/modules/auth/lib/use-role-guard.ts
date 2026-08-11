@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { UserRole } from "@/shared/types";
 import { useSession } from "../components/session-context";
+import { roleHome } from "./role-home";
 
 export interface RoleGuardOptions {
-  /** Where to send a signed-in user who fails the check. Defaults to /access-denied. */
+  /** Where to send a signed-in user who fails the check. Defaults to the role's home page. */
   redirectTo?: string;
   /**
    * Require the role to equal `minRole` exactly rather than "at or above" it.
-   * The staff event list and the facilitator's assigned list bounce each other:
-   * an admin passes a facilitator minimum, so only an exact match keeps them off
-   * a page whose server payload does not scope to their own events.
+   * An admin clears a facilitator minimum, but the assigned-events page's
+   * server payload scopes to the facilitator's own events, so only an exact
+   * match belongs there.
    */
   exactRole?: boolean;
 }
@@ -51,7 +52,7 @@ export function useRoleGuard(minRole: UserRole, options?: RoleGuardOptions): Cli
   useEffect(() => {
     if (loading || !user) return;
     if (!passes(user.role as UserRole | undefined, minRole, options?.exactRole)) {
-      router.replace(options?.redirectTo ?? "/access-denied");
+      router.replace(options?.redirectTo ?? roleHome(user.role as UserRole | undefined));
     }
     // options is a fresh object per render; only its fields matter.
   }, [loading, user, minRole, router, options?.redirectTo, options?.exactRole]);

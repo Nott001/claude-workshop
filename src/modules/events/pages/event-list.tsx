@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
 import { EventListSkeleton } from "@/modules/events/components/event-list-skeleton";
 import { useSession } from "@/modules/auth/components/session-context";
+import { roleHome } from "@/modules/auth/lib/role-home";
 import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { LoadMoreButton } from "@/shared/components/load-more";
@@ -23,7 +24,7 @@ export function EventListPage() {
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
-      router.replace("/staff/events");
+      router.replace(roleHome(user.role));
     }
   }, [user, router]);
 
