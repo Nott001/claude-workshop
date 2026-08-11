@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import { getBrowserClient } from "@/shared/db/browser-client";
-import { isSameEmail } from "@/shared/lib/email";
+import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
+import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
@@ -83,6 +84,24 @@ export function useAccountSettings() {
     }
 
     setSavingEmail(true);
+
+    // A mistyped domain is the one failure worth catching before sending,
+    // because its confirmation link goes nowhere and the account is left
+    // waiting on a message that cannot arrive. An inconclusive lookup lets the
+    // address through: the confirmation is what actually proves it works.
+    const domain = emailDomain(email);
+    if (domain && (await checkMailDomain(domain)) === "no-mail-server") {
+      const suggestion = suggestEmailCorrection(email);
+      notify({
+        title: "Check the address",
+        description: suggestion
+          ? `We could not find a mail server for ${domain}. Did you mean ${suggestion}?`
+          : `We could not find a mail server for ${domain}. Check the spelling.`,
+        type: "error",
+      });
+      setSavingEmail(false);
+      return;
+    }
 
     const { error: authError } = await supabase.auth.updateUser({ email });
     if (authError) {
