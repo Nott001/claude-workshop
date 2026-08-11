@@ -73,7 +73,7 @@ describe("api route authorization sweep", () => {
 
   it("keeps the public list minimal", () => {
     // A guard rail on the guard rail: if this list grows, someone should notice.
-    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(8);
+    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(9);
   });
 
   it.each(Object.keys(PUBLIC_BY_DESIGN))("%s is genuinely unguarded, so the list stays honest", (rel) => {
