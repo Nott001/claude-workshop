@@ -12,10 +12,6 @@ function photoText(): string | null {
   return screen.getByTestId("photo").textContent;
 }
 
-function dispatchedPhoto(photoUrl: string) {
-  return () => window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl } }));
-}
-
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -52,13 +48,11 @@ describe("getInitials", () => {
 });
 
 describe("useProfilePhoto", () => {
-  it("returns null when signed out and never fetches or listens", () => {
-    const addSpy = vi.spyOn(window, "addEventListener");
+  it("returns null when signed out and never fetches", () => {
     render(<Host user={null} />);
 
     expect(photoText()).toBe("none");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(addSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(false);
   });
 
   it("returns profile_image_url as-is and does not fetch", () => {
@@ -92,27 +86,33 @@ describe("useProfilePhoto", () => {
     expect(photoText()).toBe("none");
   });
 
-  it("adopts a profile-photo-updated event", () => {
-    render(<Host user={{ profile_image_url: null }} />);
+  it("shows a photo arriving on the session, having had none", async () => {
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
+    await act(async () => {});
 
-    act(dispatchedPhoto("https://cdn/c.jpg"));
-    expect(photoText()).toBe("https://cdn/c.jpg");
+    rerender(<Host user={{ profile_image_url: "https://cdn/new.jpg" }} />);
+    expect(photoText()).toBe("https://cdn/new.jpg");
   });
 
-  it("lets a profile-photo-updated event win over a pre-set profile_image_url", () => {
-    render(<Host user={{ profile_image_url: "https://cdn/a.jpg" }} />);
+  // The user had no app photo, so the speaker one was fetched into state. Read
+  // in the wrong order that stale photo outlives the upload that replaced it.
+  it("prefers a newly uploaded app photo over an already-fetched speaker photo", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ photo_url: "https://cdn/speaker.jpg" }) });
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
+    await waitFor(() => expect(photoText()).toBe("https://cdn/speaker.jpg"));
 
-    act(dispatchedPhoto("https://cdn/d.jpg"));
-    expect(photoText()).toBe("https://cdn/d.jpg");
+    rerender(<Host user={{ profile_image_url: "https://cdn/uploaded.jpg" }} />);
+    expect(photoText()).toBe("https://cdn/uploaded.jpg");
   });
 
-  it("removes the profile-photo-updated listener on cleanup", () => {
-    const addSpy = vi.spyOn(window, "addEventListener");
-    const removeSpy = vi.spyOn(window, "removeEventListener");
-    const { unmount } = render(<Host user={{ profile_image_url: null }} />);
+  it("does not re-request the speaker photo when an unrelated session field changes", async () => {
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
-    expect(addSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(true);
-    unmount();
-    expect(removeSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(true);
+    // A rename hands down a new user object with the same photo URL.
+    rerender(<Host user={{ profile_image_url: null }} />);
+    await act(async () => {});
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

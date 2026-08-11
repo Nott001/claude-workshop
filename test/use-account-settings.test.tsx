@@ -31,9 +31,11 @@ function response(body: unknown, ok = true): Promise<Response> {
 
 const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
+const updateSessionUser = vi.fn();
+
 beforeEach(() => {
   vi.clearAllMocks();
-  sessionValue.mockReturnValue({ user: speaker });
+  sessionValue.mockReturnValue({ user: speaker, updateUser: updateSessionUser });
 });
 
 afterEach(() => {
@@ -59,6 +61,44 @@ describe("useAccountSettings", () => {
       description: "Your name has been saved.",
       type: "success",
     });
+  });
+
+  it("pushes the saved name into the session so the navbar follows", async () => {
+    stubFetch().mockImplementation(() => response({ ...speaker, full_name: "Grace Hopper" }));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(updateSessionUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
+  });
+
+  it("sends a trimmed name and keeps the field on what was stored", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("  Grace Hopper  "));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(result.current.name).toBe("Grace Hopper");
+  });
+
+  it("leaves the session alone when the save fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "boom" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveName(submitEvent);
+    });
+
+    expect(updateSessionUser).not.toHaveBeenCalled();
   });
 
   it("toasts an error when saving the name fails", async () => {
@@ -124,8 +164,7 @@ describe("useAccountSettings", () => {
     });
   });
 
-  it("uploads the photo and announces the new URL", async () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+  it("uploads the photo and pushes the new URL into the session", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation((url: string | URL | Request) =>
       response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
@@ -142,6 +181,21 @@ describe("useAccountSettings", () => {
     const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
     expect(post).toBeTruthy();
     expect(post![1]!.body).toBeInstanceOf(FormData);
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ detail: { photoUrl: "https://cdn.example/x.jpg" } }));
+    expect(updateSessionUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+  });
+
+  it("leaves the session photo alone when the upload fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "too large" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(updateSessionUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.type).toBe("error");
   });
 });

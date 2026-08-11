@@ -2,7 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "../lib/types";
 
 interface SessionContextValue {
@@ -18,6 +18,14 @@ interface SessionContextValue {
   isLoaded: boolean;
   isSignedIn: boolean;
   signOut: () => Promise<void>;
+  /**
+   * Merges fields into the cached user after a write elsewhere has already
+   * persisted them. Everything chrome-level reads its copy of the user from
+   * here — the navbar name and initials, the home greeting — so without this
+   * an edit stayed invisible until the next refetch, which only a reload, a
+   * tab switch or an auth event triggers.
+   */
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const SessionContext = createContext<SessionContextValue>({
@@ -26,6 +34,7 @@ const SessionContext = createContext<SessionContextValue>({
   isLoaded: false,
   isSignedIn: false,
   signOut: async () => {},
+  updateUser: () => {},
 });
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -101,19 +110,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signOut = async () => {
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((current) => (current ? { ...current, ...patch } : current));
+  }, []);
+
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     // replace, not push: the guarded page we are leaving must not sit one Back
     // press away from a browser that no longer holds a session.
     router.replace("/");
-  };
+  }, [supabase, router]);
 
-  return (
-    <SessionContext.Provider value={{ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut }}>
-      {children}
-    </SessionContext.Provider>
+  // Memoised so a re-render that leaves the session untouched does not hand
+  // every consumer a new object and repaint the whole shell with it.
+  const value = useMemo<SessionContextValue>(
+    () => ({ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut, updateUser }),
+    [user, loading, signOut, updateUser],
   );
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {
