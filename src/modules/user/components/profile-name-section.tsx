@@ -17,7 +17,7 @@ export function ProfileNameSection({ name, onChange, saving, onSubmit }: Profile
       <h2 className="text-sm font-bold text-fg">Profile Name</h2>
       <Form onSubmit={onSubmit} className="mt-4 flex gap-3">
         <Input type="text" value={name} onChange={(e) => onChange(e.target.value)} className="flex-1" />
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || !name.trim()}>
           {saving ? "Saving\u2026" : "Save"}
         </Button>
       </Form>

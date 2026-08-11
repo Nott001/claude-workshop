@@ -2,6 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
+import { isSameEmail } from "@/shared/lib/email";
 import * as userDao from "@/shared/db/dao/user.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import type { SpeakerProfile } from "@/shared/types";
@@ -51,6 +52,14 @@ export async function PATCH(req: Request) {
   const wantsSpeakerUpdate = body.designation !== undefined || body.bio !== undefined;
   if (wantsSpeakerUpdate && guard.role !== ROLES.SPEAKER) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Re-submitting the address already on the account is refused here and not
+  // only in the form, because the write that follows is what makes the app row
+  // disagree with the auth identity: it would stamp a change that never
+  // happened over a row Supabase has not been asked to move.
+  if (body.email !== undefined && isSameEmail(body.email, guard.email)) {
+    return NextResponse.json({ error: "New email must be different from your current email." }, { status: 400 });
   }
 
   const supabase = getServiceClient();
