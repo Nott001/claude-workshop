@@ -8,6 +8,8 @@ vi.mock("@/modules/auth/components/session-context", () => ({
   useSession: () => sessionValue(),
 }));
 
+const sessionUpdateUser = vi.fn();
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -33,7 +35,7 @@ const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sessionValue.mockReturnValue({ user: speaker });
+  sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
 afterEach(() => {
@@ -124,8 +126,7 @@ describe("useAccountSettings", () => {
     });
   });
 
-  it("uploads the photo and announces the new URL", async () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+  it("uploads the photo and updates the session user's profile_image_url", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation((url: string | URL | Request) =>
       response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
@@ -142,6 +143,29 @@ describe("useAccountSettings", () => {
     const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
     expect(post).toBeTruthy();
     expect(post![1]!.body).toBeInstanceOf(FormData);
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ detail: { photoUrl: "https://cdn.example/x.jpg" } }));
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+  });
+
+  it("hands the uploaded URL back through the session so the settings preview updates", async () => {
+    let user = speaker;
+    sessionUpdateUser.mockImplementation((patch) => {
+      user = { ...user, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
+    const fetch = stubFetch();
+    fetch.mockImplementation((url: string | URL | Request) =>
+      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
+    );
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
   });
 });
