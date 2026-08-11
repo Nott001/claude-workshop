@@ -64,16 +64,7 @@ describe("Navbar role nav items", () => {
 
   it("shows an admin the full staff set, with Community pointing at management", () => {
     renderAs(ROLES.ADMIN);
-    expect(navLabels()).toEqual([
-      "Events",
-      "Create event",
-      "Courses",
-      "Organization",
-      "Community",
-      "Emails",
-      "Support",
-      "Audit Logs",
-    ]);
+    expect(navLabels()).toEqual(["Events", "Organization", "Community", "Emails", "Support", "Audit Logs"]);
   });
 
   it("shows a super_admin the same set as an admin", () => {
@@ -101,7 +92,7 @@ describe("Navbar collapsed rail", () => {
 
   it("keeps the labels in the DOM, hidden while collapsed and revealed on hover or keyboard focus", () => {
     const { container } = renderAs(ROLES.ADMIN);
-    const label = within(container.querySelector("aside") as HTMLElement).getByText("Create event");
+    const label = within(container.querySelector("aside") as HTMLElement).getByText("Events");
     const className = label.className;
     expect(className).toContain("max-w-0");
     expect(className).toContain("opacity-0");

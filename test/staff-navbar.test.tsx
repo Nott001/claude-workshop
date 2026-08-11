@@ -40,6 +40,6 @@ describe("StaffNavbar", () => {
   it("renders the collapsible nav rail with the role's links", () => {
     renderStaff("admin");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Create event/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Events/ })).toBeTruthy();
   });
 });

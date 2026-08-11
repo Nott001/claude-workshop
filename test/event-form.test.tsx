@@ -142,7 +142,7 @@ describe("EventForm", () => {
       /End Time/,
       /^Venue$/,
       /Venue address/,
-      /Description/,
+      /Event description/,
       /^Price$/,
       /Currency/,
     ]) {
@@ -167,8 +167,10 @@ describe("EventForm", () => {
     );
     const onSubmit = renderForm();
 
-    fireEvent.click(await screen.findByRole("button", { name: /Select facilitators/ }));
-    fireEvent.click(await screen.findByRole("checkbox", { name: /Fay Facilitator/ }));
+    const facilitatorSelect = (await screen.findAllByRole("combobox"))[0];
+    fireEvent.change(facilitatorSelect, { target: { value: "3" } });
+    const assign = screen.getAllByRole("button", { name: "Assign" }).find((button) => !(button as HTMLButtonElement).disabled);
+    fireEvent.click(assign!);
     fill(REQUIRED);
     submit();
 
@@ -198,8 +200,10 @@ describe("EventForm", () => {
     );
     const onSubmit = renderForm();
 
-    fireEvent.click(await screen.findByRole("button", { name: /Select speakers/ }));
-    fireEvent.click(await screen.findByRole("checkbox", { name: /Sam Speaker/ }));
+    const speakerSelect = (await screen.findAllByRole("combobox"))[0];
+    fireEvent.change(speakerSelect, { target: { value: "4" } });
+    const assign = screen.getAllByRole("button", { name: "Assign" }).find((button) => !(button as HTMLButtonElement).disabled);
+    fireEvent.click(assign!);
     fill(REQUIRED);
     submit();
 
@@ -210,7 +214,7 @@ describe("EventForm", () => {
   it("submits the venue address, description, price and currency the old form dropped", async () => {
     const onSubmit = renderForm();
 
-    fill({ ...REQUIRED, "Venue address": "123 Main St", Description: "All about AI", "^Price$": "1500" });
+    fill({ ...REQUIRED, "Venue address": "123 Main St", "Event description": "All about AI", "^Price$": "1500" });
     submit();
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
