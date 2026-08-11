@@ -68,7 +68,6 @@ Export `CurrentTopicCard`. Props:
 ```ts
 interface CurrentTopicCardProps {
   topic: CurrentTopic | null;
-  speakerName: string | null; // already nulled by the room when count <= 1
   isStaff: boolean;
   settingHighlight: boolean;
   onClearHighlight: () => void;
@@ -83,8 +82,11 @@ Render:
   `podcasts` — confirm the glyph renders; fall back to `radio_button_checked`).
 - With a topic:
   - Lesson `description` as the title (`text-lg font-bold text-fg`).
-  - Meta line: `ModuleScheduleBadge` (`startTime`/`endTime`) + `speakerName`
-    when present.
+  - Meta line: `ModuleScheduleBadge` with `topic.startTime`/`topic.endTime` and
+    `topic.speakerName`. The card renders the topic's own module speaker — the
+    page gates it by `assignedSpeakerCount` before passing the topic down
+    (Spec 005), so a highlight pointing at a different module can never show
+    the live module's speaker.
   - When `isStaff`: a `Clear highlight` ghost button
     (`border border-border px-2 py-0.5 text-[10px] font-semibold`), calling
     `onClearHighlight`, `disabled` while `settingHighlight`.

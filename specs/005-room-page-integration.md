@@ -34,16 +34,20 @@ hero and timer handle liveness. `eventProgress` comes from `@/shared/lib/event-p
 
 ### 2. Current-topic card
 
-Render below the hero, above the course card:
+Render below the hero, above the course card. The topic's speaker shows only
+for multi-speaker events; the card renders `topic.speakerName`, so gate it
+here:
 
 ```tsx
+const topic = resolveCurrentTopic(course.MODULE, eventDate, highlightedLessonId, new Date());
+const displayTopic = topic && assignedSpeakerCount <= 1 ? { ...topic, speakerName: null } : topic;
+
 <CurrentTopicCard
-  topic={resolveCurrentTopic(course.MODULE, eventDate, highlightedLessonId, new Date())}
-  speakerName={assignedSpeakerCount > 1 ? (liveModule?.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
+  topic={displayTopic}
   isStaff={isStaff}
   settingHighlight={settingHighlight}
   onClearHighlight={handleClearHighlight}
-/>
+/>;
 ```
 
 ### 3. Lesson rows
