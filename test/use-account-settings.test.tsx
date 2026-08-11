@@ -128,6 +128,53 @@ describe("useAccountSettings", () => {
     expect(result.current.emailSent).toBe(true);
   });
 
+  it("refuses the address already on the account without calling supabase or the API", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.toast).toEqual({
+      title: "Error",
+      description: "That is already your email address.",
+      type: "error",
+    });
+  });
+
+  it("refuses it however it is capitalised or padded", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
+      act(() => result.current.setNewEmail(typed));
+      await act(async () => {
+        await result.current.changeEmail(submitEvent);
+      });
+
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
+  it("sends a trimmed address so stray space cannot pass as a different one", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("  grace@example.com  "));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "grace@example.com" });
+  });
+
   it("toasts the supabase error and skips the PATCH when the email update fails", async () => {
     updateUser.mockResolvedValue({ error: { message: "Email already in use" } });
     const fetch = stubFetch();

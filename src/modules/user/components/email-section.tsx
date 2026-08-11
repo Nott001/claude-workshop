@@ -3,6 +3,7 @@
 import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form } from "@/shared/components/form";
+import { isSameEmail } from "@/shared/lib/email";
 
 interface EmailSectionProps {
   currentEmail?: string | null;
@@ -14,6 +15,8 @@ interface EmailSectionProps {
 }
 
 export function EmailSection({ currentEmail, newEmail, onChange, emailSent, saving, onSubmit }: EmailSectionProps) {
+  const unchanged = isSameEmail(newEmail, currentEmail);
+
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
       <h2 className="text-sm font-bold text-fg">Email</h2>
@@ -26,19 +29,28 @@ export function EmailSection({ currentEmail, newEmail, onChange, emailSent, savi
           </p>
         </div>
       ) : (
-        <Form onSubmit={onSubmit} className="mt-4 flex gap-3">
-          <Input
-            type="email"
-            placeholder="new@example.com"
-            value={newEmail}
-            onChange={(e) => onChange(e.target.value)}
-            required
-            className="flex-1"
-          />
-          <Button type="submit" disabled={saving || !newEmail}>
-            {saving ? "Sending\u2026" : "Change email"}
-          </Button>
-        </Form>
+        <>
+          <Form onSubmit={onSubmit} className="mt-4 flex gap-3">
+            <Input
+              type="email"
+              placeholder="new@example.com"
+              value={newEmail}
+              onChange={(e) => onChange(e.target.value)}
+              required
+              aria-invalid={unchanged}
+              aria-describedby={unchanged ? "email-unchanged" : undefined}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={saving || !newEmail || unchanged}>
+              {saving ? "Sending\u2026" : "Change email"}
+            </Button>
+          </Form>
+          {unchanged && (
+            <p id="email-unchanged" className="mt-2 text-xs text-error">
+              This is already your email address.
+            </p>
+          )}
+        </>
       )}
     </div>
   );

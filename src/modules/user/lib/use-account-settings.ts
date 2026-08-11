@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import { getBrowserClient } from "@/shared/db/browser-client";
+import { isSameEmail } from "@/shared/lib/email";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
@@ -70,9 +71,20 @@ export function useAccountSettings() {
 
   async function changeEmail(e: React.FormEvent) {
     e.preventDefault();
+    const email = newEmail.trim();
+
+    // Caught before the request rather than after: asking Supabase to move the
+    // address to the one it already holds spends a slot of the per-address
+    // rate limit that a real change would need, and answers by mailing a
+    // confirmation link to the inbox the user is already reading.
+    if (isSameEmail(email, currentUser?.email)) {
+      notify({ title: "Error", description: "That is already your email address.", type: "error" });
+      return;
+    }
+
     setSavingEmail(true);
 
-    const { error: authError } = await supabase.auth.updateUser({ email: newEmail });
+    const { error: authError } = await supabase.auth.updateUser({ email });
     if (authError) {
       notify({ title: "Error", description: authError.message, type: "error" });
       setSavingEmail(false);
@@ -82,7 +94,7 @@ export function useAccountSettings() {
     await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newEmail }),
+      body: JSON.stringify({ email }),
     });
 
     setEmailSent(true);
