@@ -50,7 +50,21 @@ describe("EventRegisterCard", () => {
     expect(screen.queryByRole("button", { name: /view ticket/i })).toBeNull();
   });
 
-  it("shows Enter Room and routes to the linked course room", () => {
+  it("shows Enter Room and routes to the linked course room once the event has started", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, COURSE: { id: 7, course_name: "Course", course_description: null }, event_date: "2020-01-01" }}
+        hasTicket={true}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /enter room/i }));
+    expect(push).toHaveBeenCalledWith("/courses/7/room");
+  });
+
+  it("locks the room button until the event starts, so a ticket holder cannot click in early", () => {
     render(
       <EventRegisterCard
         event={{ ...baseEvent, COURSE: { id: 7, course_name: "Course", course_description: null } }}
@@ -60,8 +74,11 @@ describe("EventRegisterCard", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /enter room/i }));
-    expect(push).toHaveBeenCalledWith("/courses/7/room");
+    const button = screen.getByRole("button", { name: /locked until start/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(button);
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /enter room/i })).toBeNull();
   });
 
   it("shows View Ticket and routes to /tickets when the event has no course", () => {
@@ -85,6 +102,13 @@ describe("EventRegisterCard", () => {
     expect(screen.getByText("Hall A, 123 Main St")).toBeTruthy();
     expect(screen.getByText(/PHP 250\.00/)).toBeTruthy();
     expect(container.querySelectorAll(".text-right").length).toBeGreaterThan(0);
+  });
+
+  it("hides the price once the caller already holds a ticket", () => {
+    render(<EventRegisterCard event={baseEvent} hasTicket={true} isSignedIn={true} onRegister={vi.fn()} />);
+
+    expect(screen.queryByText(/PHP 250\.00/)).toBeNull();
+    expect(screen.queryByText(/price/i)).toBeNull();
   });
 
   it("places the Add to Calendar control directly below the register button", () => {

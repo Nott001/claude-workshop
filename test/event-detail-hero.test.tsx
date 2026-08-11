@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 
 const baseEvent = {
@@ -14,7 +14,7 @@ const baseEvent = {
 } as const;
 
 const renderHero = (props: Partial<Parameters<typeof EventDetailHero>[0]> = {}) =>
-  render(<EventDetailHero event={baseEvent} badgeLabel="Upcoming" onRegister={vi.fn()} {...props} />);
+  render(<EventDetailHero event={baseEvent} badgeLabel="Upcoming" {...props} />);
 
 afterEach(cleanup);
 
@@ -68,12 +68,10 @@ describe("EventDetailHero", () => {
     expect(screen.queryByText(/seat/i)).toBeNull();
   });
 
-  it("calls onRegister from the Register Now CTA", () => {
-    const onRegister = vi.fn();
-    renderHero({ onRegister });
+  it("leaves the register CTA to the register card", () => {
+    renderHero();
 
-    fireEvent.click(screen.getByRole("button", { name: /register now/i }));
-    expect(onRegister).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /register/i })).toBeNull();
   });
 
   it("shows the countdown for an upcoming event", () => {

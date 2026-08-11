@@ -7,12 +7,12 @@ import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
 import { useEventTimer } from "@/shared/lib/use-event-timer";
 import { findLiveModule } from "@/shared/lib/live-module";
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { isEventStarted, parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { canAccessCourseRoom } from "@/modules/courses/lib/room-access-policy";
 import { fetchCourseRoomAccess, type CourseRoomCourse } from "@/modules/courses/lib/fetch-course-room-access";
 
-export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "loading" | "denied";
+export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "not_started" | "loading" | "denied";
 
 export function useCourseRoomAccess(courseId: string) {
   const { isLoaded, isSignedIn, user } = useSession();
@@ -30,10 +30,9 @@ export function useCourseRoomAccess(courseId: string) {
   const [settingHighlight, setSettingHighlight] = useState(false);
 
   const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
-  const sessionStart = eventDate && startTime ? parseLocalDateTime(eventDate, startTime) : null;
-  const sessionEnd = eventDate && endTime ? parseLocalDateTime(eventDate, endTime) : null;
-  const eventStarted = !!sessionStart && sessionStart <= new Date();
-  const eventEnded = !!sessionEnd && sessionEnd <= new Date();
+  const eventStarted = isEventStarted(eventDate, startTime);
+  const eventEnd = eventDate && endTime ? parseLocalDateTime(eventDate, endTime) : null;
+  const eventEnded = !!eventEnd && eventEnd <= new Date();
 
   const liveModule = findLiveModule(course?.MODULE ?? [], eventDate);
 
@@ -76,6 +75,16 @@ export function useCourseRoomAccess(courseId: string) {
       const gate = canAccessCourseRoom(user.role, accessData);
       if (gate !== "allowed") {
         if (!cancelled) setAccess(gate);
+        return;
+      }
+
+      // The audience stays out until the opening edge passes; staff and
+      // assigned speakers set up and run the room, so only ticket holders are
+      // locked. The server withholds the course for them too — this gate only
+      // decides what the page shows.
+      const opened = isEventStarted(eventData.event_date, eventData.start_time);
+      if (!opened && !hasMinRole(user.role, ROLES.SPEAKER)) {
+        if (!cancelled) setAccess("not_started");
         return;
       }
 

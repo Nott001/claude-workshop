@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/shared/components/button";
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { formatDuration, formatVenue } from "@/shared/lib/event-format";
@@ -12,7 +11,6 @@ interface EventDetailHeroProps {
     "title" | "event_date" | "start_time" | "end_time" | "cover_image_url" | "venue_name" | "venue_address"
   >;
   badgeLabel: string;
-  onRegister: () => void;
 }
 
 function FactRow({ icon, label, value }: { icon: string; label: string; value: string }) {
@@ -27,7 +25,7 @@ function FactRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-export function EventDetailHero({ event, badgeLabel, onRegister }: EventDetailHeroProps) {
+export function EventDetailHero({ event, badgeLabel }: EventDetailHeroProps) {
   const duration = formatDuration(event.start_time, event.end_time);
   const venue = formatVenue(event.venue_name, event.venue_address);
 
@@ -40,7 +38,7 @@ export function EventDetailHero({ event, badgeLabel, onRegister }: EventDetailHe
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <div className="grid lg:grid-cols-[65%_35%]">
+      <div className="grid gap-6 lg:grid-cols-[65%_35%]">
         <div className="relative min-h-[320px]">
           <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
           {event.cover_image_url && (
@@ -55,17 +53,13 @@ export function EventDetailHero({ event, badgeLabel, onRegister }: EventDetailHe
           </span>
         </div>
 
-        <div className="flex flex-col justify-center p-6 sm:p-7">
+        <div className="flex flex-col justify-center p-6 sm:p-7 lg:pl-0">
           <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-3xl">{event.title}</h1>
           <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             {facts.map((fact) => (
               <FactRow key={fact.label} {...fact} />
             ))}
           </dl>
-
-          <Button size="lg" className="mt-6 w-full rounded-xl px-8 sm:w-auto" onClick={onRegister}>
-            Register Now
-          </Button>
 
           <CountdownTimer eventDate={event.event_date} startTime={event.start_time} label="Starts in" />
         </div>

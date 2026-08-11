@@ -26,7 +26,7 @@ const SPEAKER = { ...ATTENDEE, id: 3, role: ROLES.SPEAKER };
 const EVENT = {
   id: 9,
   title: "Demo Day",
-  event_date: "2026-09-01",
+  event_date: "2020-01-01",
   start_time: "09:00",
   end_time: "17:00",
   COURSE: { id: 4, course_name: "Intro", course_description: null },
@@ -114,6 +114,31 @@ describe("useCourseRoomAccess", () => {
     const { result } = renderHook(() => useCourseRoomAccess("9"));
 
     await waitFor(() => expect(result.current.access).toBe("no_ticket"));
+  });
+
+  it("locks a ticket holder out until the event has started", async () => {
+    fetchCourseRoomAccess.mockResolvedValue(roomData({ event: { ...EVENT, event_date: "2099-01-01" } }));
+
+    const { result } = renderHook(() => useCourseRoomAccess("9"));
+
+    await waitFor(() => expect(result.current.access).toBe("not_started"));
+    expect(result.current.course).toBeNull();
+  });
+
+  it("does not lock staff out of a room that has not started", async () => {
+    signedIn(SPEAKER);
+    fetchCourseRoomAccess.mockResolvedValue(
+      roomData({
+        isSpeakerAssigned: true,
+        userRole: ROLES.SPEAKER,
+        event: { ...EVENT, event_date: "2099-01-01" },
+      }),
+    );
+
+    const { result } = renderHook(() => useCourseRoomAccess("9"));
+
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+    expect(result.current.course).toMatchObject({ id: 4 });
   });
 
   it("lets a ticket holder in and loads the course from the feed", async () => {
@@ -260,7 +285,14 @@ describe("useCourseRoomAccess", () => {
   });
 
   it("leaves the live module empty before the first session starts", async () => {
-    fetchCourseRoomAccess.mockResolvedValue(roomData({ event: { ...EVENT, event_date: "2030-01-01" } }));
+    signedIn(SPEAKER);
+    fetchCourseRoomAccess.mockResolvedValue(
+      roomData({
+        isSpeakerAssigned: true,
+        userRole: ROLES.SPEAKER,
+        event: { ...EVENT, event_date: "2030-01-01" },
+      }),
+    );
 
     const { result } = renderHook(() => useCourseRoomAccess("9"));
 

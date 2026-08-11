@@ -48,7 +48,7 @@ export function EventDetailPage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
-        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} onRegister={handleRegister} />
+        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
         <div className="mt-8 grid gap-6 lg:grid-cols-[65%_35%]">
           <div className="min-w-0 space-y-6">
             {event.description && (

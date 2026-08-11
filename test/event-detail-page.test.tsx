@@ -112,14 +112,35 @@ describe("Event detail page assembly", () => {
     expect(screen.getByRole("button", { name: /share on facebook/i })).toBeTruthy();
   });
 
-  it("shows Enter Room instead of Register for a ticket holder with a linked course", () => {
+  it("shows Enter Room instead of Register for a ticket holder with a linked course once the event has started", () => {
+    renderDetail(ROLES.ATTENDEE, {
+      hasTicket: true,
+      event: {
+        ...baseEvent,
+        COURSE: { id: 7, course_name: "Course", course_description: null },
+        event_date: "2020-01-01",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: /enter room/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
+  });
+
+  it("locks a ticket holder's room button until the event starts", () => {
     renderDetail(ROLES.ATTENDEE, {
       hasTicket: true,
       event: { ...baseEvent, COURSE: { id: 7, course_name: "Course", course_description: null } },
     });
 
-    expect(screen.getByRole("button", { name: /enter room/i })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
+    expect((screen.getByRole("button", { name: /locked until start/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: /enter room/i })).toBeNull();
+  });
+
+  it("keeps the register CTA off the hero, where the register card owns it", () => {
+    renderDetail(ROLES.ATTENDEE);
+
+    expect(screen.queryByRole("button", { name: /register now/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Register" })).toBeTruthy();
   });
 
   it("omits the about card and speaker section when the data is missing", async () => {
