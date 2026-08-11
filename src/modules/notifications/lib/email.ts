@@ -2,25 +2,27 @@ import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
 import { getEmailService } from "@/shared/integrations/email";
 import { emailTemplates } from "@/shared/integrations/email/templates";
+import type { EmailType } from "@/shared/types";
 
 /**
- * One member per email_type, carrying exactly the fields that email's template
- * interpolates. Picking an email_type narrows the params to what that template
- * needs, so the dispatch below calls each template with its own param type
- * rather than a superset cast.
+ * The fields each email's template interpolates, keyed by the email_type that
+ * selects it. Adding a value to EmailType without a payload here fails to
+ * compile, so a new PG enum member cannot reach `buildMessage` unhandled.
  */
-export type SendEmailNotificationParams =
-  | {
-      user_id: number;
-      email: string;
-      name: string;
-      email_type: "ticket_issued";
-      eventTitle: string;
-      eventDate: string;
-      qrDataUrl?: string;
-    }
-  | { user_id: number; email: string; name: string; email_type: "check_in_confirmed"; eventTitle: string }
-  | { user_id: number; email: string; name: string; email_type: "event_survey"; eventTitle: string; surveyUrl: string };
+interface EmailPayloads extends Record<EmailType, object> {
+  ticket_issued: { eventTitle: string; eventDate: string; qrDataUrl?: string };
+  check_in_confirmed: { eventTitle: string };
+  event_survey: { eventTitle: string; surveyUrl: string };
+}
+
+/**
+ * One member per email_type. Picking an email_type narrows the params to what
+ * that template needs, so the dispatch below calls each template with its own
+ * param type rather than a superset cast.
+ */
+export type SendEmailNotificationParams = {
+  [K in EmailType]: { user_id: number; email: string; name: string; email_type: K } & EmailPayloads[K];
+}[EmailType];
 
 function compose<P>(
   template: { subject: string; buildHtml: (params: P) => string; buildText: (params: P) => string },

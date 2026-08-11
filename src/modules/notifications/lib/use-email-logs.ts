@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 // Same story as the audit logs: EMAIL_LOG's primary key is `id`, not `log_id`.
 import type { EmailLogWithUser } from "@/shared/db/dao/email.dao";
+import type { EmailType, EmailStatus } from "@/shared/types";
 
 const PAGE_SIZE = 50;
 
@@ -11,8 +12,8 @@ export function useEmailLogs() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [emailTypeFilter, setEmailTypeFilter] = useState<"" | "ticket_issued" | "check_in_confirmed" | "event_survey">("");
-  const [statusFilter, setStatusFilter] = useState<"" | "sent" | "failed">("");
+  const [emailTypeFilter, setEmailTypeFilter] = useState<"" | EmailType>("");
+  const [statusFilter, setStatusFilter] = useState<"" | EmailStatus>("");
   const pageRef = useRef(1);
 
   const load = useCallback(
