@@ -10,7 +10,17 @@ export type MailDomainVerdict = "deliverable" | "no-mail-server" | "unknown";
 const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const LOOKUP_TIMEOUT_MS = 3000;
 
+const NOERROR = 0;
 const NXDOMAIN = 3;
+
+/**
+ * Only "it resolved" and "no such name" settle anything. SERVFAIL and the rest
+ * mean the resolver could not answer — a lame delegation, a broken authority —
+ * which is not the same as the domain being absent and must not be read as it.
+ */
+function conclusive(status?: number): boolean {
+  return status === NOERROR || status === NXDOMAIN;
+}
 
 interface DohAnswer {
   Status?: number;
@@ -43,7 +53,7 @@ export async function checkMailDomain(domain: string): Promise<MailDomainVerdict
   if (isWellKnownMailDomain(domain)) return "deliverable";
 
   const mx = await resolve(domain, "MX");
-  if (!mx) return "unknown";
+  if (!mx || !conclusive(mx.Status)) return "unknown";
   if (mx.Status === NXDOMAIN) return "no-mail-server";
   if (mx.Answer?.some((record) => record.type === 15)) return "deliverable";
 
@@ -51,8 +61,7 @@ export async function checkMailDomain(domain: string): Promise<MailDomainVerdict
   // treats that as an implicit exchanger — so rejecting on a missing MX alone
   // would turn away small domains that work perfectly well.
   const a = await resolve(domain, "A");
-  if (!a) return "unknown";
-  if (a.Answer?.some((record) => record.type === 1)) return "deliverable";
+  if (!a || !conclusive(a.Status)) return "unknown";
 
-  return a.Status === undefined ? "unknown" : "no-mail-server";
+  return a.Answer?.some((record) => record.type === 1) ? "deliverable" : "no-mail-server";
 }

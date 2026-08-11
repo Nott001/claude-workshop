@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { EmailSection } from "@/modules/user/components/email-section";
 
 function renderSection(newEmail: string, emailSent = false) {
@@ -52,6 +52,45 @@ describe("EmailSection", () => {
 
     expect(submitButton().disabled).toBe(false);
     expect(screen.queryByText("This is already your email address.")).toBeNull();
+  });
+
+  // The case that slipped through: gmoil.com is registered, answers DNS and
+  // accepts mail, so a check that only asks "does this domain exist" is silent
+  // on it. The warning has to come from how the address looks.
+  it("suggests the likely domain even though the typo resolves perfectly well", () => {
+    renderSection("ada@gmoil.com");
+
+    expect(screen.getByRole("button", { name: "ada@gmail.com" })).toBeTruthy();
+  });
+
+  it("fills the field with the suggestion when it is taken up", () => {
+    const onChange = vi.fn();
+    render(
+      <EmailSection
+        currentEmail="ada@example.com"
+        newEmail="ada@gmial.com"
+        onChange={onChange}
+        emailSent={false}
+        saving={false}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "ada@gmail.com" }));
+
+    expect(onChange).toHaveBeenCalledWith("ada@gmail.com");
+  });
+
+  it("leaves submitting available, since an odd domain may still be real", () => {
+    renderSection("ada@gmoil.com");
+
+    expect(submitButton().disabled).toBe(false);
+  });
+
+  it("says nothing about a domain that is not a near-miss", () => {
+    renderSection("ada@startuplab.io");
+
+    expect(screen.queryByText(/Did you mean/)).toBeNull();
   });
 
   it("still blocks an empty field", () => {

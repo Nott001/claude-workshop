@@ -3,7 +3,7 @@
 import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form } from "@/shared/components/form";
-import { isSameEmail } from "@/shared/lib/email";
+import { isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 
 interface EmailSectionProps {
   currentEmail?: string | null;
@@ -16,6 +16,12 @@ interface EmailSectionProps {
 
 export function EmailSection({ currentEmail, newEmail, onChange, emailSent, saving, onSubmit }: EmailSectionProps) {
   const unchanged = isSameEmail(newEmail, currentEmail);
+
+  // Offered on how the address looks, never on whether it resolves. A lookalike
+  // of a common domain is usually registered by someone banking on the typo, so
+  // it answers DNS perfectly well and mail sent to it arrives — at them. The
+  // resolving case is the one worth warning about, not the one to stay quiet on.
+  const suggestion = unchanged ? null : suggestEmailCorrection(newEmail);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
@@ -48,6 +54,19 @@ export function EmailSection({ currentEmail, newEmail, onChange, emailSent, savi
           {unchanged && (
             <p id="email-unchanged" className="mt-2 text-xs text-error">
               This is already your email address.
+            </p>
+          )}
+          {suggestion && (
+            <p className="mt-2 text-xs text-muted-fg">
+              Did you mean{" "}
+              <button
+                type="button"
+                onClick={() => onChange(suggestion)}
+                className="font-medium text-brand underline underline-offset-2"
+              >
+                {suggestion}
+              </button>
+              ?
             </p>
           )}
         </>

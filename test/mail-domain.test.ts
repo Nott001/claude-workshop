@@ -84,6 +84,21 @@ describe("checkMailDomain", () => {
       await expect(checkMailDomain("acme.test")).resolves.toBe("unknown");
     });
 
+    // gmial.com answers SERVFAIL through a broken delegation. That is the
+    // resolver failing, not the domain being absent, and reading it as absent
+    // would refuse an address on the strength of someone else's outage.
+    it("returns unknown on SERVFAIL rather than calling the domain dead", async () => {
+      resolver({ MX: { Status: 2 } });
+
+      await expect(checkMailDomain("servfail.test")).resolves.toBe("unknown");
+    });
+
+    it("returns unknown when the address lookup answers SERVFAIL too", async () => {
+      resolver({ MX: { Status: 0, Answer: [] }, A: { Status: 2 } });
+
+      await expect(checkMailDomain("servfail-a.test")).resolves.toBe("unknown");
+    });
+
     it("returns unknown when the MX answer is fine but the address lookup fails", async () => {
       resolver({ MX: { Status: 0, Answer: [] } });
 
