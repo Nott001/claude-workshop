@@ -9,6 +9,8 @@ const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 vi.mock("@/modules/shell/components/navbar", () => ({ Navbar: () => null }));
+vi.mock("@/modules/shell/components/top-navbar", () => ({ TopNavbar: () => null }));
+vi.mock("@/modules/shell/components/staff-navbar", () => ({ StaffNavbar: () => null }));
 vi.mock("@/modules/shell/components/floating-assist-button", () => ({
   FloatingAssistButton: () => null,
 }));

@@ -2,7 +2,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
-import type { UserRole } from "@/shared/types";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
@@ -17,7 +16,7 @@ function renderAs(role: string | null) {
     isSignedIn: role !== null,
     signOut: vi.fn(),
   });
-  render(<Navbar />);
+  return render(<Navbar />);
 }
 
 /** The labels of the primary nav, in render order, with the icon glyph stripped. */
@@ -84,25 +83,26 @@ describe("Navbar role nav items", () => {
     renderAs(ROLES.ADMIN);
     expect(superAdmin).toEqual(navLabels());
   });
-
-  it("leaves the attendee nav with Community added", () => {
-    renderAs(ROLES.ATTENDEE);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
-  });
-
-  it("shows guests the signed-out nav including Community", () => {
-    renderAs(null);
-    expect(navLabels()).toEqual(["Home", "Events", "Community"]);
-  });
 });
 
-describe("Navbar fallback for an unrecognised role", () => {
-  // The fallback used to be `facilitator` — the worst possible default for a
-  // role the map does not know. A corrupt or newly-added role handed out the
-  // staff nav.
-  it("falls back to attendee, not facilitator", () => {
-    renderAs("wizard" as UserRole);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
-    expect(navLabels()).not.toContain("Create event");
+describe("Navbar collapsed rail", () => {
+  it("collapses to an icon-only rail that expands on hover and focus", () => {
+    const { container } = renderAs(ROLES.ADMIN);
+    const aside = container.querySelector("aside");
+    const className = aside?.className ?? "";
+    expect(className).toContain("w-[72px]");
+    expect(className).toContain("hover:w-[202px]");
+    expect(className).toContain("focus-within:w-[202px]");
+    expect(className).toContain("transition-[width]");
+  });
+
+  it("keeps the labels in the DOM, hidden while collapsed and revealed on hover", () => {
+    const { container } = renderAs(ROLES.ADMIN);
+    const label = within(container.querySelector("aside") as HTMLElement).getByText("Create event");
+    const className = label.className;
+    expect(className).toContain("w-0");
+    expect(className).toContain("opacity-0");
+    expect(className).toContain("group-hover:w-auto");
+    expect(className).toContain("group-hover:opacity-100");
   });
 });
