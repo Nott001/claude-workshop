@@ -24,6 +24,10 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   "dev/profiler/route.ts":
     "Dev-only browser profiler sink. Self-404s on production builds, and anonymous visitors' " +
     "samples must still reach the dev terminal, so it cannot sit behind a session.",
+  "events/[id]/schedule/route.ts":
+    "Public course schedule for guests — module name, window and speaker name only. " +
+    "Lesson content stays behind the authenticated /api/courses/event/[id] route, so there is " +
+    "no credential and no session required.",
   "payments/webhook/route.ts":
     "Payment provider webhook. The provider HMAC-signs the raw body with its salt and the " +
     "adapter verifies it before touching anything, so the signature — not a session — is the " +

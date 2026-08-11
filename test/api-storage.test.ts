@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { download, from, requireAuth, userHasCourseAccess, isPublished } = vi.hoisted(() => {
+const { download, from, requireAuth, userHasCourseAccess, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
   const download = vi.fn();
   return {
     download,
@@ -9,6 +9,7 @@ const { download, from, requireAuth, userHasCourseAccess, isPublished } = vi.hoi
     requireAuth: vi.fn(),
     userHasCourseAccess: vi.fn(),
     isPublished: vi.fn(),
+    isSpeakerOnPublishedEvent: vi.fn(),
   };
 });
 
@@ -18,6 +19,7 @@ vi.mock("@/shared/db/client", () => ({
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ userHasCourseAccess }));
 vi.mock("@/modules/events/db/event.dao", () => ({ isPublished }));
+vi.mock("@/shared/db/dao/speaker.dao", () => ({ isSpeakerOnPublishedEvent }));
 
 import { GET } from "@/app/api/storage/[bucket]/[...path]/route";
 
@@ -30,15 +32,18 @@ const speaker = { id: 7, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@exam
 
 const lesson = ["courses", "12", "modules", "3", "lessons", "8", "slides.pdf"];
 const cover = ["events", "1", "cover.png"];
+const avatar = ["users", "5", "profile.png"];
 
-// event_images is keyed on the event in its path, so it takes a cover-shaped key.
-const keyFor = (bucket: string) => (bucket === "event_images" ? cover : lesson);
+// event_images is keyed on the event in its path and profile_images on the
+// user, so those buckets take their own shape; course buckets share `lesson`.
+const keyFor = (bucket: string) => (bucket === "event_images" ? cover : bucket === "profile_images" ? avatar : lesson);
 
 beforeEach(() => {
   vi.clearAllMocks();
   requireAuth.mockResolvedValue(attendee);
   userHasCourseAccess.mockResolvedValue(true);
   isPublished.mockResolvedValue(true);
+  isSpeakerOnPublishedEvent.mockResolvedValue(true);
   download.mockResolvedValue({ data: new Blob(["bytes"], { type: "application/pdf" }), error: null });
 });
 
@@ -188,11 +193,82 @@ describe("public event covers", () => {
     expect(download).not.toHaveBeenCalled();
   });
 
-  it("leaves the other buckets closed to an anonymous caller", async () => {
-    for (const bucket of ["profile_images", "course_assets", "course_videos"]) {
+  it("leaves the course buckets closed to an anonymous caller", async () => {
+    for (const bucket of ["course_assets", "course_videos"]) {
       const res = await GET(req(), params(bucket, lesson));
       expect(res.status).toBe(404);
     }
+    expect(download).not.toHaveBeenCalled();
+  });
+});
+
+// Speaker avatars are rendered on the public event detail page, so the image of
+// anyone whose speaker profile sits on a published event is served without a
+// session. Ordinary account photos keep the signed-in access they had before.
+describe("public speaker avatars", () => {
+  beforeEach(() => {
+    requireAuth.mockResolvedValue(null);
+  });
+
+  it("serves a published-event speaker's avatar to a caller with no session", async () => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(true);
+
+    const res = await GET(req(), params("profile_images", avatar));
+
+    expect(res.status).toBe(200);
+    expect(isSpeakerOnPublishedEvent).toHaveBeenCalledWith(expect.anything(), 5);
+    expect(from).toHaveBeenCalledWith("profile_images");
+  });
+
+  it("does not ask who the caller is for a public speaker avatar", async () => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(true);
+
+    const res = await GET(req(), params("profile_images", avatar));
+
+    expect(res.status).toBe(200);
+    expect(requireAuth).not.toHaveBeenCalled();
+  });
+
+  it("lets a shared cache hold a speaker avatar, since it is the same for everyone", async () => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(true);
+
+    const res = await GET(req(), params("profile_images", avatar));
+
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600");
+  });
+
+  it("refuses a non-speaker's avatar to a caller with no session", async () => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(false);
+
+    const res = await GET(req(), params("profile_images", avatar));
+
+    expect(res.status).toBe(404);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("still serves a non-speaker's avatar to any signed-in user", async () => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(false);
+    requireAuth.mockResolvedValue(attendee);
+
+    const res = await GET(req(), params("profile_images", avatar));
+
+    expect(res.status).toBe(200);
+    // Per-user verdict, so it must not be replayed out of a shared cache.
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=0, must-revalidate");
+  });
+
+  it.each([
+    [["cover.png"]],
+    [["events", "1", "cover.png"]],
+    [["users", "abc", "profile.png"]],
+    [["users", "-1", "profile.png"]],
+    [["users"]],
+  ])("refuses the profile_images key %j that names no user", async (segments) => {
+    isSpeakerOnPublishedEvent.mockResolvedValue(true);
+
+    const res = await GET(req(), params("profile_images", segments));
+
+    expect(res.status).toBe(404);
     expect(download).not.toHaveBeenCalled();
   });
 });

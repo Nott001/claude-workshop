@@ -8,6 +8,7 @@ import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedul
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { LiveNowTag } from "@/modules/events/components/live-now-tag";
 import { SessionTimeline } from "@/modules/events/components/session-timeline";
+import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useCourseRoomAccess } from "@/modules/courses/lib/use-course-room-access";
 import type { UserRole } from "@/shared/types";
 
@@ -95,6 +96,28 @@ export default function CourseRoomPage() {
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
             >
               Register
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (access === "not_started") {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="text-center">
+          <span className="material-symbols-rounded text-4xl text-muted-fg/50">lock</span>
+          <p className="mt-3 text-sm font-semibold text-fg">This room hasn&apos;t started yet.</p>
+          <p className="mt-1 text-sm text-muted-fg">
+            It opens on {formatEventDate(eventDate)} at {formatTime(startTime)}.
+          </p>
+          {eventId && (
+            <button
+              onClick={() => router.push(`/events/${eventId}`)}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80"
+            >
+              Back to event
             </button>
           )}
         </div>

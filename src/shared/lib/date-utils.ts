@@ -26,6 +26,16 @@ export function parseLocalDateTime(dateStr: string, timeStr: string): Date | nul
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Whether the event's opening edge has passed. Missing or unparseable window
+ * edges mean "not started", so gates refuse on incomplete rows instead of
+ * letting a ticket holder into a room that cannot be timed.
+ */
+export function isEventStarted(eventDate: string | null | undefined, startTime: string | null | undefined): boolean {
+  const start = parseLocalDateTime(eventDate ?? "", startTime ?? "");
+  return !!start && start <= new Date();
+}
+
 export function isEventLive(eventDate: string, startTime: string, endTime: string): boolean {
   const now = new Date();
   const [y, m, d] = eventDate.split("-").map(Number);

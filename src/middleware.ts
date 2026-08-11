@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Read-only event endpoints anonymous visitors may call. Their handlers already
+// Read-only endpoints anonymous visitors may call. Their handlers already
 // restrict what they expose (published events only), so the middleware must let
 // the GET through and leave the guarding to them. Everything else stays gated.
 //
@@ -12,6 +12,13 @@ import type { NextRequest } from "next/server";
 // them as `/api/storage/event_images/...`, and `/` and `/events` render them to
 // visitors with no session. The storage route still checks that the event is
 // published before serving one.
+//
+// `/api/events/{id}/schedule` feeds the course-schedule card on the public
+// detail page and answers `{ modules: [] }` for anything not published. Speaker
+// avatars under `/api/storage/profile_images/` are public for the same reason —
+// the detail page renders them to guests — but only when the storage route can
+// tie the owner to a published event; ordinary account photos stay behind the
+// session.
 const isPublicApiGet = (req: NextRequest) => {
   if (req.method !== "GET") return false;
   const { pathname } = req.nextUrl;
@@ -19,8 +26,10 @@ const isPublicApiGet = (req: NextRequest) => {
     pathname === "/api/events" ||
     pathname === "/api/community" ||
     /^\/api\/events\/\d+$/.test(pathname) ||
+    /^\/api\/events\/\d+\/schedule$/.test(pathname) ||
     /^\/api\/surveys\/[^/]+$/.test(pathname) ||
-    pathname.startsWith("/api/storage/event_images/")
+    pathname.startsWith("/api/storage/event_images/") ||
+    pathname.startsWith("/api/storage/profile_images/")
   );
 };
 

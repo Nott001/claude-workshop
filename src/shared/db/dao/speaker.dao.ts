@@ -63,7 +63,6 @@ export async function create(
   data: {
     user_id: number;
     bio?: string | null;
-    photo_url?: string | null;
     designation?: string | null;
   },
 ): Promise<SpeakerProfile | null> {
@@ -178,4 +177,20 @@ export async function checkSpeakerAssignment(supabase: DbClient, speakerProfileI
     .eq("event_id", eventId)
     .single();
   return !!data;
+}
+
+/**
+ * Whether the user is a speaker on any published (active or complete) event.
+ * The storage route serves a `profile_images` object to anonymous visitors
+ * only on this rule, so the speaker avatars on public event pages load for
+ * guests while ordinary account photos stay behind the session.
+ */
+export async function isSpeakerOnPublishedEvent(supabase: DbClient, userId: number): Promise<boolean> {
+  const profile = await findByUserId(supabase, userId);
+  if (!profile) return false;
+  const { data } = await supabase.from("EVENT_SPEAKER").select("EVENT(status)").eq("speaker_profile_id", profile.id);
+  const statuses = ((data ?? []) as { EVENT?: { status?: string } | null }[])
+    .map((row) => row.EVENT?.status)
+    .filter((s): s is string => Boolean(s));
+  return statuses.includes("active") || statuses.includes("complete");
 }

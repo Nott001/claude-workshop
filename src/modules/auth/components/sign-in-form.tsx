@@ -6,8 +6,9 @@ import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
+import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 
-export function SignInForm() {
+export function SignInForm({ redirectUrl = null }: { redirectUrl?: string | null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function SignInForm() {
       return;
     }
 
-    window.location.href = "/events";
+    window.location.assign(redirectUrl ?? "/events");
   }
 
   return (
@@ -83,7 +84,10 @@ export function SignInForm() {
 
       <p className="mt-6 text-center text-sm text-muted-fg">
         Don&apos;t have an account?{" "}
-        <Link href="/sign-up" className="font-medium text-brand hover:text-brand/80 transition-colors">
+        <Link
+          href={`/sign-up${redirectUrlParam(redirectUrl)}`}
+          className="font-medium text-brand hover:text-brand/80 transition-colors"
+        >
           Sign up
         </Link>
       </p>

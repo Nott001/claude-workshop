@@ -85,7 +85,7 @@ export function useEventDetail(eventId: string) {
 
   async function handleRegister() {
     if (!isSignedIn) {
-      router.push(`/sign-in?redirect_url=/events/${eventId}`);
+      router.push(`/sign-up?redirect_url=/events/${eventId}`);
       return;
     }
     router.push(`/events/${eventId}/register`);
