@@ -15,6 +15,10 @@ vi.mock("@/modules/auth/lib/password-reset", async (importOriginal) => ({
   requestPasswordReset,
   confirmPasswordReset,
 }));
+// Run the deferred work inline so its effects are observable here.
+vi.mock("@/shared/lib/after-response", () => ({
+  afterResponse: (work: () => Promise<unknown>) => work(),
+}));
 vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ findByAuthId }));
@@ -93,6 +97,27 @@ describe("POST /api/auth/recover", () => {
     await recover(jsonReq({ email: "ada@example.com" }));
 
     expect(requestPasswordReset).toHaveBeenCalledWith({}, "ada@example.com", null);
+  });
+
+  // The body is identical for every address; the clock must be too. A reset for
+  // a real account runs an SMTP session of several seconds that a reset for an
+  // unknown one never reaches, so the reply has to be sent before any of it.
+  it("answers before the reset work runs, so delivery cannot be timed", async () => {
+    let resolveReset: () => void = () => {};
+    requestPasswordReset.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveReset = resolve;
+      }),
+    );
+
+    const res = await recover(jsonReq({ email: "ada@example.com" }));
+
+    // Returned while the reset is still pending.
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(requestPasswordReset).toHaveBeenCalledTimes(1);
+
+    resolveReset();
   });
 });
 

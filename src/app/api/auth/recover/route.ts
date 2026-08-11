@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/shared/db/client";
 import { requestPasswordReset } from "@/modules/auth/lib/password-reset";
+import { afterResponse } from "@/shared/lib/after-response";
 
 /**
  * Requests a password reset link.
@@ -33,12 +34,20 @@ export async function POST(req: Request): Promise<NextResponse> {
   // it is absent under `next dev`, where the per-email limit still applies.
   const ip = req.headers.get("cf-connecting-ip");
 
-  await requestPasswordReset(getServiceClient(), email, ip);
+  // Deferred, and this is load-bearing rather than a latency nicety. The SMTP
+  // round trip takes seconds for an address that owns an account and does not
+  // happen at all for one that does not, so awaiting it here would answer
+  // "is this person registered" on the clock no matter what the body says.
+  afterResponse(() => requestPasswordReset(getServiceClient(), email, ip));
 
   return accepted();
 }
 
-/** One response for every path, so timing is the only signal left to equalise. */
+/**
+ * One response for every path. Nothing that depends on whether the address
+ * exists runs before it, so the reply is the same shape and the same speed
+ * whoever asks.
+ */
 function accepted(): NextResponse {
   return NextResponse.json({ ok: true });
 }

@@ -44,13 +44,14 @@ export async function requestPasswordReset(
 
   await passwordResetDao.recordAttempt(supabase, email, ip);
 
-  const perEmail = await passwordResetDao.countByEmail(supabase, email, windowStart);
-  if (perEmail > RESET_MAX_PER_EMAIL) return;
+  // Both counts in one round trip rather than two: the common case is a request
+  // under both limits, which has to read both anyway.
+  const [perEmail, perIp] = await Promise.all([
+    passwordResetDao.countByEmail(supabase, email, windowStart),
+    ip ? passwordResetDao.countByIp(supabase, ip, windowStart) : Promise.resolve(0),
+  ]);
 
-  if (ip) {
-    const perIp = await passwordResetDao.countByIp(supabase, ip, windowStart);
-    if (perIp > RESET_MAX_PER_IP) return;
-  }
+  if (perEmail > RESET_MAX_PER_EMAIL || perIp > RESET_MAX_PER_IP) return;
 
   // Supabase mints the link but sends nothing, which leaves the message to this
   // project — the same template and mail server as the invitation, rather than
