@@ -1,6 +1,6 @@
 import { parse } from "yaml";
 import { z } from "zod";
-import { PAYMENT_CONFIG_YAML } from "../payment-config.generated";
+import { PAYMENT_CONFIG_YAML } from "./payment-config.generated";
 
 export const PAYMENT_PROVIDERS = ["simulated", "hitpay"] as const;
 export type PaymentProviderName = (typeof PAYMENT_PROVIDERS)[number];

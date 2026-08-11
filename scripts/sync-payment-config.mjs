@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = join(root, "config", "payments.yaml");
-const target = join(root, "src", "modules", "commerce", "payment-config.generated.ts");
+const target = join(root, "src", "modules", "commerce", "lib", "payment-config.generated.ts");
 
 const yaml = readFileSync(source, "utf8");
 const escaped = yaml.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
