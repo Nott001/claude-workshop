@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
+import { formatEventPrice, formatVenue, formatDuration } from "@/shared/lib/event-format";
 
 describe("formatEventPrice", () => {
   it("prefixes the event's own currency code", () => {
@@ -32,5 +32,37 @@ describe("formatVenue", () => {
 
   it("still renders an address when the name is somehow missing", () => {
     expect(formatVenue("", "123 Main St")).toBe("123 Main St");
+  });
+});
+
+describe("formatDuration", () => {
+  it("formats exact hours with the right pluralization", () => {
+    expect(formatDuration("09:00", "16:00")).toBe("7 hours");
+    expect(formatDuration("09:00", "10:00")).toBe("1 hour");
+  });
+
+  it("mixes hours and minutes", () => {
+    expect(formatDuration("09:00", "16:30")).toBe("7 hr 30 min");
+  });
+
+  it("formats sub-hour windows in minutes", () => {
+    expect(formatDuration("09:00", "09:45")).toBe("45 min");
+    expect(formatDuration("09:00", "09:05")).toBe("5 min");
+  });
+
+  it("accepts an optional seconds field", () => {
+    expect(formatDuration("09:00:30", "16:00:30")).toBe("7 hours");
+    expect(formatDuration("09:00:45", "09:15:00")).toBe("14 min");
+  });
+
+  it("returns null when an edge is missing or unparseable", () => {
+    expect(formatDuration(null, "16:00")).toBeNull();
+    expect(formatDuration("09:00", undefined)).toBeNull();
+    expect(formatDuration("not-a-time", "16:00")).toBeNull();
+  });
+
+  it("returns null for inverted or zero-length windows", () => {
+    expect(formatDuration("17:00", "09:00")).toBeNull();
+    expect(formatDuration("09:00", "09:00")).toBeNull();
   });
 });
