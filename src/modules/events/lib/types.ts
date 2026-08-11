@@ -3,12 +3,11 @@ export interface EventSpeakerProfile {
   user_id: number;
   bio: string | null;
   designation: string | null;
-  photo_url: string | null;
   linkedin_url: string | null;
   twitter_url: string | null;
   github_url: string | null;
   website_url: string | null;
-  USER: { full_name: string; email: string } | null;
+  USER: { full_name: string; email: string; profile_image_url: string | null } | null;
 }
 
 export interface EventSpeakerEntry {

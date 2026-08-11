@@ -63,7 +63,6 @@ export async function create(
   data: {
     user_id: number;
     bio?: string | null;
-    photo_url?: string | null;
     designation?: string | null;
   },
 ): Promise<SpeakerProfile | null> {

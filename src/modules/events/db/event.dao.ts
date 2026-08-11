@@ -11,7 +11,7 @@ type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string 
 
 type EventSpeakerJoin = {
   speaker_profile_id: number;
-  SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email"> };
+  SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email" | "profile_image_url"> };
 };
 type EventWithRelations = Event & {
   COURSE?: Record<string, unknown> | null;
@@ -29,7 +29,7 @@ export async function findByIdWithCourse(supabase: DbClient, id: number): Promis
   const { data, error } = await supabase
     .from("EVENT")
     .select(
-      "*, COURSE!event_id(*), EVENT_SPEAKER(speaker_profile_id, SPEAKER_PROFILE(*, USER(full_name, email))), EVENT_FACILITATOR(user_id)",
+      "*, COURSE!event_id(*), EVENT_SPEAKER(speaker_profile_id, SPEAKER_PROFILE(*, USER(full_name, email, profile_image_url))), EVENT_FACILITATOR(user_id)",
     )
     .eq("id", id)
     .maybeSingle();

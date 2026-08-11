@@ -9,12 +9,11 @@ const baseSpeaker: EventSpeakerProfile = {
   user_id: 10,
   bio: "Jane has spent six years helping teams adopt practical AI tooling.",
   designation: "Lead AI Solutions Architect",
-  photo_url: "/jane.jpg",
   linkedin_url: "https://linkedin.com/in/jane",
   twitter_url: null,
   github_url: "https://github.com/jane",
   website_url: null,
-  USER: { full_name: "Jane Smith", email: "jane@example.com" },
+  USER: { full_name: "Jane Smith", email: "jane@example.com", profile_image_url: "/jane.jpg" },
 };
 
 afterEach(cleanup);
@@ -23,13 +22,14 @@ describe("EventSpeakerCard", () => {
   it("renders the compact tile with photo, name and designation", () => {
     render(<EventSpeakerCard speaker={baseSpeaker} />);
 
-    expect(screen.getByRole("img", { name: "Jane Smith" })).toBeTruthy();
+    const img = screen.getByRole("img", { name: "Jane Smith" }) as HTMLImageElement;
+    expect(img.getAttribute("src")).toBe("/jane.jpg");
     expect(screen.getByText("Jane Smith")).toBeTruthy();
     expect(screen.getByText("Lead AI Solutions Architect")).toBeTruthy();
   });
 
-  it("renders the initials circle instead of a photo when photo_url is null", () => {
-    render(<EventSpeakerCard speaker={{ ...baseSpeaker, photo_url: null }} />);
+  it("renders the initials circle instead of a photo when the user photo is missing", () => {
+    render(<EventSpeakerCard speaker={{ ...baseSpeaker, USER: { ...baseSpeaker.USER!, profile_image_url: null } }} />);
 
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.getByText("JS")).toBeTruthy();

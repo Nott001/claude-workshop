@@ -58,7 +58,7 @@ export function EventSpeakerCard({ speaker }: { speaker: EventSpeakerProfile }) 
   return (
     <Dialog>
       <DialogTrigger className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:shadow-[0_4px_20px_rgba(0,0,0,.08)]">
-        <Avatar src={speaker.photo_url} name={fullName} size="size-20" />
+        <Avatar src={speaker.USER?.profile_image_url ?? null} name={fullName} size="size-20" />
         <span>
           <span className="block font-bold">{fullName}</span>
           {designation && <span className="block text-sm text-brand font-semibold">{designation}</span>}
@@ -66,7 +66,7 @@ export function EventSpeakerCard({ speaker }: { speaker: EventSpeakerProfile }) 
       </DialogTrigger>
       <DialogContent>
         <div className="flex flex-col items-center gap-3 text-center">
-          <Avatar src={speaker.photo_url} name={fullName} size="size-24" />
+          <Avatar src={speaker.USER?.profile_image_url ?? null} name={fullName} size="size-24" />
           <DialogTitle className="text-lg font-bold">{fullName}</DialogTitle>
           <DialogDescription className="text-sm font-semibold text-brand">{designation ?? "Speaker profile"}</DialogDescription>
           {speaker.bio && <p className="text-sm leading-relaxed text-muted-fg">{speaker.bio}</p>}

@@ -7,23 +7,32 @@ import type { EventScheduleItem } from "@/modules/events/lib/types";
 export function EventSchedule({ eventId }: { eventId: string }) {
   const [modules, setModules] = useState<EventScheduleItem[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const res = await fetch(`/api/events/${eventId}/schedule`);
-      if (cancelled) return;
-      if (!res.ok) {
-        setModules(null);
+      try {
+        const res = await fetch(`/api/events/${eventId}/schedule`);
+        if (cancelled) return;
+        if (!res.ok) {
+          setModules(null);
+          setError(true);
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        setModules(data?.modules ?? []);
         setLoading(false);
-        return;
+      } catch {
+        if (cancelled) return;
+        setModules(null);
+        setError(true);
+        setLoading(false);
       }
-      const data = await res.json();
-      if (cancelled) return;
-      setModules(data?.modules ?? []);
-      setLoading(false);
     }
 
     load();
@@ -31,8 +40,6 @@ export function EventSchedule({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [eventId]);
-
-  if (!loading && (!modules || modules.length === 0)) return null;
 
   function toggle(id: number) {
     setExpanded((prev) => {
@@ -48,6 +55,10 @@ export function EventSchedule({ eventId }: { eventId: string }) {
       <h2 className="text-lg font-bold">Course schedule</h2>
       {loading ? (
         <p className="mt-4 text-sm text-muted-fg">Loading schedule…</p>
+      ) : error ? (
+        <p className="mt-4 text-sm text-error">Couldn&apos;t load the schedule.</p>
+      ) : modules && modules.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-fg">No schedule yet.</p>
       ) : (
         <ol className="mt-5">
           {modules!.map((item) => {

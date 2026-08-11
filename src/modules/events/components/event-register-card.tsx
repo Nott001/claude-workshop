@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { AddToCalendar } from "@/modules/events/components/event-add-to-calendar";
-import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { Button } from "@/shared/components/button";
 import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
 import type { EventWithCourse } from "@/modules/events/lib/types";
@@ -15,8 +14,9 @@ interface EventRegisterCardProps {
 }
 
 const ROW = "flex items-center justify-between";
+const VALUE = "ml-4 min-w-0 text-right font-semibold";
 
-export function EventRegisterCard({ event, hasTicket, isSignedIn, onRegister }: EventRegisterCardProps) {
+export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegisterCardProps) {
   const router = useRouter();
   const price = formatEventPrice(event.price, event.currency);
   const courseId = event.COURSE?.id;
@@ -39,7 +39,7 @@ export function EventRegisterCard({ event, hasTicket, isSignedIn, onRegister }: 
             <span className="material-symbols-rounded text-base text-brand">location_on</span>
             Venue
           </span>
-          <span className="font-semibold">{formatVenue(event.venue_name, event.venue_address)}</span>
+          <span className={VALUE}>{formatVenue(event.venue_name, event.venue_address)}</span>
         </li>
         {price && (
           <li className={ROW}>
@@ -47,7 +47,7 @@ export function EventRegisterCard({ event, hasTicket, isSignedIn, onRegister }: 
               <span className="material-symbols-rounded text-base text-brand">sell</span>
               Price
             </span>
-            <span className="font-semibold">{price}</span>
+            <span className={VALUE}>{price}</span>
           </li>
         )}
       </ul>
@@ -56,8 +56,7 @@ export function EventRegisterCard({ event, hasTicket, isSignedIn, onRegister }: 
         {label}
       </Button>
 
-      <div className="mt-5 flex flex-col gap-4 border-t pt-5">
-        <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />
+      <div className="mt-2.5">
         <AddToCalendar event={event} />
       </div>
     </div>

@@ -78,14 +78,32 @@ describe("EventRegisterCard", () => {
   });
 
   it("renders the venue row as the joined name and address", () => {
-    render(<EventRegisterCard event={baseEvent} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />);
+    const { container } = render(
+      <EventRegisterCard event={baseEvent} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />,
+    );
 
     expect(screen.getByText("Hall A, 123 Main St")).toBeTruthy();
     expect(screen.getByText(/PHP 250\.00/)).toBeTruthy();
+    expect(container.querySelectorAll(".text-right").length).toBeGreaterThan(0);
   });
 
-  it("includes the Add to Calendar control", () => {
+  it("places the Add to Calendar control directly below the register button", () => {
     render(<EventRegisterCard event={baseEvent} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />);
+
+    const register = screen.getByRole("button", { name: "Register" });
+    const calendar = screen.getByRole("button", { name: /add to calendar/i });
+    expect(register.compareDocumentPosition(calendar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps the Add to Calendar control even when the event already started", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, event_date: "2020-01-01", start_time: "00:00", end_time: "01:00" }}
+        hasTicket={false}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
 
     expect(screen.getByRole("button", { name: /add to calendar/i })).toBeTruthy();
   });

@@ -43,7 +43,6 @@ export async function POST(req: Request) {
   const profile = await speakerDao.create(supabase, {
     user_id: parsed.data.user_id,
     bio: parsed.data.bio ?? null,
-    photo_url: parsed.data.photo_url ?? null,
     designation: parsed.data.designation ?? null,
   });
 

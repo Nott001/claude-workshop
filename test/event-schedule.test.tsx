@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { EventSchedule } from "@/modules/events/components/event-schedule";
 
 const fetchMock = vi.fn();
@@ -57,18 +57,28 @@ describe("EventSchedule", () => {
     expect(screen.queryByText(/Speaker:/)).toBeTruthy();
   });
 
-  it("renders nothing when the event has no scheduled modules", async () => {
+  it("renders the card with a notice when the event has no scheduled modules", async () => {
     fetchMock.mockReturnValue(ok({ modules: [] }));
     render(<EventSchedule eventId="7" />);
 
-    await waitFor(() => expect(screen.queryByText("Course schedule")).toBeNull());
+    expect(await screen.findByText("No schedule yet.")).toBeTruthy();
+    expect(screen.getByText("Course schedule")).toBeTruthy();
   });
 
-  it("renders nothing when the schedule fetch fails", async () => {
+  it("renders the card with an error when the schedule fetch fails", async () => {
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
     render(<EventSchedule eventId="7" />);
 
-    await waitFor(() => expect(screen.queryByText("Course schedule")).toBeNull());
+    expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
+    expect(screen.getByText("Course schedule")).toBeTruthy();
+  });
+
+  it("renders the card with an error when the schedule fetch rejects", async () => {
+    fetchMock.mockRejectedValue(new Error("network down"));
+    render(<EventSchedule eventId="7" />);
+
+    expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
+    expect(screen.getByText("Course schedule")).toBeTruthy();
   });
 
   it("expands and collapses the speaker detail, toggling aria-expanded", async () => {

@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       {usesSidebar ? <StaffNavbar /> : <TopNavbar />}
       <ErrorBoundary>
-        <main className={cn("flex flex-1 flex-col overflow-auto pt-16", usesSidebar && "lg:pl-[72px]")}>
+        <main className={cn("flex flex-1 flex-col pt-16", usesSidebar && "lg:pl-[72px]")}>
           {children}
           <Footer />
         </main>
