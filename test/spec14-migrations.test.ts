@@ -12,7 +12,9 @@ const migrations = readdirSync("supabase/migrations")
   .filter((f) => f.endsWith(".sql"))
   .sort();
 
-const content = (name: string): string => readFileSync(join("supabase/migrations", name), "utf8");
+// Normalise line endings: the migrations are checked out with CRLF on Windows,
+// so any multi-line `toContain` would otherwise never match a fragment.
+const content = (name: string): string => readFileSync(join("supabase/migrations", name), "utf8").replace(/\r\n/g, "\n");
 
 /** The six USER-owned FKs the deletion migration must set to null. */
 const userFks = [
