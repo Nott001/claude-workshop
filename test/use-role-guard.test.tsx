@@ -17,6 +17,8 @@ import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 
 const admin = { id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 const attendee = { id: 2, role: ROLES.ATTENDEE, full_name: "Bo", email: "bo@example.com", profile_image_url: null };
+const speaker = { id: 3, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com", profile_image_url: null };
+const facilitator = { id: 4, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -27,14 +29,38 @@ afterEach(() => {
 });
 
 describe("useRoleGuard", () => {
-  it("denies a signed-in user whose role is below the minimum", async () => {
+  it("denies a signed-in user whose role is below the minimum, sending them to their role home", async () => {
     sessionValue.mockReturnValue({ user: attendee, loading: false, isSignedIn: true, signOut: vi.fn() });
 
     const { result } = renderHook(() => useRoleGuard(ROLES.ADMIN));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/access-denied"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/home"));
     expect(result.current.allowed).toBe(false);
     expect(result.current.pending).toBe(false);
+  });
+
+  it("routes a speaker who fails an admin guard to the speaker dashboard", async () => {
+    sessionValue.mockReturnValue({ user: speaker, loading: false, isSignedIn: true, signOut: vi.fn() });
+
+    renderHook(() => useRoleGuard(ROLES.ADMIN));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/speaker/dashboard"));
+  });
+
+  it("routes a facilitator who fails an admin guard to their assigned events page", async () => {
+    sessionValue.mockReturnValue({ user: facilitator, loading: false, isSignedIn: true, signOut: vi.fn() });
+
+    renderHook(() => useRoleGuard(ROLES.ADMIN));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/staff/events/assigned"));
+  });
+
+  it("routes an admin who fails an exact-facilitator guard to the staff event list", async () => {
+    sessionValue.mockReturnValue({ user: admin, loading: false, isSignedIn: true, signOut: vi.fn() });
+
+    renderHook(() => useRoleGuard(ROLES.FACILITATOR, { exactRole: true }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/staff/events"));
   });
 
   it("admits a signed-in user at or above the minimum", async () => {
@@ -89,7 +115,7 @@ describe("useRoleGuard", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("redirects to the given path instead of /access-denied when the role fails", async () => {
+  it("redirects to the given path instead of the role home when the role fails", async () => {
     sessionValue.mockReturnValue({ user: attendee, loading: false, isSignedIn: true, signOut: vi.fn() });
 
     const { result } = renderHook(() => useRoleGuard(ROLES.ADMIN, { redirectTo: "/staff/events" }));

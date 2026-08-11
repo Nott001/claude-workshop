@@ -16,7 +16,7 @@ const TABS: { key: FilterTab; label: string }[] = [
 export function AssignedEventListPage() {
   // Exact facilitator, not min-role: an admin clears a facilitator minimum, but
   // the server hands admins every event and this page must not leak that.
-  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { redirectTo: "/staff/events", exactRole: true });
+  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { exactRole: true });
   const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList({
     upcomingIncludesDrafts: true,
   });

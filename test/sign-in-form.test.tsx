@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
@@ -21,6 +22,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 function fillAndSubmit() {
@@ -29,9 +31,17 @@ function fillAndSubmit() {
   fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 }
 
+function signInAs(role: string) {
+  signInWithPassword.mockResolvedValue({ error: null });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 1, role }) }));
+  render(<SignInForm />);
+  fillAndSubmit();
+}
+
 describe("SignInForm redirect_url plumbing", () => {
   it("navigates to redirect_url after a successful sign-in", async () => {
     signInWithPassword.mockResolvedValue({ error: null });
+    vi.stubGlobal("fetch", vi.fn());
 
     render(<SignInForm redirectUrl="/events/5" />);
     fillAndSubmit();
@@ -39,19 +49,38 @@ describe("SignInForm redirect_url plumbing", () => {
     await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith("/events/5"));
   });
 
-  it("falls back to /events without a redirect_url", async () => {
-    signInWithPassword.mockResolvedValue({ error: null });
-
-    render(<SignInForm />);
-    fillAndSubmit();
-
-    await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith("/events"));
-  });
-
   it("threads redirect_url into the sign-up cross link", () => {
     render(<SignInForm redirectUrl="/events/5" />);
 
     const link = screen.getByRole("link", { name: /sign up/i });
     expect(link.getAttribute("href")).toBe("/sign-up?redirect_url=%2Fevents%2F5");
+  });
+});
+
+describe("SignInForm role-based destination", () => {
+  it.each([
+    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.ATTENDEE, "/home"],
+    [ROLES.ADMIN, "/staff/events"],
+    [ROLES.SUPER_ADMIN, "/staff/events"],
+    [ROLES.FACILITATOR, "/staff/events/assigned"],
+  ])("sends %s to %s", async (role, dest) => {
+    signInAs(role);
+    await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith(dest));
+  });
+
+  it("sends an unmapped role to the root rather than nowhere", async () => {
+    signInAs("wizard");
+    await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith("/"));
+  });
+
+  it("falls back to the root when the role cannot be resolved", async () => {
+    signInWithPassword.mockResolvedValue({ error: null });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+
+    render(<SignInForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith("/"));
   });
 });
