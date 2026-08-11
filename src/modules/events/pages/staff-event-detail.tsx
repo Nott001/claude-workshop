@@ -2,33 +2,33 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { cn } from "@/shared/lib/utils";
 import { parseLocalDateTime } from "@/shared/lib/date-utils";
-import { LoadMoreButton } from "@/shared/components/load-more";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { useSurveyStatus } from "@/modules/surveys/lib/use-survey-status";
 import type { CourseSpeaker } from "@/modules/courses/lib/types";
+import type { EventWithCourse } from "@/modules/events/lib/types";
 import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
+import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
+import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 
-const TAB_KEYS = ["overview", "details", "course", "kiosk", "speakers", "surveys"] as const;
+const TAB_KEYS = ["overview", "course", "kiosk", "surveys"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: "overview", label: "Overview" },
-  { key: "details", label: "Event Details", adminOnly: true },
   { key: "course", label: "Course" },
   { key: "kiosk", label: "Kiosk" },
-  { key: "speakers", label: "Speakers", adminOnly: true },
   { key: "surveys", label: "Surveys", adminOnly: true },
 ];
 
@@ -56,8 +56,152 @@ function SectionCard({
   );
 }
 
+interface FacilitatorCandidate {
+  id: number;
+  full_name: string;
+  email: string;
+}
+
+function FacilitatorAssignments({ eventId, initialIds }: { eventId: string; initialIds: number[] }) {
+  const [ids, setIds] = useState<number[]>(initialIds);
+  const [candidates, setCandidates] = useState<FacilitatorCandidate[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/facilitators")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        if (!cancelled) setCandidates(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCandidates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function sync(next: number[]): Promise<boolean> {
+    if (saving) return false;
+    setSaving(true);
+    setError(null);
+    const res = await fetch(`/api/events/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ facilitator_ids: next }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setError(body?.error?.message ?? "Failed to update facilitators");
+      setSaving(false);
+      return false;
+    }
+    setIds(next);
+    setSaving(false);
+    return true;
+  }
+
+  async function handleAdd() {
+    if (!selectedId) return;
+    const id = Number(selectedId);
+    if (ids.includes(id)) return;
+    if (await sync([...ids, id])) setSelectedId("");
+  }
+
+  async function handleRemove(id: number) {
+    if (!confirm("Remove this facilitator from the event?")) return;
+    await sync(ids.filter((fid) => fid !== id));
+  }
+
+  const known = candidates.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, name: c.full_name, detail: c.email }));
+  // A facilitator who was re-roled after assignment still appears, just unnamed.
+  const unknown = ids
+    .filter((id) => !candidates.some((c) => c.id === id))
+    .map((id) => ({ id, name: `User #${id}`, detail: undefined }));
+  const assigned: AssignmentRow[] = [...known, ...unknown];
+  const available: AssignmentRow[] = candidates
+    .filter((c) => !ids.includes(c.id))
+    .map((c) => ({ id: c.id, name: c.full_name, detail: c.email }));
+
+  return (
+    <div>
+      {error && <p className="mb-3 text-xs text-error">{error}</p>}
+      <AssignmentTable
+        assigned={assigned}
+        candidates={available}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onAdd={handleAdd}
+        onRemove={handleRemove}
+        addButtonLabel={saving ? "Saving..." : "Assign"}
+        candidatePlaceholder="Select a facilitator..."
+        emptyLabel="No facilitators assigned to this event."
+        allAssignedLabel="Every facilitator is assigned to this event."
+      />
+    </div>
+  );
+}
+
+function SpeakerAssignments({ speakers }: { speakers: ReturnType<typeof useEventSpeakers> }) {
+  const {
+    assignments,
+    allProfiles,
+    loading,
+    error,
+    selectedProfileId,
+    setSelectedProfileId,
+    availableProfiles,
+    profilesLoadingMore,
+    profilesHasMore,
+    loadMoreProfiles,
+    handleAssign,
+    handleRemove,
+  } = speakers;
+
+  const assigned: AssignmentRow[] = assignments.map((a) => {
+    const profile = allProfiles.find((p) => p.id === a.speaker_profile_id);
+    return {
+      id: a.speaker_profile_id,
+      name: a.SPEAKER_PROFILE?.USER?.full_name ?? profile?.USER?.full_name ?? `Speaker #${a.speaker_profile_id}`,
+      detail: a.SPEAKER_PROFILE?.designation ?? profile?.USER?.email ?? undefined,
+    };
+  });
+
+  const candidates: AssignmentRow[] = availableProfiles.map((p) => ({
+    id: p.id,
+    name: p.USER?.full_name ?? `Speaker #${p.id}`,
+    detail: p.designation ?? p.USER?.email ?? undefined,
+  }));
+
+  return (
+    <div>
+      {error && <p className="mb-3 text-xs text-error">{error}</p>}
+      <AssignmentTable
+        loading={loading}
+        assigned={assigned}
+        candidates={candidates}
+        selectedId={selectedProfileId}
+        onSelect={setSelectedProfileId}
+        onAdd={() => void handleAssign({ preventDefault: () => {} } as React.FormEvent)}
+        onRemove={handleRemove}
+        addButtonLabel="Assign"
+        candidatePlaceholder="Select a speaker..."
+        emptyLabel="No speakers assigned to this event."
+        allAssignedLabel="Every speaker is assigned to this event."
+        candidatesLoadingMore={profilesLoadingMore}
+        candidatesHasMore={profilesHasMore}
+        onLoadMoreCandidates={loadMoreProfiles}
+      />
+    </div>
+  );
+}
+
 function OverviewSection({
   event,
+  eventId,
   userRole,
   publishing,
   publishError,
@@ -65,8 +209,10 @@ function OverviewSection({
   handlePublish,
   handleDelete,
   attendeeCount,
+  speakers,
 }: {
-  event: NonNullable<ReturnType<typeof useEventDetail>["event"]>;
+  event: NonNullable<ReturnType<typeof useEventDetail>["event"]> & { facilitator_ids?: number[] };
+  eventId: string;
   userRole: UserRole | null;
   publishing: boolean;
   publishError: string | null;
@@ -74,6 +220,7 @@ function OverviewSection({
   handlePublish: () => void;
   handleDelete: () => void;
   attendeeCount: number | undefined;
+  speakers: ReturnType<typeof useEventSpeakers>;
 }) {
   const router = useRouter();
   const isAdmin = hasMinRole(userRole, ROLES.ADMIN);
@@ -81,56 +228,81 @@ function OverviewSection({
   if (!hasMinRole(userRole, ROLES.FACILITATOR)) return null;
 
   return (
-    <SectionCard title="Overview" icon="space_dashboard">
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-fg">Attendees</span>
-          <span className="font-semibold text-fg">{attendeeCount ?? 0}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-fg">Status</span>
-          <span className="font-semibold text-fg">{event.status}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-fg">Price</span>
-          <span className="font-semibold text-fg">
-            {event.currency} {event.price}
-          </span>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <SectionCard title="Overview" icon="space_dashboard">
+        {event.description && <p className="mb-4 text-sm leading-relaxed text-fg">{event.description}</p>}
 
-      {publishError && <p className="mb-3 mt-3 text-xs text-error">{publishError}</p>}
-      {deleteError && <p className="mb-3 mt-3 text-xs text-error">{deleteError}</p>}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-muted p-3">
+            <p className="text-lg font-bold text-fg">{attendeeCount ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-fg">Attendees</p>
+          </div>
+          <div className="rounded-lg bg-muted p-3">
+            <p className="text-lg font-bold text-fg">{event.status}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-fg">Status</p>
+          </div>
+          <div className="rounded-lg bg-muted p-3">
+            <p className="text-lg font-bold text-fg">
+              {event.currency} {event.price}
+            </p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-fg">Price</p>
+          </div>
+        </div>
 
-      {/* Publish and Delete are admin-only: the server refuses them for facilitators. */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {isAdmin && event.status === "draft" && (
-          <button
-            onClick={handlePublish}
-            disabled={publishing}
-            className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-          >
-            {publishing ? "Publishing..." : "Publish"}
-          </button>
-        )}
-        {event.COURSE?.id && (
-          <button
-            onClick={() => router.push(`/courses/${event.COURSE?.id}/room`)}
-            className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
-          >
-            Enter Course Room
-          </button>
-        )}
-        {isAdmin && (
-          <button
-            onClick={handleDelete}
-            className="rounded-lg border border-error/30 px-4 py-2 text-xs font-semibold text-error hover:bg-error/10"
-          >
-            Delete
-          </button>
-        )}
-      </div>
-    </SectionCard>
+        {publishError && <p className="mb-3 mt-3 text-xs text-error">{publishError}</p>}
+        {deleteError && <p className="mb-3 mt-3 text-xs text-error">{deleteError}</p>}
+
+        {/* Publish and Delete are admin-only: the server refuses them for facilitators. */}
+        <div className="mt-5 flex flex-wrap gap-2">
+          {isAdmin && event.status === "draft" && (
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
+            >
+              {publishing ? "Publishing..." : "Publish"}
+            </button>
+          )}
+          {event.COURSE?.id && (
+            <button
+              onClick={() => router.push(`/courses/${event.COURSE?.id}/room`)}
+              className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
+            >
+              Enter Course Room
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              className="rounded-lg border border-error/30 px-4 py-2 text-xs font-semibold text-error hover:bg-error/10"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </SectionCard>
+
+      {isAdmin && (
+        <>
+          <SectionCard title="Cover image" icon="image">
+            <p className="mb-3 text-sm text-muted-fg">Shown on event cards across the site.</p>
+            <CoverImageUpload eventId={eventId} initialUrl={event.cover_image_url} />
+          </SectionCard>
+
+          <SectionCard title="Event details" icon="edit_note">
+            <EditEventForm eventId={eventId} initialData={event} backHref={`/staff/events/${eventId}`} />
+          </SectionCard>
+
+          <SectionCard title="Facilitators" icon="groups">
+            <FacilitatorAssignments eventId={eventId} initialIds={event.facilitator_ids ?? []} />
+          </SectionCard>
+
+          <SectionCard title="Speakers" icon="record_voice_over">
+            <SpeakerAssignments speakers={speakers} />
+          </SectionCard>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -151,9 +323,21 @@ export function CourseSection({
   eventStartTime: string | null;
   eventEndTime: string | null;
 }) {
+  const router = useRouter();
   const { course, loading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate(eventId);
+  const courseBuilder = useCourseCreate(eventId, course?.id);
+  const [managing, setManaging] = useState(false);
+  const seededRef = useRef(false);
   const isStaff = hasMinRole(userRole, ROLES.FACILITATOR);
+
+  // Seed the builder once with the existing course's modules so "Manage Course"
+  // edits real content instead of a blank canvas that would mint a new course.
+  useEffect(() => {
+    if (course && !seededRef.current) {
+      courseBuilder.setModules(course.MODULE);
+      seededRef.current = true;
+    }
+  }, [course, courseBuilder]);
 
   if (loading || speakersLoading) {
     return (
@@ -165,6 +349,27 @@ export function CourseSection({
 
   if (course) {
     const totalLessons = course.MODULE.reduce((sum, m) => sum + m.LESSONS.length, 0);
+
+    if (managing && canManageCourse) {
+      return (
+        <SectionCard title="Course" icon="school">
+          <button
+            onClick={() => setManaging(false)}
+            className="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
+          >
+            <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+            Back to summary
+          </button>
+          <CourseBuilderSection
+            builder={courseBuilder}
+            eventSpeakers={eventSpeakers}
+            eventStartTime={eventStartTime}
+            eventEndTime={eventEndTime}
+          />
+        </SectionCard>
+      );
+    }
+
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm font-semibold text-fg">{course.course_name}</p>
@@ -173,6 +378,23 @@ export function CourseSection({
           {course.MODULE.length} module{course.MODULE.length !== 1 ? "s" : ""} &middot; {totalLessons} lesson
           {totalLessons !== 1 ? "s" : ""}
         </p>
+
+        {canManageCourse && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              onClick={() => setManaging(true)}
+              className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
+            >
+              Manage Course
+            </button>
+            <button
+              onClick={() => router.push(`/courses/${course.id}/room`)}
+              className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"
+            >
+              Enter Course Room
+            </button>
+          </div>
+        )}
       </SectionCard>
     );
   }
@@ -197,85 +419,6 @@ export function CourseSection({
   return (
     <SectionCard title="Course" icon="school">
       <p className="text-sm text-muted-fg">Waiting for the speaker to create a course for this event.</p>
-    </SectionCard>
-  );
-}
-
-function SpeakersSection({ speakers, userRole }: { speakers: ReturnType<typeof useEventSpeakers>; userRole: UserRole | null }) {
-  const {
-    assignments,
-    allProfiles,
-    loading,
-    selectedProfileId,
-    setSelectedProfileId,
-    availableProfiles,
-    profilesLoadingMore,
-    profilesHasMore,
-    loadMoreProfiles,
-    handleAssign,
-    handleRemove,
-  } = speakers;
-
-  if (!hasMinRole(userRole, ROLES.ADMIN)) return null;
-
-  return (
-    <SectionCard title="Speakers" icon="record_voice_over">
-      {loading ? (
-        <p className="text-sm text-muted-fg">Loading speakers...</p>
-      ) : (
-        <>
-          {assignments.length > 0 && (
-            <ul className="mb-4 space-y-2">
-              {assignments.map((a) => {
-                const userInfo = allProfiles.find((p) => p.id === a.speaker_profile_id);
-                return (
-                  <li
-                    key={a.speaker_profile_id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2"
-                  >
-                    <span className="text-sm text-fg">{userInfo?.USER?.full_name ?? `Speaker #${a.speaker_profile_id}`}</span>
-                    <button onClick={() => handleRemove(a.speaker_profile_id)} className="text-xs text-error hover:underline">
-                      Remove
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {availableProfiles.length > 0 && (
-            <form onSubmit={handleAssign} className="flex gap-2">
-              <select
-                value={selectedProfileId}
-                onChange={(e) => setSelectedProfileId(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg"
-              >
-                <option value="">Select a speaker...</option>
-                {availableProfiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.USER?.full_name ?? `Speaker #${p.id}`}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={!selectedProfileId}
-                className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-              >
-                Assign
-              </button>
-            </form>
-          )}
-
-          {availableProfiles.length === 0 && assignments.length > 0 && (
-            <p className="text-xs text-muted-fg">All speakers are assigned to this event.</p>
-          )}
-
-          {profilesHasMore && (
-            <LoadMoreButton loading={profilesLoadingMore} onLoadMore={loadMoreProfiles} label="Load more speakers" />
-          )}
-        </>
-      )}
     </SectionCard>
   );
 }
@@ -520,8 +663,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
     }))
     .filter((speaker): speaker is CourseSpeaker => speaker.full_name !== null);
 
-  // Seeded once from the C-02 `?tab=details` edit link; a role that cannot use
-  // the requested tab falls back to Overview without rewriting the state.
+  // The edit form lives under Overview, so any tab query falls back safely there.
   const [activeTab, setActiveTab] = useState<TabKey>(
     TAB_KEYS.includes(initialTab as TabKey) ? (initialTab as TabKey) : "overview",
   );
@@ -553,9 +695,11 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   const isAssignedFacilitator = event.EVENT_FACILITATOR?.some((f) => f.user_id === user?.id) ?? false;
   const canManageCourse = isAdmin || isAssignedFacilitator;
 
+  const staffEvent = event as EventWithCourse & { facilitator_ids?: number[] };
+
   return (
     <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1200px] px-5 py-12 sm:px-8">
+      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
         <button
           onClick={() => router.push(backHref)}
           className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
@@ -564,20 +708,9 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
           Back to Events
         </button>
 
-        <div className="mb-8">
-          <span className="mb-2 inline-flex items-center rounded-full bg-info/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-brand">
-            {badgeProps?.label ?? event.status}
-          </span>
-          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-fg">{event.title}</h1>
-          <p className="mt-2 text-sm text-muted-fg">
-            {event.event_date} &middot; {event.start_time} - {event.end_time}
-          </p>
-          {event.venue_name && <p className="mt-1 text-sm text-muted-fg">{event.venue_name}</p>}
-        </div>
+        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
 
-        {event.description && <p className="mb-8 text-sm leading-relaxed text-fg">{event.description}</p>}
-
-        <div className="mb-6 flex gap-1.5 border-b border-border pb-3">
+        <div className="mb-6 mt-8 flex gap-1.5 border-b border-border pb-3">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -596,7 +729,8 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
 
         {currentTab === "overview" && (
           <OverviewSection
-            event={event}
+            event={staffEvent}
+            eventId={eventId}
             userRole={userRole}
             publishing={publishing}
             publishError={publishError}
@@ -604,17 +738,8 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
             handlePublish={handlePublish}
             handleDelete={handleDelete}
             attendeeCount={attendeesTotal}
+            speakers={speakers}
           />
-        )}
-
-        {currentTab === "details" && (
-          <div className="space-y-6">
-            <SectionCard title="Cover image" icon="image">
-              <p className="mb-3 text-sm text-muted-fg">Shown on event cards across the site.</p>
-              <CoverImageUpload eventId={eventId} initialUrl={event.cover_image_url} />
-            </SectionCard>
-            <EditEventForm eventId={eventId} initialData={event} backHref={`/staff/events/${eventId}`} />
-          </div>
         )}
 
         {currentTab === "course" && (
@@ -630,8 +755,6 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         )}
 
         {currentTab === "kiosk" && <KioskSection eventId={eventId} userRole={userRole} />}
-
-        {currentTab === "speakers" && <SpeakersSection speakers={speakers} userRole={userRole} />}
 
         {currentTab === "surveys" && <SurveysSection event={event} userRole={userRole} />}
       </div>

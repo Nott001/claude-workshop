@@ -80,7 +80,7 @@ export function EventTable({ events, basePath = "/staff/events", showKiosk = fal
                     </Link>
                   )}
                   {showEdit && (
-                    <Link href={`${basePath}/${event.id}?tab=details`} className="text-fg hover:text-brand hover:underline">
+                    <Link href={`${basePath}/${event.id}`} className="text-fg hover:text-brand hover:underline">
                       Edit
                     </Link>
                   )}
