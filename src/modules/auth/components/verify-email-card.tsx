@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/shared/components/button";
+import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 
-export function VerifyEmailCard({ email }: { email: string }) {
+export function VerifyEmailCard({ email, redirectUrl }: { email: string; redirectUrl?: string | null }) {
   const [resent, setResent] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -18,7 +19,7 @@ export function VerifyEmailCard({ email }: { email: string }) {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
+      options: { emailRedirectTo: `${window.location.origin}/api/auth/callback${redirectUrlParam(redirectUrl)}` },
     });
 
     if (!error) setResent(true);
@@ -44,7 +45,10 @@ export function VerifyEmailCard({ email }: { email: string }) {
         </Button>
 
         <p className="text-sm text-muted-fg">
-          <Link href="/sign-in" className="font-medium text-brand hover:text-brand/80 transition-colors">
+          <Link
+            href={`/sign-in${redirectUrlParam(redirectUrl)}`}
+            className="font-medium text-brand hover:text-brand/80 transition-colors"
+          >
             Back to sign in
           </Link>
         </p>
