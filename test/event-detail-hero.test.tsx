@@ -62,17 +62,6 @@ describe("EventDetailHero", () => {
     expect(screen.queryByText(/venue/i)).toBeNull();
   });
 
-  it("shows the speaker fact only when a speaker name is provided", () => {
-    renderHero({ speakerName: "Jane Smith" });
-
-    expect(screen.getByText("Jane Smith")).toBeTruthy();
-
-    cleanup();
-    renderHero();
-
-    expect(screen.queryByText(/speaker/i)).toBeNull();
-  });
-
   it("never mentions seats", () => {
     renderHero();
 

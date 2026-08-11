@@ -44,17 +44,11 @@ export function EventDetailPage() {
   const speakers = event.EVENT_SPEAKER.map((entry) => entry.SPEAKER_PROFILE).filter(
     (profile): profile is NonNullable<typeof profile> => profile != null,
   );
-  const speakerName = speakers.map((s) => s.USER?.full_name ?? null).find((name) => name != null) ?? null;
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
-        <EventDetailHero
-          event={event}
-          badgeLabel={badgeProps?.label ?? event.status}
-          speakerName={speakerName}
-          onRegister={handleRegister}
-        />
+        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} onRegister={handleRegister} />
         <div className="mt-8 grid gap-6 lg:grid-cols-[65%_35%]">
           <div className="min-w-0 space-y-6">
             {event.description && (

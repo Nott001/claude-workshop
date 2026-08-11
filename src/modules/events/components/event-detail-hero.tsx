@@ -12,7 +12,6 @@ interface EventDetailHeroProps {
     "title" | "event_date" | "start_time" | "end_time" | "cover_image_url" | "venue_name" | "venue_address"
   >;
   badgeLabel: string;
-  speakerName?: string | null;
   onRegister: () => void;
 }
 
@@ -28,7 +27,7 @@ function FactRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-export function EventDetailHero({ event, badgeLabel, speakerName, onRegister }: EventDetailHeroProps) {
+export function EventDetailHero({ event, badgeLabel, onRegister }: EventDetailHeroProps) {
   const duration = formatDuration(event.start_time, event.end_time);
   const venue = formatVenue(event.venue_name, event.venue_address);
 
@@ -38,7 +37,6 @@ export function EventDetailHero({ event, badgeLabel, speakerName, onRegister }: 
   ];
   if (duration) facts.push({ icon: "hourglass_empty", label: "Duration", value: duration });
   if (venue) facts.push({ icon: "location_on", label: "Venue", value: venue });
-  if (speakerName) facts.push({ icon: "person", label: "Speaker", value: speakerName });
 
   return (
     <div className="grid items-stretch gap-6 lg:grid-cols-2">
@@ -56,7 +54,7 @@ export function EventDetailHero({ event, badgeLabel, speakerName, onRegister }: 
         </span>
       </div>
 
-      <div className="flex flex-col justify-center">
+      <div className="flex flex-col justify-center rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)] sm:p-7">
         <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-3xl">{event.title}</h1>
         <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
           {facts.map((fact) => (
