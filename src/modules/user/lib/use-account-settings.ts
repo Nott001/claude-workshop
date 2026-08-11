@@ -7,6 +7,7 @@ import { getBrowserClient } from "@/shared/db/browser-client";
 import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
 import { evaluatePassword } from "@/shared/lib/password-policy";
+import { verifyPassword } from "@/modules/auth/lib/verify-password";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
@@ -179,6 +180,19 @@ export function useAccountSettings() {
     }
 
     setSavingPassword(true);
+
+    // The field asking for it was decorative until now: the provider changes a
+    // password on the strength of the session alone, so an open laptop or a
+    // stolen token was enough to take an account over, and the owner would find
+    // themselves locked out of it. Proving the current password is what makes
+    // that a real gate. Checked after the free local rules and before anything
+    // is written, so a weak new password costs no round trip and a wrong
+    // current one changes nothing.
+    if (!currentUser?.email || !(await verifyPassword(currentUser.email, currentPassword))) {
+      notify({ title: "Error", description: "That is not your current password.", type: "error" });
+      setSavingPassword(false);
+      return;
+    }
 
     const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
     if (authError) {

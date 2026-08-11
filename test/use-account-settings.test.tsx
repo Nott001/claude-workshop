@@ -15,6 +15,9 @@ const sessionUpdateUser = vi.fn();
 const { checkMailDomain } = vi.hoisted(() => ({ checkMailDomain: vi.fn() }));
 vi.mock("@/shared/integrations/dns/mail-domain", () => ({ checkMailDomain }));
 
+const { verifyPassword } = vi.hoisted(() => ({ verifyPassword: vi.fn() }));
+vi.mock("@/modules/auth/lib/verify-password", () => ({ verifyPassword }));
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -41,6 +44,7 @@ const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 beforeEach(() => {
   vi.clearAllMocks();
   checkMailDomain.mockResolvedValue("deliverable");
+  verifyPassword.mockResolvedValue(true);
   sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
@@ -469,13 +473,13 @@ describe("changing the password", () => {
     });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewPassword("lovelace kettle brew"));
+    act(() => result.current.setNewPassword("adalovelace2026"));
     await act(async () => {
       await result.current.changePassword(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.description).toBe("Not your name or email address");
+    expect(result.current.toast?.description).toBe("Not mostly your name or email address");
   });
 
   it("passes a strong one through and clears the fields", async () => {
@@ -493,5 +497,94 @@ describe("changing the password", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.newPassword).toBe("");
     expect(result.current.toast?.title).toBe("Password updated");
+  });
+});
+
+describe("proving the current password", () => {
+  const STRONG = "the quiet kettle sings";
+
+  it("refuses the change when the current password is wrong, and writes nothing", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      title: "Error",
+      description: "That is not your current password.",
+      type: "error",
+    });
+  });
+
+  it("leaves both fields filled after a refusal, so nothing has to be retyped", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.currentPassword).toBe("not-my-password");
+    expect(result.current.newPassword).toBe(STRONG);
+    expect(result.current.savingPassword).toBe(false);
+  });
+
+  it("checks the password against the signed-in account", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).toHaveBeenCalledWith(speaker.email, "old-pass");
+    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
+  });
+
+  // The local rules cost nothing; the proof costs a round trip.
+  it("does not spend a round trip proving identity for a password that fails the rules", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword("short");
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses rather than checking when there is no signed-in email to check against", async () => {
+    sessionValue.mockReturnValue({ user: { ...speaker, email: null }, updateUser: sessionUpdateUser });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.type).toBe("error");
   });
 });

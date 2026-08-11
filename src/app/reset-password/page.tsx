@@ -9,6 +9,8 @@ const REQUIREMENTS = evaluatePassword("").rules.map((rule) => rule.label);
 const ERRORS: Record<string, string> = {
   weak_password: `That password does not meet the requirements: ${REQUIREMENTS.join("; ").toLowerCase()}.`,
   mismatch: "Those passwords did not match. Try again.",
+  personal_password:
+    "That password was too close to your name or email address. That link has now been used, so please request a new one.",
 };
 
 /**

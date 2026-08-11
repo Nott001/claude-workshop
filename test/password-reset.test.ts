@@ -146,6 +146,59 @@ describe("confirmPasswordReset", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
   });
 
+  // The rule needing an identity can only run once the token is verified, and
+  // verifying is what spends it — so this refusal cannot offer a retry.
+  it("refuses a password built from the account's own name, without setting it", async () => {
+    verifyOtp.mockResolvedValue({
+      data: { user: { id: "auth-1", email: "ada.lovelace@example.com", user_metadata: { full_name: "Ada Lovelace" } } },
+      error: null,
+    });
+
+    const result = await confirmPasswordReset(supabase, TOKEN, "adalovelace2026");
+
+    expect(result).toEqual({ ok: false, reason: "personal_password" });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("applies the identity rule against the email as well as the name", async () => {
+    verifyOtp.mockResolvedValue({
+      data: { user: { id: "auth-1", email: "kettlewright@example.com", user_metadata: {} } },
+      error: null,
+    });
+
+    const result = await confirmPasswordReset(supabase, TOKEN, "kettlewright tea");
+
+    expect(result).toEqual({ ok: false, reason: "personal_password" });
+  });
+
+  it("still sets a password that has nothing to do with the account", async () => {
+    verifyOtp.mockResolvedValue({
+      data: { user: { id: "auth-1", email: "ada.lovelace@example.com", user_metadata: { full_name: "Ada Lovelace" } } },
+      error: null,
+    });
+
+    const result = await confirmPasswordReset(supabase, TOKEN, "the quiet kettle sings");
+
+    expect(result).toEqual({ ok: true, authUserId: "auth-1" });
+    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
+  });
+
+  // Judged before verifying, so the link survives for another attempt.
+  it("refuses a common password without spending the token", async () => {
+    const result = await confirmPasswordReset(supabase, TOKEN, "password1234");
+
+    expect(result).toEqual({ ok: false, reason: "weak_password" });
+    expect(verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("copes with an account carrying no name at all", async () => {
+    verifyOtp.mockResolvedValue({ data: { user: { id: "auth-1", email: "ada@example.com" } }, error: null });
+
+    const result = await confirmPasswordReset(supabase, TOKEN, "the quiet kettle sings");
+
+    expect(result).toEqual({ ok: true, authUserId: "auth-1" });
+  });
+
   it("reports an invalid token without touching the password", async () => {
     verifyOtp.mockResolvedValue({ data: { user: null }, error: { message: "expired" } });
 

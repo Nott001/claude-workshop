@@ -121,6 +121,35 @@ function personalWords({ email, fullName }: PasswordContext): string[] {
 }
 
 /**
+ * How much of the password the account's own words account for.
+ *
+ * Proportion rather than mere presence, because the two cases a bare "contains
+ * your name" test cannot tell apart deserve opposite answers: a password that
+ * *is* the name is the guess an attacker targeting this person makes first,
+ * while a name that merely appears inside a long passphrase — `the bell tolls
+ * at dawn`, for someone called Bell — is a coincidence, and refusing it teaches
+ * people that the rules are arbitrary. The longest single match decides it, so
+ * overlapping words like an email local part and a surname cannot be counted
+ * twice against the same letters.
+ */
+function personalShare(reduced: string[], context: PasswordContext): number {
+  const words = personalWords(context);
+  let share = 0;
+
+  for (const candidate of reduced) {
+    if (!candidate) continue;
+    for (const word of words) {
+      if (candidate.includes(word)) share = Math.max(share, word.length / candidate.length);
+    }
+  }
+
+  return share;
+}
+
+/** Half. Past this the account's own words are not in the password, they are it. */
+const PERSONAL_SHARE_LIMIT = 0.5;
+
+/**
  * Every rule, each with whether this password meets it, so the form can list
  * them as the user types and the server can refuse on exactly the same answer.
  */
@@ -157,8 +186,8 @@ export function evaluatePassword(password: string, context: PasswordContext = {}
     },
     {
       id: "not-personal",
-      label: "Not your name or email address",
-      passed: !personalWords(context).some((word) => reduced.some((candidate) => candidate.includes(word))),
+      label: "Not mostly your name or email address",
+      passed: personalShare(reduced, context) < PERSONAL_SHARE_LIMIT,
     },
   ];
 

@@ -39,7 +39,15 @@ export async function POST(req: Request): Promise<NextResponse> {
   const result = await confirmPasswordReset(supabase, token, password);
 
   if (!result.ok) {
-    return failed(result.reason === "weak_password" ? "weak_password" : "invalid_reset", token);
+    // personal_password is deliberately not retryable: it can only be judged
+    // after the token has been verified, and verifying is what spends it.
+    const error =
+      result.reason === "weak_password"
+        ? "weak_password"
+        : result.reason === "personal_password"
+          ? "personal_password"
+          : "invalid_reset";
+    return failed(error, token);
   }
 
   // Service client: the audit trail is written under the app's own identity,
