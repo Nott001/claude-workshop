@@ -53,7 +53,7 @@ describe("TopNavbar role nav items", () => {
     renderAs(ROLES.ATTENDEE);
     expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
     for (const a of within(screen.getByRole("navigation", { name: "Primary navigation" })).getAllByRole("link")) {
-      expect(a.getAttribute("href")).not.toMatch(/^\/staff|\/speaker/);
+      expect(a.getAttribute("href")).not.toMatch(/^\/(staff|speaker)/);
     }
   });
 
