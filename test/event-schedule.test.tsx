@@ -22,12 +22,15 @@ afterEach(() => {
 });
 
 describe("EventSchedule", () => {
-  it("leads the timeline with the event's own start and end time", async () => {
+  it("leads the timeline with the event start and closes it with the event end", async () => {
     fetchMock.mockReturnValue(ok({ modules: [] }));
     render(<EventSchedule eventId="7" event={event} />);
 
-    expect(await screen.findByText("Event")).toBeTruthy();
-    expect(screen.getByText("9:00 AM – 5:00 PM")).toBeTruthy();
+    expect(await screen.findByText("Event starts")).toBeTruthy();
+    expect(screen.getByText("9:00 AM")).toBeTruthy();
+    expect(screen.getByText("Event ends")).toBeTruthy();
+    expect(screen.getByText("5:00 PM")).toBeTruthy();
+    expect(screen.queryByText("9:00 AM – 5:00 PM")).toBeNull();
   });
 
   it("renders a row per module with its full time window and inline speaker", async () => {
@@ -50,12 +53,12 @@ describe("EventSchedule", () => {
 
   it("shows just the start edge when the module has no end time", async () => {
     fetchMock.mockReturnValue(
-      ok({ modules: [{ id: 1, module_name: "Intro", start_time: "09:00", end_time: null, speaker: null }] }),
+      ok({ modules: [{ id: 1, module_name: "Intro", start_time: "11:00", end_time: null, speaker: null }] }),
     );
     render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("Intro")).toBeTruthy();
-    expect(screen.getByText("9:00 AM")).toBeTruthy();
+    expect(screen.getByText("11:00 AM")).toBeTruthy();
   });
 
   it("renders a name-only row when the module has no time", async () => {
@@ -65,7 +68,7 @@ describe("EventSchedule", () => {
     render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("No window")).toBeTruthy();
-    expect(screen.queryByText("9:00 AM")).toBeNull();
+    expect(screen.getAllByText("9:00 AM").length).toBe(1);
   });
 
   it("omits the speaker line for a module without one", async () => {

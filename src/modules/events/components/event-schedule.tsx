@@ -10,6 +10,18 @@ function moduleWindow(item: EventScheduleItem): string | null {
   return null;
 }
 
+function TimelineEntry({ time, title, last }: { time: string; title: string; last?: boolean }) {
+  return (
+    <li className="grid grid-cols-[8rem_1fr] gap-x-4">
+      <span className="pt-px text-right text-xs font-bold text-brand">{time}</span>
+      <div className={`relative border-l-2 pl-6 ${last ? "border-transparent" : "border-border pb-5"}`}>
+        <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
+        <span className="text-sm font-bold">{title}</span>
+      </div>
+    </li>
+  );
+}
+
 export function EventSchedule({
   eventId,
   event,
@@ -61,36 +73,32 @@ export function EventSchedule({
         <p className="mt-4 text-sm text-error">Couldn&apos;t load the schedule.</p>
       ) : (
         <ol className="mt-5">
-          <li className="relative border-l-2 border-border pl-8 pb-5">
-            <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
-            <div className="flex items-baseline gap-3">
-              <span className="w-32 shrink-0 text-xs font-bold text-brand">
-                {formatTime(event.start_time)} – {formatTime(event.end_time)}
-              </span>
-              <span className="flex-1 text-sm font-bold">Event</span>
-            </div>
-          </li>
+          <TimelineEntry time={formatTime(event.start_time)} title="Event starts" />
           {modules && modules.length === 0 ? (
-            <p className="text-sm text-muted-fg">No schedule yet.</p>
+            <li className="grid grid-cols-[8rem_1fr] gap-x-4">
+              <span />
+              <div className="border-l-2 border-border pb-5 pl-6">
+                <p className="text-sm text-muted-fg">No schedule yet.</p>
+              </div>
+            </li>
           ) : (
             (modules ?? []).map((item) => {
               const window = moduleWindow(item);
               return (
-                <li key={item.id} className="relative border-l-2 border-border pl-8 pb-6 last:border-transparent last:pb-0">
-                  <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
-                  <div className="flex items-start gap-3">
-                    {window && <span className="w-32 shrink-0 pt-px text-xs font-bold text-brand">{window}</span>}
-                    <span className="min-w-0 flex-1 text-sm font-semibold">
-                      <span className="block">{item.module_name}</span>
-                      {item.speaker && (
-                        <span className="mt-0.5 block text-xs font-normal text-muted-fg">Speaker: {item.speaker}</span>
-                      )}
-                    </span>
+                <li key={item.id} className="grid grid-cols-[8rem_1fr] gap-x-4">
+                  <span className="pt-px text-right text-xs font-bold text-brand">{window ?? ""}</span>
+                  <div className="relative border-l-2 border-border pb-6 pl-6">
+                    <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
+                    <span className="block text-sm font-semibold">{item.module_name}</span>
+                    {item.speaker && (
+                      <span className="mt-0.5 block text-xs font-normal text-muted-fg">Speaker: {item.speaker}</span>
+                    )}
                   </div>
                 </li>
               );
             })
           )}
+          <TimelineEntry time={formatTime(event.end_time)} title="Event ends" last />
         </ol>
       )}
     </div>
