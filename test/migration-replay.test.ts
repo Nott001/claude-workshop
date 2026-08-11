@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * SPEC-14 pins migration replay order by removing duplicate numbers (00009,
+ * Migration replay order was pinned by removing duplicate numbers (00009,
  * 00010 had two files each) and the user-deletion/sequence fixes, which a
  * scratch-DB dry-run would otherwise be the only place that caught. These
  * assertions cover the files and their key statements instead.
@@ -26,7 +26,7 @@ const userFks = [
   ["QA_MESSAGE", "user_id"],
 ] as const;
 
-describe("SPEC-14 migrations", () => {
+describe("migration replay", () => {
   it("replays every migration exactly once under a unique number", () => {
     const prefixes = migrations.map((f) => f.slice(0, 5));
     expect(new Set(prefixes).size).toBe(migrations.length);

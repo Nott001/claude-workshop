@@ -54,7 +54,7 @@ const KIOSK_OWNERS = new Set([
 ]);
 const KIOSK_TOKENS = /\b(attendees-panel|AttendeesPanel|qr-scanner|QrScanner|subscribeToCheckins)\b/;
 
-describe("SPEC-14 dead code boundary", () => {
+describe("dead code boundary", () => {
   it("never references the four deleted shared components", () => {
     expect(namedImports(DELETED_COMPONENTS)).toEqual([]);
   });

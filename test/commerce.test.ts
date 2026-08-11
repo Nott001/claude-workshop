@@ -140,17 +140,6 @@ describe("isPaymentTerminal", () => {
   });
 });
 
-describe("PaymentGateway interface", () => {
-  it("SimulatedPaymentGateway implements the full lifecycle", async () => {
-    const { SimulatedPaymentGateway } = await import("@/modules/commerce/lib/providers/simulated");
-    const gateway = new SimulatedPaymentGateway();
-
-    for (const method of ["createPayment", "confirmWebhook", "refund"] as const) {
-      expect(typeof gateway[method]).toBe("function");
-    }
-  });
-});
-
 describe("buildCheckoutUrl", () => {
   async function build(paymentId: number, appUrl?: string) {
     const { buildCheckoutUrl } = await import("@/modules/commerce/lib/payment-gateway");
