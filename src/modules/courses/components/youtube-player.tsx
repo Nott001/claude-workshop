@@ -66,12 +66,24 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
   return <div ref={containerRef} className="size-full" />;
 }
 
+// Matched whole, never as a substring: `host.includes("youtube.com")` also
+// accepts `youtube.com.attacker.example` and `notyoutube.com`.
+const WATCH_HOSTS = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+  "www.youtube-nocookie.com",
+]);
+const SHORT_HOSTS = new Set(["youtu.be", "www.youtu.be"]);
+
 export function getYouTubeVideoId(url: string): string | null {
   try {
     const u = new URL(url);
-    const host = u.hostname;
-    if (!host.includes("youtube.com") && !host.includes("youtu.be")) return null;
-    if (host.includes("youtu.be")) return u.pathname.slice(1).split("/")[0] || null;
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    const host = u.hostname.toLowerCase();
+    if (SHORT_HOSTS.has(host)) return u.pathname.slice(1).split("/")[0] || null;
+    if (!WATCH_HOSTS.has(host)) return null;
     if (u.pathname === "/watch") return u.searchParams.get("v");
     if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2] || null;
   } catch {

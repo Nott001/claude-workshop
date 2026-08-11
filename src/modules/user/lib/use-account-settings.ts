@@ -8,7 +8,7 @@ import { postUpload } from "@/shared/integrations/storage/upload-client";
 export type ToastData = { title: string; description: string; type: "success" | "error" };
 
 export function useAccountSettings() {
-  const { user: currentUser } = useSession();
+  const { user: currentUser, updateUser } = useSession();
   const supabase = getBrowserClient();
 
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -100,7 +100,7 @@ export function useAccountSettings() {
         return;
       }
 
-      window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl: result.url } }));
+      updateUser({ profile_image_url: result.url });
       notify({ title: "Photo updated", description: "Your profile photo has been changed.", type: "success" });
     } finally {
       setUploading(false);

@@ -18,6 +18,11 @@ interface SessionContextValue {
   isLoaded: boolean;
   isSignedIn: boolean;
   signOut: () => Promise<void>;
+  /**
+   * Merges a patch into the in-memory user so a mutation that already landed
+   * server-side shows up everywhere the session is read without a refetch.
+   */
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const SessionContext = createContext<SessionContextValue>({
@@ -26,6 +31,7 @@ const SessionContext = createContext<SessionContextValue>({
   isLoaded: false,
   isSignedIn: false,
   signOut: async () => {},
+  updateUser: () => {},
 });
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -109,8 +115,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     router.replace("/");
   };
 
+  const updateUser = (patch: Partial<AuthUser>) => setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+
   return (
-    <SessionContext.Provider value={{ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut }}>
+    <SessionContext.Provider value={{ user, loading, isLoaded: !loading, isSignedIn: !!user, signOut, updateUser }}>
       {children}
     </SessionContext.Provider>
   );
