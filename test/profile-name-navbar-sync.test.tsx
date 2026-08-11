@@ -99,6 +99,13 @@ describe("saving a profile name", () => {
     const settings = harness();
     await waitFor(() => expect(navbarName()).toContain("Ada Lovelace"));
 
+    // The navbar paints as soon as the session resolves, which is before the
+    // avatar's own lookup has necessarily been issued. Letting mount settle
+    // first is what makes the baseline a count of startup rather than a race
+    // with it — taken too early, that lookup lands afterwards and reads as a
+    // refetch the save caused.
+    await act(async () => {});
+
     const fetchMock = vi.mocked(fetch);
     const meCallsBefore = fetchMock.mock.calls.filter((c) => c[1]?.method !== "PATCH").length;
 

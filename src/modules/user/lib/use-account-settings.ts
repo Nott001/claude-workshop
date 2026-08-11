@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import { getBrowserClient } from "@/shared/db/browser-client";
@@ -9,6 +9,10 @@ import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
+
+// Matches the provider's own minimum gap between messages, so the countdown
+// runs out at about the moment a second send would be accepted.
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function useAccountSettings() {
   const { user: currentUser, updateUser } = useSession();
@@ -35,6 +39,15 @@ export function useAccountSettings() {
   const [newEmail, setNewEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+
+  // One timeout per remaining second rather than a repeating interval: it
+  // cancels itself on unmount and cannot outlive the countdown it belongs to.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -70,6 +83,38 @@ export function useAccountSettings() {
     }
   }
 
+  /** Asks Supabase to mail the confirmation link, and starts the resend clock. */
+  async function sendVerification(email: string): Promise<boolean> {
+    const { error: authError } = await supabase.auth.updateUser({ email });
+    if (authError) {
+      notify({ title: "Error", description: authError.message, type: "error" });
+      return false;
+    }
+    setResendIn(RESEND_COOLDOWN_SECONDS);
+    return true;
+  }
+
+  /**
+   * A link that never arrived is the only signal a wrong address gives, so the
+   * sent state has to offer a way forward. Sending again is rate limited at the
+   * provider, and the countdown says so rather than letting the press fail.
+   */
+  async function resendVerification() {
+    if (resendIn > 0 || savingEmail) return;
+
+    setSavingEmail(true);
+    if (await sendVerification(newEmail.trim())) {
+      notify({ title: "Link sent again", description: `Sent to ${newEmail.trim()}.`, type: "success" });
+    }
+    setSavingEmail(false);
+  }
+
+  /** Returns to the form with the address still in it, so a typo is one edit away. */
+  function useDifferentEmail() {
+    setEmailSent(false);
+    setResendIn(0);
+  }
+
   async function changeEmail(e: React.FormEvent) {
     e.preventDefault();
     const email = newEmail.trim();
@@ -103,9 +148,7 @@ export function useAccountSettings() {
       return;
     }
 
-    const { error: authError } = await supabase.auth.updateUser({ email });
-    if (authError) {
-      notify({ title: "Error", description: authError.message, type: "error" });
+    if (!(await sendVerification(email))) {
       setSavingEmail(false);
       return;
     }
@@ -174,6 +217,9 @@ export function useAccountSettings() {
     emailSent,
     savingEmail,
     changeEmail,
+    resendIn,
+    resendVerification,
+    useDifferentEmail,
     currentPassword,
     setCurrentPassword,
     newPassword,

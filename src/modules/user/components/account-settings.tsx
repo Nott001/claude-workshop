@@ -46,6 +46,9 @@ export function AccountSettings() {
             emailSent={settings.emailSent}
             saving={settings.savingEmail}
             onSubmit={settings.changeEmail}
+            resendIn={settings.resendIn}
+            onResend={settings.resendVerification}
+            onUseDifferent={settings.useDifferentEmail}
           />
           <PasswordSection
             currentPassword={settings.currentPassword}
