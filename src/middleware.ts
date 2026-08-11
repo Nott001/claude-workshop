@@ -35,8 +35,17 @@ const isPublicSurveyApi = (req: NextRequest) => {
 // The profiler sink must be reachable without a session so samples from
 // anonymous visitors still reach the dev terminal. The route itself 404s on a
 // production build, so whitelisting it costs nothing deployed.
+//
+// /api/payments/webhook is public for the same reason the survey token is a
+// credential: the payment provider must reach it with no session, and the
+// route verifies the HMAC signature itself.
 const isPublicApi = (req: NextRequest) => {
-  return req.nextUrl.pathname === "/api/dev/profiler" || isPublicApiGet(req) || isPublicSurveyApi(req);
+  return (
+    req.nextUrl.pathname === "/api/dev/profiler" ||
+    req.nextUrl.pathname === "/api/payments/webhook" ||
+    isPublicApiGet(req) ||
+    isPublicSurveyApi(req)
+  );
 };
 
 const isProtectedRoute = (req: NextRequest) => {

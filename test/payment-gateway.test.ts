@@ -1,16 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { updateStatus, findEventForPayment, ticketCreate, sendEmailNotification, generateQRDataUrl } = vi.hoisted(() => ({
+const {
+  paymentFindById,
+  updateStatus,
+  findByGatewayReference,
+  ticketCreate,
+  findByPaymentId,
+  ticketUpdateStatus,
+  sendEmailNotification,
+  generateQRDataUrl,
+} = vi.hoisted(() => ({
+  paymentFindById: vi.fn(),
   updateStatus: vi.fn(),
-  findEventForPayment: vi.fn(),
+  findByGatewayReference: vi.fn(),
   ticketCreate: vi.fn(),
+  findByPaymentId: vi.fn(),
+  ticketUpdateStatus: vi.fn(),
   sendEmailNotification: vi.fn(),
   generateQRDataUrl: vi.fn(),
 }));
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/payment.dao", () => ({ updateStatus, findEventForPayment }));
-vi.mock("@/shared/db/dao/ticket.dao", () => ({ create: ticketCreate }));
+vi.mock("@/shared/db/dao/payment.dao", () => ({
+  findById: paymentFindById,
+  updateStatus,
+  findByGatewayReference,
+}));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({
+  create: ticketCreate,
+  findByPaymentId,
+  updateStatus: ticketUpdateStatus,
+}));
 vi.mock("@/shared/integrations/email/send-notification", () => ({ sendEmailNotification }));
 vi.mock("@/shared/integrations/qr", () => ({ generateQRDataUrl }));
 // Run the deferred work inline so its effects are observable here.
@@ -18,7 +38,7 @@ vi.mock("@/shared/lib/after-response", () => ({
   afterResponse: (work: () => Promise<unknown>) => work(),
 }));
 
-import { SimulatedPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
+import { SimulatedPaymentGateway } from "@/modules/commerce/lib/providers/simulated";
 
 const OPTIONS = {
   amount: 500,
@@ -31,20 +51,35 @@ const OPTIONS = {
   event: { title: "Founder Workshop", event_date: "2026-09-01" },
 };
 
+const PENDING_PAYMENT = { id: 77, status: "pending" };
+
+const WEBHOOK_ROW = {
+  id: 77,
+  user_id: 5,
+  event_id: 3,
+  gateway_reference_id: "77",
+  status: "pending",
+  EVENT: { title: "Founder Workshop", event_date: "2026-09-01" },
+  USER: { full_name: "Jane Doe", email: "jane@example.com" },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  paymentFindById.mockResolvedValue(PENDING_PAYMENT);
   updateStatus.mockResolvedValue(true);
   ticketCreate.mockResolvedValue({ id: 9 });
+  findByPaymentId.mockResolvedValue(null);
+  ticketUpdateStatus.mockResolvedValue(true);
   generateQRDataUrl.mockResolvedValue("data:image/png;base64,QUJD");
   sendEmailNotification.mockResolvedValue(undefined);
 });
 
 describe("SimulatedPaymentGateway.createPayment", () => {
-  it("does not re-read the event the caller already loaded", async () => {
+  it("fulfils the payment through the shared path the webhook uses", async () => {
     await new SimulatedPaymentGateway().createPayment(OPTIONS);
 
-    // This was a second round trip for a row the route had in hand.
-    expect(findEventForPayment).not.toHaveBeenCalled();
+    expect(paymentFindById).toHaveBeenCalledWith({}, 77);
+    expect(updateStatus).toHaveBeenCalledWith({}, 77, "paid");
   });
 
   it("builds the ticket email from the event it was given", async () => {
@@ -61,18 +96,18 @@ describe("SimulatedPaymentGateway.createPayment", () => {
     );
   });
 
-  it("marks the payment paid and issues a ticket carrying a QR token", async () => {
+  it("issues a ticket carrying a QR token", async () => {
     await new SimulatedPaymentGateway().createPayment(OPTIONS);
 
-    expect(updateStatus).toHaveBeenCalledWith({}, 77, "paid");
     expect(ticketCreate).toHaveBeenCalledWith({}, expect.objectContaining({ payment_id: 77, user_id: 5, event_id: 3 }));
     expect(ticketCreate.mock.calls[0][1].qr_token).toMatch(/\S/);
   });
 
-  it("returns a checkout URL for the payment it settled", async () => {
+  it("returns a checkout URL and a gateway reference for the payment it settled", async () => {
     const result = await new SimulatedPaymentGateway().createPayment(OPTIONS);
 
     expect(result.checkout_url).toContain("/checkout/77?success=true");
+    expect(result.gateway_reference_id).toBe("77");
   });
 
   it("issues no ticket when the payment cannot be marked paid", async () => {
@@ -88,5 +123,92 @@ describe("SimulatedPaymentGateway.createPayment", () => {
 
     await expect(new SimulatedPaymentGateway().createPayment(OPTIONS)).rejects.toThrow(/issue ticket/);
     expect(sendEmailNotification).not.toHaveBeenCalled();
+  });
+
+  it("refuses to settle a payment that is already paid out", async () => {
+    paymentFindById.mockResolvedValue({ id: 77, status: "refunded" });
+
+    await expect(new SimulatedPaymentGateway().createPayment(OPTIONS)).rejects.toThrow(/cannot be marked paid/);
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("SimulatedPaymentGateway.confirmWebhook", () => {
+  it("fulfils a completed webhook for the referenced payment", async () => {
+    findByGatewayReference.mockResolvedValue(WEBHOOK_ROW);
+
+    const result = await new SimulatedPaymentGateway().confirmWebhook({
+      payload: JSON.stringify({ reference: "77", status: "completed" }),
+      signature: null,
+    });
+
+    expect(result.outcome).toBe("paid");
+    expect(findByGatewayReference).toHaveBeenCalledWith({}, "77");
+    expect(updateStatus).toHaveBeenCalledWith({}, 77, "paid");
+    expect(sendEmailNotification).toHaveBeenCalled();
+  });
+
+  it("marks a failed webhook failed without issuing a ticket", async () => {
+    findByGatewayReference.mockResolvedValue(WEBHOOK_ROW);
+
+    const result = await new SimulatedPaymentGateway().confirmWebhook({
+      payload: JSON.stringify({ reference: "77", status: "failed" }),
+      signature: null,
+    });
+
+    expect(result.outcome).toBe("failed");
+    expect(updateStatus).toHaveBeenCalledWith({}, 77, "failed");
+    expect(ticketCreate).not.toHaveBeenCalled();
+  });
+
+  it("ignores a webhook naming no payment", async () => {
+    const result = await new SimulatedPaymentGateway().confirmWebhook({
+      payload: JSON.stringify({ status: "completed" }),
+      signature: null,
+    });
+
+    expect(result.outcome).toBe("ignored");
+    expect(findByGatewayReference).not.toHaveBeenCalled();
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("ignores a webhook for a reference it does not know", async () => {
+    findByGatewayReference.mockResolvedValue(null);
+
+    const result = await new SimulatedPaymentGateway().confirmWebhook({
+      payload: JSON.stringify({ reference: "nope", status: "completed" }),
+      signature: null,
+    });
+
+    expect(result.outcome).toBe("ignored");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("SimulatedPaymentGateway.refund", () => {
+  it("marks the payment refunded and cancels its live ticket", async () => {
+    paymentFindById.mockResolvedValue({ id: 77, status: "paid" });
+    findByPaymentId.mockResolvedValue({ id: 5, status: "issued" });
+
+    const result = await new SimulatedPaymentGateway().refund({ payment_id: 77 });
+
+    expect(result.refunded).toBe(true);
+    expect(updateStatus).toHaveBeenCalledWith({}, 77, "refunded");
+    expect(ticketUpdateStatus).toHaveBeenCalledWith({}, 5, "cancelled");
+  });
+
+  it("leaves an already-refunded payment alone", async () => {
+    paymentFindById.mockResolvedValue({ id: 77, status: "refunded" });
+
+    await new SimulatedPaymentGateway().refund({ payment_id: 77 });
+
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("refuses to refund a payment that was never paid", async () => {
+    paymentFindById.mockResolvedValue({ id: 77, status: "pending" });
+
+    await expect(new SimulatedPaymentGateway().refund({ payment_id: 77 })).rejects.toThrow(/cannot be marked refunded/);
+    expect(updateStatus).not.toHaveBeenCalled();
   });
 });

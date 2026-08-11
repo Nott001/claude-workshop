@@ -11,43 +11,7 @@ import {
   generateQrToken,
   isPaymentTerminal,
 } from "@/modules/commerce/lib/payment-state";
-import type { Payment, Ticket, PaymentStatus, TicketStatus } from "@/shared/types";
-
-describe("Payment and Ticket types", () => {
-  it("Payment interface has correct shape", () => {
-    const payment: Payment = {
-      id: 1,
-      user_id: 1,
-      event_id: 1,
-      gateway_reference_id: null,
-      status: "pending",
-      paid_at: null,
-      amount: 0,
-      currency: "SGD",
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    };
-    expect(payment.status).toBe("pending");
-  });
-
-  it("Ticket interface has correct shape", () => {
-    const ticket: Ticket = {
-      id: 1,
-      payment_id: 1,
-      user_id: 1,
-      event_id: 1,
-      qr_token: "abc123",
-      status: "issued",
-      issued_at: "2026-01-01T00:00:00Z",
-      checked_in_by: null,
-      checked_in_at: null,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    };
-    expect(ticket.qr_token).toBe("abc123");
-    expect(ticket.status).toBe("issued");
-  });
-});
+import type { PaymentStatus, TicketStatus } from "@/shared/types";
 
 describe("paymentInitSchema", () => {
   it("accepts valid event_id", () => {
@@ -173,15 +137,6 @@ describe("isPaymentTerminal", () => {
 
   it("returns false for pending", () => {
     expect(isPaymentTerminal("pending")).toBe(false);
-  });
-});
-
-describe("PaymentGateway interface", () => {
-  it("SimulatedPaymentGateway implements PaymentGateway", async () => {
-    const { SimulatedPaymentGateway } = await import("@/modules/commerce/lib/payment-gateway");
-    const gateway = new SimulatedPaymentGateway();
-    expect(gateway.createPayment).toBeDefined();
-    expect(typeof gateway.createPayment).toBe("function");
   });
 });
 

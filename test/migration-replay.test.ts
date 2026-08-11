@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * SPEC-14 pins migration replay order by removing duplicate numbers (00009,
+ * Migration replay order was pinned by removing duplicate numbers (00009,
  * 00010 had two files each) and the user-deletion/sequence fixes, which a
  * scratch-DB dry-run would otherwise be the only place that caught. These
  * assertions cover the files and their key statements instead.
@@ -12,7 +12,9 @@ const migrations = readdirSync("supabase/migrations")
   .filter((f) => f.endsWith(".sql"))
   .sort();
 
-const content = (name: string): string => readFileSync(join("supabase/migrations", name), "utf8");
+// Normalise line endings: the migrations are checked out with CRLF on Windows,
+// so any multi-line `toContain` would otherwise never match a fragment.
+const content = (name: string): string => readFileSync(join("supabase/migrations", name), "utf8").replace(/\r\n/g, "\n");
 
 /** The six USER-owned FKs the deletion migration must set to null. */
 const userFks = [
@@ -24,7 +26,7 @@ const userFks = [
   ["QA_MESSAGE", "user_id"],
 ] as const;
 
-describe("SPEC-14 migrations", () => {
+describe("migration replay", () => {
   it("replays every migration exactly once under a unique number", () => {
     const prefixes = migrations.map((f) => f.slice(0, 5));
     expect(new Set(prefixes).size).toBe(migrations.length);

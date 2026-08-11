@@ -9,17 +9,19 @@ describe("paymentDestination", () => {
     });
   });
 
-  it("prefers the payment id over the checkout url", () => {
+  it("prefers the provider's checkout url over the payment id", () => {
+    // A real gateway returns its own hosted checkout; the internal page would
+    // only poll a payment nobody was sent to pay.
     expect(paymentDestination({ payment_id: 5, checkout_url: "https://pay.example/x" }, { pending: false, ok: true })).toEqual({
-      kind: "checkout",
-      paymentId: 5,
+      kind: "checkout-url",
+      url: "https://pay.example/x",
     });
   });
 
-  it("resumes a pending payment by id only, ignoring any checkout url", () => {
+  it("sends the caller to a fresh checkout url even when a pending payment exists", () => {
     expect(paymentDestination({ checkout_url: "https://pay.example/x" }, { pending: true, ok: true })).toEqual({
-      kind: "error",
-      message: "Failed to process payment",
+      kind: "checkout-url",
+      url: "https://pay.example/x",
     });
   });
 
@@ -30,10 +32,10 @@ describe("paymentDestination", () => {
     });
   });
 
-  it("falls back to the checkout url for a fresh flow that returned none", () => {
-    expect(paymentDestination({ checkout_url: "https://pay.example/x" }, { pending: false, ok: true })).toEqual({
-      kind: "checkout-url",
-      url: "https://pay.example/x",
+  it("falls back to the internal checkout page when only a payment id is returned", () => {
+    expect(paymentDestination({ payment_id: 5, checkout_url: "" }, { pending: false, ok: true })).toEqual({
+      kind: "checkout",
+      paymentId: 5,
     });
   });
 
