@@ -175,11 +175,11 @@ test("a missing field is refused before anything is stored", async ({ page }) =>
   expect(res.status()).toBe(400);
 });
 
-test("a facilitator uploads an event cover and it is recorded on the event", async ({ page }) => {
-  const facilitator = await createUser(db, ROLES.FACILITATOR);
-  users.push(facilitator);
+test("an admin uploads an event cover and it is recorded on the event", async ({ page }) => {
+  const admin = await createUser(db, ROLES.ADMIN);
+  users.push(admin);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post("/api/upload/event-image", {
     multipart: {
