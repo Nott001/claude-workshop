@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AuthLayout } from "@/modules/auth/components/auth-layout";
-import { isInviteToken } from "@/modules/auth/lib/invite-token";
+import { isAuthToken } from "@/modules/auth/lib/auth-token";
 
 /**
  * Stands between the emailed link and the invitation it accepts.
@@ -19,7 +19,7 @@ import { isInviteToken } from "@/modules/auth/lib/invite-token";
 export default async function InvitePage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;
 
-  if (!isInviteToken(token)) {
+  if (!isAuthToken(token)) {
     redirect("/sign-in?error=invalid_invite");
   }
 

@@ -53,6 +53,8 @@ describe("migration replay", () => {
       "00017_remove_event_support_chat.sql",
       "00018_community_link_cards.sql",
       "00019_event_survey.sql",
+      "00020_password_reset.sql",
+      "00021_password_reset_grants.sql",
     ]);
   });
 

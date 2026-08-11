@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
-import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { useEmailLogs } from "@/shared/integrations/email/use-email-logs";
 import { usePayments } from "@/modules/commerce/lib/use-payments";
 import { TicketCard } from "@/modules/commerce/components/ticket-card";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";

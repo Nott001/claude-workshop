@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { emailLogFilterSchema } from "@/modules/notifications/lib/email-log-schema";
-import type { EmailLog, EmailType, EmailStatus } from "@/shared/types";
+import { emailLogFilterSchema } from "@/shared/integrations/email/log-filter-schema";
+import { EMAIL_TYPES, EMAIL_STATUSES } from "@/shared/types";
+import type { EmailLog, EmailType } from "@/shared/types";
 import { emailTemplates } from "@/shared/integrations/email/templates";
 
 describe("Email types", () => {
@@ -18,14 +19,34 @@ describe("Email types", () => {
     expect(log.status).toBe("sent");
   });
 
-  it("EmailType accepts all valid values", () => {
-    const types: EmailType[] = ["ticket_issued", "check_in_confirmed", "event_survey"];
-    expect(types).toHaveLength(3);
+  // The PG enum, the filter schema and the template registry drifted apart once
+  // already, when 00019 added event_survey. These assert they still agree.
+  it("the filter schema accepts every EmailType and rejects nothing else", () => {
+    for (const email_type of EMAIL_TYPES) {
+      expect(emailLogFilterSchema.safeParse({ email_type }).success).toBe(true);
+    }
+    expect(emailLogFilterSchema.safeParse({ email_type: "member_invited" }).success).toBe(false);
   });
 
-  it("EmailStatus accepts all valid values", () => {
-    const statuses: EmailStatus[] = ["sent", "failed"];
-    expect(statuses).toHaveLength(2);
+  it("the filter schema accepts every EmailStatus", () => {
+    for (const status of EMAIL_STATUSES) {
+      expect(emailLogFilterSchema.safeParse({ status }).success).toBe(true);
+    }
+    expect(emailLogFilterSchema.safeParse({ status: "queued" }).success).toBe(false);
+  });
+
+  // memberInvited is deliberately absent from emailTemplates, so every logged
+  // type having a template is the invariant worth pinning.
+  it("every EmailType has a template that can build a message", () => {
+    const byType: Record<EmailType, { subject: string }> = {
+      ticket_issued: emailTemplates.ticketIssued,
+      check_in_confirmed: emailTemplates.checkInConfirmed,
+      event_survey: emailTemplates.eventSurvey,
+    };
+
+    for (const email_type of EMAIL_TYPES) {
+      expect(byType[email_type].subject.length).toBeGreaterThan(0);
+    }
   });
 });
 
