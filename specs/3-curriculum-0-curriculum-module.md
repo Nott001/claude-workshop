@@ -72,8 +72,9 @@ Point imports at `@/modules/curriculum/*`:
 - `src/app/api/curriculum/route.ts`, `src/app/api/curriculum/[curriculumId]/route.ts`,
   `src/app/api/curriculum/[curriculumId]/modules/route.ts`,
   `src/app/api/curriculum/by-event/[eventId]/route.ts`
-- `src/app/api/curriculum/modules/[id]/route.ts`, `src/app/api/curriculum/modules/[id]/lessons/route.ts`
-- `src/app/api/curriculum/lessons/[id]/route.ts`
+- `src/app/api/curriculum/[curriculumId]/modules/[moduleId]/route.ts`,
+  `src/app/api/curriculum/[curriculumId]/modules/[moduleId]/lessons/route.ts`,
+  `src/app/api/curriculum/[curriculumId]/modules/[moduleId]/lessons/[lessonId]/route.ts`
 - `src/app/api/upload/curriculum-asset/route.ts`, `src/app/api/upload/curriculum-video/route.ts`
 
 Room/live routes (`/api/room/[eventId]`, `/api/room/[eventId]/highlight`, `/api/qa/*`) still import the

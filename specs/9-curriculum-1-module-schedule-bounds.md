@@ -25,21 +25,35 @@ Unchanged (see curriculum-0). This spec does not render resources.
   against the curriculum window and non-curriculum entries.
 - Builder callers in `src/modules/events` (`staff-event-detail`, `speaker-event-detail`) pass the
   schedule + window down as props.
-- `src/shared/lib/schedule-options.ts` (from events-1) gains a bounded variant for the builder.
+- `src/shared/lib/schedule-options.ts` (from curriculum-0) gains the bounded/exclusion variant for the
+  builder.
 
 ## Implementation
 
 ### 1. Shared time utilities (owned by curriculum-1, used by events)
 
-Move/augment the generic pieces already extracted to `src/shared/lib/schedule-options.ts`:
+Move/augment the generic pieces already extracted to `src/shared/lib/schedule-options.ts` (curriculum-0).
+The current `{ eventStart, eventEnd, step, committed }` shape is adopted to a canonical
+`{ start, end, exclude }`; every call site is migrated in the same spec:
 
-- `buildTimeOptions({ start, end, exclude })` → `TIME` options between `start` and `end`, minus the
-  minute ranges in `exclude: { start: Time; end: Time }[]`. The builder passes the schedule's
-  `break`/`other` entries as `exclude` (defaults to `[]`).
-- `isOffGrid(value, { start, end, exclude })` → true when `value` is outside `start..end` **or** inside
-  an excluded range. `default = { start, end, exclude: [] }`.
+- `buildTimeOptions({ start, end, exclude, step = 15, committed = [] })` → `TIME` options between
+  `start` and `end`, minus the minute ranges in `exclude: { start: Time; end: Time }[]`. `step` and
+  `committed` are kept from the current shape — dropping them would break the builder's
+  off-grid-committed-times behavior in `module-schedule-editor.tsx` and the 15-minute grid. The builder
+  passes the schedule's `break`/`other` entries as `exclude` (defaults to `[]`).
+- `isExcluded(value, { start, end, exclude })` → true when `value` is outside `start..end` **or** inside
+  an excluded range. `default = { start, end, exclude: [] }`. This **replaces the proposed
+  `isOffGrid(value, …)` bounds check** — `isOffGrid(time, step = 15)` keeps its existing meaning (is the
+  time off the grid), so the bounds/exclusion semantics get their own name instead of hijacking it.
 - `findTimeOverlaps(rows, options)` → pairwise `{ first: Time; second: Time }` for rows whose
   `{ start, end }` intersects; ignores rows already hard-flagged (see below).
+
+**Call sites migrated here:** `src/modules/courses/components/module-schedule-editor.tsx`
+(`eventStart`/`eventEnd` → `start`/`end`, `committed` unchanged) — moves to curriculum in curriculum-0,
+so it is edited post-move at `src/modules/curriculum/components/module-schedule-editor.tsx`; the events-1
+form's `buildTimeOptions(eventStart, eventEnd)` call in `events/components/event-form-fields.tsx` →
+`buildTimeOptions({ start, end })`; and `test/schedule-options.test.ts` (new param names + new
+`isExcluded` cases).
 
 The **curriculum window** passed to the builder is: the schedule's `curriculum` entry's `start_time` /
 `end_time` when present, else the event's `start_time` / `end_time` (current behavior). The caller (staff
@@ -63,24 +77,30 @@ the events module.
 
 ### 3. Server-side validation
 
-`CurriculumModuleService.updateModule` and `createModule` currently take `{ eventStart, eventEnd }` for
-the module-overlap/speaker checks. Add an optional `schedule` argument (same shape as the DAO reads):
+`CurriculumModuleService.updateModule` takes **no event arguments today** — its overlap checks run
+against sibling module rows (`findModulesByCourse`), not the event window. There is also **no service
+`createModule`**: module creation goes straight through the DAO in the POST route and sets no times at
+creation (times arrive later via PATCH). So server-side schedule bounds apply to **update** (the module
+item PATCH). Add an optional `schedule` argument to `updateModule` (same shape as the DAO reads):
 
-- Resolve the curriculum window from the schedule (`curriculum` entry or event window — the caller
-  passes the already-resolved window to keep the service independent of the events module).
+- Resolve the curriculum window from the schedule (`curriculum` entry or event window — the route
+  handler passes the already-resolved window to keep the service independent of the events module).
 - Reject `start < windowStart || end > windowEnd` with a typed `ModuleScheduleError("outside_curriculum_window")`.
 - Reject overlap with any `break`/`other` entry: `ModuleScheduleError("overlaps_schedule_entry")`.
 - Existing module-overlap and duplicate-speaker checks run unchanged; when no window/entries are
   present, module times stay unconstrained (current behavior).
 
-The service reads schedule entries through its existing event-scoped fetch (the room-1/events-3 feed
-select already returns `EVENT_SCHEDULE`); a missing schedule means "no constraints". Route handlers pass
-the schedule through unchanged — no API surface change.
+The schedule reaches the service as an **argument**: the module item route handler — now at
+`/api/curriculum/[curriculumId]/modules/[moduleId]` after data-0 — fetches the event + `EVENT_SCHEDULE`
+by `curriculumId` (its own DAO fetch, not the room feed) and passes it in. A missing schedule means "no
+constraints". No new route is introduced — the URLs are data-0's normalized ones — the handlers only
+gain the fetch-and-pass. The room-1/events-3 feed select is **not** the source here: it is a
+client-facing route, and the authoring path never touches it.
 
 ### 4. Builder wiring (callers in `src/modules/events`)
 
 - `staff-event-detail.tsx` and `speaker-event-detail.tsx` already fetch the event (which now embeds
-  `EVENT_SCHEDULE` after events-2) and render `CourseBuilder`. Pass `schedule={event.event_schedule}`
+  `EVENT_SCHEDULE` after events-0) and render `CourseBuilder`. Pass `schedule={event.event_schedule}`
   and let the builder derive window + excludes. When the event has no schedule, props are `[]` and
   behavior is byte-for-byte current.
 

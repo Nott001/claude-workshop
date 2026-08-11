@@ -23,9 +23,13 @@ reflect the registration window states. `events/lib/timeline.ts` is reconciled (
 
 Use the events-0 payload `{ modules, schedule }`:
 
-- Timeline: "Event starts" bookend → entries in order — schedule rows (`curriculum` as a block,
-  `break` rows labeled "Break", `other` rows with their label) interleaved with module rows → "Event
+- Timeline: "Event starts" bookend → entries in order — schedule rows (`curriculum` as a
+  block, `break` rows labeled "Break", `other` rows with their label) interleaved with module rows → "Event
   ends".
+- **Block renders as a container**: the `curriculum` entry is one block row; module rows whose times fall
+  inside the block render **nested under it** (the block is the container, the modules are the detail —
+  the block may be wider than its modules). `break`/`other` rows and module rows outside the block render
+  as siblings in time order. This prevents two overlapping visual entries for the same span.
 - Empty → "No schedule yet."; errors → "Couldn't load the schedule." (unchanged).
 
 The embed (`event.event_schedule`) on the public event GET and the `/schedule` payload both read the same

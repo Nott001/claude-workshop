@@ -50,7 +50,8 @@ does not import curriculum (events stays independent).
 
 - Edit: `EventForm` → `toEventPayload` → PATCH `/api/events/[id]` (window) **and** PATCH
   `/api/events/[id]/schedule` (entries). Two calls, sequential.
-- Create: POST `/api/events` first; the returned event id then gets the schedule via the same
+- Create: POST `/api/events` carries the event **and the registration window in one call** (the window
+  pair is part of `eventSchema`); the returned event id then gets the schedule via
   `/api/events/[id]/schedule` PATCH. Same fields, same validation, mirrored server-side by the events-0
   zod.
 

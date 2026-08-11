@@ -70,12 +70,15 @@ Render:
 - Header: `border-b border-border bg-muted px-4 py-2`, flex justify-between:
   - Left: forum icon + `module.module_name`.
   - Right (`flex items-center gap-2`): lock toggle (only when `canModerate = isChatStaff(userRole) ||
-isSpeakerAssigned`; lock/lock_open glyph + "Locked"/"Unlock", disabled while toggling), `LiveNowTag`
-    when `isLive`, `ModuleScheduleBadge` (`start_time`/`end_time`, speaker) only when both times are set.
+isSpeakerAssigned`; lock/lock_open glyph + "Locked"/"Unlock" — fire-and-forget, no pending state),
+    `LiveNowTag` when `isLive`, `ModuleScheduleBadge` (`start_time`/`end_time`, speaker) only when both
+    times are set.
 - Body: `<QAPanel moduleId={module.id} userRole={userRole} isSpeakerAssigned={isSpeakerAssigned}
 eventStarted={eventStarted} eventEnded={eventEnded} isLocked={module.is_locked} />`.
 
-No nested card, no time strip beyond the header badge, no count badge.
+No nested card, no time strip beyond the header badge. The message-count badge is intentionally omitted:
+the card header is chrome only, and the live thread itself is the attendee's signal — restoring the count
+would duplicate `QAPanel` state in a second place.
 
 ### 3. Room page (`src/app/courses/[courseId]/room/page.tsx`)
 

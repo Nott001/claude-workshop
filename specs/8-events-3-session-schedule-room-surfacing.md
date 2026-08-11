@@ -32,10 +32,12 @@ Both take the event/entry data as plain values — read-only presentation, no im
 
 ### 2. Room feed
 
-The room-feed select for the embedded EVENT
-(`src/app/api/room/[eventId]/route.ts` via `curriculum.dao`) must include `event_schedule` (and the
-registration fields if the room ever surfaces them). No guard change. Events-3 also updates `useRoomAccess`
-to hand the room the entries it needs.
+The room-feed select for the embedded EVENT is `event.dao.findByIdWithCurriculum` (data-0's rename of
+`findByIdWithCourse`, which the room route already uses at `src/app/api/room/[eventId]/route.ts`); it
+gains `EVENT_SCHEDULE` in its embed (plus the registration fields if the room ever surfaces them). The
+feed runs as `service_role`, so the anon/authenticated grants from events-0 are not needed here. No guard
+change. Events-3 also updates `useRoomAccess` and the `fetch-room-access`/`CourseRoomCourse` payload
+types to hand the room the entries it needs.
 
 ### 3. Room page wiring
 
@@ -47,6 +49,11 @@ to hand the room the entries it needs.
   `CurrentTopicCard` is replaced by a "Break — back at {end}" banner; no module shows as current.
 - **Other entry**: hero badge shows "Now: {label}"; current topic is unaffected.
 - **No entries set**: today's behavior, byte-for-byte.
+- **Admission is deliberately left on the event window** (explicit decision): the `not_started` gate and
+  its "opens at {event start}" message keep using `event_date` + event `start_time`/`end_time`, even when
+  a `curriculum` block is set. A ticket holder is admitted when the event day opens and may land in a
+  "Break" state before the block starts; only live-state, hero progress, navbar, and current-topic fall
+  back to `sessionWindow`.
 
 ### 4. Boundary
 

@@ -9,13 +9,22 @@
 
 "Rename everything." The word **course** is dropped from the entire surface — database tables and
 columns, storage buckets and paths, TypeScript types, DAOs, API routes, and app URLs — in favour of
-**curriculum** (the content) and **room** (the live session). No behavior changes; pure renaming.
+**curriculum** (the content) and **room** (the live session). The module/lesson API routes are also
+**collapsed into one nested hierarchy** — the flat `/api/modules/[id]` and `/api/lessons/[id]` item
+routes move under their curriculum parent — so the route tree and the domain tree finally match. No
+behavior changes; pure renaming and route regrouping.
 
 Confirmed decisions:
 
 - DB tables and storage buckets are renamed (not just code/URLs).
 - Room browser URL: `/events/[eventId]/room` (feed is event-scoped: `/api/room/[eventId]`).
 - QA API routes stay `/api/qa/*`.
+- **Module/lesson API routes collapse into one nested hierarchy** under the curriculum parent; the flat
+  `/api/modules/[id]` / `/api/lessons/[id]` item routes are folded into
+  `/api/curriculum/[curriculumId]/modules/[moduleId][/lessons/[lessonId]]`. Creation stays under the
+  parent (`POST .../modules`, `POST .../modules/[moduleId]/lessons`); item ops (`PATCH`/`DELETE`) move
+  to the nested item path. The `[curriculumId]` prefix is the access/consistency anchor; handlers still
+  resolve the module/lesson by id. `by-event` stays a static-segment lookup.
 - No redirects from old URLs (pre-launch, internal).
 - Per-route auth posture is preserved byte-for-byte.
 
@@ -109,16 +118,21 @@ DAO layer:
 
 ### 4. API routes
 
-Move/rename paths — update every client caller and route handler:
+Move/rename paths — update every client caller and route handler. The module/lesson routes are
+**renamed and folded into one nested hierarchy** (the current flat `/api/modules/[id]` and
+`/api/lessons/[id]` item routes disappear):
 
 ```
 /api/courses                       → /api/curriculum
 /api/courses/[courseId]            → /api/curriculum/[curriculumId]
-/api/courses/[courseId]/modules    → /api/curriculum/[curriculumId]/modules
+/api/courses/[courseId]/modules    → /api/curriculum/[curriculumId]/modules          (POST: create module)
 /api/courses/event/[eventId]       → /api/curriculum/by-event/[eventId]
-/api/modules/[id]                  → /api/curriculum/modules/[id]
-/api/modules/[id]/lessons          → /api/curriculum/modules/[id]/lessons
-/api/lessons/[id]                  → /api/curriculum/lessons/[id]
+/api/modules/[id]                  → /api/curriculum/[curriculumId]/modules/[moduleId]
+                                    (PATCH lock/times/speaker, DELETE; the is_locked branch stays)
+/api/modules/[id]/lessons          → /api/curriculum/[curriculumId]/modules/[moduleId]/lessons
+                                    (POST: create lesson)
+/api/lessons/[id]                  → /api/curriculum/[curriculumId]/modules/[moduleId]/lessons/[lessonId]
+                                    (GET/PATCH/DELETE)
 /api/upload/course-asset           → /api/upload/curriculum-asset
 /api/upload/course-video           → /api/upload/curriculum-video
 /api/courses/[courseId]/room       → /api/room/[eventId]
@@ -144,6 +158,11 @@ highlight GET still passes.
 Update room URL pushers: `event-register-card.tsx`, `speaker-event-detail.tsx`, `staff-event-detail.tsx`
 → `/events/${eventId}/room`. Nav items: no "Courses" label exists, so `nav-items.ts` is untouched.
 
+The `QaModuleCard` created by room-0 moves with the room page: `src/app/courses/[courseId]/room/qa-module-card.tsx`
+→ `src/app/events/[eventId]/room/qa-module-card.tsx`, so no `course` token survives in the app tree and
+the page's co-located import stays intact. It relocates into the room module (`room/qa/components`) in
+room-1.
+
 ### 6. Tests
 
 Update every test referencing the old names (paths, URL strings, type names, DAO symbols): `course-dao*`,
@@ -151,12 +170,16 @@ Update every test referencing the old names (paths, URL strings, type names, DAO
 `api-course-room-route`, `course-*` component/lib tests, `staff-course-section`, `staff-event-detail-tabs`,
 `course-room-page`, `use-room-access`, `current-topic*`, `live-session*`, `room-lesson-row`,
 `module-schedule-badge`, `content-type-meta`, `lesson-utils`, `module-boundary`, `migration-replay`,
-`migration-grants`, `rls-policy-correlation`.
+`migration-grants`, `rls-policy-correlation`. The `api-module-*` / `api-lessons-*` suites now exercise
+the **nested** paths (`/api/curriculum/[curriculumId]/modules/[moduleId]`,
+`.../[moduleId]/lessons`, `.../[lessonId]`).
 
 ## Definition of done
 
 - No occurrence of the word `course` remains in schema, storage, types, DAOs, API, app URLs, or tests
   (verified by grep); `src/modules/courses/` holds no `course`-named symbol or file name.
+- No flat `/api/modules/[id]` or `/api/lessons/[id]` routes remain; module/lesson routes are nested
+  under `/api/curriculum/[curriculumId]` only (grep-verified).
 - `pnpm lint`, `pnpm typecheck`, `pnpm format` clean; `pnpm test` green; coverage not lowered.
 - Storage backfill script exists and runs to no-op against empty buckets.
 

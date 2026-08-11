@@ -81,7 +81,10 @@ routes) bypasses RLS; the published-only policy is a safety net for direct clien
 ### 2. Types (`src/shared/types.ts`)
 
 `Event` += `registration_open_at: string | null`, `registration_close_at: string | null`,
-`event_schedule: EventScheduleEntry[]` (sorted by `sequence_order`; empty array when unset).
+`event_schedule?: EventScheduleEntry[]` (sorted by `sequence_order`; empty array when unset). The
+field is **optional** because PostgREST embeds are opt-in per select — only the selects that embed
+`EVENT_SCHEDULE` (the public event GET, the register GET state, the room feed) carry it; a select that
+does not must not lie about a required field.
 
 ```ts
 type EventScheduleKind = "curriculum" | "break" | "other";
@@ -104,7 +107,7 @@ interface EventScheduleEntry {
   = timeline order (`sequence_order`).
 - Registration pair: optional `registration_open_at`/`registration_close_at` with a both-or-neither
   `superRefine`.
-- Wire into `eventSchema` / `eventPartialSchema` where the update route validates.
+- Wire into `eventSchema` (create) and `eventPartialSchema` (update) where the routes validate.
 
 ### 4. DAO
 
@@ -121,6 +124,9 @@ interface EventScheduleEntry {
   existing public GET stays.
 - `PATCH /api/events/[id]`: admin; parse + validate the new window fields; persist; `event.updated`
   audit unchanged.
+- `POST /api/events`: admin; `eventSchema` (which now carries the optional window pair per §3) persists
+  the window on create — the create flow sets event + window in one call, the schedule still goes
+  through the separate schedule PATCH (events-1).
 - `GET /api/events/[id]` and the register GET state return the new fields (staff and attendees).
 - `GET /api/events/[id]/schedule` (public, published-only): payload becomes `{ modules, schedule }`;
   schedule + registration times are returned only for published events (mirrors the current modules
