@@ -39,34 +39,36 @@ export function EventDetailHero({ event, badgeLabel, onRegister }: EventDetailHe
   if (venue) facts.push({ icon: "location_on", label: "Venue", value: venue });
 
   return (
-    <div className="grid items-stretch gap-6 lg:grid-cols-2">
-      <div className="relative min-h-[320px] overflow-hidden rounded-xl shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
-        {event.cover_image_url && (
-          <img src={event.cover_image_url} alt={event.title} className="absolute inset-0 size-full object-cover" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-        {!event.cover_image_url && (
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
-        )}
-        <span className="absolute left-4 top-4 inline-flex items-center rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white">
-          {badgeLabel}
-        </span>
-      </div>
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
+      <div className="grid lg:grid-cols-[65%_35%]">
+        <div className="relative min-h-[320px]">
+          <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
+          {event.cover_image_url && (
+            <img src={event.cover_image_url} alt={event.title} className="absolute inset-0 size-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          {!event.cover_image_url && (
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
+          )}
+          <span className="absolute left-4 top-4 inline-flex items-center rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white">
+            {badgeLabel}
+          </span>
+        </div>
 
-      <div className="flex flex-col justify-center rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)] sm:p-7">
-        <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-3xl">{event.title}</h1>
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          {facts.map((fact) => (
-            <FactRow key={fact.label} {...fact} />
-          ))}
-        </dl>
+        <div className="flex flex-col justify-center p-6 sm:p-7">
+          <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-3xl">{event.title}</h1>
+          <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            {facts.map((fact) => (
+              <FactRow key={fact.label} {...fact} />
+            ))}
+          </dl>
 
-        <Button size="lg" className="mt-6 w-full rounded-xl px-8 sm:w-auto" onClick={onRegister}>
-          Register Now
-        </Button>
+          <Button size="lg" className="mt-6 w-full rounded-xl px-8 sm:w-auto" onClick={onRegister}>
+            Register Now
+          </Button>
 
-        <CountdownTimer eventDate={event.event_date} startTime={event.start_time} label="Starts in" />
+          <CountdownTimer eventDate={event.event_date} startTime={event.start_time} label="Starts in" />
+        </div>
       </div>
     </div>
   );

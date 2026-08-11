@@ -71,6 +71,17 @@ describe("EventSchedule", () => {
     expect(screen.getAllByText("9:00 AM").length).toBe(1);
   });
 
+  it("places the module time after the name so it reads as right-aligned", async () => {
+    fetchMock.mockReturnValue(
+      ok({ modules: [{ id: 1, module_name: "Intro", start_time: "09:00", end_time: "10:00", speaker: null }] }),
+    );
+    render(<EventSchedule eventId="7" event={event} />);
+
+    const name = await screen.findByText("Intro");
+    const time = screen.getByText("9:00 AM – 10:00 AM");
+    expect(name.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("omits the speaker line for a module without one", async () => {
     fetchMock.mockReturnValue(
       ok({ modules: [{ id: 1, module_name: "Intro", start_time: "09:00", end_time: "10:00", speaker: null }] }),
@@ -86,7 +97,7 @@ describe("EventSchedule", () => {
     render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("No schedule yet.")).toBeTruthy();
-    expect(screen.getByText("Course schedule")).toBeTruthy();
+    expect(screen.getByText("Event schedule")).toBeTruthy();
   });
 
   it("renders the card with an error when the schedule fetch fails", async () => {
@@ -94,7 +105,7 @@ describe("EventSchedule", () => {
     render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
-    expect(screen.getByText("Course schedule")).toBeTruthy();
+    expect(screen.getByText("Event schedule")).toBeTruthy();
   });
 
   it("renders the card with an error when the schedule fetch rejects", async () => {
@@ -102,6 +113,6 @@ describe("EventSchedule", () => {
     render(<EventSchedule eventId="7" event={event} />);
 
     expect(await screen.findByText("Couldn't load the schedule.")).toBeTruthy();
-    expect(screen.getByText("Course schedule")).toBeTruthy();
+    expect(screen.getByText("Event schedule")).toBeTruthy();
   });
 });

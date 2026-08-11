@@ -128,7 +128,7 @@ describe("Event detail page assembly", () => {
     expect(screen.queryByText("About this event")).toBeNull();
     expect(screen.queryByText("Speakers")).toBeNull();
 
-    expect(await screen.findByText("Course schedule")).toBeTruthy();
+    expect(await screen.findByText("Event schedule")).toBeTruthy();
   });
 
   it("redirects a non-attendee to the staff event page", async () => {

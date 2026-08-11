@@ -12,12 +12,12 @@ function moduleWindow(item: EventScheduleItem): string | null {
 
 function TimelineEntry({ time, title, last }: { time: string; title: string; last?: boolean }) {
   return (
-    <li className="grid grid-cols-[8rem_1fr] gap-x-4">
-      <span className="pt-px text-right text-xs font-bold text-brand">{time}</span>
+    <li className="grid grid-cols-[1fr_auto] gap-x-6">
       <div className={`relative border-l-2 pl-6 ${last ? "border-transparent" : "border-border pb-5"}`}>
         <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
         <span className="text-sm font-bold">{title}</span>
       </div>
+      <span className="pt-px text-right text-xs font-bold text-brand">{time}</span>
     </li>
   );
 }
@@ -66,7 +66,7 @@ export function EventSchedule({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 sm:p-7 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <h2 className="text-lg font-bold">Course schedule</h2>
+      <h2 className="text-lg font-bold">Event schedule</h2>
       {loading ? (
         <p className="mt-4 text-sm text-muted-fg">Loading schedule…</p>
       ) : error ? (
@@ -75,18 +75,17 @@ export function EventSchedule({
         <ol className="mt-5">
           <TimelineEntry time={formatTime(event.start_time)} title="Event starts" />
           {modules && modules.length === 0 ? (
-            <li className="grid grid-cols-[8rem_1fr] gap-x-4">
-              <span />
+            <li className="grid grid-cols-[1fr_auto] gap-x-6">
               <div className="border-l-2 border-border pb-5 pl-6">
                 <p className="text-sm text-muted-fg">No schedule yet.</p>
               </div>
+              <span />
             </li>
           ) : (
             (modules ?? []).map((item) => {
               const window = moduleWindow(item);
               return (
-                <li key={item.id} className="grid grid-cols-[8rem_1fr] gap-x-4">
-                  <span className="pt-px text-right text-xs font-bold text-brand">{window ?? ""}</span>
+                <li key={item.id} className="grid grid-cols-[1fr_auto] gap-x-6">
                   <div className="relative border-l-2 border-border pb-6 pl-6">
                     <span className="absolute -left-[9px] top-0 size-4 rounded-full border-4 border-surface bg-brand" />
                     <span className="block text-sm font-semibold">{item.module_name}</span>
@@ -94,6 +93,7 @@ export function EventSchedule({
                       <span className="mt-0.5 block text-xs font-normal text-muted-fg">Speaker: {item.speaker}</span>
                     )}
                   </div>
+                  <span className="pt-px text-right text-xs font-bold text-brand">{window ?? ""}</span>
                 </li>
               );
             })
