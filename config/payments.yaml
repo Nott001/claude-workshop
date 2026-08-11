@@ -1,0 +1,17 @@
+# The active payment provider and its non-secret options.
+#
+# Swap providers by editing `provider` below and redeploying - no code changes.
+# Secrets (API keys, webhook salts) always live in the env files, never here.
+# The bundle is regenerated from this file by `pnpm sync:payment-config`,
+# which the dev/build scripts run automatically.
+provider: simulated
+
+# Read only when provider is "hitpay".
+hitpay:
+  # "sandbox" hits api.sandbox.hit-pay.com with test credentials; "production"
+  # hits api.hit-pay.com. The API key and salt must come from the matching
+  # HitPay dashboard.
+  environment: sandbox
+  # Restrict the payment methods offered on the hosted checkout. Empty means
+  # HitPay's account defaults are used. Example: [card, paynow_online]
+  payment_methods: []

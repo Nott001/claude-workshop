@@ -7,6 +7,13 @@
     "node": ">=22"
   },
   "scripts": {
+    "sync:payment-config": "node scripts/sync-payment-config.mjs",
+    "predev": "pnpm sync:payment-config",
+    "prebuild": "pnpm sync:payment-config",
+    "prestart": "pnpm sync:payment-config",
+    "precf:preview": "pnpm sync:payment-config",
+    "precf:build": "pnpm sync:payment-config",
+    "precf:deploy": "pnpm sync:payment-config",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -41,6 +48,7 @@
     "react-hook-form": "^7.81.0",
     "swr": "^2.2.0",
     "tailwind-merge": "^3.6.0",
+    "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

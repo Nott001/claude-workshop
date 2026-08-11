@@ -79,9 +79,18 @@ export function useEventRegistration(eventId: string) {
       case "checkout":
         router.push(`/checkout/${destination.paymentId}?success=true`);
         break;
-      case "checkout-url":
-        window.location.href = destination.url;
+      case "checkout-url": {
+        // The simulated provider's "checkout URL" is our own /checkout page and
+        // should navigate client-side; a real provider's is a hosted checkout
+        // that must take over the tab.
+        const target = new URL(destination.url, window.location.href);
+        if (target.origin === window.location.origin) {
+          router.push(destination.url);
+        } else {
+          window.location.href = destination.url;
+        }
         break;
+      }
       case "error":
         setError(destination.message);
         setSubmitting(false);
