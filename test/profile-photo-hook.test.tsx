@@ -12,10 +12,6 @@ function photoText(): string | null {
   return screen.getByTestId("photo").textContent;
 }
 
-function dispatchedPhoto(photoUrl: string) {
-  return () => window.dispatchEvent(new CustomEvent("profile-photo-updated", { detail: { photoUrl } }));
-}
-
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -92,27 +88,13 @@ describe("useProfilePhoto", () => {
     expect(photoText()).toBe("none");
   });
 
-  it("adopts a profile-photo-updated event", () => {
-    render(<Host user={{ profile_image_url: null }} />);
+  it("adopts the session user's profile_image_url when it appears after a speaker fallback", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ photo_url: "https://cdn/b.jpg" }) });
+    const { rerender } = render(<Host user={{ profile_image_url: null }} />);
 
-    act(dispatchedPhoto("https://cdn/c.jpg"));
-    expect(photoText()).toBe("https://cdn/c.jpg");
-  });
+    await waitFor(() => expect(photoText()).toBe("https://cdn/b.jpg"));
 
-  it("lets a profile-photo-updated event win over a pre-set profile_image_url", () => {
-    render(<Host user={{ profile_image_url: "https://cdn/a.jpg" }} />);
-
-    act(dispatchedPhoto("https://cdn/d.jpg"));
-    expect(photoText()).toBe("https://cdn/d.jpg");
-  });
-
-  it("removes the profile-photo-updated listener on cleanup", () => {
-    const addSpy = vi.spyOn(window, "addEventListener");
-    const removeSpy = vi.spyOn(window, "removeEventListener");
-    const { unmount } = render(<Host user={{ profile_image_url: null }} />);
-
-    expect(addSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(true);
-    unmount();
-    expect(removeSpy.mock.calls.some(([name]) => name === "profile-photo-updated")).toBe(true);
+    rerender(<Host user={{ profile_image_url: "https://cdn/a.jpg" }} />);
+    expect(photoText()).toBe("https://cdn/a.jpg");
   });
 });

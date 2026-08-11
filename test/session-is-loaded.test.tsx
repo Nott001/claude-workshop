@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, renderHook, waitFor, fireEvent } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }) }));
@@ -25,6 +25,18 @@ const appUser = { id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@exampl
 function Probe() {
   const { isLoaded, loading } = useSession();
   return <span data-testid="flags">{`isLoaded=${isLoaded} loading=${loading}`}</span>;
+}
+
+// The fix under test: a mutation that already persisted server-side must reach
+// every session reader without a refetch, or the settings photo preview stayed
+// stale until a page refresh.
+function UpdatingProbe() {
+  const { user, updateUser } = useSession();
+  return (
+    <button data-testid="photo" onClick={() => updateUser({ profile_image_url: "https://cdn.example/new.jpg" })}>
+      {user?.profile_image_url ?? "none"}
+    </button>
+  );
 }
 
 beforeEach(() => {
@@ -64,6 +76,18 @@ describe("SessionProvider.isLoaded", () => {
     );
 
     await waitFor(() => expect(screen.getByTestId("flags").textContent).toBe("isLoaded=true loading=false"));
+  });
+
+  it("merges an updateUser patch into the user every consumer reads", async () => {
+    render(
+      <SessionProvider>
+        <UpdatingProbe />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("photo").textContent).toBe("none"));
+    fireEvent.click(screen.getByTestId("photo"));
+    expect(screen.getByTestId("photo").textContent).toBe("https://cdn.example/new.jpg");
   });
 });
 
