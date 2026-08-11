@@ -10,7 +10,6 @@ import { RoomLessonRow } from "@/modules/courses/components/room-lesson-row";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 import { LiveNowTag } from "@/modules/events/components/live-now-tag";
 import { SessionHero } from "@/modules/events/components/session-hero";
-import { SessionTimeline } from "@/modules/events/components/session-timeline";
 import { resolveCurrentTopic } from "@/modules/courses/lib/current-topic";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { eventProgress } from "@/shared/lib/event-progress";
@@ -253,18 +252,6 @@ export default function CourseRoomPage() {
             )}
           </div>
         </div>
-
-        {course && (
-          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-8 lg:flex">
-            <SessionTimeline
-              modules={course.MODULE}
-              eventDate={eventDate}
-              assignedSpeakerCount={assignedSpeakerCount}
-              eventStartTime={startTime}
-              eventEndTime={endTime}
-            />
-          </aside>
-        )}
       </div>
     </div>
   );
