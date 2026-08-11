@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { EventListPage } from "@/modules/events/pages/event-list";
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
+
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }) }));
 
 import { useSession } from "@/modules/auth/components/session-context";
 
@@ -68,6 +70,30 @@ describe("EventListPage event list", () => {
 
     expect(hrefs).toContain("/events/41");
     expect(hrefs).toContain("/events/42");
+  });
+});
+
+describe("EventListPage for a signed-in non-attendee", () => {
+  it.each([
+    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.FACILITATOR, "/staff/events/assigned"],
+    [ROLES.ADMIN, "/staff/events"],
+  ])("sends %s to %s instead of the staff list", async (role, dest) => {
+    const useSessionMock = useSession as unknown as ReturnType<typeof vi.fn>;
+    useSessionMock.mockReturnValue({
+      user: { id: 1, role, full_name: "Sam", email: "sam@example.com", profile_image_url: null },
+      loading: false,
+      isSignedIn: true,
+      signOut: vi.fn(),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [], total: 0, page: 1, limit: 50 }) }),
+    );
+
+    render(<EventListPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(dest));
   });
 });
 

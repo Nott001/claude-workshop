@@ -15,7 +15,7 @@ const TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export function StaffEventListPage() {
-  const { allowed, pending } = useRoleGuard(ROLES.ADMIN, { redirectTo: "/staff/events/assigned" });
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
   const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, tabCounts } = useEventList();
 
   if (pending || loading) {

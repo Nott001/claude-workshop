@@ -20,10 +20,14 @@ export function getInitials(fullName?: string | null): string {
  */
 export function useProfilePhoto(user: Pick<AuthUser, "profile_image_url"> | null): string | null {
   const [speakerPhoto, setSpeakerPhoto] = useState<string | null>(null);
+  const signedIn = !!user;
+  const profileImageUrl = user?.profile_image_url ?? null;
 
+  // Keyed on the photo URL rather than on the user object, because the session
+  // hands out a fresh object on every edit — renaming yourself would otherwise
+  // re-request a photo that has not changed.
   useEffect(() => {
-    if (!user) return;
-    if (user.profile_image_url || speakerPhoto) return;
+    if (!signedIn || profileImageUrl) return;
 
     let cancelled = false;
     fetch("/api/auth/me")
@@ -32,10 +36,11 @@ export function useProfilePhoto(user: Pick<AuthUser, "profile_image_url"> | null
         if (!cancelled && data?.photo_url) setSpeakerPhoto(data.photo_url);
       })
       .catch(() => {});
+
     return () => {
       cancelled = true;
     };
-  }, [user, speakerPhoto]);
+  }, [signedIn, profileImageUrl]);
 
-  return user?.profile_image_url ?? speakerPhoto ?? null;
+  return profileImageUrl ?? speakerPhoto;
 }
