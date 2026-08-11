@@ -2,7 +2,8 @@
 
 import { buildTimeline } from "@/modules/events/lib/timeline";
 import type { LiveModuleSource } from "@/shared/lib/live-module";
-import { formatTime, parseLocalDateTime } from "@/shared/lib/date-utils";
+import { eventProgress } from "@/shared/lib/event-progress";
+import { formatTime } from "@/shared/lib/date-utils";
 import { ProgressBar } from "@/modules/events/components/progress-bar";
 
 interface SessionTimelineProps {
@@ -12,22 +13,6 @@ interface SessionTimelineProps {
   eventStartTime?: string | null;
   eventEndTime?: string | null;
   now?: Date;
-}
-
-function overallProgress(
-  eventDate: string,
-  startTime: string | null | undefined,
-  endTime: string | null | undefined,
-  now: Date,
-): number {
-  if (!startTime || !endTime) return 0;
-  const start = parseLocalDateTime(eventDate, startTime);
-  const end = parseLocalDateTime(eventDate, endTime);
-  if (!start || !end || end.getTime() <= start.getTime()) return 0;
-  const t = now.getTime();
-  if (t < start.getTime()) return 0;
-  if (t >= end.getTime()) return 1;
-  return (t - start.getTime()) / (end.getTime() - start.getTime());
 }
 
 /**
@@ -49,7 +34,7 @@ export function SessionTimeline({
   const timeline = buildTimeline(modules, eventDate, eventStartTime, eventEndTime, now);
   if (timeline.length === 0) return null;
 
-  const progress = overallProgress(eventDate, eventStartTime, eventEndTime, now);
+  const progress = eventProgress(eventDate, eventStartTime, eventEndTime, now);
 
   return (
     <div className="flex flex-col">
