@@ -7,7 +7,7 @@ import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
-import { sendEmailNotification } from "@/modules/notifications/lib/email";
+import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { afterResponse } from "@/shared/lib/after-response";
 

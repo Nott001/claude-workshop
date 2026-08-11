@@ -4,7 +4,7 @@ import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 import { findAuthAccountByEmail } from "@/modules/auth/lib/auth-account";
 import { appBaseUrl } from "@/shared/lib/app-url";
-import { getEmailService } from "@/shared/integrations/email";
+import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
 import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
 
 export class OrganizationServiceError extends Error {
@@ -106,12 +106,7 @@ export async function sendInviteEmail(
     acceptUrl: `${appBaseUrl()}/invite?token=${link.hashedToken}`,
   };
 
-  const sent = await getEmailService().send({
-    to: { email: input.email, name: input.full_name },
-    subject: memberInvitedTemplate.subject,
-    htmlContent: memberInvitedTemplate.buildHtml(params),
-    textContent: memberInvitedTemplate.buildText(params),
-  });
+  const sent = await sendTemplatedEmail(memberInvitedTemplate, params, { email: input.email, name: input.full_name });
 
   if (!sent.success) {
     await supabase.auth.admin.deleteUser(link.userId);

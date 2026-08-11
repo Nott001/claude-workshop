@@ -8,6 +8,14 @@
 
 SUPABASE_SERVICE_ROLE_KEY=
 
+# Payment gateway. Only needed when config/payments.yaml sets provider: hitpay.
+# API key + webhook salt from the HitPay dashboard (Settings > API Keys), taken
+# from the sandbox or production dashboard to match hitpay.environment in the
+# config file. Rename-safe across providers: the adapter reads them, not the
+# provider name.
+PAYMENT_API_KEY=
+PAYMENT_WEBHOOK_SALT=
+
 # Transactional email. SMTP needs the Workers runtime for its socket, so
 # `next dev` logs to the console regardless — use `pnpm cf:preview` to send.
 # Under that runtime, leaving any of the three unset makes a send fail rather

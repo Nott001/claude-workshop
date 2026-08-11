@@ -3,11 +3,10 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
-import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { useEmailLogs } from "@/shared/integrations/email/use-email-logs";
 import { LoadMoreButton } from "@/shared/components/load-more";
-
-type EmailType = "ticket_issued" | "check_in_confirmed" | "event_survey";
-type EmailStatus = "sent" | "failed";
+import { EMAIL_TYPES, EMAIL_STATUSES } from "@/shared/types";
+import type { EmailType, EmailStatus } from "@/shared/types";
 
 const EMAIL_TYPE_LABELS: Record<EmailType, string> = {
   ticket_issued: "Ticket Issued",
@@ -15,17 +14,20 @@ const EMAIL_TYPE_LABELS: Record<EmailType, string> = {
   event_survey: "Event Survey",
 };
 
+const STATUS_LABELS: Record<EmailStatus, string> = {
+  sent: "Sent",
+  failed: "Failed",
+};
+
+// Derived so a new enum member reaches the dropdown by adding its label alone.
 const EMAIL_TYPE_OPTIONS: { value: EmailType | ""; label: string }[] = [
   { value: "", label: "All types" },
-  { value: "ticket_issued", label: "Ticket Issued" },
-  { value: "check_in_confirmed", label: "Check-In Confirmed" },
-  { value: "event_survey", label: "Event Survey" },
+  ...EMAIL_TYPES.map((value) => ({ value, label: EMAIL_TYPE_LABELS[value] })),
 ];
 
 const STATUS_OPTIONS: { value: EmailStatus | ""; label: string }[] = [
   { value: "", label: "All statuses" },
-  { value: "sent", label: "Sent" },
-  { value: "failed", label: "Failed" },
+  ...EMAIL_STATUSES.map((value) => ({ value, label: STATUS_LABELS[value] })),
 ];
 
 function formatDate(dateStr: string | null): string {

@@ -12,10 +12,13 @@ export interface FakePostgrest {
   client: never;
   /** Every select string the call made, in order. */
   selects: string[];
+  /** Every update payload the call made, in order. */
+  updates: unknown[];
 }
 
 export function fakePostgrest(data: unknown): FakePostgrest {
   const selects: string[] = [];
+  const updates: unknown[] = [];
   const result = { data };
 
   const builder: Record<string, unknown> = {
@@ -27,11 +30,15 @@ export function fakePostgrest(data: unknown): FakePostgrest {
       selects.push(columns);
       return builder;
     },
+    update(columns: unknown) {
+      updates.push(columns);
+      return builder;
+    },
   };
 
   for (const method of ["eq", "neq", "in", "is", "gte", "lt", "or", "order", "limit", "range", "single", "maybeSingle"]) {
     builder[method] = () => builder;
   }
 
-  return { client: { from: () => builder } as never, selects };
+  return { client: { from: () => builder } as never, selects, updates };
 }

@@ -5,7 +5,9 @@ import { join } from "node:path";
 function filesUnder(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
+    // Forward slashes everywhere so boundary sets written for POSIX match on
+    // Windows too; node:path.join would yield backslashes here.
+    const path = join(dir, entry.name).replaceAll("\\", "/");
     if (entry.isDirectory()) {
       out.push(...filesUnder(path));
     } else if (/\.tsx?$/.test(entry.name)) {
@@ -52,7 +54,7 @@ const KIOSK_OWNERS = new Set([
 ]);
 const KIOSK_TOKENS = /\b(attendees-panel|AttendeesPanel|qr-scanner|QrScanner|subscribeToCheckins)\b/;
 
-describe("SPEC-14 dead code boundary", () => {
+describe("dead code boundary", () => {
   it("never references the four deleted shared components", () => {
     expect(namedImports(DELETED_COMPONENTS)).toEqual([]);
   });
