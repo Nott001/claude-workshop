@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMessage } = vi.hoisted(() => ({
@@ -20,7 +21,7 @@ vi.mock("@/shared/db/dao/chat.dao", () => ({
 
 import { POST } from "@/app/api/support/route";
 
-const user = { id: 5, role: "attendee", full_name: "Jane", email: "jane@example.com" };
+const user = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
 const post = () => new Request("https://app.test/api/support", { method: "POST", body: JSON.stringify({ message: "help" }) });
 
 beforeEach(() => {
@@ -65,7 +66,7 @@ describe("session creation failure", () => {
 });
 
 describe("staff ownership of a general case", () => {
-  const admin = { id: 1, role: "admin", full_name: "Admin", email: "admin@example.com" };
+  const admin = { id: 1, role: ROLES.ADMIN, full_name: "Admin", email: "admin@example.com" };
   const staffPost = (body: Record<string, unknown>) =>
     new Request("https://app.test/api/support", {
       method: "POST",

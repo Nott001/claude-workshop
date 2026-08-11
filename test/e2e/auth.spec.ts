@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import { serviceClient, createUser, cleanup, type SeededUser } from "./fixtures";
 
@@ -35,7 +36,7 @@ test("bad credentials are refused and the user stays on the sign-in page", async
 });
 
 test("an attendee can sign in and land on the events page", async ({ page }) => {
-  const user = await createUser(db, "attendee");
+  const user = await createUser(db, ROLES.ATTENDEE);
   created.push(user);
 
   await page.goto("/sign-in");
@@ -47,7 +48,7 @@ test("an attendee can sign in and land on the events page", async ({ page }) => 
 });
 
 test("an attendee signed in is still refused the staff area", async ({ page }) => {
-  const user = await createUser(db, "attendee");
+  const user = await createUser(db, ROLES.ATTENDEE);
   created.push(user);
 
   await page.goto("/sign-in");

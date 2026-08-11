@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import * as dao from "@/shared/db/dao/support-session.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -9,7 +10,21 @@ function makeChain(result: { data?: unknown; error?: unknown }) {
     maybeSingle: async () => result,
     then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
   };
-  for (const method of ["select", "eq", "is", "gt", "lt", "gte", "in", "order", "limit", "insert", "update", "delete"]) {
+  for (const method of [
+    "select",
+    "eq",
+    "is",
+    "gt",
+    "lt",
+    "gte",
+    "in",
+    "order",
+    "limit",
+    "range",
+    "insert",
+    "update",
+    "delete",
+  ]) {
     chain[method] = (...args: unknown[]) => {
       calls.push([method, args]);
       return chain;
@@ -35,7 +50,8 @@ describe("support-session.dao ownership", () => {
     await dao.findActiveSession(client, 5, "general");
 
     expect(argsOf(callsList[0], "select")).toEqual(["id, case_number, assigned_to"]);
-    expect(argsOf(callsList[0], "is")).toEqual(["event_id", null]);
+    expect(argsOf(callsList[0], "eq")).toEqual(["user_id", 5]);
+    expect(callsList[0].some(([m, a]) => m === "eq" && a[0] === "support_type" && a[1] === "general")).toBe(true);
   });
 
   it("claims an active, unclaimed session for the staff member", async () => {
@@ -68,7 +84,7 @@ describe("support-session.dao ownership", () => {
   it("ends a case only when the given owner holds it", async () => {
     const { client, callsList } = stub([{ data: { id: 1 } }]);
 
-    await dao.endSession(client, 5, "general", undefined, { ownerId: 3 });
+    await dao.endSession(client, 5, "general", { ownerId: 3 });
 
     expect(callsList[0].filter(([m, a]) => m === "eq" && a[0] === "assigned_to")).toEqual([["eq", ["assigned_to", 3]]]);
   });
@@ -76,7 +92,7 @@ describe("support-session.dao ownership", () => {
   it("ends an unclaimed case rather than a claimed one", async () => {
     const { client, callsList } = stub([{ data: { id: 1 } }]);
 
-    await dao.endSession(client, 5, "general", undefined, { ownerId: null });
+    await dao.endSession(client, 5, "general", { ownerId: null });
 
     expect(callsList[0].filter(([m, a]) => m === "is" && a[0] === "assigned_to")).toEqual([["is", ["assigned_to", null]]]);
   });
@@ -107,7 +123,7 @@ describe("support-session.dao listCases", () => {
         case_number: 100,
         user_id: 20,
         assigned_to: 5,
-        USER: { full_name: "Ana", role: "attendee" },
+        USER: { full_name: "Ana", role: ROLES.ATTENDEE },
         ASSIGNED: { full_name: "Bo" },
       },
       {
@@ -115,7 +131,7 @@ describe("support-session.dao listCases", () => {
         case_number: 101,
         user_id: 21,
         assigned_to: null,
-        USER: { full_name: "Ben", role: "attendee" },
+        USER: { full_name: "Ben", role: ROLES.ATTENDEE },
         ASSIGNED: null,
       },
     ];
@@ -126,7 +142,7 @@ describe("support-session.dao listCases", () => {
     ];
     const { client, callsList } = stub([{ data: sessions }, { data: messages }]);
 
-    const cases = await dao.listCases(client, "general");
+    const { data: cases } = await dao.listCases(client, "general");
 
     expect(cases[0]).toMatchObject({
       id: 1,
@@ -138,7 +154,10 @@ describe("support-session.dao listCases", () => {
     });
     expect(cases[1]).toMatchObject({ id: 2, case_number: 101, assigned_name: null, last_message: "hi" });
 
-    expect(argsOf(callsList[0], "select")).toEqual(["*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)"]);
+    expect(argsOf(callsList[0], "select")).toEqual([
+      "*, USER:user_id(full_name, role), ASSIGNED:assigned_to(full_name)",
+      { count: "exact" },
+    ]);
     expect(argsOf(callsList[1], "in")).toEqual(["session_id", [1, 2]]);
     expect(callsList[1].filter(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toHaveLength(1);
   });
@@ -146,6 +165,6 @@ describe("support-session.dao listCases", () => {
   it("returns an empty queue when there are no open cases", async () => {
     const { client } = stub([{ data: [] }]);
 
-    await expect(dao.listCases(client, "general")).resolves.toEqual([]);
+    await expect(dao.listCases(client, "general")).resolves.toEqual({ data: [], total: 0, page: 1, limit: 50 });
   });
 });

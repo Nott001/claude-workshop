@@ -1,0 +1,43 @@
+"use client";
+
+import { ROLES } from "@/shared/lib/roles";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession } from "@/modules/auth/components/session-context";
+import { cn } from "@/shared/lib/utils";
+import type { UserRole } from "@/shared/types";
+import { getNavItems } from "@/modules/shell/lib/nav-items";
+
+export function Navbar() {
+  const pathname = usePathname();
+  const { user, isSignedIn } = useSession();
+
+  const userRole: UserRole = (user?.role as UserRole) ?? ROLES.ATTENDEE;
+  const navItems = getNavItems(isSignedIn, userRole);
+
+  return (
+    <aside className="group fixed bottom-0 left-0 top-16 z-10 hidden w-[72px] flex-col overflow-hidden border-r border-border bg-surface px-3 py-5 transition-[width] duration-300 hover:w-[202px] focus-within:w-[202px] lg:flex">
+      <nav className="space-y-2" aria-label="Primary navigation">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex w-full items-center justify-center overflow-hidden rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition hover:bg-muted hover:text-fg group-hover:justify-start",
+                isActive ? "bg-brand/10 text-brand" : "text-muted-fg",
+              )}
+            >
+              <span className="material-symbols-rounded shrink-0 text-[18px]">{item.icon}</span>
+              <span className="ml-0 w-0 overflow-hidden text-nowrap opacity-0 transition-[width,margin-left,opacity] duration-300 group-hover:ml-3 group-hover:w-auto group-hover:opacity-100">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}

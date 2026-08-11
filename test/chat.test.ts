@@ -4,9 +4,9 @@ import { isRateLimited, RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 import type { ChatMessage, SupportType } from "@/shared/types";
 
 describe("SupportType type", () => {
-  it("accepts valid support_type values", () => {
-    const types: SupportType[] = ["general", "event"];
-    expect(types).toHaveLength(2);
+  it("accepts the only remaining support_type value", () => {
+    const types: SupportType[] = ["general"];
+    expect(types).toHaveLength(1);
   });
 });
 
@@ -14,7 +14,6 @@ describe("ChatMessage type", () => {
   it("has correct shape", () => {
     const msg: ChatMessage = {
       id: 1,
-      event_id: null,
       session_id: null,
       support_type: "general",
       user_id: 5,
@@ -32,9 +31,8 @@ describe("ChatMessage type", () => {
   it("accepts deleted_at with a value", () => {
     const msg: ChatMessage = {
       id: 2,
-      event_id: 1,
       session_id: null,
-      support_type: "event",
+      support_type: "general",
       user_id: 3,
       recipient_user_id: null,
       message: "Need help",
@@ -52,9 +50,9 @@ describe("supportTypeEnum", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts 'event'", () => {
+  it("rejects the removed event branch", () => {
     const result = supportTypeEnum.safeParse("event");
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("rejects invalid type", () => {
@@ -78,9 +76,9 @@ describe("sendMessageSchema", () => {
     }
   });
 
-  it("accepts event support message", () => {
+  it("rejects the removed event support type", () => {
     const result = sendMessageSchema.safeParse({ support_type: "event", message: "Need help" });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("defaults support_type to general", () => {

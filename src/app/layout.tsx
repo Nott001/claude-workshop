@@ -1,7 +1,7 @@
 import { SessionProvider } from "@/modules/auth/components/session-context";
 import { ProfilerProvider } from "@/modules/profiler/profiler-provider";
 import type { Metadata } from "next";
-import { AppShell } from "@/shared/components/app-shell";
+import { AppShell } from "@/modules/shell/components/app-shell";
 import "./fonts.css";
 import "./globals.css";
 

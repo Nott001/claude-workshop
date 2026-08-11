@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -23,7 +24,7 @@ const {
   validateFileSize: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireLessonAccess }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => ({
@@ -48,12 +49,12 @@ import { buildCourseAssetPath, buildCourseVideoPath } from "@/shared/integration
 const speaker = {
   allowed: true,
   error: null,
-  user: { id: 8, role: "speaker", full_name: "Sam", email: "sam@example.com", profile_image_url: null },
+  user: { id: 8, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com", profile_image_url: null },
 };
 const facilitator = {
   allowed: true,
   error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
+  user: { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null },
 };
 const denied = { allowed: false, error: "Forbidden", user: null };
 

@@ -1,10 +1,11 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { ProfilerPanel } from "@/modules/profiler/components/profiler-panel";
 
 export default function StaffProfilerPage() {
-  const { allowed, pending } = useRoleGuard("facilitator");
+  const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR);
 
   if (pending) {
     return (

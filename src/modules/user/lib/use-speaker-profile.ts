@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { ToastData } from "./use-account-settings";
@@ -8,7 +9,7 @@ export function useSpeakerProfile(notify: (toast: ToastData) => void) {
   const { user } = useSession();
   // A bio/designation is tied to the speaker row, so the exact role is required —
   // min-role would hand the section to facilitators and admins too.
-  const isSpeaker = user?.role === "speaker";
+  const isSpeaker = user?.role === ROLES.SPEAKER;
 
   const [speakerProfileId, setSpeakerProfileId] = useState<number | null | undefined>(undefined);
   const [designation, setDesignation] = useState("");

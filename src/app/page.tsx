@@ -1,5 +1,5 @@
 import { supabase } from "@/shared/db/client";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import { EventGrid } from "@/modules/events/components/event-grid";
 import type { LandingEvent } from "@/shared/types";

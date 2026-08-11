@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as userDao from "@/shared/db/dao/user.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -50,7 +51,7 @@ describe("user.dao reads", () => {
   });
 
   it("reads only the id and role when that is all the caller needs", async () => {
-    const { client, calls } = stub({ data: { id: 3, role: "admin" } });
+    const { client, calls } = stub({ data: { id: 3, role: ROLES.ADMIN } });
 
     await userDao.findByAuthIdWithRole(client, "auth-1");
 
@@ -64,7 +65,7 @@ describe("user.dao listStaff", () => {
 
     await userDao.listStaff(client, 1, "");
 
-    expect(argsOf(calls, "in")).toEqual(["role", ["facilitator", "speaker", "admin", "super_admin"]]);
+    expect(argsOf(calls, "in")).toEqual(["role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN]]);
   });
 
   it("asks for the page the caller wanted", async () => {
@@ -81,7 +82,9 @@ describe("user.dao listStaff", () => {
 
     await userDao.listStaff(client, 1, "ana");
 
-    expect(argsOf(calls, "or")).toEqual(["full_name.ilike.%ana%,email.ilike.%ana%"]);
+    // ilikePattern quotes and escapes the term so input cannot re-write the
+    // or-filter; the quotes are part of the generated expression.
+    expect(argsOf(calls, "or")).toEqual(['full_name.ilike."%ana%",email.ilike."%ana%"']);
   });
 
   it("reports an empty page rather than null when the query returns nothing", async () => {
@@ -106,10 +109,10 @@ describe("user.dao writes", () => {
   it("writes the role when one is given, keyed on the auth id", async () => {
     const { client, calls } = stub({ data: { id: 3 } });
 
-    await userDao.upsertUser(client, { auth_user_id: "auth-1", email: "a@b.c", full_name: "Ana", role: "speaker" });
+    await userDao.upsertUser(client, { auth_user_id: "auth-1", email: "a@b.c", full_name: "Ana", role: ROLES.SPEAKER });
 
     const [payload, options] = argsOf(calls, "upsert") as [Record<string, unknown>, unknown];
-    expect(payload).toMatchObject({ role: "speaker" });
+    expect(payload).toMatchObject({ role: ROLES.SPEAKER });
     expect(options).toEqual({ onConflict: "auth_user_id" });
   });
 
@@ -142,12 +145,12 @@ describe("user.dao writes", () => {
   });
 
   it("changes a role by row id", async () => {
-    const { client, calls } = stub({ data: { id: 3, role: "admin" } });
+    const { client, calls } = stub({ data: { id: 3, role: ROLES.ADMIN } });
 
-    await userDao.updateRole(client, 3, "admin");
+    await userDao.updateRole(client, 3, ROLES.ADMIN);
 
     expect(argsOf(calls, "eq")).toEqual(["id", 3]);
-    expect((argsOf(calls, "update") as [Record<string, unknown>])[0]).toMatchObject({ role: "admin" });
+    expect((argsOf(calls, "update") as [Record<string, unknown>])[0]).toMatchObject({ role: ROLES.ADMIN });
   });
 
   it("reports whether a delete actually happened", async () => {

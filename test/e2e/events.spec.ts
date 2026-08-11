@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import { serviceClient, createUser, createEvent, signIn, cleanup, type SeededUser, type SeededEvent } from "./fixtures";
 
@@ -10,8 +11,8 @@ test.afterAll(async () => {
 });
 
 test("a draft event is hidden from an attendee and visible to a facilitator", async ({ page, browser }) => {
-  const attendee = await createUser(db, "attendee");
-  const facilitator = await createUser(db, "facilitator");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   const event = await createEvent(db, { status: "draft" });
   users.push(attendee, facilitator);
   events.push(event);
@@ -30,12 +31,12 @@ test("a draft event is hidden from an attendee and visible to a facilitator", as
 });
 
 test("publishing moves a draft to active", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const admin = await createUser(db, ROLES.ADMIN);
   const event = await createEvent(db, { status: "draft" });
-  users.push(facilitator);
+  users.push(admin);
   events.push(event);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post(`/api/events/${event.eventId}/publish`);
   expect(res.status()).toBe(200);
@@ -45,21 +46,22 @@ test("publishing moves a draft to active", async ({ page }) => {
 });
 
 test("an already published event cannot be published again", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const admin = await createUser(db, ROLES.ADMIN);
   const event = await createEvent(db);
-  users.push(facilitator);
+  users.push(admin);
   events.push(event);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post(`/api/events/${event.eventId}/publish`);
 
-  // Guards against re-firing whatever publishing triggers downstream.
+  // Admin, so the capability guard passes and the state check is the one that
+  // answers. A lower role would 403 here and never reach the rule under test.
   expect(res.status()).toBe(400);
 });
 
 test("an attendee cannot publish an event", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   const event = await createEvent(db, { status: "draft" });
   users.push(attendee);
   events.push(event);
@@ -75,7 +77,7 @@ test("an attendee cannot publish an event", async ({ page }) => {
 });
 
 test("an attendee cannot create an event", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
 
   await signIn(page, attendee);
@@ -106,7 +108,7 @@ test("an attendee cannot create an event", async ({ page }) => {
  * in place.
  */
 test.fixme("a facilitator can create an event through the API", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);

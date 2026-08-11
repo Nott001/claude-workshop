@@ -1,24 +1,30 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
-import { getBrowserClient } from "@/shared/db/browser-client";
-import type { QaMessage, UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
-
-interface QaMessageWithUser extends QaMessage {
-  USER: { full_name: string; role: UserRole };
-}
+import { useEffect, useState, useRef } from "react";
+import type { UserRole } from "@/shared/types";
+import { isChatStaff, type QaMessageWithUser } from "@/modules/chat/lib/types";
+import { useRealtimeMessages, QA_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import { MessageComposer } from "./message-composer";
 
 interface QAPanelProps {
   moduleId: number;
   userRole: UserRole | null;
+  isSpeakerAssigned: boolean;
   eventStarted: boolean;
   eventEnded: boolean;
   isLocked: boolean;
   onToggleLock: () => void;
 }
 
-export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, isLocked, onToggleLock }: QAPanelProps) {
+export default function QAPanel({
+  moduleId,
+  userRole,
+  isSpeakerAssigned,
+  eventStarted,
+  eventEnded,
+  isLocked,
+  onToggleLock,
+}: QAPanelProps) {
   const [messages, setMessages] = useState<QaMessageWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
@@ -26,9 +32,12 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
   const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const supabase = useMemo(() => getBrowserClient(), []);
 
-  const isStaff = hasMinRole(userRole, "speaker");
+  const isStaff = isChatStaff(userRole);
+  // The server admits admins, facilitators and assigned speakers (course team);
+  // the client floor mirrors that so the delete/lock controls do not hide work
+  // the API would allow, or promise work it would refuse for unassigned staff.
+  const canModerate = isStaff || isSpeakerAssigned;
 
   useEffect(() => {
     fetch(`/api/qa/module/${moduleId}`)
@@ -38,53 +47,26 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [moduleId]);
 
-    const channelName = `qa-module-${moduleId}-${Date.now()}`;
-    const sub = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "QA_MESSAGE",
-          filter: `module_id=eq.${moduleId}`,
-        },
-        async (payload) => {
-          if (payload.eventType === "INSERT") {
-            const { data: full } = await supabase
-              .from("QA_MESSAGE")
-              .select("*, USER:user_id(full_name, role)")
-              .eq("id", (payload.new as QaMessage).id)
-              .single();
-            if (full) {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === full.id)) return prev;
-                return [...prev, full as unknown as QaMessageWithUser];
-              });
-            }
-          } else if (payload.eventType === "UPDATE") {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === (payload.new as QaMessage).id ? { ...m, ...(payload.new as Partial<QaMessage>) } : m)),
-            );
-          } else if (payload.eventType === "DELETE") {
-            setMessages((prev) => prev.filter((m) => m.id !== (payload.old as QaMessage).id));
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(sub);
-    };
-  }, [moduleId, supabase]);
+  useRealtimeMessages<QaMessageWithUser>({
+    channelName: `qa-module-${moduleId}`,
+    table: QA_TABLE,
+    filter: `module_id=eq.${moduleId}`,
+    onInsert: (msg) =>
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      }),
+    onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
+    onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSend() {
     if (!newMessage.trim() || sending || !eventStarted || isLocked) return;
 
     const text = newMessage.trim();
@@ -134,7 +116,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
             </span>
           )}
         </div>
-        {isStaff && (
+        {canModerate && (
           <button
             onClick={onToggleLock}
             className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
@@ -175,7 +157,7 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
                     </span>
                   </div>
                   <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
-                  {isStaff && (
+                  {canModerate && (
                     <button
                       onClick={() => handleDelete(msg.id)}
                       className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
@@ -211,33 +193,14 @@ export default function QAPanel({ moduleId, userRole, eventStarted, eventEnded, 
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSend} className="shrink-0 border-t border-border px-4 py-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Ask a question..."
-                  maxLength={1000}
-                  className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm text-fg outline-none placeholder:text-muted-fg focus:border-brand focus:ring-2 focus:ring-ring/20"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className="flex items-center gap-1 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand/80 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {sending ? (
-                    <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <>
-                      <span className="material-symbols-rounded text-sm">send</span>
-                      Send
-                    </>
-                  )}
-                </button>
-              </div>
-              {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
-            </form>
+            <MessageComposer
+              value={newMessage}
+              onChange={setNewMessage}
+              onSend={handleSend}
+              sending={sending}
+              error={error}
+              placeholder="Ask a question..."
+            />
           )}
         </>
       )}

@@ -29,13 +29,17 @@ export function useSpeakerEvents() {
       setLoading(true);
       const res = await fetch("/api/speakers/me/events");
       if (!res.ok) {
-        if (!cancelled) setError("Failed to load events");
-        setLoading(false);
+        if (!cancelled) {
+          setError("Failed to load events");
+          setLoading(false);
+        }
         return;
       }
       const data = await res.json();
-      if (!cancelled) setEvents(data);
-      setLoading(false);
+      if (!cancelled) {
+        setEvents(data);
+        setLoading(false);
+      }
     }
 
     fetchEvents();

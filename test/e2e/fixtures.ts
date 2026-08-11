@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
@@ -40,7 +41,9 @@ export interface SeededUser {
  * The role is written directly because ensure-user hardcodes every new user to
  * `attendee`, so there is no path to facilitator through the app itself.
  */
-export async function createUser(db: SupabaseClient, role: "attendee" | "facilitator" | "speaker"): Promise<SeededUser> {
+type SeedRole = (typeof ROLES)["ATTENDEE" | "FACILITATOR" | "SPEAKER" | "ADMIN"];
+
+export async function createUser(db: SupabaseClient, role: SeedRole): Promise<SeededUser> {
   const email = `${E2E_PREFIX}${role}-${RUN}-${randomUUID().slice(0, 6)}@example.test`;
 
   const { data, error } = await db.auth.admin.createUser({

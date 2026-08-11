@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
@@ -21,17 +22,20 @@ const { requireRole, dao, storage, logAuditEvent, requireModuleAccess, requireLe
   requireLessonAccess: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/integrations/storage/service", () => storage);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess, requireLessonAccess }));
 
 import { PATCH as patchModule, DELETE as deleteModule } from "@/app/api/modules/[id]/route";
 import { GET as getLesson, PATCH as patchLesson, DELETE as deleteLesson } from "@/app/api/lessons/[id]/route";
 
-const SPEAKER = { allowed: true, error: null, user: { id: 5, role: "speaker" } };
+const SPEAKER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
 const params = { params: Promise.resolve({ id: "11" }) };
 
 const MODULE_BODY = { module_name: "Week one", sequence_order: 1 };

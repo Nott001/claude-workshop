@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireRole, dao, isAssigned, isAssignedByUserId, storage, logAuditEvent } = vi.hoisted(() => ({
@@ -17,22 +18,25 @@ const { requireRole, dao, isAssigned, isAssignedByUserId, storage, logAuditEvent
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => dao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId }));
 vi.mock("@/shared/integrations/storage/service", () => storage);
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
-import { GET, PATCH, DELETE } from "@/app/api/courses/[id]/route";
+import { GET, PATCH, DELETE } from "@/app/api/courses/[courseId]/route";
 
-const OWNER = { allowed: true, error: null, user: { id: 5, role: "speaker" } };
-const OTHER_SPEAKER = { allowed: true, error: null, user: { id: 9, role: "speaker" } };
-const FACILITATOR = { allowed: true, error: null, user: { id: 9, role: "facilitator" } };
-const ADMIN = { allowed: true, error: null, user: { id: 9, role: "admin" } };
+const OWNER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER } };
+const OTHER_SPEAKER = { allowed: true, error: null, user: { id: 9, role: ROLES.SPEAKER } };
+const FACILITATOR = { allowed: true, error: null, user: { id: 9, role: ROLES.FACILITATOR } };
+const ADMIN = { allowed: true, error: null, user: { id: 9, role: ROLES.ADMIN } };
 
-const params = { params: Promise.resolve({ id: "7" }) };
+const params = { params: Promise.resolve({ courseId: "7" }) };
 const VALID_BODY = { course_name: "Fundamentals", course_description: "Week one", event_id: 3 };
 
 function patch(body: unknown) {
@@ -56,7 +60,7 @@ beforeEach(() => {
   logAuditEvent.mockResolvedValue(undefined);
 });
 
-describe("GET /api/courses/[id]", () => {
+describe("GET /api/courses/[courseId]", () => {
   it("refuses a caller the guard turned away", async () => {
     requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
@@ -66,7 +70,15 @@ describe("GET /api/courses/[id]", () => {
     expect(dao.findCourseWithDetails).not.toHaveBeenCalled();
   });
 
+  it("refuses a speaker who is not assigned to the course's event", async () => {
+    const res = await GET(new Request("https://app.test/api/courses/7"), params);
+
+    expect(res.status).toBe(403);
+    expect(dao.findCourseWithDetails).not.toHaveBeenCalled();
+  });
+
   it("answers 404 for a course that does not exist", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
     dao.findCourseWithDetails.mockResolvedValue(null);
 
     const res = await GET(new Request("https://app.test/api/courses/7"), params);
@@ -74,7 +86,9 @@ describe("GET /api/courses/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns the course to a speaker", async () => {
+  it("returns the course to an assigned speaker", async () => {
+    isAssignedByUserId.mockResolvedValue(true);
+
     const res = await GET(new Request("https://app.test/api/courses/7"), params);
 
     expect(res.status).toBe(200);
@@ -82,7 +96,7 @@ describe("GET /api/courses/[id]", () => {
   });
 });
 
-describe("PATCH /api/courses/[id]", () => {
+describe("PATCH /api/courses/[courseId]", () => {
   it("lets the owner edit their own course", async () => {
     isAssignedByUserId.mockResolvedValue(true);
     const res = await PATCH(patch(VALID_BODY), params);
@@ -147,7 +161,7 @@ describe("PATCH /api/courses/[id]", () => {
   });
 });
 
-describe("DELETE /api/courses/[id]", () => {
+describe("DELETE /api/courses/[courseId]", () => {
   it("lets an assigned facilitator delete the course they manage", async () => {
     requireRole.mockResolvedValue(FACILITATOR);
     isAssigned.mockResolvedValue(true);

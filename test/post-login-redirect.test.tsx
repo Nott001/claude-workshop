@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/react";
 
@@ -27,11 +28,11 @@ afterEach(() => {
 // landed on "/" after sign-in rather than their staff events list.
 describe("PostLoginRedirect destination per role", () => {
   it.each([
-    ["admin", "/staff/events"],
-    ["super_admin", "/staff/events"],
-    ["facilitator", "/staff/events"],
-    ["speaker", "/speaker/dashboard"],
-    ["attendee", "/home"],
+    [ROLES.ADMIN, "/staff/events"],
+    [ROLES.SUPER_ADMIN, "/staff/events"],
+    [ROLES.FACILITATOR, "/staff/events"],
+    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.ATTENDEE, "/home"],
   ])("sends %s to %s", async (role, dest) => {
     signInAs(role);
     await waitFor(() => expect(replace).toHaveBeenCalledWith(dest));

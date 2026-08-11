@@ -18,17 +18,20 @@ export function fakePostgrest(data: unknown): FakePostgrest {
   const selects: string[] = [];
   const result = { data };
 
-  const builder = {
+  const builder: Record<string, unknown> = {
+    // Any terminal — `.order()`, `.range()`, `.single()`, a bare await on the
+    // chain — resolves to the fixed `{ data }`. DAOs now range-limit every
+    // listing, so no single method can claim to be the only terminal.
+    then: (resolve: (v: unknown) => unknown) => resolve(result),
     select(columns: string) {
       selects.push(columns);
       return builder;
     },
-    eq: () => builder,
-    // Both terminals answer the same way; `await` on a plain object is fine, so
-    // a DAO ending in either `.order()` or `.single()` reads this identically.
-    order: () => result,
-    single: () => result,
   };
+
+  for (const method of ["eq", "neq", "in", "is", "gte", "lt", "or", "order", "limit", "range", "single", "maybeSingle"]) {
+    builder[method] = () => builder;
+  }
 
   return { client: { from: () => builder } as never, selects };
 }

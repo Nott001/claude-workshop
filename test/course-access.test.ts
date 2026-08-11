@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { findCourseEvent, findCourseByModule, findCourseByLesson, isAssigned, isAssignedByUserId } = vi.hoisted(() => ({
@@ -38,31 +39,31 @@ beforeEach(() => {
 
 describe("canManageEvent", () => {
   it("admits admins globally without consulting assignments", async () => {
-    expect(await canManageEvent(client, 1, "admin", 100)).toBe(true);
-    expect(await canManageEvent(client, 1, "super_admin", 100)).toBe(true);
+    expect(await canManageEvent(client, 1, ROLES.ADMIN, 100)).toBe(true);
+    expect(await canManageEvent(client, 1, ROLES.SUPER_ADMIN, 100)).toBe(true);
     expect(isAssigned).not.toHaveBeenCalled();
     expect(isAssignedByUserId).not.toHaveBeenCalled();
   });
 
   it("admits a facilitator assigned to the event", async () => {
     isAssigned.mockResolvedValue(true);
-    expect(await canManageEvent(client, 7, "facilitator", 100)).toBe(true);
+    expect(await canManageEvent(client, 7, ROLES.FACILITATOR, 100)).toBe(true);
     expect(isAssigned).toHaveBeenCalledWith(client, 100, 7);
   });
 
   it("admits a speaker assigned to the event", async () => {
     isAssignedByUserId.mockResolvedValue(true);
-    expect(await canManageEvent(client, 8, "speaker", 100)).toBe(true);
+    expect(await canManageEvent(client, 8, ROLES.SPEAKER, 100)).toBe(true);
     expect(isAssignedByUserId).toHaveBeenCalledWith(client, 8, 100);
   });
 
   it("denies an unassigned facilitator or speaker", async () => {
-    expect(await canManageEvent(client, 7, "facilitator", 100)).toBe(false);
-    expect(await canManageEvent(client, 8, "speaker", 100)).toBe(false);
+    expect(await canManageEvent(client, 7, ROLES.FACILITATOR, 100)).toBe(false);
+    expect(await canManageEvent(client, 8, ROLES.SPEAKER, 100)).toBe(false);
   });
 
   it("denies an attendee without querying assignments", async () => {
-    expect(await canManageEvent(client, 5, "attendee", 100)).toBe(false);
+    expect(await canManageEvent(client, 5, ROLES.ATTENDEE, 100)).toBe(false);
     expect(isAssigned).not.toHaveBeenCalled();
     expect(isAssignedByUserId).not.toHaveBeenCalled();
   });
@@ -77,39 +78,39 @@ describe("author-content access (course / module / lesson)", () => {
 
   for (const { name, fn, id } of rows) {
     it(`${name} allows an admin`, async () => {
-      expect(await fn(id, 1, "admin")).toBeNull();
+      expect(await fn(id, 1, ROLES.ADMIN)).toBeNull();
     });
 
     it(`${name} allows an assigned facilitator`, async () => {
       isAssigned.mockResolvedValue(true);
-      expect(await fn(id, 7, "facilitator")).toBeNull();
+      expect(await fn(id, 7, ROLES.FACILITATOR)).toBeNull();
     });
 
     it(`${name} allows an assigned speaker`, async () => {
       isAssignedByUserId.mockResolvedValue(true);
-      expect(await fn(id, 8, "speaker")).toBeNull();
+      expect(await fn(id, 8, ROLES.SPEAKER)).toBeNull();
     });
 
     it(`${name} 403s an unassigned facilitator or speaker`, async () => {
-      expect(await fn(id, 7, "facilitator")).toMatchObject({ status: 403 });
-      expect(await fn(id, 8, "speaker")).toMatchObject({ status: 403 });
+      expect(await fn(id, 7, ROLES.FACILITATOR)).toMatchObject({ status: 403 });
+      expect(await fn(id, 8, ROLES.SPEAKER)).toMatchObject({ status: 403 });
     });
 
     it(`${name} 403s an attendee`, async () => {
-      expect(await fn(id, 5, "attendee")).toMatchObject({ status: 403 });
+      expect(await fn(id, 5, ROLES.ATTENDEE)).toMatchObject({ status: 403 });
     });
 
     it(`${name} 404s an unknown id rather than 403`, async () => {
       findCourseEvent.mockResolvedValue(null);
       findCourseByModule.mockResolvedValue(null);
       findCourseByLesson.mockResolvedValue(null);
-      expect(await fn(id, 7, "facilitator")).toMatchObject({ status: 404 });
+      expect(await fn(id, 7, ROLES.FACILITATOR)).toMatchObject({ status: 404 });
     });
 
     it(`${name} uses a course and client passed in without re-querying`, async () => {
       isAssigned.mockResolvedValue(true);
       const passed = {} as unknown as Parameters<typeof canManageEvent>[0];
-      const res = await fn(id, 7, "facilitator", { supabase: passed, course: assigned });
+      const res = await fn(id, 7, ROLES.FACILITATOR, { supabase: passed, course: assigned });
       expect(res).toBeNull();
       expect(findCourseByModule).not.toHaveBeenCalled();
       expect(findCourseByLesson).not.toHaveBeenCalled();
@@ -118,7 +119,7 @@ describe("author-content access (course / module / lesson)", () => {
     });
 
     it(`${name} treats a passed null course as a 404 without querying`, async () => {
-      const res = await fn(id, 7, "facilitator", { course: null });
+      const res = await fn(id, 7, ROLES.FACILITATOR, { course: null });
       expect(res).toMatchObject({ status: 404 });
       expect(findCourseByModule).not.toHaveBeenCalled();
       expect(findCourseByLesson).not.toHaveBeenCalled();
@@ -129,34 +130,34 @@ describe("author-content access (course / module / lesson)", () => {
 
 describe("requireCourseDeleteAccess", () => {
   it("allows an admin even when unassigned", async () => {
-    expect(await requireCourseDeleteAccess(1, 1, "admin")).toBeNull();
-    expect(await requireCourseDeleteAccess(1, 1, "super_admin")).toBeNull();
+    expect(await requireCourseDeleteAccess(1, 1, ROLES.ADMIN)).toBeNull();
+    expect(await requireCourseDeleteAccess(1, 1, ROLES.SUPER_ADMIN)).toBeNull();
     expect(isAssigned).not.toHaveBeenCalled();
   });
 
   it("allows a facilitator assigned to the event", async () => {
     isAssigned.mockResolvedValue(true);
-    expect(await requireCourseDeleteAccess(1, 7, "facilitator")).toBeNull();
+    expect(await requireCourseDeleteAccess(1, 7, ROLES.FACILITATOR)).toBeNull();
     expect(isAssigned).toHaveBeenCalledWith(client, 100, 7);
   });
 
   it("403s an unassigned facilitator", async () => {
-    expect(await requireCourseDeleteAccess(1, 7, "facilitator")).toMatchObject({ status: 403 });
+    expect(await requireCourseDeleteAccess(1, 7, ROLES.FACILITATOR)).toMatchObject({ status: 403 });
   });
 
   it("403s an assigned speaker without querying", async () => {
     isAssignedByUserId.mockResolvedValue(true);
-    expect(await requireCourseDeleteAccess(1, 8, "speaker")).toMatchObject({ status: 403 });
+    expect(await requireCourseDeleteAccess(1, 8, ROLES.SPEAKER)).toMatchObject({ status: 403 });
     expect(isAssignedByUserId).not.toHaveBeenCalled();
   });
 
   it("403s an attendee without querying", async () => {
-    expect(await requireCourseDeleteAccess(1, 5, "attendee")).toMatchObject({ status: 403 });
+    expect(await requireCourseDeleteAccess(1, 5, ROLES.ATTENDEE)).toMatchObject({ status: 403 });
     expect(isAssigned).not.toHaveBeenCalled();
   });
 
   it("404s an unknown course rather than 403", async () => {
     findCourseEvent.mockResolvedValue(null);
-    expect(await requireCourseDeleteAccess(99, 7, "facilitator")).toMatchObject({ status: 404 });
+    expect(await requireCourseDeleteAccess(99, 7, ROLES.FACILITATOR)).toMatchObject({ status: 404 });
   });
 });

@@ -1,7 +1,8 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireRole,
+  requireAuth,
   eventFindById,
   eventRemove,
   findModulesByCourse,
@@ -9,9 +10,9 @@ const {
   listStorageFolder,
   deleteFromStorage,
   logAuditEvent,
-  maybeSingle,
+  findCourseIdByEventId,
 } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
+  requireAuth: vi.fn(),
   eventFindById: vi.fn(),
   eventRemove: vi.fn(),
   findModulesByCourse: vi.fn(),
@@ -19,27 +20,32 @@ const {
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
-  maybeSingle: vi.fn(),
+  findCourseIdByEventId: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth: vi.fn() }));
-vi.mock("@/shared/db/client", () => ({
-  getServiceClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }) }),
-}));
-vi.mock("@/shared/db/dao/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule }));
+vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
+vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findCourseIdByEventId }));
 
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
-vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent }));
+vi.mock("@/modules/audit/lib/log-audit-event", () => ({
+  logAuditEvent,
+  requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+}));
 
 import { DELETE } from "@/app/api/events/[id]/route";
 
-const facilitator = {
-  allowed: true,
-  error: null,
-  user: { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com", profile_image_url: null },
-};
+const user = (id: number, role: string) => ({
+  id,
+  role,
+  full_name: "Fay",
+  email: "fay@example.com",
+  profile_image_url: null,
+});
+const admin = user(9, ROLES.ADMIN);
+const facilitator = user(10, ROLES.FACILITATOR);
+const attendee = user(5, ROLES.ATTENDEE);
 
 const del = (id = "1") =>
   DELETE(new Request(`https://app.test/api/events/${id}`, { method: "DELETE" }), {
@@ -53,14 +59,14 @@ function deletions() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireRole.mockResolvedValue(facilitator);
+  requireAuth.mockResolvedValue(admin);
   eventFindById.mockResolvedValue({
     id: 1,
     title: "Launch Day",
     cover_image_url: "/api/storage/event_images/events/1/cover.png",
   });
   eventRemove.mockResolvedValue(true);
-  maybeSingle.mockResolvedValue({ data: { id: 7 } });
+  findCourseIdByEventId.mockResolvedValue(7);
   findModulesByCourse.mockResolvedValue([{ id: 3 }]);
   findLessonsByModule.mockResolvedValue([{ id: 5 }]);
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
@@ -68,14 +74,42 @@ beforeEach(() => {
 });
 
 describe("DELETE /api/events/[id] authorization", () => {
-  it("refuses a caller without the facilitator role and deletes nothing", async () => {
-    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
+  it("refuses a caller below admin and deletes nothing", async () => {
+    requireAuth.mockResolvedValue(attendee);
 
     const res = await del();
 
     expect(res.status).toBe(403);
     expect(eventRemove).not.toHaveBeenCalled();
     expect(deleteFromStorage).not.toHaveBeenCalled();
+  });
+
+  it("refuses a facilitator even when assigned to the event", async () => {
+    requireAuth.mockResolvedValue(facilitator);
+
+    const res = await del();
+
+    expect(res.status).toBe(403);
+    expect(eventRemove).not.toHaveBeenCalled();
+    expect(deleteFromStorage).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an anonymous caller", async () => {
+    requireAuth.mockResolvedValue(null);
+
+    const res = await del();
+
+    expect(res.status).toBe(401);
+    expect(eventRemove).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for an event that does not exist", async () => {
+    eventFindById.mockResolvedValue(null);
+
+    const res = await del();
+
+    expect(res.status).toBe(404);
+    expect(eventRemove).not.toHaveBeenCalled();
   });
 });
 
@@ -106,7 +140,7 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
   });
 
   it("collects nothing from course buckets when the event has no course", async () => {
-    maybeSingle.mockResolvedValue({ data: null });
+    findCourseIdByEventId.mockResolvedValue(null);
 
     await del();
 

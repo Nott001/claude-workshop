@@ -1,10 +1,23 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
-import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import {
+  openOrReuseSession,
+  rateLimitCheck,
+  sendSupportMessage,
+  SupportServiceError,
+} from "@/modules/chat/lib/support-service";
+
+function mapError(err: unknown): NextResponse {
+  if (err instanceof SupportServiceError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+  throw err;
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -12,7 +25,6 @@ export async function GET(req: Request) {
   const after = searchParams.get("after");
   const filterUserId = searchParams.get("user_id");
   const supportTypeParam = searchParams.get("support_type") ?? "general";
-  const eventIdParam = searchParams.get("event_id");
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 50);
 
   const parsedType = supportTypeEnum.safeParse(supportTypeParam);
@@ -20,7 +32,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid support_type" }, { status: 400 });
   }
   const supportType = parsedType.data;
-  const eventId = eventIdParam ? Number(eventIdParam) : null;
 
   const supabase = getServiceClient();
 
@@ -29,7 +40,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -37,7 +48,6 @@ export async function GET(req: Request) {
     userId: user.id,
     role: user.role,
     supportType,
-    eventId,
     before: before ?? null,
     after: after ?? null,
     limit,
@@ -74,67 +84,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const supportType = parsed.data.support_type ?? "general";
-
-  if (supportType === "general" && !hasMinRole(user.role, "admin") && user.role !== "attendee") {
+  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const isStaff = hasMinRole(user.role, supportType === "general" ? "admin" : "facilitator");
-
-  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-
-  const [rateLimitCount] = await Promise.all([chatDao.countRecentByUser(supabase, user.id, supportType, windowStart)]);
-
-  if (rateLimitCount >= RATE_LIMIT_MAX) {
+  if (await rateLimitCheck(supabase, user.id)) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  let sessionId: number;
+  try {
+    const session = await openOrReuseSession(supabase, {
+      userId: user.id,
+      role: user.role,
+      recipientUserId: parsed.data.recipient_user_id,
+    });
 
-  if (supportType === "general" && isStaff && parsed.data.recipient_user_id) {
-    // A staff reply lands in the asker's active case, and only the handler
-    // assigned to that case may send it — otherwise two admins talk at once.
-    const active = await chatDao.findActiveSession(supabase, parsed.data.recipient_user_id, "general");
-    if (!active) {
-      return NextResponse.json({ error: "No active case for this user" }, { status: 404 });
-    }
-    if (active.assigned_to === null) {
-      return NextResponse.json({ error: "Claim this case before replying" }, { status: 409 });
-    }
-    if (active.assigned_to !== user.id) {
-      return NextResponse.json({ error: "This case is being handled by another staff member" }, { status: 403 });
-    }
-    sessionId = active.id;
-  } else {
-    const sessionUserId = isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : user.id;
+    const message = await sendSupportMessage(supabase, {
+      message: parsed.data.message,
+      sessionId: session.id,
+      userId: user.id,
+      role: user.role,
+      recipientUserId: parsed.data.recipient_user_id,
+    });
 
-    const existing = await chatDao.findActiveSession(supabase, sessionUserId, supportType);
-
-    if (existing) {
-      sessionId = existing.id;
-    } else {
-      const newSession = await chatDao.createSession(supabase, sessionUserId, supportType);
-      // createSession returns null on failure; asserting non-null turned an
-      // insert error into a TypeError and a 500 with no usable message.
-      if (!newSession) {
-        return NextResponse.json({ error: "Failed to start a support session" }, { status: 500 });
-      }
-      sessionId = newSession.id;
-    }
+    return NextResponse.json(message, { status: 201 });
+  } catch (err) {
+    return mapError(err);
   }
-
-  const message = await chatDao.sendMessage(supabase, {
-    support_type: supportType,
-    user_id: user.id,
-    message: parsed.data.message,
-    session_id: sessionId,
-    recipient_user_id: isStaff && parsed.data.recipient_user_id ? parsed.data.recipient_user_id : undefined,
-  });
-
-  if (!message) {
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
-  }
-
-  return NextResponse.json(message, { status: 201 });
 }

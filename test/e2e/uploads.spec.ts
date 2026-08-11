@@ -1,3 +1,4 @@
+import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
 import {
   serviceClient,
@@ -67,7 +68,7 @@ test.afterAll(async () => {
 });
 
 test("a facilitator uploads a course asset and it becomes readable through the storage route", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
   await assignFacilitator(db, facilitator.userId, event.eventId);
 
@@ -93,9 +94,9 @@ test("a facilitator uploads a course asset and it becomes readable through the s
 });
 
 test("an attendee holding a ticket can read an uploaded asset, and one without cannot", async ({ page, browser }) => {
-  const facilitator = await createUser(db, "facilitator");
-  const holder = await createUser(db, "attendee");
-  const outsider = await createUser(db, "attendee");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
+  const holder = await createUser(db, ROLES.ATTENDEE);
+  const outsider = await createUser(db, ROLES.ATTENDEE);
   users.push(facilitator, holder, outsider);
   await assignFacilitator(db, facilitator.userId, event.eventId);
   await issueTicket(db, holder.userId, event.eventId);
@@ -125,7 +126,7 @@ test("an attendee holding a ticket can read an uploaded asset, and one without c
 });
 
 test("an attendee cannot upload course material", async ({ page }) => {
-  const attendee = await createUser(db, "attendee");
+  const attendee = await createUser(db, ROLES.ATTENDEE);
   users.push(attendee);
 
   await signIn(page, attendee);
@@ -142,7 +143,7 @@ test("an attendee cannot upload course material", async ({ page }) => {
 });
 
 test("a file type the bucket does not accept is refused", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);
@@ -158,7 +159,7 @@ test("a file type the bucket does not accept is refused", async ({ page }) => {
 });
 
 test("a missing field is refused before anything is stored", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
+  const facilitator = await createUser(db, ROLES.FACILITATOR);
   users.push(facilitator);
 
   await signIn(page, facilitator);
@@ -174,11 +175,11 @@ test("a missing field is refused before anything is stored", async ({ page }) =>
   expect(res.status()).toBe(400);
 });
 
-test("a facilitator uploads an event cover and it is recorded on the event", async ({ page }) => {
-  const facilitator = await createUser(db, "facilitator");
-  users.push(facilitator);
+test("an admin uploads an event cover and it is recorded on the event", async ({ page }) => {
+  const admin = await createUser(db, ROLES.ADMIN);
+  users.push(admin);
 
-  await signIn(page, facilitator);
+  await signIn(page, admin);
 
   const res = await page.request.post("/api/upload/event-image", {
     multipart: {

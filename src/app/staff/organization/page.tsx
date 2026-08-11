@@ -1,5 +1,6 @@
 "use client";
 
+import { INVITABLE_ROLES, ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
@@ -26,12 +27,10 @@ const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "er
   super_admin: "error",
 };
 
-const INVITE_ROLES: UserRole[] = ["speaker", "facilitator", "admin"];
-
 export default function StaffOrganizationPage() {
   const { user } = useSession();
-  const { role: userRole, allowed: isAdmin, pending } = useRoleGuard("admin");
-  const isSuperAdmin = hasMinRole(userRole, "super_admin");
+  const { role: userRole, allowed: isAdmin, pending } = useRoleGuard(ROLES.ADMIN);
+  const isSuperAdmin = hasMinRole(userRole, ROLES.SUPER_ADMIN);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +38,7 @@ export default function StaffOrganizationPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<UserRole>("speaker");
+  const [inviteRole, setInviteRole] = useState<UserRole>(ROLES.SPEAKER);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
 
@@ -85,7 +84,7 @@ export default function StaffOrganizationPage() {
     setInviteOpen(false);
     setInviteName("");
     setInviteEmail("");
-    setInviteRole("speaker");
+    setInviteRole(ROLES.SPEAKER);
     setInviting(false);
     setRefreshKey((k) => k + 1);
   }
@@ -104,7 +103,7 @@ export default function StaffOrganizationPage() {
     setRefreshKey((k) => k + 1);
   }
 
-  const allowedInviteRoles = isSuperAdmin ? INVITE_ROLES : INVITE_ROLES.filter((r) => r !== "admin");
+  const allowedInviteRoles = isSuperAdmin ? INVITABLE_ROLES : INVITABLE_ROLES.filter((r) => r !== ROLES.ADMIN);
 
   if (pending) {
     return (

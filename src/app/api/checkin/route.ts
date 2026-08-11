@@ -1,17 +1,18 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
 import { sendEmailNotification } from "@/modules/notifications/lib/email";
-import { logAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { afterResponse } from "@/shared/lib/after-response";
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator");
+  const guard = await requireMinRole(ROLES.FACILITATOR);
   if (!guard.allowed) {
     return guardFailure(guard);
   }
@@ -61,12 +62,11 @@ export async function POST(req: Request) {
         name: userInfo.full_name,
         email_type: "check_in_confirmed",
         eventTitle: eventData?.title ?? "",
-        eventDate: eventData?.event_date ?? "",
       });
     });
   }
 
-  await logAuditEvent(supabase, guard.user.id, "checkin.performed", "ticket", ticket.payment_id, {
+  await requireAuditEvent(supabase, guard.user.id, "checkin.performed", "ticket", ticket.payment_id, {
     event_id: ticket.event_id,
     attendee_name: ticket.USER?.full_name,
   });

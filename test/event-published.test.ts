@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import { fakePostgrest } from "./helpers/fake-postgrest";
 
 /**

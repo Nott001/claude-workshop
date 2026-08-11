@@ -19,8 +19,8 @@ describe("Email types", () => {
   });
 
   it("EmailType accepts all valid values", () => {
-    const types: EmailType[] = ["ticket_issued", "check_in_confirmed"];
-    expect(types).toHaveLength(2);
+    const types: EmailType[] = ["ticket_issued", "check_in_confirmed", "event_survey"];
+    expect(types).toHaveLength(3);
   });
 
   it("EmailStatus accepts all valid values", () => {
@@ -104,6 +104,46 @@ describe("emailTemplates", () => {
   it("has correct subject lines", () => {
     expect(emailTemplates.ticketIssued.subject).toContain("Registration Confirmed");
     expect(emailTemplates.checkInConfirmed.subject).toBe("Check-In Confirmed");
+    expect(emailTemplates.eventSurvey.subject).toContain("Share your feedback");
+  });
+
+  it("exports the event survey template with its link", () => {
+    const html = emailTemplates.eventSurvey.buildHtml({
+      name: "Ada",
+      eventTitle: "Launch Day",
+      surveyUrl: "https://startuplab.center/surveys/abc123",
+    });
+
+    expect(html).toContain("How was Launch Day?");
+    expect(html).toContain("Hi Ada,");
+    expect(html).toContain("https://startuplab.center/surveys/abc123");
+  });
+
+  it("builds survey text that stands alone", () => {
+    const text = emailTemplates.eventSurvey.buildText({
+      name: "Ada",
+      eventTitle: "Launch Day",
+      surveyUrl: "https://startuplab.center/surveys/abc123",
+    });
+
+    expect(text).toContain("Hi Ada,");
+    expect(text).toContain("Open this address to rate the event:");
+    expect(text).toContain("https://startuplab.center/surveys/abc123");
+    expect(text).not.toContain("<");
+  });
+
+  // The survey token is random, but the recipient name and event title are not.
+  it("escapes survey values the HTML part interpolates", () => {
+    const html = emailTemplates.eventSurvey.buildHtml({
+      name: '<img src=x onerror="alert(1)">',
+      eventTitle: "<script>alert(1)</script>",
+      surveyUrl: 'https://startuplab.center/surveys/abc" onclick="x',
+    });
+
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&quot; onclick=&quot;x");
   });
 
   // An event title is written by whoever created the event and then mailed to

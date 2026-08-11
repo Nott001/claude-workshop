@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
 vi.mock("@/shared/db/client", () => ({ supabase: {} }));
 
 const { getUpcomingForLanding } = vi.hoisted(() => ({ getUpcomingForLanding: vi.fn() }));
-vi.mock("@/shared/db/dao/event.dao", () => ({ getUpcomingForLanding }));
+vi.mock("@/modules/events/db/event.dao", () => ({ getUpcomingForLanding }));
 
 vi.mock("@/modules/auth/components/post-login-redirect", () => ({
   PostLoginRedirect: () => null,
@@ -44,7 +45,7 @@ const apiRows = [
 
 const attendee = {
   id: 1,
-  role: "attendee",
+  role: ROLES.ATTENDEE,
   full_name: "Jane Doe",
   email: "jane@example.com",
   profile_image_url: null,
@@ -58,7 +59,10 @@ function signInAsAttendee() {
     isSignedIn: true,
     signOut: vi.fn(),
   });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => apiRows }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: apiRows, total: 2, page: 1, limit: 50 }) }),
+  );
 }
 
 beforeEach(() => {

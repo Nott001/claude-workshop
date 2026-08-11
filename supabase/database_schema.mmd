@@ -108,7 +108,7 @@ erDiagram
 
     %% ============ Live Session ============
     LIVE_SESSION_STATE {
-        int event_id PK
+        int course_id PK
         int highlighted_lesson_id FK
         int updated_by FK
         timestamp created_at
@@ -186,12 +186,12 @@ erDiagram
     %% ============ Community ============
     COMMUNITY_LINK {
         int id PK
-        int event_id FK
-        varchar platform
         varchar label
         varchar url
+        text description
         varchar icon_url
         int sequence_order
+        boolean is_hidden
         int created_by FK
         timestamp created_at
         timestamp updated_at
@@ -281,15 +281,14 @@ erDiagram
     MODULE ||--o{ LESSON : "contains"
     COURSE |o--o{ EVENT : "backs"
     COURSE |o--o{ SURVEY : "surveyed by"
+    COURSE ||--o| LIVE_SESSION_STATE : "tracks"
 
     EVENT ||--o{ EVENT_SPEAKER : "features"
     SPEAKER_PROFILE ||--o{ EVENT_SPEAKER : "assigned to"
     EVENT |o--o{ STAFF_INVITE : "scopes"
     EVENT ||--o{ EVENT_FACILITATOR : "staffed by"
-    EVENT ||--o| LIVE_SESSION_STATE : "tracks"
     EVENT |o--o{ CHAT_MESSAGE : "hosts"
     EVENT |o--o{ SURVEY : "surveyed by"
-    EVENT ||--o{ COMMUNITY_LINK : "lists"
     EVENT ||--o{ PAYMENT : "charges for"
     EVENT ||--o{ TICKET : "admits to"
 

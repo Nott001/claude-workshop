@@ -1,21 +1,25 @@
 "use client";
 
+import { ROLES } from "@/shared/lib/roles";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { useEmailLogs } from "@/modules/notifications/lib/use-email-logs";
+import { LoadMoreButton } from "@/shared/components/load-more";
 
-type EmailType = "ticket_issued" | "check_in_confirmed";
+type EmailType = "ticket_issued" | "check_in_confirmed" | "event_survey";
 type EmailStatus = "sent" | "failed";
 
 const EMAIL_TYPE_LABELS: Record<EmailType, string> = {
   ticket_issued: "Ticket Issued",
   check_in_confirmed: "Check-In Confirmed",
+  event_survey: "Event Survey",
 };
 
 const EMAIL_TYPE_OPTIONS: { value: EmailType | ""; label: string }[] = [
   { value: "", label: "All types" },
   { value: "ticket_issued", label: "Ticket Issued" },
   { value: "check_in_confirmed", label: "Check-In Confirmed" },
+  { value: "event_survey", label: "Event Survey" },
 ];
 
 const STATUS_OPTIONS: { value: EmailStatus | ""; label: string }[] = [
@@ -30,8 +34,9 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function StaffEmailsPage() {
-  const { allowed, pending } = useRoleGuard("admin");
-  const { logs, loading, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } = useEmailLogs();
+  const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
+  const { logs, loading, loadingMore, hasMore, loadMore, emailTypeFilter, statusFilter, setEmailTypeFilter, setStatusFilter } =
+    useEmailLogs();
 
   if (pending) {
     return (
@@ -121,6 +126,7 @@ export default function StaffEmailsPage() {
             </table>
           </div>
         )}
+        {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </div>
     </>
   );

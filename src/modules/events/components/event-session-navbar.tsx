@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseLocalDateTime } from "@/shared/lib/date-utils";
 
 interface EventSessionNavbarProps {
   eventName: string;
@@ -8,16 +9,28 @@ interface EventSessionNavbarProps {
   remaining: string;
   eventDate: string;
   startTime: string;
+  liveModuleName?: string | null;
+  liveSpeakerName?: string | null;
   onExit?: () => void;
 }
 
-export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, startTime, onExit }: EventSessionNavbarProps) {
+export function EventSessionNavbar({
+  eventName,
+  elapsed,
+  remaining,
+  eventDate,
+  startTime,
+  liveModuleName,
+  liveSpeakerName,
+  onExit,
+}: EventSessionNavbarProps) {
   const [startsIn, setStartsIn] = useState("");
 
   useEffect(() => {
     if (!eventDate || !startTime) return;
     function tick() {
-      const start = new Date(`${eventDate}T${startTime}`);
+      const start = parseLocalDateTime(eventDate, startTime);
+      if (!start) return;
       const now = new Date();
       const diff = start.getTime() - now.getTime();
       if (diff > 0) {
@@ -39,7 +52,8 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
     return () => clearInterval(id);
   }, [eventDate, startTime]);
 
-  const eventStarted = eventDate && startTime ? new Date(`${eventDate}T${startTime}`) <= new Date() : false;
+  const sessionStart = eventDate && startTime ? parseLocalDateTime(eventDate, startTime) : null;
+  const eventStarted = !!sessionStart && sessionStart <= new Date();
 
   return (
     <div className="flex h-16 shrink-0 items-center border-b border-border bg-surface px-6">
@@ -73,6 +87,15 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
             <span className="font-mono text-base font-bold leading-6 text-fg">{startsIn}</span>
           </div>
         ) : null}
+
+        {liveModuleName && (
+          <div className="flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1">
+            <span className="size-2 animate-pulse rounded-full bg-brand" />
+            <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-brand">Live</span>
+            <span className="text-sm font-bold text-fg">{liveModuleName}</span>
+            {liveSpeakerName && <span className="text-xs text-muted-fg">· {liveSpeakerName}</span>}
+          </div>
+        )}
       </div>
 
       <button
@@ -80,7 +103,7 @@ export function EventSessionNavbar({ eventName, elapsed, remaining, eventDate, s
         className="flex items-center gap-2 text-sm font-medium tracking-[0.7px] text-muted-fg transition-colors hover:text-fg"
       >
         <span className="material-symbols-rounded text-base">logout</span>
-        EXIT EVENT ROOM
+        EXIT COURSE ROOM
       </button>
     </div>
   );

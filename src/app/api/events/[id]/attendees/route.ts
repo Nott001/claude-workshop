@@ -1,24 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/modules/auth/lib/role-guard";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import { EventServiceError, listEventAttendees, loadEventOr403 } from "@/modules/events/lib/event-service";
 
-interface AttendeeRow {
-  user_id: number;
-  full_name: string;
-  email: string;
-  ticket_status: "issued" | "checked_in" | "cancelled";
-  issued_at: string;
-  checked_in_at: string | null;
+function mapError(err: unknown): NextResponse {
+  if (err instanceof EventServiceError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+  throw err;
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole("facilitator");
-  if (!guard.allowed) {
-    return guardFailure(guard);
-  }
-
   const { id: eventId } = await params;
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
@@ -28,28 +20,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const supabase = getServiceClient();
 
-  const { data: rawAttendees, total } = await ticketDao.getAttendees(supabase, Number(eventId), {
-    search,
-    status,
-    page,
-    limit,
-  });
+  const user = await requireAuth(supabase);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
 
-  const attendees: AttendeeRow[] = (
-    (rawAttendees ?? []) as {
-      USER: { id: number; full_name: string; email: string } | null;
-      status: string;
-      issued_at: string;
-      updated_at: string;
-    }[]
-  ).map((row) => ({
-    user_id: row.USER?.id ?? 0,
-    full_name: row.USER?.full_name ?? "Unknown",
-    email: row.USER?.email ?? "",
-    ticket_status: row.status as AttendeeRow["ticket_status"],
-    issued_at: row.issued_at,
-    checked_in_at: row.status === "checked_in" ? row.updated_at : null,
-  }));
+  try {
+    await loadEventOr403(supabase, Number(eventId), user, "attendees");
+  } catch (err) {
+    return mapError(err);
+  }
 
-  return NextResponse.json({ attendees, total, page, limit });
+  const result = await listEventAttendees(supabase, Number(eventId), { search, status, page, limit });
+
+  return NextResponse.json(result);
 }

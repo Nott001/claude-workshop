@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const supportTypeEnum = z.enum(["general", "event"]);
+export const supportTypeEnum = z.enum(["general"]);
 
 export const sendMessageSchema = z.object({
   support_type: supportTypeEnum.default("general"),

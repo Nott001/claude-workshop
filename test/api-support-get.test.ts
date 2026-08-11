@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, listSupportMessages } = vi.hoisted(() => ({
@@ -11,8 +12,8 @@ vi.mock("@/shared/db/dao/chat.dao", () => ({ listSupportMessages }));
 
 import { GET } from "@/app/api/support/route";
 
-const ATTENDEE = { id: 12, role: "attendee" };
-const SPEAKER = { id: 7, role: "speaker" };
+const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
+const SPEAKER = { id: 7, role: ROLES.SPEAKER };
 
 function get(url: string) {
   return GET(new Request(`https://app.test${url}`));

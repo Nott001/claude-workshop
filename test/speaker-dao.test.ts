@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi } from "vitest";
 import { listCandidates, replaceEventAssignments, isAssignedByUserId, listEventAssignments } from "@/shared/db/dao/speaker.dao";
 import type { DbClient } from "@/shared/db/dao/types";
@@ -67,7 +68,7 @@ describe("speaker.dao isAssignedByUserId", () => {
   it("resolves the profile, then checks the assignment directly by profile id", async () => {
     const profileChain = {
       select: vi.fn(() => profileChain),
-      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
+      eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
     };
     const esChain = {
       select: vi.fn(() => esChain),
@@ -88,7 +89,7 @@ describe("speaker.dao isAssignedByUserId", () => {
   it("returns false without querying assignments when the user has no profile", async () => {
     const profileChain = {
       select: vi.fn(() => profileChain),
-      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: { code: "PGRST116" } })) })),
+      eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
     };
     const esChain = { select: vi.fn(), eq: vi.fn(), single: vi.fn() };
     const from = vi.fn((table: string) => (table === "SPEAKER_PROFILE" ? profileChain : esChain));
@@ -103,7 +104,7 @@ describe("speaker.dao isAssignedByUserId", () => {
   it("returns false when the profile is not assigned to the event", async () => {
     const profileChain = {
       select: vi.fn(() => profileChain),
-      eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
+      eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: { id: 2 }, error: null })) })),
     };
     const esChain = {
       select: vi.fn(() => esChain),
@@ -158,7 +159,8 @@ describe("speaker.dao listCandidates", () => {
     const orderChain = {
       select: vi.fn(() => orderChain),
       eq: vi.fn(() => orderChain),
-      order: vi.fn(() =>
+      order: vi.fn(() => orderChain),
+      range: vi.fn(() =>
         Promise.resolve({
           data: [
             {
@@ -175,7 +177,7 @@ describe("speaker.dao listCandidates", () => {
     const from = vi.fn(() => orderChain);
     const client = { from } as unknown as DbClient;
 
-    const rows = await listCandidates(client);
+    const { data: rows } = await listCandidates(client);
 
     expect(rows).toEqual([
       {
@@ -185,6 +187,6 @@ describe("speaker.dao listCandidates", () => {
         USER: { full_name: "Sam Speaker", email: "sam@example.com" },
       },
     ]);
-    expect(orderChain.eq).toHaveBeenCalledWith("USER.role", "speaker");
+    expect(orderChain.eq).toHaveBeenCalledWith("USER.role", ROLES.SPEAKER);
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { Footer } from "@/shared/components/footer";
+import { Footer } from "@/modules/shell/components/footer";
 import { EventSessionNavbar } from "@/modules/events/components/event-session-navbar";
 
 afterEach(() => {
@@ -35,6 +35,6 @@ describe("removed Figma MCP assets", () => {
     );
     assertNoFigmaImages(container);
     expect(screen.getByText("StartupLab")).toBeTruthy();
-    expect(screen.getByText("EXIT EVENT ROOM")).toBeTruthy();
+    expect(screen.getByText("EXIT COURSE ROOM")).toBeTruthy();
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ChatMessageWithUser } from "@/modules/chat/lib/use-support-cases";
+import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 
 interface MessageListProps {
   messages: ChatMessageWithUser[];

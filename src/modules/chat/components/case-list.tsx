@@ -1,17 +1,30 @@
 "use client";
 
 import { Badge } from "@/shared/components/badge";
+import { LoadMoreButton } from "@/shared/components/load-more";
 import type { CaseSummary } from "@/modules/chat/lib/use-support-cases";
 
 interface CaseListProps {
   cases: CaseSummary[];
   loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
   selectedId: number | null;
   currentUserId: number | null;
   onSelect: (c: CaseSummary) => void;
 }
 
-export function CaseList({ cases, loading, selectedId, currentUserId, onSelect }: CaseListProps) {
+export function CaseList({
+  cases,
+  loading,
+  loadingMore,
+  hasMore,
+  onLoadMore,
+  selectedId,
+  currentUserId,
+  onSelect,
+}: CaseListProps) {
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-r border-border">
       {loading ? (
@@ -49,6 +62,7 @@ export function CaseList({ cases, loading, selectedId, currentUserId, onSelect }
           ))}
         </ul>
       )}
+      {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={onLoadMore} label="Load more cases" />}
     </aside>
   );
 }

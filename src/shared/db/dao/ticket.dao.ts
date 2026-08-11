@@ -1,5 +1,5 @@
-import type { DbClient } from "./types";
-import { ilikePattern } from "./helpers";
+import type { DbClient, PaginatedResult } from "./types";
+import { ilikePattern, pageBounds, throwOnDbError } from "./helpers";
 import type { Payment, Ticket, TicketStatus, User } from "@/shared/types";
 
 interface TicketWithUser extends Ticket {
@@ -40,54 +40,86 @@ type RawAttendeeRow = Omit<AttendeeRow, "USER"> & {
 };
 
 export async function findById(supabase: DbClient, id: number): Promise<Ticket | null> {
-  const { data } = await supabase.from("TICKET").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("TICKET").select("*").eq("id", id).maybeSingle();
+  throwOnDbError(error, "ticket.dao.findById");
   return data;
 }
 
 export async function findByPaymentId(supabase: DbClient, paymentId: number): Promise<Ticket | null> {
-  const { data } = await supabase.from("TICKET").select("*").eq("payment_id", paymentId).single();
+  const { data, error } = await supabase.from("TICKET").select("*").eq("payment_id", paymentId).maybeSingle();
+  throwOnDbError(error, "ticket.dao.findByPaymentId");
   return data;
 }
 
 export async function findByQrToken(supabase: DbClient, qrToken: string): Promise<TicketWithUser | null> {
-  const { data } = await supabase.from("TICKET").select("*, USER:user_id(full_name, email)").eq("qr_token", qrToken).single();
+  const { data, error } = await supabase
+    .from("TICKET")
+    .select("*, USER:user_id(full_name, email)")
+    .eq("qr_token", qrToken)
+    .maybeSingle();
+  throwOnDbError(error, "ticket.dao.findByQrToken");
   return data;
 }
 
-export async function findActiveByUserAndEvent(supabase: DbClient, userId: number, eventId: number): Promise<Ticket[]> {
-  const { data } = await supabase
+/**
+ * The live (non-cancelled) ticket a user holds for an event, if any. Shared by
+ * the commerce duplicate-ticket check and course-access eligibility so the
+ * "who may attend" rule lives in one place.
+ */
+export async function findActiveTicketByUserAndEvent(
+  supabase: DbClient,
+  userId: number,
+  eventId: number,
+): Promise<Ticket | null> {
+  const { data, error } = await supabase
     .from("TICKET")
     .select("*")
     .eq("user_id", userId)
     .eq("event_id", eventId)
     .neq("status", "cancelled")
-    .limit(1);
-  return (data ?? []) as Ticket[];
+    .maybeSingle();
+  throwOnDbError(error, "ticket.dao.findActiveTicketByUserAndEvent");
+  return data;
 }
 
 // Everything a ticket card renders, so it never has to ask a second time.
 const TICKET_CARD_SELECT =
   "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";
 
-export async function listByUser(supabase: DbClient, userId: number): Promise<TicketWithPaymentAndEvent[]> {
-  const { data } = await supabase
+export async function listByUser(
+  supabase: DbClient,
+  userId: number,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<TicketWithPaymentAndEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
     .from("TICKET")
-    .select(TICKET_CARD_SELECT)
+    .select(TICKET_CARD_SELECT, { count: "exact" })
     .eq("user_id", userId)
-    .order("issued_at", { ascending: false });
-  return data ?? [];
+    .order("issued_at", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
-export async function listAll(supabase: DbClient): Promise<TicketWithPaymentAndEvent[]> {
-  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).order("issued_at", { ascending: false });
-  return data ?? [];
+export async function listAll(
+  supabase: DbClient,
+  options?: { page?: number; limit?: number },
+): Promise<PaginatedResult<TicketWithPaymentAndEvent>> {
+  const { from, to, page, limit } = pageBounds(options);
+  const { data, count } = await supabase
+    .from("TICKET")
+    .select(TICKET_CARD_SELECT, { count: "exact" })
+    .order("issued_at", { ascending: false })
+    .range(from, to);
+  return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
 export async function findWithPaymentAndEvent(
   supabase: DbClient,
   paymentId: number,
 ): Promise<TicketWithPaymentAndEvent | null> {
-  const { data } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("payment_id", paymentId).single();
+  const { data, error } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("payment_id", paymentId).maybeSingle();
+  throwOnDbError(error, "ticket.dao.findWithPaymentAndEvent");
   return data;
 }
 

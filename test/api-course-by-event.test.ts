@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { requireAuth, findCourseByEvent, userHasCourseAccess } = vi.hoisted(() => ({
@@ -15,9 +16,9 @@ import { GET } from "@/app/api/courses/event/[eventId]/route";
 const req = () => new Request("https://app.test/api/courses/event/42");
 const params = { params: Promise.resolve({ eventId: "42" }) };
 
-const attendee = { id: 5, role: "attendee", full_name: "Jane", email: "jane@example.com" };
-const facilitator = { id: 9, role: "facilitator", full_name: "Fay", email: "fay@example.com" };
-const speaker = { id: 7, role: "speaker", full_name: "Sam", email: "sam@example.com" };
+const attendee = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
+const facilitator = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com" };
+const speaker = { id: 7, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com" };
 const course = { id: 12, course_name: "React", MODULE: [] };
 
 beforeEach(() => {

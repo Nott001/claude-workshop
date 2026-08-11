@@ -1,5 +1,6 @@
 export type UserRole = "attendee" | "speaker" | "facilitator" | "admin" | "super_admin";
-export type SupportType = "general" | "event";
+/** Support chat is general-only; the event branch was removed. */
+export type SupportType = "general";
 
 export interface User {
   id: number;
@@ -65,6 +66,7 @@ export interface Event {
   currency: string;
   cover_image_url: string | null;
   status: EventStatus;
+  survey_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -114,7 +116,6 @@ export interface Ticket {
 
 export interface ChatMessage {
   id: number;
-  event_id: number | null;
   session_id: number | null;
   support_type: SupportType;
   user_id: number;
@@ -168,7 +169,7 @@ export interface AuditLog {
 }
 
 export interface LiveSessionState {
-  event_id: number;
+  course_id: number;
   highlighted_lesson_id: number | null;
   updated_by: number;
   updated_at: string;
@@ -181,14 +182,13 @@ export interface SupportSession {
   user_id: number;
   status: SupportSessionStatus;
   support_type: SupportType;
-  event_id: number | null;
   case_number: number;
   assigned_to: number | null;
   created_at: string;
   updated_at: string;
 }
 
-export type EmailType = "ticket_issued" | "check_in_confirmed";
+export type EmailType = "ticket_issued" | "check_in_confirmed" | "event_survey";
 export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
@@ -211,4 +211,45 @@ export interface LandingEvent {
   status: string;
   course_name: string | null;
   cover_image_url: string | null;
+}
+
+/** A community group card shown on /community, managed by admins. */
+export interface CommunityLink {
+  id: number;
+  label: string;
+  url: string;
+  description: string | null;
+  icon_url: string | null;
+  sequence_order: number;
+  is_hidden: boolean;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * One post-event survey per event, created when the bulk send runs. `sent_at`
+ * anchors the 14-day expiry/retry window for every recipient.
+ */
+export interface Survey {
+  id: number;
+  event_id: number;
+  sent_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One row per recipient. The token is the attendee's link into the form. */
+export interface SurveyResponse {
+  id: number;
+  survey_id: number;
+  user_id: number;
+  token: string;
+  /** Set when that recipient's email actually delivered; retries key off null. */
+  sent_at: string | null;
+  submitted_at: string | null;
+  rating: number | null;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
 }

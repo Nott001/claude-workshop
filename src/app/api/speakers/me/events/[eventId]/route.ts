@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
-import * as eventDao from "@/shared/db/dao/event.dao";
+import * as eventDao from "@/modules/events/db/event.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {

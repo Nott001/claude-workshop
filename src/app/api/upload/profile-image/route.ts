@@ -1,3 +1,4 @@
+import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
@@ -13,7 +14,7 @@ import {
 } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
-  const guard = await requireRole("facilitator", "speaker", "attendee");
+  const guard = await requireRole();
   if (!guard.allowed) {
     return guardFailure(guard);
   }
