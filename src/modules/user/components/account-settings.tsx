@@ -53,8 +53,10 @@ export function AccountSettings() {
           <PasswordSection
             currentPassword={settings.currentPassword}
             onCurrentPasswordChange={settings.setCurrentPassword}
+            currentPasswordError={settings.currentPasswordError}
             newPassword={settings.newPassword}
             onNewPasswordChange={settings.setNewPassword}
+            newPasswordError={settings.newPasswordError}
             saving={settings.savingPassword}
             onSubmit={settings.changePassword}
             context={{ email: settings.currentUser?.email, fullName: settings.currentUser?.full_name }}

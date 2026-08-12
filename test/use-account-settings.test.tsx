@@ -446,11 +446,8 @@ describe("changing the password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast).toEqual({
-      title: "Choose a stronger password",
-      description: "At least 12 characters",
-      type: "error",
-    });
+    expect(result.current.newPasswordError).toBe("At least 12 characters");
+    expect(result.current.toast).toBeNull();
   });
 
   // Long enough to pass a length rule on its own, which is the point of screening.
@@ -463,7 +460,7 @@ describe("changing the password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.description).toBe("Not built on a commonly used password");
+    expect(result.current.newPasswordError).toBe("Not built on a commonly used password");
   });
 
   it("refuses one built from the account's own name", async () => {
@@ -479,7 +476,7 @@ describe("changing the password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.description).toBe("Not mostly your name or email address");
+    expect(result.current.newPasswordError).toBe("Not mostly your name or email address");
   });
 
   it("passes a strong one through and clears the fields", async () => {
@@ -516,11 +513,9 @@ describe("proving the current password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast).toEqual({
-      title: "Error",
-      description: "That is not your current password.",
-      type: "error",
-    });
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+    expect(result.current.newPasswordError).toBeNull();
+    expect(result.current.toast).toBeNull();
   });
 
   it("leaves both fields filled after a refusal, so nothing has to be retyped", async () => {
@@ -585,6 +580,64 @@ describe("proving the current password", () => {
 
     expect(verifyPassword).not.toHaveBeenCalled();
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.type).toBe("error");
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+  });
+
+  it("clears the message as soon as the field is edited, so it never outlives the input it describes", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+
+    act(() => result.current.setCurrentPassword("not-my-passwordX"));
+
+    expect(result.current.currentPasswordError).toBeNull();
+  });
+
+  it("puts a provider rejection on the new password field rather than in a toast", async () => {
+    updateUser.mockResolvedValue({ error: { message: "New password should be different from the old password." } });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.newPasswordError).toBe("New password should be different from the old password.");
+    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.toast).toBeNull();
+  });
+
+  it("drops a stale message when the form is submitted again", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+    expect(result.current.currentPasswordError).not.toBeNull();
+
+    verifyPassword.mockResolvedValue(true);
+    updateUser.mockResolvedValue({ error: null });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.toast?.title).toBe("Password updated");
   });
 });
