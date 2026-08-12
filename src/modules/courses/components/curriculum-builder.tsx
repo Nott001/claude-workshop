@@ -34,6 +34,7 @@ export interface CurriculumBuilderProps {
   onAddLessonClick: (moduleId: number) => void;
   onReorderModules: (modules: ModuleWithLessons[]) => Promise<void>;
   onMoveLesson: (modules: ModuleWithLessons[], updates: LessonMove[]) => Promise<void>;
+  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
 }
 
 export type SchedulePatch = { start_time: string | null; end_time: string | null; speaker_profile_id: number | null };
@@ -52,6 +53,7 @@ export function CurriculumBuilder({
   onAddLessonClick,
   onReorderModules,
   onMoveLesson,
+  onRenameLesson,
 }: CurriculumBuilderProps) {
   const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -278,6 +280,7 @@ export function CurriculumBuilder({
                   onAddLessonClick={() => onAddLessonClick(mod.id)}
                   onMoveLesson={(lesson, direction) => handleMoveLesson(lesson, direction)}
                   onDeleteLesson={(lessonId) => onDeleteLesson(lessonId, mod.id)}
+                  onRenameLesson={onRenameLesson}
                 />
               );
             })}

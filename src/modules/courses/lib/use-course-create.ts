@@ -9,6 +9,7 @@ import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
+import type { Lesson } from "@/shared/types";
 
 /**
  * Routes answer with `{ error: string }` for a refusal the caller can act on and
@@ -156,6 +157,38 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     );
   }
 
+  async function handleRenameLesson(lessonId: number, description: string) {
+    const trimmed = description.trim();
+    let lesson: Lesson | undefined;
+    for (const m of modules) {
+      const found = m.LESSONS.find((l) => l.id === lessonId);
+      if (found) {
+        lesson = found;
+        break;
+      }
+    }
+    if (!lesson || trimmed === lesson.description) return;
+
+    const res = await fetch(`/api/lessons/${lessonId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: trimmed,
+        content_type: lesson.content_type,
+        content_url: lesson.content_url,
+        sequence_order: lesson.sequence_order,
+      }),
+    });
+    if (res.ok) {
+      setModules((prev) =>
+        prev.map((m) => ({
+          ...m,
+          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, description: trimmed } : l)),
+        })),
+      );
+    }
+  }
+
   function openLessonDialog(moduleId: number) {
     setLessonDialogModuleId(moduleId);
   }
@@ -296,6 +329,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     handleRenameModule,
     handleDeleteModule,
     handleDeleteLesson,
+    handleRenameLesson,
     openLessonDialog,
     handleAddLesson,
     handleUpdateModuleSchedule,

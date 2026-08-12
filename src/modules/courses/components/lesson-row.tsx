@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/button";
 import type { Lesson } from "@/shared/types";
@@ -19,6 +20,7 @@ interface LessonRowProps {
   onPreviewMoveEnd: () => void;
   onMove: (direction: MoveDirection) => void;
   onDelete: () => void;
+  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
 }
 
 export function LessonRow({
@@ -33,7 +35,38 @@ export function LessonRow({
   onPreviewMoveEnd,
   onMove,
   onDelete,
+  onRenameLesson,
 }: LessonRowProps) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(lesson.description);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  function startEdit() {
+    setEditValue(lesson.description);
+    setEditing(true);
+  }
+
+  function commit() {
+    setEditing(false);
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== lesson.description) {
+      onRenameLesson(lesson.id, trimmed);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      setEditing(false);
+    }
+  }
+
   return (
     <div
       data-lesson-id={lesson.id}
@@ -44,16 +77,38 @@ export function LessonRow({
         isFlash && "curriculum-flash",
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <span className="text-xs font-medium text-muted-fg">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-xs font-medium text-muted-fg shrink-0">
           {mod.sequence_order}.{lesson.sequence_order}
         </span>
-        <span className="text-sm text-fg">{lesson.description}</span>
-        <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commit}
+            onKeyDown={handleKeyDown}
+            className="w-full rounded border border-brand bg-surface px-2 py-0.5 text-sm text-fg outline-none"
+          />
+        ) : (
+          <span
+            role="button"
+            tabIndex={0}
+            title="Rename lesson"
+            className="cursor-pointer rounded px-1 py-0.5 text-sm text-fg transition-colors hover:bg-muted"
+            onClick={startEdit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") startEdit();
+            }}
+          >
+            {lesson.description}
+          </span>
+        )}
+        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
           {lesson.content_type}
         </span>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 shrink-0">
         <MoveButton
           direction="up"
           label={lessonMoveLabel(lesson, upInfo)}
