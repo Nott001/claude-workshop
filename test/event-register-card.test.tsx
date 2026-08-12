@@ -81,11 +81,28 @@ describe("EventRegisterCard", () => {
     expect(screen.queryByRole("button", { name: /enter room/i })).toBeNull();
   });
 
-  it("shows View Ticket and routes to /tickets when the event has no course", () => {
-    render(<EventRegisterCard event={baseEvent} hasTicket={true} isSignedIn={true} onRegister={vi.fn()} />);
+  it("shows View Ticket and routes to /tickets once the event has started and no course is linked", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, event_date: "2020-01-01" }}
+        hasTicket={true}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /view ticket/i }));
     expect(push).toHaveBeenCalledWith("/tickets");
+  });
+
+  it("locks the button before the event starts even when no course is linked, instead of View Ticket", () => {
+    render(<EventRegisterCard event={baseEvent} hasTicket={true} isSignedIn={true} onRegister={vi.fn()} />);
+
+    const button = screen.getByRole("button", { name: /locked until start/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(button);
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /view ticket/i })).toBeNull();
   });
 
   it("hides the price row for a free event and shows it for a paid one", () => {

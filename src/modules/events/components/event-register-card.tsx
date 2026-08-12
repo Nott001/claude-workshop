@@ -26,18 +26,16 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   let label = "Register";
   let onAction = onRegister;
   let locked = false;
-  if (hasTicket && courseId) {
+  if (hasTicket && !eventStarted) {
     // A ticket holder's entry point is the room, but the room stays shut
-    // until the event starts — so the button only says Enter Room once the
-    // opening edge has passed, and sits locked until then.
-    if (eventStarted) {
-      label = "Enter Room";
-      onAction = () => router.push(`/courses/${courseId}/room`);
-    } else {
-      label = "Locked until start";
-      locked = true;
-    }
-  } else if (hasTicket && !courseId) {
+    // until the event starts — so the button sits locked until the opening
+    // edge has passed, whether or not a course is linked yet.
+    label = "Locked until start";
+    locked = true;
+  } else if (hasTicket && courseId) {
+    label = "Enter Room";
+    onAction = () => router.push(`/courses/${courseId}/room`);
+  } else if (hasTicket) {
     label = "View Ticket";
     onAction = () => router.push("/tickets");
   }
