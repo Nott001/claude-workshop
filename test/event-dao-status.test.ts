@@ -1,5 +1,5 @@
 import { ROLES } from "@/shared/lib/roles";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import * as eventDao from "@/modules/events/db/event.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
@@ -11,7 +11,7 @@ import type { DbClient } from "@/shared/db/dao/types";
 
 function chainStub(result: unknown) {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "in", "gte", "lt", "order", "limit", "range", "single", "maybeSingle"]) {
+  for (const method of ["select", "eq", "in", "or", "gte", "lt", "order", "limit", "range", "single", "maybeSingle"]) {
     chain[method] = vi.fn(() => chain);
   }
   chain.then = (resolve: (v: unknown) => unknown) => resolve(result);
@@ -62,5 +62,37 @@ describe("eventDao effective status", () => {
     const event = await eventDao.findByIdWithCourseName(clientWith(pastActive), 1);
 
     expect(event?.status).toBe("complete");
+  });
+});
+
+describe("eventDao upcoming filter", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("list with filter=upcoming excludes today's already-finished events via the or() bound", async () => {
+    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.list(client, { role: ROLES.ATTENDEE, filter: "upcoming" });
+
+    expect(chain.or).toHaveBeenCalledWith(
+      expect.stringMatching(/^event_date\.gt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.gte\.15:00:00\)$/),
+    );
+  });
+
+  it("getUpcomingForLanding excludes today's finished events via the or() bound", async () => {
+    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.getUpcomingForLanding(client);
+
+    expect(chain.or).toHaveBeenCalledWith(
+      expect.stringMatching(/^event_date\.gt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.gte\.15:00:00\)$/),
+    );
   });
 });
