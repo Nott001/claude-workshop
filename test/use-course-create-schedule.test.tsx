@@ -140,4 +140,48 @@ describe("useCourseCreate reorder", () => {
       { module_name: "Week one", sequence_order: 2, start_time: "10:00", end_time: "11:00", speaker_profile_id: null },
     ]);
   });
+
+  it("trims the DB's HH:MM:SS times to HH:MM so the PATCH validates", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useCourseCreate("9"));
+    fetch.mockResolvedValue({ ok: true, json: async () => ({}) } as Response);
+
+    // State is seeded straight from the API response, which carries the TIME
+    // column as "HH:MM:SS"; the schema rejects that, so the reorder PATCH must
+    // send the trimmed form.
+    const reordered = [
+      { ...mod(2, "Week two", 1, { start_time: "09:00:00", end_time: "10:00:00" }) },
+      { ...mod(1, "Week one", 2, { start_time: "10:00:00", end_time: "11:00:00" }) },
+    ];
+
+    await act(async () => {
+      await result.current.handleReorderModules(reordered);
+    });
+
+    const bodies = fetch.mock.calls.filter((c) => c[1]?.method === "PATCH").map((c) => JSON.parse(c[1]!.body as string));
+    expect(bodies).toEqual([
+      { module_name: "Week two", sequence_order: 1, start_time: "09:00", end_time: "10:00", speaker_profile_id: null },
+      { module_name: "Week one", sequence_order: 2, start_time: "10:00", end_time: "11:00", speaker_profile_id: null },
+    ]);
+  });
+
+  it("keeps null times null in the reorder PATCH body", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useCourseCreate("9"));
+    fetch.mockResolvedValue({ ok: true, json: async () => ({}) } as Response);
+
+    const reordered = [{ ...mod(2, "Week two", 1, { start_time: null, end_time: null }) }];
+
+    await act(async () => {
+      await result.current.handleReorderModules(reordered);
+    });
+
+    expect(patchBody(fetch)).toEqual({
+      module_name: "Week two",
+      sequence_order: 1,
+      start_time: null,
+      end_time: null,
+      speaker_profile_id: null,
+    });
+  });
 });

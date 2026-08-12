@@ -246,8 +246,11 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
           body: JSON.stringify({
             module_name: m.module_name,
             sequence_order: m.sequence_order,
-            start_time: m.start_time,
-            end_time: m.end_time,
+            // The reorder swap keeps the DB's "HH:MM:SS" values in state; the
+            // API validates "HH:MM", so trim before sending like the schedule
+            // picker does.
+            start_time: m.start_time?.slice(0, 5) ?? null,
+            end_time: m.end_time?.slice(0, 5) ?? null,
             speaker_profile_id: m.speaker_profile_id,
           }),
         }),
