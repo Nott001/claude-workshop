@@ -48,6 +48,14 @@ function speaker(overrides: Record<string, unknown> = {}) {
     setDesignation: vi.fn(),
     bio: "Leads.",
     setBio: vi.fn(),
+    linkedinUrl: "https://linkedin.com/in/ada",
+    setLinkedinUrl: vi.fn(),
+    twitterUrl: "",
+    setTwitterUrl: vi.fn(),
+    githubUrl: "https://github.com/ada",
+    setGithubUrl: vi.fn(),
+    websiteUrl: "",
+    setWebsiteUrl: vi.fn(),
     savingSpeaker: false,
     saveSpeakerProfile: vi.fn(),
     ...overrides,
@@ -88,6 +96,37 @@ describe("AccountSettings", () => {
     fireEvent.submit(form);
 
     expect(saveSpeakerProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the speaker link inputs with their values and handlers", () => {
+    const setLinkedinUrl = vi.fn();
+    const setGithubUrl = vi.fn();
+    hooks.useAccountSettings.mockReturnValue(settings());
+    hooks.useSpeakerProfile.mockReturnValue(
+      speaker({
+        linkedinUrl: "https://linkedin.com/in/ada",
+        setLinkedinUrl,
+        githubUrl: "https://github.com/ada",
+        setGithubUrl,
+      }),
+    );
+
+    render(<AccountSettings />);
+
+    const linkedin = screen.getByLabelText("LinkedIn") as HTMLInputElement;
+    const twitter = screen.getByLabelText("X (Twitter)") as HTMLInputElement;
+    const github = screen.getByLabelText("GitHub") as HTMLInputElement;
+    const website = screen.getByLabelText("Website") as HTMLInputElement;
+
+    expect(linkedin.value).toBe("https://linkedin.com/in/ada");
+    expect(twitter.value).toBe("");
+    expect(github.value).toBe("https://github.com/ada");
+    expect(website.value).toBe("");
+
+    fireEvent.change(linkedin, { target: { value: "https://linkedin.com/in/ada2" } });
+    fireEvent.change(github, { target: { value: "https://github.com/ada2" } });
+    expect(setLinkedinUrl).toHaveBeenCalledWith("https://linkedin.com/in/ada2");
+    expect(setGithubUrl).toHaveBeenCalledWith("https://github.com/ada2");
   });
 
   it("shows a loading placeholder until the speaker profile resolves", () => {

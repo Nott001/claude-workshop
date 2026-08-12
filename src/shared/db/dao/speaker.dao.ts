@@ -64,6 +64,10 @@ export async function create(
     user_id: number;
     bio?: string | null;
     designation?: string | null;
+    linkedin_url?: string | null;
+    twitter_url?: string | null;
+    github_url?: string | null;
+    website_url?: string | null;
   },
 ): Promise<SpeakerProfile | null> {
   const { data: profile, error } = await supabase
@@ -72,6 +76,10 @@ export async function create(
       user_id: data.user_id,
       bio: data.bio ?? null,
       designation: data.designation ?? null,
+      linkedin_url: data.linkedin_url ?? null,
+      twitter_url: data.twitter_url ?? null,
+      github_url: data.github_url ?? null,
+      website_url: data.website_url ?? null,
     })
     .select("*")
     .single();

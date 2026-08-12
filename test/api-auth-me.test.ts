@@ -54,31 +54,58 @@ describe("PATCH /api/auth/me speaker profile guard", () => {
     }
   });
 
+  it("forbids every non-speaker role from writing links", async () => {
+    for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
+      requireAuth.mockResolvedValue({ ...speaker, role });
+
+      const res = await PATCH(patch({ linkedin_url: "https://linkedin.com/in/ada" }));
+
+      expect(res.status).toBe(403);
+      await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
   it("lets a speaker update an existing speaker profile", async () => {
     findByUserId.mockResolvedValue({ id: 9, user_id: 5, designation: "Old", bio: null });
     update.mockResolvedValue({ id: 9, user_id: 5, designation: "CTO", bio: "Leads." });
 
-    const res = await PATCH(patch({ designation: "CTO", bio: "Leads." }));
+    const res = await PATCH(
+      patch({ designation: "CTO", bio: "Leads.", linkedin_url: "https://linkedin.com/in/ada", twitter_url: null }),
+    );
 
     expect(res.status).toBe(200);
     expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", {
       designation: "CTO",
       bio: "Leads.",
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: null,
     });
-    expect(update).toHaveBeenCalledWith(expect.anything(), 9, { designation: "CTO", bio: "Leads." });
+    expect(update).toHaveBeenCalledWith(expect.anything(), 9, {
+      designation: "CTO",
+      bio: "Leads.",
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
+    });
   });
 
   it("creates the speaker profile row when the speaker has none yet", async () => {
     findByUserId.mockResolvedValue(null);
     create.mockResolvedValue({ id: 12, user_id: 5, designation: "CTO", bio: null });
 
-    const res = await PATCH(patch({ designation: "CTO", bio: null }));
+    const res = await PATCH(patch({ designation: "CTO", bio: null, website_url: "https://ada.dev" }));
 
     expect(res.status).toBe(200);
     expect(create).toHaveBeenCalledWith(expect.anything(), {
       user_id: 5,
       designation: "CTO",
       bio: null,
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: "https://ada.dev",
     });
   });
 });
