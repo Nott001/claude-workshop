@@ -22,6 +22,10 @@ export async function GET() {
     speaker_profile_id: profile?.id ?? null,
     designation: profile?.designation ?? null,
     bio: profile?.bio ?? null,
+    linkedin_url: profile?.linkedin_url ?? null,
+    twitter_url: profile?.twitter_url ?? null,
+    github_url: profile?.github_url ?? null,
+    website_url: profile?.website_url ?? null,
     photo_url: (profile as (SpeakerProfile & { photo_url?: string | null }) | null)?.photo_url ?? null,
   });
 }
@@ -43,13 +47,23 @@ export async function PATCH(req: Request) {
     profile_image_url?: string | null;
     designation?: string | null;
     bio?: string | null;
+    linkedin_url?: string | null;
+    twitter_url?: string | null;
+    github_url?: string | null;
+    website_url?: string | null;
   } = await req.json();
 
   // A speaker profile is the user's own row, so it lives on the same route —
   // but only a speaker may write it. The exact role is required, not a minimum,
   // because facilitators and admins carry no speaker bio. Guard before touching
   // anything so a rejected caller never leaves half a profile updated.
-  const wantsSpeakerUpdate = body.designation !== undefined || body.bio !== undefined;
+  const wantsSpeakerUpdate =
+    body.designation !== undefined ||
+    body.bio !== undefined ||
+    body.linkedin_url !== undefined ||
+    body.twitter_url !== undefined ||
+    body.github_url !== undefined ||
+    body.website_url !== undefined;
   if (wantsSpeakerUpdate && guard.role !== ROLES.SPEAKER) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -70,12 +84,18 @@ export async function PATCH(req: Request) {
   }
 
   if (wantsSpeakerUpdate) {
-    const designation = body.designation ?? null;
-    const bio = body.bio ?? null;
+    const speakerFields = {
+      designation: body.designation ?? null,
+      bio: body.bio ?? null,
+      linkedin_url: body.linkedin_url ?? null,
+      twitter_url: body.twitter_url ?? null,
+      github_url: body.github_url ?? null,
+      website_url: body.website_url ?? null,
+    };
     const existing = await speakerDao.findByUserId(supabase, updated.id);
     const profile = existing
-      ? await speakerDao.update(supabase, existing.id, { designation, bio })
-      : await speakerDao.create(supabase, { user_id: updated.id, designation, bio });
+      ? await speakerDao.update(supabase, existing.id, speakerFields)
+      : await speakerDao.create(supabase, { user_id: updated.id, ...speakerFields });
 
     if (!profile) {
       return NextResponse.json({ error: "Failed to update speaker profile" }, { status: 500 });

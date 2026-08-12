@@ -2,7 +2,7 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { UserRole } from "@/shared/types";
@@ -12,11 +12,8 @@ import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
-import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { useSurveyStatus } from "@/modules/surveys/lib/use-survey-status";
-import type { CourseSpeaker } from "@/modules/courses/lib/types";
 import type { EventWithCourse } from "@/modules/events/lib/types";
-import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
@@ -310,36 +307,16 @@ export function CourseSection({
   eventId,
   userRole,
   canManageCourse,
-  eventSpeakers,
-  speakersLoading,
-  eventStartTime,
-  eventEndTime,
 }: {
   eventId: string;
   userRole: UserRole | null;
   canManageCourse: boolean;
-  eventSpeakers: CourseSpeaker[];
-  speakersLoading: boolean;
-  eventStartTime: string | null;
-  eventEndTime: string | null;
 }) {
   const router = useRouter();
   const { course, loading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate(eventId, course?.id);
-  const [managing, setManaging] = useState(false);
-  const seededRef = useRef(false);
   const isStaff = hasMinRole(userRole, ROLES.FACILITATOR);
 
-  // Seed the builder once with the existing course's modules so "Manage Course"
-  // edits real content instead of a blank canvas that would mint a new course.
-  useEffect(() => {
-    if (course && !seededRef.current) {
-      courseBuilder.setModules(course.MODULE);
-      seededRef.current = true;
-    }
-  }, [course, courseBuilder]);
-
-  if (loading || speakersLoading) {
+  if (loading) {
     return (
       <SectionCard title="Course" icon="school">
         <p className="text-sm text-muted-fg">Loading course...</p>
@@ -349,26 +326,6 @@ export function CourseSection({
 
   if (course) {
     const totalLessons = course.MODULE.reduce((sum, m) => sum + m.LESSONS.length, 0);
-
-    if (managing && canManageCourse) {
-      return (
-        <SectionCard title="Course" icon="school">
-          <button
-            onClick={() => setManaging(false)}
-            className="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-          >
-            <span className="material-symbols-rounded text-[16px]">arrow_back</span>
-            Back to summary
-          </button>
-          <CourseBuilderSection
-            builder={courseBuilder}
-            eventSpeakers={eventSpeakers}
-            eventStartTime={eventStartTime}
-            eventEndTime={eventEndTime}
-          />
-        </SectionCard>
-      );
-    }
 
     return (
       <SectionCard title="Course" icon="school">
@@ -382,7 +339,7 @@ export function CourseSection({
         {canManageCourse && (
           <div className="mt-5 flex flex-wrap gap-2">
             <button
-              onClick={() => setManaging(true)}
+              onClick={() => router.push(`/staff/events/${eventId}/course`)}
               className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
             >
               Manage Course
@@ -402,12 +359,13 @@ export function CourseSection({
   if (canManageCourse) {
     return (
       <SectionCard title="Course" icon="school">
-        <CourseBuilderSection
-          builder={courseBuilder}
-          eventSpeakers={eventSpeakers}
-          eventStartTime={eventStartTime}
-          eventEndTime={eventEndTime}
-        />
+        <p className="mb-4 text-sm text-muted-fg">No course yet for this event.</p>
+        <button
+          onClick={() => router.push(`/staff/events/${eventId}/course`)}
+          className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
+        >
+          Create Course
+        </button>
       </SectionCard>
     );
   }
@@ -653,15 +611,9 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
     handleDelete,
   } = useEventDetail(eventId);
 
-  // One speakers fetch for the page; the course builder's roster and the admin
-  // section both read from it rather than hitting /api/events/[id]/speakers twice.
+  // One speakers fetch for the page; the admin section reads from it rather
+  // than hitting /api/events/[id]/speakers twice.
   const speakers = useEventSpeakers(eventId);
-  const eventSpeakers: CourseSpeaker[] = speakers.assignments
-    .map((row) => ({
-      speaker_profile_id: row.speaker_profile_id,
-      full_name: row.SPEAKER_PROFILE?.USER?.full_name ?? null,
-    }))
-    .filter((speaker): speaker is CourseSpeaker => speaker.full_name !== null);
 
   // The edit form lives under Overview, so any tab query falls back safely there.
   const [activeTab, setActiveTab] = useState<TabKey>(
@@ -742,17 +694,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
           />
         )}
 
-        {currentTab === "course" && (
-          <CourseSection
-            eventId={eventId}
-            userRole={userRole}
-            canManageCourse={canManageCourse}
-            eventSpeakers={eventSpeakers}
-            speakersLoading={speakers.loading}
-            eventStartTime={event.start_time}
-            eventEndTime={event.end_time}
-          />
-        )}
+        {currentTab === "course" && <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
 
         {currentTab === "kiosk" && <KioskSection eventId={eventId} userRole={userRole} />}
 

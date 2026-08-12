@@ -66,6 +66,14 @@ export function AccountSettings() {
               onDesignationChange={speaker.setDesignation}
               bio={speaker.bio}
               onBioChange={speaker.setBio}
+              linkedinUrl={speaker.linkedinUrl}
+              onLinkedinUrlChange={speaker.setLinkedinUrl}
+              twitterUrl={speaker.twitterUrl}
+              onTwitterUrlChange={speaker.setTwitterUrl}
+              githubUrl={speaker.githubUrl}
+              onGithubUrlChange={speaker.setGithubUrl}
+              websiteUrl={speaker.websiteUrl}
+              onWebsiteUrlChange={speaker.setWebsiteUrl}
               saving={speaker.savingSpeaker}
               onSubmit={speaker.saveSpeakerProfile}
             />
