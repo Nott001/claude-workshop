@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const exchangeCodeForSession = vi.fn();
+const { syncEmailFromAuth } = vi.hoisted(() => ({ syncEmailFromAuth: vi.fn() }));
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({ auth: { exchangeCodeForSession } }),
@@ -8,8 +9,14 @@ vi.mock("@supabase/ssr", () => ({
 vi.mock("next/headers", () => ({
   cookies: async () => ({ getAll: () => [], set: vi.fn() }),
 }));
+vi.mock("@/modules/auth/lib/sync-email", () => ({ syncEmailFromAuth }));
 
 import { GET } from "@/app/api/auth/callback/route";
+
+/** What Supabase hands back once a confirmation link has been redeemed. */
+function exchanged(email: string | null = "new@example.com") {
+  return { data: { user: { id: "auth_123", email } }, error: null };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -69,5 +76,38 @@ describe("GET /api/auth/callback", () => {
     expect(location.pathname).toBe("/sign-in");
     expect(location.searchParams.get("error")).toBe("auth_failed");
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it("brings the app row up to the address the exchange confirmed", async () => {
+    exchangeCodeForSession.mockResolvedValue(exchanged("new@example.com"));
+
+    const req = new Request("https://app.test/api/auth/callback?code=valid_code");
+    await GET(req);
+
+    expect(syncEmailFromAuth).toHaveBeenCalledWith("auth_123", "new@example.com");
+  });
+
+  it("copies nothing when the exchange fails, because no address was confirmed", async () => {
+    exchangeCodeForSession.mockResolvedValue({ data: null, error: new Error("invalid code") });
+
+    const req = new Request("https://app.test/api/auth/callback?code=bad_code");
+    await GET(req);
+
+    expect(syncEmailFromAuth).not.toHaveBeenCalled();
+  });
+
+  // The identity has already moved by this point; refusing to verify over a
+  // failed mirror would strand the account between two addresses.
+  it("still verifies when the row could not be brought up to date", async () => {
+    exchangeCodeForSession.mockResolvedValue(exchanged());
+    syncEmailFromAuth.mockRejectedValue(new Error("db down"));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const req = new Request("https://app.test/api/auth/callback?code=valid_code");
+    const res = await GET(req);
+
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/email-verified");
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
   });
 });

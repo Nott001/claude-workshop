@@ -2,7 +2,6 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import { isSameEmail } from "@/shared/lib/email";
 import * as userDao from "@/shared/db/dao/user.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import type { SpeakerProfile } from "@/shared/types";
@@ -41,9 +40,14 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
+  // No email here, deliberately. The address is owned by the auth identity and
+  // only ever copied across once Supabase has confirmed it — see
+  // syncEmailFromAuth. Accepting one on this route let any authenticated caller
+  // stamp an address they had not proved they own, which is what put unverified
+  // addresses on the settings page and could squat one a staff invite was
+  // headed for.
   const body: {
     full_name?: string;
-    email?: string;
     profile_image_url?: string | null;
     designation?: string | null;
     bio?: string | null;
@@ -68,16 +72,16 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Re-submitting the address already on the account is refused here and not
-  // only in the form, because the write that follows is what makes the app row
-  // disagree with the auth identity: it would stamp a change that never
-  // happened over a row Supabase has not been asked to move.
-  if (body.email !== undefined && isSameEmail(body.email, guard.email)) {
-    return NextResponse.json({ error: "New email must be different from your current email." }, { status: 400 });
-  }
-
   const supabase = getServiceClient();
-  const updated = await userDao.updateUser(supabase, authUserId, body);
+
+  // Named fields rather than the parsed body, because the body's type is erased
+  // at runtime: forwarding it whole would hand the DAO whatever else the caller
+  // put in the JSON — an `email` among it — and the DAO writes any column it
+  // recognises.
+  const updated = await userDao.updateUser(supabase, authUserId, {
+    ...(body.full_name !== undefined && { full_name: body.full_name }),
+    ...(body.profile_image_url !== undefined && { profile_image_url: body.profile_image_url }),
+  });
 
   if (!updated) {
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

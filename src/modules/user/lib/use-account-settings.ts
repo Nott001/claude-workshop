@@ -173,12 +173,11 @@ export function useAccountSettings() {
       return;
     }
 
-    await fetch("/api/auth/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
+    // Nothing is written here on purpose. The address is a claim until the link
+    // in the message is opened; the app row is caught up at that point, by the
+    // callback route. Writing it now would put an unverified address on every
+    // surface that reads the session, and leave it there for good if the link
+    // were never opened.
     setEmailSent(true);
     setSavingEmail(false);
   }

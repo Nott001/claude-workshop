@@ -122,7 +122,7 @@ describe("useAccountSettings", () => {
     expect(result.current.toast).toEqual({ title: "Error", description: "Failed to update profile.", type: "error" });
   });
 
-  it("updates the email in supabase, mirrors it to /api/auth/me, and reports sent", async () => {
+  it("asks supabase to send the link and reports sent, without writing the address anywhere", async () => {
     updateUser.mockResolvedValue({ error: null });
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
@@ -133,9 +133,23 @@ describe("useAccountSettings", () => {
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
-    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "new@example.com" });
     expect(result.current.emailSent).toBe(true);
+    // The row is only caught up once the link is opened, by the callback route.
+    expect(fetch.mock.calls.find((c) => c[1]?.method === "PATCH")).toBeUndefined();
+  });
+
+  it("keeps showing the address the account actually owns while a change is pending", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.currentUser?.email).toBe(speaker.email);
+    expect(sessionUpdateUser).not.toHaveBeenCalledWith(expect.objectContaining({ email: expect.anything() }));
   });
 
   it("refuses the address already on the account without calling supabase or the API", async () => {
@@ -172,7 +186,7 @@ describe("useAccountSettings", () => {
 
   it("sends a trimmed address so stray space cannot pass as a different one", async () => {
     updateUser.mockResolvedValue({ error: null });
-    const fetch = stubFetch();
+    stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("  grace@example.com  "));
@@ -181,8 +195,6 @@ describe("useAccountSettings", () => {
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
-    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "grace@example.com" });
   });
 
   it("refuses a domain with no mail server and suggests the likely typo", async () => {
