@@ -39,6 +39,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env
+# the per-developer overrides Next loads ahead of .env, so this is where real
+# keys end up in practice — untracked but unignored, one `git add -A` from
+# being published
+.env.local
 # sidecar snapshot holding the pre-local env for `pnpm db:env remote`
 .env.remote
 
