@@ -85,6 +85,23 @@ afterEach(() => {
   cleanup();
 });
 
+// jsdom computes no grid geometry, so the invariant is asserted on the track
+// list itself. `gap` is added to the tracks rather than taken out of them, so a
+// pair of percentages summing to 100 overflows its container by exactly the
+// gap — which hung the sticky column 24px past the hero's right edge. `fr`
+// divides what remains after the gap, which is what this layout always meant.
+describe("Event detail two-column track sizing", () => {
+  it("sizes the content columns in fr so the gap cannot push the aside past the hero", () => {
+    const { container } = renderDetail(ROLES.ATTENDEE);
+
+    const grid = container.querySelector("aside")?.parentElement;
+    const tracks = [...(grid?.classList ?? [])].find((c) => c.startsWith("lg:grid-cols-"));
+
+    expect(tracks).toBe("lg:grid-cols-[65fr_35fr]");
+    expect(tracks).not.toMatch(/%/);
+  });
+});
+
 describe("Event detail page assembly", () => {
   it("composes the hero, about, schedule, speakers, register, map and share sections for an attendee", async () => {
     (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
