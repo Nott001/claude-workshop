@@ -30,6 +30,12 @@
     "cf:preview": "opennextjs-cloudflare build && wrangler dev",
     "cf:deploy": "opennextjs-cloudflare build && wrangler deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "db:link": "supabase link --project-ref aiyernsxamtgjebheekp",
+    "db:push": "supabase db push",
+    "db:reset": "node scripts/confirm-supabase-reset.mjs",
+    "db:start": "supabase start",
+    "db:status": "supabase status",
+    "db:stop": "supabase stop",
     "prepare": "husky"
   },
   "dependencies": {

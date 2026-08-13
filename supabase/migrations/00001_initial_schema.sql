@@ -1,6 +1,4 @@
--- ============================================================
--- Fresh start: drop everything and rebuild
--- ============================================================
+-- Sourced from the replay of the original 00001–00021 chain.
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 
@@ -9,511 +7,1495 @@ GRANT ALL ON SCHEMA public TO anon;
 GRANT ALL ON SCHEMA public TO authenticated;
 GRANT ALL ON SCHEMA public TO service_role;
 
--- ============================================================
--- Enums
--- ============================================================
-CREATE TYPE user_role AS ENUM ('attendee', 'speaker', 'facilitator');
+-- 00008 revoked CREATE from the client roles; the ACL must not re-grant it.
+REVOKE CREATE ON SCHEMA public FROM anon;
+REVOKE CREATE ON SCHEMA public FROM authenticated;
 
-CREATE TYPE content_type AS ENUM ('pdf', 'video', 'image', 'link');
 
-CREATE TYPE event_status AS ENUM ('draft', 'active', 'complete');
 
-CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded');
 
-CREATE TYPE ticket_status AS ENUM ('issued', 'checked_in', 'cancelled');
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
 
-CREATE TYPE chat_channel AS ENUM ('support', 'live_qa');
 
-CREATE TYPE support_session_status AS ENUM ('active', 'ended_by_facilitator');
+CREATE SCHEMA IF NOT EXISTS "public";
 
-CREATE TYPE email_type AS ENUM ('ticket_issued', 'check_in_confirmed');
 
-CREATE TYPE email_status AS ENUM ('sent', 'failed');
+ALTER SCHEMA "public" OWNER TO "postgres";
 
-CREATE TYPE audit_action AS ENUM (
-  'event.created', 'event.updated', 'event.deleted', 'event.published',
-  'speaker.assigned', 'speaker.unassigned',
-  'organization.invited', 'organization.role_changed', 'organization.removed',
-  'checkin.performed',
-  'course.created', 'course.updated', 'course.deleted',
-  'module.created', 'module.updated', 'module.deleted',
-  'lesson.created', 'lesson.updated', 'lesson.deleted'
+
+CREATE TYPE "public"."audit_action" AS ENUM (
+    'event.created',
+    'event.updated',
+    'event.deleted',
+    'event.published',
+    'speaker.assigned',
+    'speaker.unassigned',
+    'organization.invited',
+    'organization.role_changed',
+    'organization.removed',
+    'checkin.performed',
+    'course.created',
+    'course.updated',
+    'course.deleted',
+    'module.created',
+    'module.updated',
+    'module.deleted',
+    'lesson.created',
+    'lesson.updated',
+    'lesson.deleted',
+    'auth.password_reset_completed'
 );
 
-CREATE TYPE survey_question_type AS ENUM ('text', 'multiple_choice', 'checkbox', 'rating', 'scale');
 
-CREATE TYPE staff_invite_status AS ENUM ('pending', 'accepted', 'declined', 'expired', 'cancelled');
+ALTER TYPE "public"."audit_action" OWNER TO "postgres";
 
--- ============================================================
--- Tables (ordered to satisfy FK dependencies)
--- ============================================================
 
--- 1. USER — no FKs
-CREATE TABLE "USER" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  full_name VARCHAR NOT NULL,
-  email VARCHAR NOT NULL UNIQUE,
-  auth_user_id UUID NOT NULL UNIQUE,
-  role user_role NOT NULL DEFAULT 'attendee',
-  profile_image_url VARCHAR,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TYPE "public"."content_type" AS ENUM (
+    'pdf',
+    'video',
+    'image',
+    'link'
 );
 
-CREATE INDEX idx_user_role ON "USER"(role);
 
--- 2. COURSE — no FKs
-CREATE TABLE "COURSE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  course_name VARCHAR NOT NULL,
-  course_description TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+ALTER TYPE "public"."content_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."email_status" AS ENUM (
+    'sent',
+    'failed'
 );
 
--- 3. SYSTEM_SETTING — FK to USER
-CREATE TABLE "SYSTEM_SETTING" (
-  setting_key VARCHAR PRIMARY KEY,
-  setting_value JSONB NOT NULL,
-  updated_by INT REFERENCES "USER"(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+ALTER TYPE "public"."email_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."email_type" AS ENUM (
+    'ticket_issued',
+    'check_in_confirmed',
+    'event_survey'
 );
 
--- 4. SPEAKER_PROFILE — FK to USER
-CREATE TABLE "SPEAKER_PROFILE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT NOT NULL UNIQUE REFERENCES "USER"(id) ON DELETE CASCADE,
-  bio TEXT,
-  designation VARCHAR,
-  linkedin_url VARCHAR,
-  twitter_url VARCHAR,
-  github_url VARCHAR,
-  website_url VARCHAR,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+ALTER TYPE "public"."email_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."event_status" AS ENUM (
+    'draft',
+    'active',
+    'complete'
 );
 
--- 5. MODULE — FK to COURSE
-CREATE TABLE "MODULE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  course_id INT NOT NULL REFERENCES "COURSE"(id) ON DELETE CASCADE,
-  module_name VARCHAR NOT NULL,
-  sequence_order INT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+ALTER TYPE "public"."event_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."payment_status" AS ENUM (
+    'pending',
+    'paid',
+    'failed',
+    'refunded'
 );
 
-CREATE INDEX idx_module_course_sequence ON "MODULE"(course_id, sequence_order);
 
--- 6. LESSON — FK to MODULE
-CREATE TABLE "LESSON" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  module_id INT NOT NULL REFERENCES "MODULE"(id) ON DELETE CASCADE,
-  description VARCHAR NOT NULL,
-  content_type content_type NOT NULL,
-  content_url VARCHAR,
-  sequence_order INT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+ALTER TYPE "public"."payment_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."staff_invite_status" AS ENUM (
+    'pending',
+    'accepted',
+    'declined',
+    'expired',
+    'cancelled'
 );
 
-CREATE INDEX idx_lesson_module_sequence ON "LESSON"(module_id, sequence_order);
 
--- 7. EVENT — FK to COURSE
-CREATE TABLE "EVENT" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  course_id INT REFERENCES "COURSE"(id) ON DELETE SET NULL,
-  title VARCHAR NOT NULL,
-  event_date DATE NOT NULL,
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  venue_address TEXT,
-  venue_name VARCHAR NOT NULL,
-  description TEXT,
-  price NUMERIC(10,2) NOT NULL DEFAULT 0,
-  currency VARCHAR(3) NOT NULL DEFAULT 'PHP',
-  cover_image_url VARCHAR,
-  status event_status NOT NULL DEFAULT 'draft',
-  facilitator_surveys_enabled BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT chk_event_time CHECK (start_time < end_time),
-  CONSTRAINT chk_event_price_nonneg CHECK (price >= 0)
+ALTER TYPE "public"."staff_invite_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."support_session_status" AS ENUM (
+    'active',
+    'ended_by_facilitator'
 );
 
-CREATE INDEX idx_event_date ON "EVENT"(event_date);
-CREATE INDEX idx_event_status ON "EVENT"(status);
 
--- 8. EVENT_FACILITATOR — FKs to EVENT, USER
-CREATE TABLE "EVENT_FACILITATOR" (
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  user_id INT NOT NULL REFERENCES "USER"(id) ON DELETE CASCADE,
-  assigned_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (event_id, user_id)
+ALTER TYPE "public"."support_session_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."support_type" AS ENUM (
+    'general'
 );
 
--- 9. EVENT_SPEAKER — FKs to EVENT, SPEAKER_PROFILE
-CREATE TABLE "EVENT_SPEAKER" (
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  speaker_profile_id INT NOT NULL REFERENCES "SPEAKER_PROFILE"(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (event_id, speaker_profile_id)
+
+ALTER TYPE "public"."support_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."ticket_status" AS ENUM (
+    'issued',
+    'checked_in',
+    'cancelled'
 );
 
-CREATE INDEX idx_event_speaker_profile ON "EVENT_SPEAKER"(speaker_profile_id);
 
--- 10. LIVE_SESSION_STATE — FKs to EVENT, LESSON, USER
-CREATE TABLE "LIVE_SESSION_STATE" (
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  highlighted_lesson_id INT REFERENCES "LESSON"(id) ON DELETE SET NULL,
-  updated_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (event_id)
+ALTER TYPE "public"."ticket_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."user_role" AS ENUM (
+    'attendee',
+    'speaker',
+    'facilitator',
+    'admin',
+    'super_admin'
 );
 
--- 11. PAYMENT — FKs to USER, EVENT
-CREATE TABLE "PAYMENT" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES "USER"(id),
-  event_id INT NOT NULL REFERENCES "EVENT"(id),
-  gateway_reference_id VARCHAR UNIQUE,
-  status payment_status NOT NULL DEFAULT 'pending',
-  paid_at TIMESTAMPTZ,
-  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
-  currency VARCHAR(3) NOT NULL DEFAULT 'PHP',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT chk_payment_amount_nonneg CHECK (amount >= 0)
-);
 
-CREATE INDEX idx_payment_user_event ON "PAYMENT"(user_id, event_id);
-CREATE INDEX idx_payment_status ON "PAYMENT"(status);
+ALTER TYPE "public"."user_role" OWNER TO "postgres";
 
--- 12. TICKET — FKs to PAYMENT, USER, EVENT
-CREATE TABLE "TICKET" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  payment_id INT REFERENCES "PAYMENT"(id) ON DELETE SET NULL,
-  user_id INT NOT NULL REFERENCES "USER"(id),
-  event_id INT NOT NULL REFERENCES "EVENT"(id),
-  qr_token VARCHAR NOT NULL UNIQUE,
-  status ticket_status NOT NULL DEFAULT 'issued',
-  issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  checked_in_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  checked_in_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 
-CREATE INDEX idx_ticket_user_event ON "TICKET"(user_id, event_id);
-CREATE INDEX idx_ticket_qr ON "TICKET"(qr_token);
-
--- 13. STAFF_INVITE — FKs to EVENT, USER
-CREATE TABLE "STAFF_INVITE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email VARCHAR NOT NULL,
-  full_name VARCHAR NOT NULL,
-  invited_role user_role NOT NULL,
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  invited_by INT NOT NULL REFERENCES "USER"(id),
-  requires_approval BOOLEAN NOT NULL DEFAULT false,
-  approved_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  status staff_invite_status NOT NULL DEFAULT 'pending',
-  external_id VARCHAR,
-  responded_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 14. COMMUNITY_LINK — FKs to EVENT, USER
-CREATE TABLE "COMMUNITY_LINK" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  platform VARCHAR NOT NULL,
-  label VARCHAR NOT NULL,
-  url VARCHAR NOT NULL,
-  icon_url VARCHAR,
-  sequence_order INT NOT NULL,
-  created_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 15. SUPPORT_SESSION — FK to USER
-CREATE TABLE "SUPPORT_SESSION" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES "USER"(id) ON DELETE CASCADE,
-  status support_session_status NOT NULL DEFAULT 'active',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX idx_support_session_active_user ON "SUPPORT_SESSION"(user_id) WHERE status = 'active';
-CREATE INDEX idx_support_session_user_created ON "SUPPORT_SESSION"(user_id, created_at DESC);
-
--- 16. CHAT_MESSAGE — FKs to EVENT, USER, SUPPORT_SESSION
-CREATE TABLE "CHAT_MESSAGE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  event_id INT NOT NULL REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  channel chat_channel NOT NULL,
-  user_id INT NOT NULL REFERENCES "USER"(id),
-  recipient_user_id INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  message TEXT NOT NULL,
-  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  read_by INT[] NOT NULL DEFAULT '{}',
-  reply_to INT REFERENCES "CHAT_MESSAGE"(id) ON DELETE SET NULL,
-  answered_verbally BOOLEAN NOT NULL DEFAULT false,
-  session_id INT REFERENCES "SUPPORT_SESSION"(id) ON DELETE CASCADE,
-  deleted_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_chat_message_event_channel ON "CHAT_MESSAGE"(event_id, channel, sent_at DESC);
-CREATE INDEX idx_chat_message_recipient ON "CHAT_MESSAGE"(recipient_user_id);
-
--- 17. SURVEY — FKs to EVENT, COURSE, USER
-CREATE TABLE "SURVEY" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  event_id INT REFERENCES "EVENT"(id) ON DELETE CASCADE,
-  course_id INT REFERENCES "COURSE"(id) ON DELETE CASCADE,
-  created_by INT REFERENCES "USER"(id) ON DELETE SET NULL,
-  title VARCHAR NOT NULL,
-  description TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 18. SURVEY_QUESTION — FK to SURVEY
-CREATE TABLE "SURVEY_QUESTION" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  survey_id INT NOT NULL REFERENCES "SURVEY"(id) ON DELETE CASCADE,
-  question_text TEXT NOT NULL,
-  question_type survey_question_type NOT NULL,
-  options JSONB,
-  is_required BOOLEAN NOT NULL DEFAULT false,
-  sequence_order INT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 19. SURVEY_RESPONSE — FKs to SURVEY, USER
-CREATE TABLE "SURVEY_RESPONSE" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  survey_id INT NOT NULL REFERENCES "SURVEY"(id) ON DELETE CASCADE,
-  user_id INT NOT NULL REFERENCES "USER"(id),
-  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 20. SURVEY_ANSWER — FKs to SURVEY_RESPONSE, SURVEY_QUESTION
-CREATE TABLE "SURVEY_ANSWER" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  response_id INT NOT NULL REFERENCES "SURVEY_RESPONSE"(id) ON DELETE CASCADE,
-  question_id INT NOT NULL REFERENCES "SURVEY_QUESTION"(id) ON DELETE CASCADE,
-  answer_value JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- 21. EMAIL_LOG — FK to USER
-CREATE TABLE "EMAIL_LOG" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES "USER"(id),
-  email_type email_type NOT NULL,
-  status email_status NOT NULL,
-  sent_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_email_log_user ON "EMAIL_LOG"(user_id);
-CREATE INDEX idx_email_log_type ON "EMAIL_LOG"(email_type);
-CREATE INDEX idx_email_log_status ON "EMAIL_LOG"(status);
-CREATE INDEX idx_email_log_sent_at ON "EMAIL_LOG"(sent_at);
-
--- 22. AUDIT_LOG — FK to USER
-CREATE TABLE "AUDIT_LOG" (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  actor_id INT NOT NULL REFERENCES "USER"(id),
-  action audit_action NOT NULL,
-  entity_type VARCHAR NOT NULL,
-  entity_id INT,
-  metadata JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_audit_log_actor ON "AUDIT_LOG"(actor_id);
-CREATE INDEX idx_audit_log_entity ON "AUDIT_LOG"(entity_type, entity_id);
-CREATE INDEX idx_audit_log_created ON "AUDIT_LOG"(created_at DESC);
-
--- ============================================================
--- Table-level grants
--- ============================================================
-
--- service_role gets full access on all tables (existing API routes use this)
-GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
-
--- Public read-only access on published/speaker data for anon
-GRANT SELECT ON "EVENT" TO anon;
-GRANT SELECT ON "SPEAKER_PROFILE" TO anon;
-GRANT SELECT ON "COMMUNITY_LINK" TO anon;
-GRANT SELECT ON "LIVE_SESSION_STATE" TO anon;
-
--- Authenticated users can read domain tables (writes go through API)
-GRANT SELECT ON "COURSE" TO authenticated;
-GRANT SELECT ON "MODULE" TO authenticated;
-GRANT SELECT ON "LESSON" TO authenticated;
-GRANT SELECT ON "EVENT" TO authenticated;
-GRANT SELECT ON "EVENT_FACILITATOR" TO authenticated;
-GRANT SELECT ON "EVENT_SPEAKER" TO authenticated;
-GRANT SELECT ON "SPEAKER_PROFILE" TO authenticated;
-GRANT SELECT ON "COMMUNITY_LINK" TO authenticated;
-GRANT SELECT ON "SUPPORT_SESSION" TO authenticated;
-GRANT SELECT ON "CHAT_MESSAGE" TO authenticated;
-GRANT SELECT ON "LIVE_SESSION_STATE" TO authenticated;
-
--- No direct table grants (API-only access): USER, PAYMENT, TICKET,
--- STAFF_INVITE, SURVEY, SURVEY_QUESTION, SURVEY_RESPONSE, SURVEY_ANSWER,
--- EMAIL_LOG, AUDIT_LOG, SYSTEM_SETTING
-
--- ============================================================
--- Enable Row Level Security
--- ============================================================
-ALTER TABLE "USER" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "COURSE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SYSTEM_SETTING" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SPEAKER_PROFILE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "MODULE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "LESSON" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "EVENT" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "EVENT_FACILITATOR" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "EVENT_SPEAKER" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "LIVE_SESSION_STATE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "PAYMENT" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "TICKET" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "STAFF_INVITE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "COMMUNITY_LINK" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SUPPORT_SESSION" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "CHAT_MESSAGE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SURVEY" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SURVEY_QUESTION" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SURVEY_RESPONSE" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "SURVEY_ANSWER" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "EMAIL_LOG" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "AUDIT_LOG" ENABLE ROW LEVEL SECURITY;
-
--- ============================================================
--- RLS Policies
--- ============================================================
-
--- Published/complete events visible to everyone
-CREATE POLICY "Published events are public"
-ON "EVENT" FOR SELECT
-TO anon, authenticated
-USING (status IN ('active', 'complete'));
-
--- Speaker profiles are public
-CREATE POLICY "Speaker profiles are public"
-ON "SPEAKER_PROFILE" FOR SELECT
-TO anon, authenticated
-USING (true);
-
--- Community links are public
-CREATE POLICY "Community links are public"
-ON "COMMUNITY_LINK" FOR SELECT
-TO anon, authenticated
-USING (true);
-
--- Live session state visible to all (realtime)
-CREATE POLICY "Live state visible to all"
-ON "LIVE_SESSION_STATE" FOR SELECT
-TO anon, authenticated
-USING (true);
-
--- Courses and content visible to authenticated users
-CREATE POLICY "Courses visible to authenticated"
-ON "COURSE" FOR SELECT
-TO authenticated
-USING (true);
-
-CREATE POLICY "Modules visible to authenticated"
-ON "MODULE" FOR SELECT
-TO authenticated
-USING (true);
-
-CREATE POLICY "Lessons visible to authenticated"
-ON "LESSON" FOR SELECT
-TO authenticated
-USING (true);
-
--- Events fully visible to authenticated
-CREATE POLICY "Events visible to authenticated"
-ON "EVENT" FOR SELECT
-TO authenticated
-USING (true);
-
--- assignments visible to authenticated
-CREATE POLICY "Facilitator assignments visible"
-ON "EVENT_FACILITATOR" FOR SELECT
-TO authenticated
-USING (true);
-
-CREATE POLICY "Speaker assignments visible"
-ON "EVENT_SPEAKER" FOR SELECT
-TO authenticated
-USING (true);
-
--- Users see their own support sessions; speakers/facilitators see all
-CREATE POLICY "Users see own support sessions"
-ON "SUPPORT_SESSION" FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM "USER" u
-    WHERE u.auth_user_id = auth.uid() AND u.id = user_id
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM "USER" u
-    WHERE u.auth_user_id = auth.uid() AND u.role IN ('facilitator', 'speaker')
-  )
-);
-
--- Users read messages they sent, received, or that belong to their events
-CREATE POLICY "Users read their channel messages"
-ON "CHAT_MESSAGE" FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM "USER" u
-    WHERE u.auth_user_id = auth.uid() AND (
-      u.id = user_id
-      OR
-      u.id = recipient_user_id
-      OR
-      EXISTS (
-        SELECT 1 FROM "EVENT_FACILITATOR" ef
-        WHERE ef.event_id = event_id AND ef.user_id = u.id
-      )
-      OR
-      EXISTS (
-        SELECT 1 FROM "SPEAKER_PROFILE" sp
-        JOIN "EVENT_SPEAKER" es ON es.speaker_profile_id = sp.id
-        WHERE es.event_id = event_id AND sp.user_id = u.id
-      )
+CREATE OR REPLACE FUNCTION "public"."conversation_participant"("target_user_id" integer) RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT
+    target_user_id = me.id
+    OR EXISTS (
+      SELECT 1 FROM "CHAT_MESSAGE" m
+      WHERE (m.user_id = target_user_id OR m.recipient_user_id = target_user_id)
+        AND (
+          m.user_id = me.id
+          OR m.recipient_user_id = me.id
+          OR (m.support_type = 'general' AND me.role IN ('admin', 'super_admin'))
+        )
     )
-  )
+    OR EXISTS (
+      SELECT 1 FROM "QA_MESSAGE" qa
+      WHERE qa.user_id = target_user_id
+        AND (
+          qa.user_id = me.id
+          OR EXISTS (
+            SELECT 1 FROM "EVENT_FACILITATOR" ef
+            WHERE ef.event_id = qa.event_id AND ef.user_id = me.id
+          )
+          OR EXISTS (
+            SELECT 1 FROM "SPEAKER_PROFILE" sp
+            JOIN "EVENT_SPEAKER" es ON es.speaker_profile_id = sp.id
+            WHERE es.event_id = qa.event_id AND sp.user_id = me.id
+          )
+          OR EXISTS (
+            SELECT 1 FROM "TICKET" t
+            WHERE t.event_id = qa.event_id AND t.user_id = me.id
+          )
+        )
+    )
+  FROM "USER" me
+  WHERE me.auth_user_id = auth.uid()
+$$;
+
+
+ALTER FUNCTION "public"."conversation_participant"("target_user_id" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."delete_qa_on_event_complete"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  IF NEW.status = 'complete' AND (OLD.status IS NULL OR OLD.status <> 'complete') THEN
+    DELETE FROM "QA_MESSAGE"
+    WHERE event_id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."delete_qa_on_event_complete"() OWNER TO "postgres";
+
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."AUDIT_LOG" (
+    "id" integer NOT NULL,
+    "actor_id" integer,
+    "action" "public"."audit_action" NOT NULL,
+    "entity_type" character varying NOT NULL,
+    "entity_id" integer,
+    "metadata" "jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
--- ============================================================
--- Realtime publications
--- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE "LIVE_SESSION_STATE";
-ALTER PUBLICATION supabase_realtime ADD TABLE "CHAT_MESSAGE";
-ALTER PUBLICATION supabase_realtime ADD TABLE "SUPPORT_SESSION";
-ALTER PUBLICATION supabase_realtime ADD TABLE "TICKET";
+
+ALTER TABLE "public"."AUDIT_LOG" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."AUDIT_LOG" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."AUDIT_LOG_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."CHAT_MESSAGE" (
+    "id" integer NOT NULL,
+    "user_id" integer,
+    "recipient_user_id" integer,
+    "message" "text" NOT NULL,
+    "sent_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "read_by" integer[] DEFAULT '{}'::integer[] NOT NULL,
+    "session_id" integer,
+    "deleted_at" timestamp with time zone,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "support_type" "public"."support_type" DEFAULT 'general'::"public"."support_type" NOT NULL
+);
+
+
+ALTER TABLE "public"."CHAT_MESSAGE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."CHAT_MESSAGE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."CHAT_MESSAGE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."COMMUNITY_LINK" (
+    "id" integer NOT NULL,
+    "label" character varying NOT NULL,
+    "url" character varying NOT NULL,
+    "icon_url" character varying,
+    "sequence_order" integer NOT NULL,
+    "created_by" integer,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "description" "text",
+    "is_hidden" boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE "public"."COMMUNITY_LINK" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."COMMUNITY_LINK" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."COMMUNITY_LINK_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."COURSE" (
+    "id" integer NOT NULL,
+    "course_name" character varying NOT NULL,
+    "course_description" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "event_id" integer NOT NULL
+);
+
+
+ALTER TABLE "public"."COURSE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."COURSE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."COURSE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."EMAIL_LOG" (
+    "id" integer NOT NULL,
+    "user_id" integer,
+    "email_type" "public"."email_type" NOT NULL,
+    "status" "public"."email_status" NOT NULL,
+    "sent_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."EMAIL_LOG" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."EMAIL_LOG" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."EMAIL_LOG_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."EVENT" (
+    "id" integer NOT NULL,
+    "title" character varying NOT NULL,
+    "event_date" "date" NOT NULL,
+    "start_time" time without time zone NOT NULL,
+    "end_time" time without time zone NOT NULL,
+    "venue_address" "text",
+    "venue_name" character varying NOT NULL,
+    "description" "text",
+    "price" numeric(10,2) DEFAULT 0 NOT NULL,
+    "currency" character varying(3) DEFAULT 'PHP'::character varying NOT NULL,
+    "cover_image_url" character varying,
+    "status" "public"."event_status" DEFAULT 'draft'::"public"."event_status" NOT NULL,
+    "survey_enabled" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "chk_event_price_nonneg" CHECK (("price" >= (0)::numeric)),
+    CONSTRAINT "chk_event_time" CHECK (("start_time" < "end_time"))
+);
+
+
+ALTER TABLE "public"."EVENT" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."EVENT_FACILITATOR" (
+    "event_id" integer NOT NULL,
+    "user_id" integer NOT NULL,
+    "assigned_by" integer,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."EVENT_FACILITATOR" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."EVENT_SPEAKER" (
+    "event_id" integer NOT NULL,
+    "speaker_profile_id" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."EVENT_SPEAKER" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."EVENT" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."EVENT_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."LESSON" (
+    "id" integer NOT NULL,
+    "module_id" integer NOT NULL,
+    "description" character varying NOT NULL,
+    "content_type" "public"."content_type" NOT NULL,
+    "content_url" character varying,
+    "sequence_order" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."LESSON" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."LESSON" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."LESSON_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."LIVE_SESSION_STATE" (
+    "highlighted_lesson_id" integer,
+    "updated_by" integer,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "course_id" integer NOT NULL
+);
+
+
+ALTER TABLE "public"."LIVE_SESSION_STATE" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."MODULE" (
+    "id" integer NOT NULL,
+    "course_id" integer NOT NULL,
+    "module_name" character varying NOT NULL,
+    "sequence_order" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "module_type" "text" DEFAULT 'lessons'::"text" NOT NULL,
+    "is_locked" boolean DEFAULT true NOT NULL,
+    "start_time" time without time zone,
+    "end_time" time without time zone,
+    "speaker_profile_id" integer,
+    CONSTRAINT "chk_module_schedule" CHECK (((("start_time" IS NULL) AND ("end_time" IS NULL)) OR (("start_time" IS NOT NULL) AND ("end_time" IS NOT NULL) AND ("end_time" > "start_time"))))
+);
+
+
+ALTER TABLE "public"."MODULE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."MODULE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."MODULE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."PASSWORD_RESET_ATTEMPT" (
+    "id" integer NOT NULL,
+    "email" character varying NOT NULL,
+    "ip" character varying,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."PASSWORD_RESET_ATTEMPT" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."PASSWORD_RESET_ATTEMPT" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."PASSWORD_RESET_ATTEMPT_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."PAYMENT" (
+    "id" integer NOT NULL,
+    "user_id" integer,
+    "event_id" integer NOT NULL,
+    "gateway_reference_id" character varying,
+    "status" "public"."payment_status" DEFAULT 'pending'::"public"."payment_status" NOT NULL,
+    "paid_at" timestamp with time zone,
+    "amount" numeric(10,2) DEFAULT 0 NOT NULL,
+    "currency" character varying(3) DEFAULT 'PHP'::character varying NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "chk_payment_amount_nonneg" CHECK (("amount" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."PAYMENT" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."PAYMENT" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."PAYMENT_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."QA_MESSAGE" (
+    "id" integer NOT NULL,
+    "event_id" integer NOT NULL,
+    "user_id" integer,
+    "message" "text" NOT NULL,
+    "deleted_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "module_id" integer NOT NULL
+);
+
+
+ALTER TABLE "public"."QA_MESSAGE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."QA_MESSAGE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."QA_MESSAGE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."SPEAKER_PROFILE" (
+    "id" integer NOT NULL,
+    "user_id" integer NOT NULL,
+    "bio" "text",
+    "designation" character varying,
+    "linkedin_url" character varying,
+    "twitter_url" character varying,
+    "github_url" character varying,
+    "website_url" character varying,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."SPEAKER_PROFILE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."SPEAKER_PROFILE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."SPEAKER_PROFILE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."STAFF_INVITE" (
+    "id" integer NOT NULL,
+    "email" character varying NOT NULL,
+    "full_name" character varying NOT NULL,
+    "invited_role" "public"."user_role" NOT NULL,
+    "event_id" integer NOT NULL,
+    "invited_by" integer NOT NULL,
+    "requires_approval" boolean DEFAULT false NOT NULL,
+    "approved_by" integer,
+    "status" "public"."staff_invite_status" DEFAULT 'pending'::"public"."staff_invite_status" NOT NULL,
+    "external_id" character varying,
+    "responded_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."STAFF_INVITE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."STAFF_INVITE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."STAFF_INVITE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."SUPPORT_SESSION" (
+    "id" integer NOT NULL,
+    "user_id" integer NOT NULL,
+    "status" "public"."support_session_status" DEFAULT 'active'::"public"."support_session_status" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "support_type" "public"."support_type" DEFAULT 'general'::"public"."support_type" NOT NULL,
+    "case_number" bigint NOT NULL,
+    "assigned_to" integer
+);
+
+
+ALTER TABLE "public"."SUPPORT_SESSION" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."SUPPORT_SESSION" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."SUPPORT_SESSION_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."SURVEY" (
+    "id" integer NOT NULL,
+    "event_id" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "sent_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."SURVEY" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."SURVEY_RESPONSE" (
+    "id" integer NOT NULL,
+    "survey_id" integer NOT NULL,
+    "user_id" integer NOT NULL,
+    "submitted_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "token" character varying NOT NULL,
+    "sent_at" timestamp with time zone,
+    "rating" integer,
+    "comment" "text",
+    CONSTRAINT "chk_survey_rating" CHECK ((("rating" >= 1) AND ("rating" <= 5)))
+);
+
+
+ALTER TABLE "public"."SURVEY_RESPONSE" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."SURVEY_RESPONSE" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."SURVEY_RESPONSE_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+ALTER TABLE "public"."SURVEY" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."SURVEY_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."SYSTEM_SETTING" (
+    "setting_key" character varying NOT NULL,
+    "setting_value" "jsonb" NOT NULL,
+    "updated_by" integer,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."SYSTEM_SETTING" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."TICKET" (
+    "id" integer NOT NULL,
+    "payment_id" integer,
+    "user_id" integer,
+    "event_id" integer NOT NULL,
+    "qr_token" character varying NOT NULL,
+    "status" "public"."ticket_status" DEFAULT 'issued'::"public"."ticket_status" NOT NULL,
+    "issued_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "checked_in_by" integer,
+    "checked_in_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."TICKET" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."TICKET" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."TICKET_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."USER" (
+    "id" integer NOT NULL,
+    "full_name" character varying NOT NULL,
+    "email" character varying NOT NULL,
+    "auth_user_id" "uuid" NOT NULL,
+    "role" "public"."user_role" DEFAULT 'attendee'::"public"."user_role" NOT NULL,
+    "profile_image_url" character varying,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."USER" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."USER" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."USER_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."support_case_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."support_case_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."support_case_seq" OWNED BY "public"."SUPPORT_SESSION"."id";
+
+
+
+ALTER TABLE ONLY "public"."SUPPORT_SESSION" ALTER COLUMN "case_number" SET DEFAULT "nextval"('"public"."support_case_seq"'::"regclass");
+
+
+
+ALTER TABLE ONLY "public"."AUDIT_LOG"
+    ADD CONSTRAINT "AUDIT_LOG_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."CHAT_MESSAGE"
+    ADD CONSTRAINT "CHAT_MESSAGE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."COMMUNITY_LINK"
+    ADD CONSTRAINT "COMMUNITY_LINK_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."COURSE"
+    ADD CONSTRAINT "COURSE_event_id_key" UNIQUE ("event_id");
+
+
+
+ALTER TABLE ONLY "public"."COURSE"
+    ADD CONSTRAINT "COURSE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."EMAIL_LOG"
+    ADD CONSTRAINT "EMAIL_LOG_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."EVENT_FACILITATOR"
+    ADD CONSTRAINT "EVENT_FACILITATOR_pkey" PRIMARY KEY ("event_id", "user_id");
+
+
+
+ALTER TABLE ONLY "public"."EVENT_SPEAKER"
+    ADD CONSTRAINT "EVENT_SPEAKER_pkey" PRIMARY KEY ("event_id", "speaker_profile_id");
+
+
+
+ALTER TABLE ONLY "public"."EVENT"
+    ADD CONSTRAINT "EVENT_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."LESSON"
+    ADD CONSTRAINT "LESSON_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."LIVE_SESSION_STATE"
+    ADD CONSTRAINT "LIVE_SESSION_STATE_pkey" PRIMARY KEY ("course_id");
+
+
+
+ALTER TABLE ONLY "public"."MODULE"
+    ADD CONSTRAINT "MODULE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."PASSWORD_RESET_ATTEMPT"
+    ADD CONSTRAINT "PASSWORD_RESET_ATTEMPT_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."PAYMENT"
+    ADD CONSTRAINT "PAYMENT_gateway_reference_id_key" UNIQUE ("gateway_reference_id");
+
+
+
+ALTER TABLE ONLY "public"."PAYMENT"
+    ADD CONSTRAINT "PAYMENT_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."QA_MESSAGE"
+    ADD CONSTRAINT "QA_MESSAGE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SPEAKER_PROFILE"
+    ADD CONSTRAINT "SPEAKER_PROFILE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SPEAKER_PROFILE"
+    ADD CONSTRAINT "SPEAKER_PROFILE_user_id_key" UNIQUE ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."STAFF_INVITE"
+    ADD CONSTRAINT "STAFF_INVITE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SUPPORT_SESSION"
+    ADD CONSTRAINT "SUPPORT_SESSION_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SURVEY_RESPONSE"
+    ADD CONSTRAINT "SURVEY_RESPONSE_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SURVEY_RESPONSE"
+    ADD CONSTRAINT "SURVEY_RESPONSE_token_key" UNIQUE ("token");
+
+
+
+ALTER TABLE ONLY "public"."SURVEY"
+    ADD CONSTRAINT "SURVEY_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SYSTEM_SETTING"
+    ADD CONSTRAINT "SYSTEM_SETTING_pkey" PRIMARY KEY ("setting_key");
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_qr_token_key" UNIQUE ("qr_token");
+
+
+
+ALTER TABLE ONLY "public"."USER"
+    ADD CONSTRAINT "USER_auth_user_id_key" UNIQUE ("auth_user_id");
+
+
+
+ALTER TABLE ONLY "public"."USER"
+    ADD CONSTRAINT "USER_email_key" UNIQUE ("email");
+
+
+
+ALTER TABLE ONLY "public"."USER"
+    ADD CONSTRAINT "USER_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."SUPPORT_SESSION"
+    ADD CONSTRAINT "support_session_case_number_unique" UNIQUE ("case_number");
+
+
+
+ALTER TABLE ONLY "public"."SURVEY"
+    ADD CONSTRAINT "uq_survey_event" UNIQUE ("event_id");
+
+
+
+CREATE INDEX "idx_audit_log_actor" ON "public"."AUDIT_LOG" USING "btree" ("actor_id");
+
+
+
+CREATE INDEX "idx_audit_log_created" ON "public"."AUDIT_LOG" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_audit_log_entity" ON "public"."AUDIT_LOG" USING "btree" ("entity_type", "entity_id");
+
+
+
+CREATE INDEX "idx_chat_message_recipient" ON "public"."CHAT_MESSAGE" USING "btree" ("recipient_user_id");
+
+
+
+CREATE INDEX "idx_email_log_sent_at" ON "public"."EMAIL_LOG" USING "btree" ("sent_at");
+
+
+
+CREATE INDEX "idx_email_log_status" ON "public"."EMAIL_LOG" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_email_log_type" ON "public"."EMAIL_LOG" USING "btree" ("email_type");
+
+
+
+CREATE INDEX "idx_email_log_user" ON "public"."EMAIL_LOG" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_event_date" ON "public"."EVENT" USING "btree" ("event_date");
+
+
+
+CREATE INDEX "idx_event_speaker_profile" ON "public"."EVENT_SPEAKER" USING "btree" ("speaker_profile_id");
+
+
+
+CREATE INDEX "idx_event_status" ON "public"."EVENT" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_lesson_module_sequence" ON "public"."LESSON" USING "btree" ("module_id", "sequence_order");
+
+
+
+CREATE INDEX "idx_module_course_sequence" ON "public"."MODULE" USING "btree" ("course_id", "sequence_order");
+
+
+
+CREATE INDEX "idx_password_reset_attempt_email" ON "public"."PASSWORD_RESET_ATTEMPT" USING "btree" ("email", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_password_reset_attempt_ip" ON "public"."PASSWORD_RESET_ATTEMPT" USING "btree" ("ip", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_payment_status" ON "public"."PAYMENT" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_payment_user_event" ON "public"."PAYMENT" USING "btree" ("user_id", "event_id");
+
+
+
+CREATE INDEX "idx_qa_message_module" ON "public"."QA_MESSAGE" USING "btree" ("module_id", "created_at" DESC);
+
+
+
+CREATE UNIQUE INDEX "idx_support_session_active" ON "public"."SUPPORT_SESSION" USING "btree" ("user_id", "support_type") WHERE ("status" = 'active'::"public"."support_session_status");
+
+
+
+CREATE INDEX "idx_support_session_assigned" ON "public"."SUPPORT_SESSION" USING "btree" ("assigned_to") WHERE ("status" = 'active'::"public"."support_session_status");
+
+
+
+CREATE INDEX "idx_support_session_user_created" ON "public"."SUPPORT_SESSION" USING "btree" ("user_id", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_ticket_qr" ON "public"."TICKET" USING "btree" ("qr_token");
+
+
+
+CREATE INDEX "idx_ticket_user_event" ON "public"."TICKET" USING "btree" ("user_id", "event_id");
+
+
+
+CREATE INDEX "idx_user_role" ON "public"."USER" USING "btree" ("role");
+
+
+
+CREATE OR REPLACE TRIGGER "trg_delete_qa_on_event_complete" AFTER UPDATE OF "status" ON "public"."EVENT" FOR EACH ROW WHEN (("new"."status" = 'complete'::"public"."event_status")) EXECUTE FUNCTION "public"."delete_qa_on_event_complete"();
+
+
+
+ALTER TABLE ONLY "public"."AUDIT_LOG"
+    ADD CONSTRAINT "AUDIT_LOG_actor_id_fkey" FOREIGN KEY ("actor_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."CHAT_MESSAGE"
+    ADD CONSTRAINT "CHAT_MESSAGE_recipient_user_id_fkey" FOREIGN KEY ("recipient_user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."CHAT_MESSAGE"
+    ADD CONSTRAINT "CHAT_MESSAGE_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "public"."SUPPORT_SESSION"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."CHAT_MESSAGE"
+    ADD CONSTRAINT "CHAT_MESSAGE_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."COMMUNITY_LINK"
+    ADD CONSTRAINT "COMMUNITY_LINK_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."COURSE"
+    ADD CONSTRAINT "COURSE_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."EMAIL_LOG"
+    ADD CONSTRAINT "EMAIL_LOG_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."EVENT_FACILITATOR"
+    ADD CONSTRAINT "EVENT_FACILITATOR_assigned_by_fkey" FOREIGN KEY ("assigned_by") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."EVENT_FACILITATOR"
+    ADD CONSTRAINT "EVENT_FACILITATOR_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."EVENT_FACILITATOR"
+    ADD CONSTRAINT "EVENT_FACILITATOR_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."EVENT_SPEAKER"
+    ADD CONSTRAINT "EVENT_SPEAKER_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."EVENT_SPEAKER"
+    ADD CONSTRAINT "EVENT_SPEAKER_speaker_profile_id_fkey" FOREIGN KEY ("speaker_profile_id") REFERENCES "public"."SPEAKER_PROFILE"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."LESSON"
+    ADD CONSTRAINT "LESSON_module_id_fkey" FOREIGN KEY ("module_id") REFERENCES "public"."MODULE"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."LIVE_SESSION_STATE"
+    ADD CONSTRAINT "LIVE_SESSION_STATE_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "public"."COURSE"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."LIVE_SESSION_STATE"
+    ADD CONSTRAINT "LIVE_SESSION_STATE_highlighted_lesson_id_fkey" FOREIGN KEY ("highlighted_lesson_id") REFERENCES "public"."LESSON"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."LIVE_SESSION_STATE"
+    ADD CONSTRAINT "LIVE_SESSION_STATE_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."MODULE"
+    ADD CONSTRAINT "MODULE_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "public"."COURSE"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."MODULE"
+    ADD CONSTRAINT "MODULE_speaker_profile_id_fkey" FOREIGN KEY ("speaker_profile_id") REFERENCES "public"."SPEAKER_PROFILE"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."PAYMENT"
+    ADD CONSTRAINT "PAYMENT_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id");
+
+
+
+ALTER TABLE ONLY "public"."PAYMENT"
+    ADD CONSTRAINT "PAYMENT_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."QA_MESSAGE"
+    ADD CONSTRAINT "QA_MESSAGE_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."QA_MESSAGE"
+    ADD CONSTRAINT "QA_MESSAGE_module_id_fkey" FOREIGN KEY ("module_id") REFERENCES "public"."MODULE"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."QA_MESSAGE"
+    ADD CONSTRAINT "QA_MESSAGE_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."SPEAKER_PROFILE"
+    ADD CONSTRAINT "SPEAKER_PROFILE_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."STAFF_INVITE"
+    ADD CONSTRAINT "STAFF_INVITE_approved_by_fkey" FOREIGN KEY ("approved_by") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."STAFF_INVITE"
+    ADD CONSTRAINT "STAFF_INVITE_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."STAFF_INVITE"
+    ADD CONSTRAINT "STAFF_INVITE_invited_by_fkey" FOREIGN KEY ("invited_by") REFERENCES "public"."USER"("id");
+
+
+
+ALTER TABLE ONLY "public"."SUPPORT_SESSION"
+    ADD CONSTRAINT "SUPPORT_SESSION_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."SUPPORT_SESSION"
+    ADD CONSTRAINT "SUPPORT_SESSION_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."SURVEY_RESPONSE"
+    ADD CONSTRAINT "SURVEY_RESPONSE_survey_id_fkey" FOREIGN KEY ("survey_id") REFERENCES "public"."SURVEY"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."SURVEY_RESPONSE"
+    ADD CONSTRAINT "SURVEY_RESPONSE_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id");
+
+
+
+ALTER TABLE ONLY "public"."SURVEY"
+    ADD CONSTRAINT "SURVEY_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."SYSTEM_SETTING"
+    ADD CONSTRAINT "SYSTEM_SETTING_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "public"."USER"("id");
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_checked_in_by_fkey" FOREIGN KEY ("checked_in_by") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."EVENT"("id");
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_payment_id_fkey" FOREIGN KEY ("payment_id") REFERENCES "public"."PAYMENT"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."TICKET"
+    ADD CONSTRAINT "TICKET_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."USER"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE "public"."AUDIT_LOG" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."CHAT_MESSAGE" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."COMMUNITY_LINK" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."COURSE" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Community links visible unless hidden" ON "public"."COMMUNITY_LINK" FOR SELECT TO "authenticated", "anon" USING ((("is_hidden" = false) OR (EXISTS ( SELECT 1
+   FROM "public"."USER" "u"
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND ("u"."role" = ANY (ARRAY['admin'::"public"."user_role", 'super_admin'::"public"."user_role"])))))));
+
+
+
+CREATE POLICY "Courses visible to authenticated" ON "public"."COURSE" FOR SELECT TO "authenticated" USING (true);
+
+
+
+ALTER TABLE "public"."EMAIL_LOG" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."EVENT" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."EVENT_FACILITATOR" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."EVENT_SPEAKER" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Facilitator assignments visible" ON "public"."EVENT_FACILITATOR" FOR SELECT TO "authenticated" USING (true);
+
+
+
+ALTER TABLE "public"."LESSON" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."LIVE_SESSION_STATE" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Lessons visible to authenticated" ON "public"."LESSON" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "Live state visible to all" ON "public"."LIVE_SESSION_STATE" FOR SELECT TO "authenticated", "anon" USING (true);
+
+
+
+ALTER TABLE "public"."MODULE" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Modules visible to authenticated" ON "public"."MODULE" FOR SELECT TO "authenticated" USING (true);
+
+
+
+ALTER TABLE "public"."PASSWORD_RESET_ATTEMPT" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."PAYMENT" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Published events are public" ON "public"."EVENT" FOR SELECT TO "authenticated", "anon" USING (("status" = ANY (ARRAY['active'::"public"."event_status", 'complete'::"public"."event_status"])));
+
+
+
+ALTER TABLE "public"."QA_MESSAGE" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."SPEAKER_PROFILE" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."STAFF_INVITE" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."SUPPORT_SESSION" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."SURVEY" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."SURVEY_RESPONSE" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."SYSTEM_SETTING" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Speaker assignments visible" ON "public"."EVENT_SPEAKER" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "Speaker profiles are public" ON "public"."SPEAKER_PROFILE" FOR SELECT TO "authenticated", "anon" USING (true);
+
+
+
+CREATE POLICY "Staff see unpublished events" ON "public"."EVENT" FOR SELECT TO "authenticated" USING ((("status" = ANY (ARRAY['active'::"public"."event_status", 'complete'::"public"."event_status"])) OR (EXISTS ( SELECT 1
+   FROM "public"."USER" "u"
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND ("u"."role" = ANY (ARRAY['facilitator'::"public"."user_role", 'admin'::"public"."user_role", 'super_admin'::"public"."user_role"]))))) OR (EXISTS ( SELECT 1
+   FROM ("public"."USER" "u"
+     JOIN "public"."EVENT_FACILITATOR" "ef" ON (("ef"."user_id" = "u"."id")))
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND ("ef"."event_id" = "EVENT"."id"))))));
+
+
+
+ALTER TABLE "public"."TICKET" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."USER" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Users read Q&A messages for their modules" ON "public"."QA_MESSAGE" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."USER" "u"
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND (("u"."id" = "QA_MESSAGE"."user_id") OR (EXISTS ( SELECT 1
+           FROM "public"."EVENT_FACILITATOR" "ef"
+          WHERE (("ef"."event_id" = "QA_MESSAGE"."event_id") AND ("ef"."user_id" = "u"."id")))) OR (EXISTS ( SELECT 1
+           FROM ("public"."SPEAKER_PROFILE" "sp"
+             JOIN "public"."EVENT_SPEAKER" "es" ON (("es"."speaker_profile_id" = "sp"."id")))
+          WHERE (("es"."event_id" = "QA_MESSAGE"."event_id") AND ("sp"."user_id" = "u"."id")))) OR (EXISTS ( SELECT 1
+           FROM "public"."TICKET" "t"
+          WHERE (("t"."event_id" = "QA_MESSAGE"."event_id") AND ("t"."user_id" = "u"."id")))))))));
+
+
+
+CREATE POLICY "Users read conversation participants" ON "public"."USER" FOR SELECT TO "authenticated" USING ("public"."conversation_participant"("id"));
+
+
+
+CREATE POLICY "Users read support messages" ON "public"."CHAT_MESSAGE" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."USER" "u"
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND (("u"."id" = "CHAT_MESSAGE"."user_id") OR ("u"."id" = "CHAT_MESSAGE"."recipient_user_id") OR (("CHAT_MESSAGE"."support_type" = 'general'::"public"."support_type") AND ("u"."role" = ANY (ARRAY['admin'::"public"."user_role", 'super_admin'::"public"."user_role"]))))))));
+
+
+
+CREATE POLICY "Users see own support sessions" ON "public"."SUPPORT_SESSION" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."USER" "u"
+  WHERE (("u"."auth_user_id" = "auth"."uid"()) AND (("u"."id" = "SUPPORT_SESSION"."user_id") OR (("SUPPORT_SESSION"."support_type" = 'general'::"public"."support_type") AND ("u"."role" = ANY (ARRAY['admin'::"public"."user_role", 'super_admin'::"public"."user_role"]))))))));
+
+
+
+REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT ALL ON SCHEMA "public" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."AUDIT_LOG" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."CHAT_MESSAGE" TO "service_role";
+GRANT SELECT ON TABLE "public"."CHAT_MESSAGE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."COMMUNITY_LINK" TO "service_role";
+GRANT SELECT ON TABLE "public"."COMMUNITY_LINK" TO "anon";
+GRANT SELECT ON TABLE "public"."COMMUNITY_LINK" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."COURSE" TO "service_role";
+GRANT SELECT ON TABLE "public"."COURSE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."EMAIL_LOG" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."EVENT" TO "service_role";
+GRANT SELECT ON TABLE "public"."EVENT" TO "anon";
+GRANT SELECT ON TABLE "public"."EVENT" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."EVENT_FACILITATOR" TO "service_role";
+GRANT SELECT ON TABLE "public"."EVENT_FACILITATOR" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."EVENT_SPEAKER" TO "service_role";
+GRANT SELECT ON TABLE "public"."EVENT_SPEAKER" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."LESSON" TO "service_role";
+GRANT SELECT ON TABLE "public"."LESSON" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."LIVE_SESSION_STATE" TO "service_role";
+GRANT SELECT ON TABLE "public"."LIVE_SESSION_STATE" TO "anon";
+GRANT SELECT ON TABLE "public"."LIVE_SESSION_STATE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."MODULE" TO "service_role";
+GRANT SELECT ON TABLE "public"."MODULE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."PASSWORD_RESET_ATTEMPT" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."PAYMENT" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."QA_MESSAGE" TO "service_role";
+GRANT SELECT ON TABLE "public"."QA_MESSAGE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."SPEAKER_PROFILE" TO "service_role";
+GRANT SELECT ON TABLE "public"."SPEAKER_PROFILE" TO "anon";
+GRANT SELECT ON TABLE "public"."SPEAKER_PROFILE" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."STAFF_INVITE" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."SUPPORT_SESSION" TO "service_role";
+GRANT SELECT ON TABLE "public"."SUPPORT_SESSION" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."SURVEY" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."SURVEY_RESPONSE" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."SYSTEM_SETTING" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."TICKET" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."USER" TO "service_role";
+
+
+
+GRANT SELECT("id") ON TABLE "public"."USER" TO "authenticated";
+
+
+
+GRANT SELECT("full_name") ON TABLE "public"."USER" TO "authenticated";
+
+
+
+GRANT SELECT("auth_user_id") ON TABLE "public"."USER" TO "authenticated";
+
+
+
+GRANT SELECT("role") ON TABLE "public"."USER" TO "authenticated";
+
+
+
+GRANT USAGE ON SEQUENCE "public"."support_case_seq" TO "service_role";
+
+
+
+
+
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."MODULE";
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."TICKET";
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."SUPPORT_SESSION";
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."CHAT_MESSAGE";
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."QA_MESSAGE";
