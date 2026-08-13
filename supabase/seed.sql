@@ -271,17 +271,30 @@ INSERT INTO public."MODULE" (
   (4, 2, 'Systems Rust', 2, 'lessons', false)
 ON CONFLICT (id) DO NOTHING;
 
--- Lessons — ids 1-4 (course 1), ids 5-7 (course 2)
+-- Lessons — ids 1-10 (course 1), ids 11-18 (course 2). Descriptions are
+-- optional; a spread of them (and a few NULLs) keeps the room card and
+-- builder realistic.
 INSERT INTO public."LESSON" (
   id, module_id, name, description, content_type, content_url, sequence_order
-) OVERRIDING SYSTEM VALUE VALUES 
-  (1, 1, 'Welcome video', NULL, 'video', 'https://example.com/welcome.mp4', 1),
-  (2, 1, 'Reading: intro deck', NULL, 'pdf', 'https://example.com/intro.pdf', 2),
-  (3, 2, 'Product walkthrough', NULL, 'video', 'https://example.com/walkthrough.mp4', 1),
-  (4, 2, 'Resources', NULL, 'link', 'https://example.com/resources', 2),
-  (5, 3, 'Memory model intro', NULL, 'pdf', 'https://example.com/memory-model.pdf', 1),
-  (6, 3, 'Borrow checker demo', NULL, 'video', 'https://example.com/borrow-checker.mp4', 2),
-  (7, 4, 'Concurrency patterns', NULL, 'link', 'https://example.com/concurrency', 1)
+) OVERRIDING SYSTEM VALUE VALUES
+  (1, 1, 'Welcome video', 'A quick hello and a map of the week ahead.', 'video', 'https://example.com/welcome.mp4', 1),
+  (2, 1, 'Reading: intro deck', 'The slide deck that frames the course core ideas.', 'pdf', 'https://example.com/intro.pdf', 2),
+  (3, 1, 'Product glossary', 'The terms we lean on all course long.', 'link', 'https://example.com/glossary', 3),
+  (4, 1, 'The product canvas', NULL, 'image', 'https://example.com/product-canvas.png', 4),
+  (5, 1, 'What makes a product', 'A 15-minute primer on problem framing and fit.', 'video', 'https://example.com/what-makes-a-product.mp4', 5),
+  (6, 2, 'Product walkthrough', 'A recorded walkthrough of the summit demo build.', 'video', 'https://example.com/walkthrough.mp4', 1),
+  (7, 2, 'Resources', NULL, 'link', 'https://example.com/resources', 2),
+  (8, 2, 'Building a backlog', 'Turn attendee feedback into a prioritised backlog.', 'pdf', 'https://example.com/backlog.pdf', 3),
+  (9, 2, 'Wireframing basics', 'A low-fi wireframe gallery for the group exercises.', 'image', 'https://example.com/wireframes.png', 4),
+  (10, 2, 'Prototype review', 'A review session on an early prototype.', 'video', 'https://example.com/prototype-review.mp4', 5),
+  (11, 3, 'Memory model intro', 'How values live and die on the stack and the heap.', 'pdf', 'https://example.com/memory-model.pdf', 1),
+  (12, 3, 'Borrow checker demo', 'The borrow checker, explained by breaking code on purpose.', 'video', 'https://example.com/borrow-checker.mp4', 2),
+  (13, 3, 'Ownership in practice', NULL, 'link', 'https://example.com/ownership', 3),
+  (14, 3, 'Lifetimes cheat sheet', 'A one-page reference for the common lifetime patterns.', 'image', 'https://example.com/lifetimes.png', 4),
+  (15, 4, 'Concurrency patterns', 'Channels, Arc, and knowing when each fits.', 'link', 'https://example.com/concurrency', 1),
+  (16, 4, 'Building a small CLI', 'A walkthrough of a tiny real-world CLI.', 'video', 'https://example.com/cli.mp4', 2),
+  (17, 4, 'Error handling in Rust', NULL, 'pdf', 'https://example.com/error-handling.pdf', 3),
+  (18, 4, 'Zero-cost abstractions', 'What "zero-cost" actually means for iterators.', 'video', 'https://example.com/zero-cost.mp4', 4)
 ON CONFLICT (id) DO NOTHING;
 
 -- Speaker profiles: id 1 (sign-in speaker Dana), ids 2-3 (background)
@@ -832,7 +845,7 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('public."EVENT"', 'id'), 6, true);
 SELECT setval(pg_get_serial_sequence('public."COURSE"', 'id'), 2, true);
 SELECT setval(pg_get_serial_sequence('public."MODULE"', 'id'), 4, true);
-SELECT setval(pg_get_serial_sequence('public."LESSON"', 'id'), 7, true);
+SELECT setval(pg_get_serial_sequence('public."LESSON"', 'id'), 18, true);
 SELECT setval(pg_get_serial_sequence('public."SPEAKER_PROFILE"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."COMMUNITY_LINK"', 'id'), 2, true);
 SELECT setval(pg_get_serial_sequence('public."PAYMENT"', 'id'), 27, true);
