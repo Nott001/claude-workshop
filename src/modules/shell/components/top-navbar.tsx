@@ -46,20 +46,14 @@ export function TopNavbar() {
           {isSignedIn && user ? (
             <ProfileMenu user={user} signOut={signOut} />
           ) : (
-            <>
-              <Link
-                href="/sign-in"
-                className="rounded-lg border border-border py-2.5 px-5 text-xs font-semibold tracking-[0.04em] transition hover:border-brand hover:text-brand"
-              >
-                SIGN IN
-              </Link>
-              <Link
-                href="/sign-up"
-                className="rounded-lg bg-brand py-2.5 px-5 text-xs font-semibold tracking-[0.04em] text-white transition hover:bg-brand/90"
-              >
-                SIGN UP
-              </Link>
-            </>
+            // Signing up is the hero's "Join Now" now, so the bar carries sign-in
+            // alone — in the slot sign-up used to hold.
+            <Link
+              href="/sign-in"
+              className="rounded-lg px-5 py-2.5 text-xs font-semibold tracking-[0.04em] transition hover:text-brand"
+            >
+              SIGN IN
+            </Link>
           )}
         </div>
       </div>

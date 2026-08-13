@@ -81,8 +81,11 @@ describe("landing page (logged out) event cards", () => {
     render(await LandingPage());
 
     const links = await screen.findAllByRole("link");
+    // Only the card links: the hero carries its own CTA, and asserting on every
+    // link in the page made this event-card test fail on unrelated hero edits.
+    const cardHrefs = links.map((link) => link.getAttribute("href")).filter((href) => href?.startsWith("/events/"));
 
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/events/41", "/events/42"]);
+    expect(cardHrefs).toEqual(["/events/41", "/events/42"]);
   });
 
   it("shows the empty state when no events are published", async () => {
