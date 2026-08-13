@@ -6,11 +6,16 @@ A role-based live events platform for hosting interactive sessions with assigned
 
 ! This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-First, run the development server:
+First, start the local Supabase stack and the development server:
 
-```bashv
+```bash
+pnpm db:start
 pnpm dev
 ```
+
+The first boot also needs a schema/seed reset and pointing `.env` at the
+local stack — see [docs/LOCAL_DB.md](docs/LOCAL_DB.md) for the full sequence,
+seeded logins, and remote configuration.
 
 ## Deployment
 

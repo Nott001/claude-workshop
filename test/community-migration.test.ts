@@ -2,34 +2,36 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const migration = readFileSync(join("supabase/migrations", "00018_community_link_cards.sql"), "utf8");
+const BASELINE = readFileSync(join("supabase/migrations", "00001_initial_schema.sql"), "utf8");
 
-describe("00018_community_link_cards.sql", () => {
-  it("drops the event-scoped columns, keeping only the card fields", () => {
-    expect(migration).toContain("DROP COLUMN event_id");
-    expect(migration).toContain("DROP COLUMN platform");
-    expect(migration).not.toContain("ADD COLUMN event_id");
-    expect(migration).not.toContain("ADD COLUMN platform");
+describe("community link cards (the chain's 00018 squashed into 00001)", () => {
+  it("defines event-scoped columns away, keeping only the card fields", () => {
+    const def = BASELINE.slice(
+      BASELINE.indexOf('CREATE TABLE IF NOT EXISTS "public"."COMMUNITY_LINK"'),
+      BASELINE.indexOf('CREATE TABLE IF NOT EXISTS "public"."COURSE"'),
+    );
+    expect(def).not.toContain("event_id");
+    expect(def).not.toContain("platform");
+    expect(def).toContain('"description" "text"');
+    expect(def).toContain('"is_hidden" boolean DEFAULT false NOT NULL');
   });
 
-  it("adds the description and is_hidden columns", () => {
-    expect(migration).toContain("ADD COLUMN description TEXT");
-    expect(migration).toContain("ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT false");
-  });
-
-  it("replaces the blanket public policy with a hidden-aware one", () => {
-    expect(migration).toContain('DROP POLICY IF EXISTS "Community links are public" ON "COMMUNITY_LINK";');
-    expect(migration).toContain('CREATE POLICY "Community links visible unless hidden"');
+  it("is guarded by the hidden-aware policy, not a blanket public one", () => {
+    expect(BASELINE).toContain('CREATE POLICY "Community links visible unless hidden"');
+    expect(BASELINE).not.toContain('CREATE POLICY "Community links are public"');
   });
 
   it("lets staff see hidden cards through a correlated subquery on the USER role", () => {
-    expect(migration).toContain('"COMMUNITY_LINK".is_hidden = false');
-    expect(migration).toMatch(/u\.role IN \('admin', 'super_admin'\)/);
+    const policy = BASELINE.slice(
+      BASELINE.indexOf('CREATE POLICY "Community links visible unless hidden"'),
+      BASELINE.indexOf(";", BASELINE.indexOf('CREATE POLICY "Community links visible unless hidden"')),
+    );
+    expect(policy).toContain('("is_hidden" = false)');
+    expect(policy).toMatch(/ARRAY\['admin'::"public"\."user_role", 'super_admin'::"public"\."user_role"\]/);
   });
 
-  it("keeps the anon and authenticated SELECT grants rather than redefining them", () => {
-    // Grants already exist from 00001; this migration must not disturb them.
-    expect(migration).not.toMatch(/GRANT SELECT ON "COMMUNITY_LINK" TO (anon|authenticated)/);
-    expect(migration).not.toMatch(/REVOKE/);
+  it("keeps the anon and authenticated SELECT grants the dump spells per-table", () => {
+    expect(BASELINE).toContain('GRANT SELECT ON TABLE "public"."COMMUNITY_LINK" TO "anon";');
+    expect(BASELINE).toContain('GRANT SELECT ON TABLE "public"."COMMUNITY_LINK" TO "authenticated";');
   });
 });

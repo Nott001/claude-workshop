@@ -121,7 +121,7 @@ jobs:
         run: pnpm audit --dev --audit-level=high
 
   # Catches credentials committed by mistake. This repo gitignores .env* and a
-  # local .env.local holds live Supabase and payment-gateway keys, so a stray
+  # local .env holds live Supabase and payment-gateway keys, so a stray
   # `git add -f` is a realistic path to leaking them.
   # Deliberately unfiltered. Documentation is one of the likeliest places to
   # leak a credential — a key pasted into a README example, a token in a setup
