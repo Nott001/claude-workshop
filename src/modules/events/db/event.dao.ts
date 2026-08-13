@@ -3,6 +3,7 @@ import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { effectiveEventStatus, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
+import { localDateString, localTimeString } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
@@ -79,7 +80,14 @@ export async function list(
   }
 
   if (filter === "upcoming") {
-    query = query.gte("event_date", new Date().toISOString().split("T")[0]);
+    // An event is still upcoming while its end edge is in the future, not
+    // merely while its date has not passed — otherwise a session that ended
+    // an hour ago keeps a seat on the landing page until midnight. Same
+    // local-clock convention as isEventFinished.
+    const now = new Date();
+    query = query.or(
+      `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`,
+    );
   } else if (filter === "past") {
     query = query.lt("event_date", new Date().toISOString().split("T")[0]);
   }
@@ -96,12 +104,12 @@ export async function list(
 }
 
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
   const { data, error } = await supabase
     .from("EVENT")
     .select("*")
     .eq("status", "active")
-    .gte("event_date", today)
+    .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
     .order("event_date", { ascending: true })
     .limit(2);
   // Without this the landing page renders "No upcoming events" identically

@@ -74,6 +74,7 @@ function renderStatic(overrides: Partial<CurriculumBuilderProps> = {}) {
       onAddLessonClick={noop}
       onReorderModules={noop}
       onMoveLesson={noop}
+      onRenameLesson={noop}
       {...overrides}
     />,
   );
@@ -132,6 +133,7 @@ function Harness({
       onAddLessonClick={noop}
       onReorderModules={handleReorder}
       onMoveLesson={handleMove}
+      onRenameLesson={noop}
     />
   );
 }
@@ -511,5 +513,51 @@ describe("CurriculumBuilder schedule editing", () => {
         speaker_profile_id: 9,
       }),
     );
+  });
+});
+
+describe("CurriculumBuilder lesson rename", () => {
+  it("renders the description as clickable text", () => {
+    renderStatic();
+
+    expect(screen.getByText("Lesson 1")).toBeTruthy();
+    expect(screen.getByText("Lesson 1").getAttribute("role")).toBe("button");
+  });
+
+  it("enters edit mode on click and commits trimmed text on blur", async () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ onRenameLesson });
+
+    fireEvent.click(screen.getByText("Lesson 1"));
+    const input = screen.getByRole("textbox");
+    expect(input).toBeTruthy();
+    fireEvent.change(input, { target: { value: " Renamed Lesson " } });
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(onRenameLesson).toHaveBeenCalledWith(1, "Renamed Lesson"));
+  });
+
+  it("does not call onRenameLesson when the text is unchanged", () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ onRenameLesson });
+
+    fireEvent.click(screen.getByText("Lesson 1"));
+    const input = screen.getByRole("textbox");
+    fireEvent.blur(input);
+
+    expect(onRenameLesson).not.toHaveBeenCalled();
+  });
+
+  it("cancels edit on Escape without saving", () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ onRenameLesson });
+
+    fireEvent.click(screen.getByText("Lesson 1"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Changed" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(onRenameLesson).not.toHaveBeenCalled();
+    expect(screen.getByText("Lesson 1")).toBeTruthy();
   });
 });

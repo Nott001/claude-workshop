@@ -54,58 +54,82 @@ describe("PATCH /api/auth/me speaker profile guard", () => {
     }
   });
 
+  it("forbids every non-speaker role from writing links", async () => {
+    for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
+      requireAuth.mockResolvedValue({ ...speaker, role });
+
+      const res = await PATCH(patch({ linkedin_url: "https://linkedin.com/in/ada" }));
+
+      expect(res.status).toBe(403);
+      await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  });
+
   it("lets a speaker update an existing speaker profile", async () => {
     findByUserId.mockResolvedValue({ id: 9, user_id: 5, designation: "Old", bio: null });
     update.mockResolvedValue({ id: 9, user_id: 5, designation: "CTO", bio: "Leads." });
 
-    const res = await PATCH(patch({ designation: "CTO", bio: "Leads." }));
+    const res = await PATCH(
+      patch({ designation: "CTO", bio: "Leads.", linkedin_url: "https://linkedin.com/in/ada", twitter_url: null }),
+    );
 
     expect(res.status).toBe(200);
-    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", {
+    // Speaker fields live on their own row, so the USER update carries none of
+    // them. It used to be handed the whole body and quietly ignore the rest.
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", {});
+    expect(update).toHaveBeenCalledWith(expect.anything(), 9, {
       designation: "CTO",
       bio: "Leads.",
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: null,
+      github_url: null,
+      website_url: null,
     });
-    expect(update).toHaveBeenCalledWith(expect.anything(), 9, { designation: "CTO", bio: "Leads." });
   });
 
   it("creates the speaker profile row when the speaker has none yet", async () => {
     findByUserId.mockResolvedValue(null);
     create.mockResolvedValue({ id: 12, user_id: 5, designation: "CTO", bio: null });
 
-    const res = await PATCH(patch({ designation: "CTO", bio: null }));
+    const res = await PATCH(patch({ designation: "CTO", bio: null, website_url: "https://ada.dev" }));
 
     expect(res.status).toBe(200);
     expect(create).toHaveBeenCalledWith(expect.anything(), {
       user_id: 5,
       designation: "CTO",
       bio: null,
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: null,
+      website_url: "https://ada.dev",
     });
   });
 });
 
-describe("PATCH /api/auth/me email change", () => {
-  it("refuses the address already on the account and writes nothing", async () => {
-    const res = await PATCH(patch({ email: "ada@example.com" }));
-
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "New email must be different from your current email." });
-    expect(updateUser).not.toHaveBeenCalled();
-  });
-
-  it("refuses it however it is capitalised or padded", async () => {
-    for (const email of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
-      const res = await PATCH(patch({ email }));
-
-      expect(res.status).toBe(400);
-      expect(updateUser).not.toHaveBeenCalled();
-    }
-  });
-
-  it("still accepts a genuinely different address", async () => {
+// The address belongs to the auth identity and is only ever copied across once
+// Supabase confirms it. This route writing one would let a caller claim an
+// address they had not proved they own, so it ignores the field entirely.
+describe("PATCH /api/auth/me does not write the email", () => {
+  it("drops an address a caller tries to set on itself", async () => {
     const res = await PATCH(patch({ email: "grace@example.com" }));
 
     expect(res.status).toBe(200);
-    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", { email: "grace@example.com" });
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", {});
+  });
+
+  it("drops someone else's address just the same", async () => {
+    const res = await PATCH(patch({ email: "admin@company.com" }));
+
+    expect(res.status).toBe(200);
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", {});
+  });
+
+  it("keeps writing the fields it does own alongside a dropped address", async () => {
+    const res = await PATCH(patch({ full_name: "Ada Lovelace", email: "grace@example.com" }));
+
+    expect(res.status).toBe(200);
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), "auth_123", { full_name: "Ada Lovelace" });
   });
 
   it("leaves a request that does not touch the email alone", async () => {

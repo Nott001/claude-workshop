@@ -53,8 +53,10 @@ export function AccountSettings() {
           <PasswordSection
             currentPassword={settings.currentPassword}
             onCurrentPasswordChange={settings.setCurrentPassword}
+            currentPasswordError={settings.currentPasswordError}
             newPassword={settings.newPassword}
             onNewPasswordChange={settings.setNewPassword}
+            newPasswordError={settings.newPasswordError}
             saving={settings.savingPassword}
             onSubmit={settings.changePassword}
             context={{ email: settings.currentUser?.email, fullName: settings.currentUser?.full_name }}
@@ -66,6 +68,14 @@ export function AccountSettings() {
               onDesignationChange={speaker.setDesignation}
               bio={speaker.bio}
               onBioChange={speaker.setBio}
+              linkedinUrl={speaker.linkedinUrl}
+              onLinkedinUrlChange={speaker.setLinkedinUrl}
+              twitterUrl={speaker.twitterUrl}
+              onTwitterUrlChange={speaker.setTwitterUrl}
+              githubUrl={speaker.githubUrl}
+              onGithubUrlChange={speaker.setGithubUrl}
+              websiteUrl={speaker.websiteUrl}
+              onWebsiteUrlChange={speaker.setWebsiteUrl}
               saving={speaker.savingSpeaker}
               onSubmit={speaker.saveSpeakerProfile}
             />

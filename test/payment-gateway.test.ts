@@ -103,10 +103,10 @@ describe("SimulatedPaymentGateway.createPayment", () => {
     expect(ticketCreate.mock.calls[0][1].qr_token).toMatch(/\S/);
   });
 
-  it("returns a checkout URL and a gateway reference for the payment it settled", async () => {
+  it("returns a gateway reference but no checkout URL", async () => {
     const result = await new SimulatedPaymentGateway().createPayment(OPTIONS);
 
-    expect(result.checkout_url).toContain("/checkout/77?success=true");
+    expect(result.checkout_url).toBe("");
     expect(result.gateway_reference_id).toBe("77");
   });
 

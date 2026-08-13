@@ -41,7 +41,17 @@ afterEach(() => {
 describe("useSpeakerProfile", () => {
   it("loads the speaker fields from /api/auth/me when the user is a speaker", async () => {
     const fetch = stubFetch();
-    fetch.mockImplementation(() => response({ speaker_profile_id: 5, designation: "CTO", bio: "Leads the team." }));
+    fetch.mockImplementation(() =>
+      response({
+        speaker_profile_id: 5,
+        designation: "CTO",
+        bio: "Leads the team.",
+        linkedin_url: "https://linkedin.com/in/ada",
+        twitter_url: null,
+        github_url: "https://github.com/ada",
+        website_url: "https://ada.dev",
+      }),
+    );
     const notify = vi.fn();
 
     const { result } = renderHook(() => useSpeakerProfile(notify));
@@ -51,6 +61,10 @@ describe("useSpeakerProfile", () => {
     expect(result.current.isSpeaker).toBe(true);
     expect(result.current.designation).toBe("CTO");
     expect(result.current.bio).toBe("Leads the team.");
+    expect(result.current.linkedinUrl).toBe("https://linkedin.com/in/ada");
+    expect(result.current.twitterUrl).toBe("");
+    expect(result.current.githubUrl).toBe("https://github.com/ada");
+    expect(result.current.websiteUrl).toBe("https://ada.dev");
   });
 
   it("does nothing for any non-speaker role", () => {
@@ -72,7 +86,7 @@ describe("useSpeakerProfile", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("saves designation and bio via PATCH /api/auth/me and notifies success", async () => {
+  it("saves designation, bio, and links via PATCH /api/auth/me and notifies success", async () => {
     const fetch = stubFetch();
     const notify = vi.fn();
     const { result } = renderHook(() => useSpeakerProfile(notify));
@@ -81,13 +95,24 @@ describe("useSpeakerProfile", () => {
     act(() => {
       result.current.setDesignation("CTO");
       result.current.setBio("Leads.");
+      result.current.setLinkedinUrl(" https://linkedin.com/in/ada ");
+      result.current.setTwitterUrl("");
+      result.current.setGithubUrl("https://github.com/ada");
+      result.current.setWebsiteUrl("https://ada.dev");
     });
     await act(async () => {
       await result.current.saveSpeakerProfile(submitEvent);
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ designation: "CTO", bio: "Leads." });
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({
+      designation: "CTO",
+      bio: "Leads.",
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: null,
+      github_url: "https://github.com/ada",
+      website_url: "https://ada.dev",
+    });
     expect(notify).toHaveBeenCalledWith({ title: "Saved", description: "Professional info updated.", type: "success" });
   });
 

@@ -7,6 +7,7 @@ import { getBrowserClient } from "@/shared/db/browser-client";
 import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
 import { evaluatePassword } from "@/shared/lib/password-policy";
+import { verifyPassword } from "@/modules/auth/lib/verify-password";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
@@ -53,6 +54,24 @@ export function useAccountSettings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // A rejected password belongs to the field that was rejected, not to a corner
+  // of the screen that times out after three seconds. Held per field so each
+  // one can be labelled invalid and described by its own message.
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
+
+  // Editing the field is the retry, so the message clears with the keystroke
+  // rather than lingering over input it no longer describes.
+  const editCurrentPassword = useCallback((value: string) => {
+    setCurrentPassword(value);
+    setCurrentPasswordError(null);
+  }, []);
+
+  const editNewPassword = useCallback((value: string) => {
+    setNewPassword(value);
+    setNewPasswordError(null);
+  }, []);
 
   const [uploading, setUploading] = useState(false);
 
@@ -154,18 +173,19 @@ export function useAccountSettings() {
       return;
     }
 
-    await fetch("/api/auth/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
+    // Nothing is written here on purpose. The address is a claim until the link
+    // in the message is opened; the app row is caught up at that point, by the
+    // callback route. Writing it now would put an unverified address on every
+    // surface that reads the session, and leave it there for good if the link
+    // were never opened.
     setEmailSent(true);
     setSavingEmail(false);
   }
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
+    setCurrentPasswordError(null);
+    setNewPasswordError(null);
 
     // Named before the request, because the provider answers a rejected
     // password with one generic message for every rule it could have broken.
@@ -174,15 +194,31 @@ export function useAccountSettings() {
       fullName: currentUser?.full_name,
     });
     if (!verdict.ok) {
-      notify({ title: "Choose a stronger password", description: verdict.problem!, type: "error" });
+      setNewPasswordError(verdict.problem!);
       return;
     }
 
     setSavingPassword(true);
 
+    // The field asking for it was decorative until now: the provider changes a
+    // password on the strength of the session alone, so an open laptop or a
+    // stolen token was enough to take an account over, and the owner would find
+    // themselves locked out of it. Proving the current password is what makes
+    // that a real gate. Checked after the free local rules and before anything
+    // is written, so a weak new password costs no round trip and a wrong
+    // current one changes nothing.
+    if (!currentUser?.email || !(await verifyPassword(currentUser.email, currentPassword))) {
+      setCurrentPasswordError("That is not your current password.");
+      setSavingPassword(false);
+      return;
+    }
+
+    // The provider only ever rejects this call over the new password itself —
+    // too weak for its own rules, or identical to the one being replaced — so
+    // its message belongs on that field rather than in a toast.
     const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
     if (authError) {
-      notify({ title: "Error", description: authError.message, type: "error" });
+      setNewPasswordError(authError.message);
       setSavingPassword(false);
       return;
     }
@@ -234,9 +270,11 @@ export function useAccountSettings() {
     resendVerification,
     useDifferentEmail,
     currentPassword,
-    setCurrentPassword,
+    setCurrentPassword: editCurrentPassword,
+    currentPasswordError,
     newPassword,
-    setNewPassword,
+    setNewPassword: editNewPassword,
+    newPasswordError,
     savingPassword,
     changePassword,
     uploading,

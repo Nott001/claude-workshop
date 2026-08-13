@@ -9,7 +9,6 @@ import type {
   WebhookConfirmation,
   WebhookResult,
 } from "../payment-gateway";
-import { buildCheckoutUrl } from "../payment-gateway";
 import { fulfillPaidPayment, fulfillmentInputFrom, markPaymentFailed, markPaymentRefunded } from "../fulfillment";
 
 interface SimulatedWebhookBody {
@@ -29,7 +28,7 @@ export class SimulatedPaymentGateway implements PaymentGateway {
   async createPayment(options: CreatePaymentOptions): Promise<CreatePaymentResult> {
     const supabase = getServiceClient();
     await fulfillPaidPayment(supabase, options);
-    return { checkout_url: buildCheckoutUrl(options.payment_id), gateway_reference_id: String(options.payment_id) };
+    return { checkout_url: "", gateway_reference_id: String(options.payment_id) };
   }
 
   async confirmWebhook({ payload }: WebhookConfirmation): Promise<WebhookResult> {

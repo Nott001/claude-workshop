@@ -4,56 +4,27 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { CourseSection } from "@/modules/events/pages/staff-event-detail";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/modules/courses/lib/use-course-by-event", () => ({ useCourseByEvent: vi.fn() }));
-vi.mock("@/modules/courses/lib/use-course-create", () => ({ useCourseCreate: vi.fn() }));
 
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
-import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 
-const noop = vi.fn();
-
-function emptyBuilder() {
-  return {
-    modules: [],
-    lessonDialogModuleId: null,
-    setLessonDialogModuleId: noop,
-    setModules: noop,
-    handleCreateCourse: noop,
-    handleAddModule: noop,
-    handleAddQaModule: noop,
-    handleRenameModule: noop,
-    handleDeleteModule: noop,
-    handleDeleteLesson: noop,
-    openLessonDialog: noop,
-    handleAddLesson: noop,
-    handleReorderModules: noop,
-    handleMoveLesson: noop,
-    handleUpdateModuleSchedule: noop,
-  };
-}
+const course = (id: number, name: string, description: string | null) => ({
+  id,
+  course_name: name,
+  course_description: description,
+  MODULE: [] as { LESSONS: unknown[] }[],
+});
 
 function renderSection(props: Partial<React.ComponentProps<typeof CourseSection>> = {}) {
-  return render(
-    <CourseSection
-      eventId="1"
-      userRole={ROLES.FACILITATOR}
-      canManageCourse={true}
-      eventSpeakers={[]}
-      speakersLoading={false}
-      eventStartTime="09:00"
-      eventEndTime="17:00"
-      {...props}
-    />,
-  );
+  return render(<CourseSection eventId="1" userRole={ROLES.FACILITATOR} canManageCourse={true} {...props} />);
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
-  const create = useCourseCreate as unknown as ReturnType<typeof vi.fn>;
   byEvent.mockReturnValue({ course: null, loading: false, error: null });
-  create.mockReturnValue(emptyBuilder());
 });
 
 afterEach(() => {
@@ -77,7 +48,7 @@ describe("CourseSection gating", () => {
   it("gives managers Manage Course and Enter Course Room once a course exists", () => {
     const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
     byEvent.mockReturnValue({
-      course: { id: 1, course_name: "Intro to Cloudflare", course_description: null, MODULE: [] },
+      course: course(1, "Intro to Cloudflare", null),
       loading: false,
       error: null,
     });
@@ -90,10 +61,10 @@ describe("CourseSection gating", () => {
     expect(screen.queryByRole("button", { name: "Create Course" })).toBeNull();
   });
 
-  it("opens the builder for an existing course from Manage Course", () => {
+  it("navigates to the staff course page from Manage Course", () => {
     const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
     byEvent.mockReturnValue({
-      course: { id: 1, course_name: "Intro to Cloudflare", course_description: null, MODULE: [] },
+      course: course(1, "Intro to Cloudflare", null),
       loading: false,
       error: null,
     });
@@ -101,13 +72,34 @@ describe("CourseSection gating", () => {
     renderSection({ userRole: ROLES.ADMIN, canManageCourse: true });
 
     fireEvent.click(screen.getByRole("button", { name: "Manage Course" }));
-    expect(screen.getByText("Back to summary")).toBeTruthy();
+    expect(push).toHaveBeenCalledWith("/staff/events/1/course");
   });
 
-  it("renders the read-only course summary for a non-manager staff member", () => {
+  it("navigates to the course room from Enter Course Room", () => {
     const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
     byEvent.mockReturnValue({
-      course: { id: 1, course_name: "Intro to Cloudflare", course_description: null, MODULE: [] },
+      course: course(1, "Intro to Cloudflare", null),
+      loading: false,
+      error: null,
+    });
+
+    renderSection({ userRole: ROLES.ADMIN, canManageCourse: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enter Course Room" }));
+    expect(push).toHaveBeenCalledWith("/courses/1/room");
+  });
+
+  it("navigates to the staff course page from Create Course", () => {
+    renderSection({ userRole: ROLES.FACILITATOR, canManageCourse: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Course" }));
+    expect(push).toHaveBeenCalledWith("/staff/events/1/course");
+  });
+
+  it("renders the course summary with no buttons for a non-manager staff member", () => {
+    const byEvent = useCourseByEvent as unknown as ReturnType<typeof vi.fn>;
+    byEvent.mockReturnValue({
+      course: course(1, "Intro to Cloudflare", null),
       loading: false,
       error: null,
     });

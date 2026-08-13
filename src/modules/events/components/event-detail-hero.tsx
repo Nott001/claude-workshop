@@ -38,7 +38,10 @@ export function EventDetailHero({ event, badgeLabel }: EventDetailHeroProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <div className="grid gap-6 lg:grid-cols-[65%_35%]">
+      {/* fr, not %: with percentages the 24px gap pushed the text column past
+          the card, where overflow-hidden clipped it — costing this panel most
+          of its right padding and leaving the title against the edge. */}
+      <div className="grid gap-6 lg:grid-cols-[65fr_35fr]">
         <div className="relative min-h-[320px]">
           <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
           {event.cover_image_url && (
