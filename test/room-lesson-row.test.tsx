@@ -8,6 +8,7 @@ function lesson(overrides: Partial<Lesson> = {}): Lesson {
   return {
     id: 1,
     module_id: 10,
+    name: "Prompting fundamentals",
     description: "Prompting fundamentals",
     content_type: "pdf",
     content_url: "https://cdn.example.com/prompting.pdf",

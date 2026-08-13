@@ -8,6 +8,8 @@ import type { LessonMoveInfo, MoveDirection } from "../lib/reorder";
 import type { ModuleWithLessons } from "../lib/types";
 import { lessonMoveLabel, MoveButton } from "./move-button";
 
+type EditTarget = "name" | "description";
+
 interface LessonRowProps {
   mod: ModuleWithLessons;
   lesson: Lesson;
@@ -20,7 +22,8 @@ interface LessonRowProps {
   onPreviewMoveEnd: () => void;
   onMove: (direction: MoveDirection) => void;
   onDelete: () => void;
-  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
+  onRenameLesson: (lessonId: number, name: string) => Promise<void> | void;
+  onUpdateLessonDescription: (lessonId: number, description: string | null) => Promise<void> | void;
 }
 
 export function LessonRow({
@@ -36,107 +39,161 @@ export function LessonRow({
   onMove,
   onDelete,
   onRenameLesson,
+  onUpdateLessonDescription,
 }: LessonRowProps) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(lesson.description);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing && inputRef.current) {
+    if (editTarget && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-  }, [editing]);
+  }, [editTarget]);
 
-  function startEdit() {
-    setEditValue(lesson.description);
-    setEditing(true);
+  function startEdit(target: EditTarget, initial: string) {
+    setEditValue(initial);
+    setEditTarget(target);
   }
 
   function commit() {
-    setEditing(false);
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== lesson.description) {
-      onRenameLesson(lesson.id, trimmed);
+    if (editTarget === "name") {
+      const trimmed = editValue.trim();
+      setEditTarget(null);
+      if (trimmed && trimmed !== lesson.name) onRenameLesson(lesson.id, trimmed);
+    } else if (editTarget === "description") {
+      const trimmed = editValue.trim();
+      setEditTarget(null);
+      const current = lesson.description ?? "";
+      if (trimmed !== current) onUpdateLessonDescription(lesson.id, trimmed || null);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
-      setEditing(false);
+      setEditTarget(null);
     }
   }
+
+  const editor = (maxLength: number) => (
+    <input
+      ref={inputRef}
+      value={editValue}
+      onChange={(e) => setEditValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={handleKeyDown}
+      maxLength={maxLength}
+      className="w-full rounded border border-brand bg-surface px-2 py-0.5 text-sm text-fg outline-none"
+    />
+  );
 
   return (
     <div
       data-lesson-id={lesson.id}
       className={cn(
-        "flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 transition-all",
+        "flex flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-2.5 transition-all",
         isSource && "border-brand/50 bg-brand/5",
         isSwapTarget && "border-brand/60 ring-2 ring-brand/40",
         isFlash && "curriculum-flash",
       )}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <span className="text-xs font-medium text-muted-fg shrink-0">
-          {mod.sequence_order}.{lesson.sequence_order}
-        </span>
-        {editing ? (
-          <input
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={commit}
-            onKeyDown={handleKeyDown}
-            className="w-full rounded border border-brand bg-surface px-2 py-0.5 text-sm text-fg outline-none"
-          />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            title="Rename lesson"
-            className="cursor-pointer rounded px-1 py-0.5 text-sm text-fg transition-colors hover:bg-muted"
-            onClick={startEdit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") startEdit();
-            }}
-          >
-            {lesson.description}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-xs font-medium text-muted-fg shrink-0">
+            {mod.sequence_order}.{lesson.sequence_order}
           </span>
-        )}
-        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-          {lesson.content_type}
-        </span>
+          {editTarget === "name" ? (
+            editor(255)
+          ) : (
+            <>
+              <span
+                role="button"
+                tabIndex={0}
+                title="Edit lesson name"
+                className="cursor-pointer rounded px-1 py-0.5 text-sm text-fg transition-colors hover:bg-muted"
+                onClick={() => startEdit("name", lesson.name)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") startEdit("name", lesson.name);
+                }}
+              >
+                {lesson.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => startEdit("name", lesson.name)}
+                aria-label="Rename lesson"
+                title="Rename lesson"
+                className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
+              >
+                <span className="material-symbols-rounded text-[14px]">edit</span>
+              </button>
+            </>
+          )}
+          <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+            {lesson.content_type}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <MoveButton
+            direction="up"
+            label={lessonMoveLabel(lesson, upInfo)}
+            disabled={!upInfo.possible}
+            onPreview={() => onPreviewMove("up")}
+            onPreviewEnd={onPreviewMoveEnd}
+            onClick={() => onMove("up")}
+          />
+          <MoveButton
+            direction="down"
+            label={lessonMoveLabel(lesson, downInfo)}
+            disabled={!downInfo.possible}
+            onPreview={() => onPreviewMove("down")}
+            onPreviewEnd={onPreviewMoveEnd}
+            onClick={() => onMove("down")}
+          />
+          {lesson.content_url && (
+            <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}>
+              View
+            </Button>
+          )}
+          <button
+            onClick={onDelete}
+            className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
+            title="Delete lesson"
+          >
+            <span className="material-symbols-rounded text-[14px]">delete</span>
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 shrink-0">
-        <MoveButton
-          direction="up"
-          label={lessonMoveLabel(lesson, upInfo)}
-          disabled={!upInfo.possible}
-          onPreview={() => onPreviewMove("up")}
-          onPreviewEnd={onPreviewMoveEnd}
-          onClick={() => onMove("up")}
-        />
-        <MoveButton
-          direction="down"
-          label={lessonMoveLabel(lesson, downInfo)}
-          disabled={!downInfo.possible}
-          onPreview={() => onPreviewMove("down")}
-          onPreviewEnd={onPreviewMoveEnd}
-          onClick={() => onMove("down")}
-        />
-        {lesson.content_url && (
-          <Button variant="ghost" size="sm" onClick={() => window.open(lesson.content_url ?? undefined, "_blank")}>
-            View
-          </Button>
+
+      <div className="flex items-center gap-2.5 pl-6 pr-1 min-w-0">
+        {editTarget === "description" ? (
+          editor(140)
+        ) : (
+          <>
+            <span
+              role="button"
+              tabIndex={0}
+              title="Edit description"
+              className="cursor-pointer rounded px-1 py-0.5 text-xs text-muted-fg transition-colors hover:bg-muted"
+              onClick={() => startEdit("description", lesson.description ?? "")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") startEdit("description", lesson.description ?? "");
+              }}
+            >
+              {lesson.description || <span className="italic">Add description</span>}
+            </span>
+            <button
+              type="button"
+              onClick={() => startEdit("description", lesson.description ?? "")}
+              aria-label="Edit lesson description"
+              title="Edit lesson description"
+              className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
+            >
+              <span className="material-symbols-rounded text-[14px]">edit</span>
+            </button>
+          </>
         )}
-        <button
-          onClick={onDelete}
-          className="rounded-md p-1 text-muted-fg transition-colors hover:bg-error/10 hover:text-error"
-          title="Delete lesson"
-        >
-          <span className="material-symbols-rounded text-[14px]">delete</span>
-        </button>
       </div>
     </div>
   );

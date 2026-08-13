@@ -157,8 +157,8 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     );
   }
 
-  async function handleRenameLesson(lessonId: number, description: string) {
-    const trimmed = description.trim();
+  async function handleRenameLesson(lessonId: number, name: string) {
+    const trimmed = name.trim();
     let lesson: Lesson | undefined;
     for (const m of modules) {
       const found = m.LESSONS.find((l) => l.id === lessonId);
@@ -167,15 +167,15 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
         break;
       }
     }
-    if (!lesson || trimmed === lesson.description) return;
+    if (!lesson || trimmed === lesson.name) return;
 
     const res = await fetch(`/api/lessons/${lessonId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        description: trimmed,
+        name: trimmed,
         content_type: lesson.content_type,
-        content_url: lesson.content_url,
+        content_url: lesson.content_url ?? undefined,
         sequence_order: lesson.sequence_order,
       }),
     });
@@ -183,7 +183,42 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
       setModules((prev) =>
         prev.map((m) => ({
           ...m,
-          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, description: trimmed } : l)),
+          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, name: trimmed } : l)),
+        })),
+      );
+    }
+  }
+
+  async function handleUpdateLessonDescription(lessonId: number, description: string | null) {
+    const trimmed = description?.trim() ?? "";
+    let lesson: Lesson | undefined;
+    for (const m of modules) {
+      const found = m.LESSONS.find((l) => l.id === lessonId);
+      if (found) {
+        lesson = found;
+        break;
+      }
+    }
+    // A stored null and an empty edit are the same text, so re-committing an
+    // empty description sends nothing.
+    if (!lesson || trimmed === (lesson.description ?? "")) return;
+
+    const res = await fetch(`/api/lessons/${lessonId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: lesson.name,
+        description: trimmed || null,
+        content_type: lesson.content_type,
+        content_url: lesson.content_url ?? undefined,
+        sequence_order: lesson.sequence_order,
+      }),
+    });
+    if (res.ok) {
+      setModules((prev) =>
+        prev.map((m) => ({
+          ...m,
+          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, description: trimmed || null } : l)),
         })),
       );
     }
@@ -193,7 +228,12 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     setLessonDialogModuleId(moduleId);
   }
 
-  async function handleAddLesson(data: { description: string; file: File | null; url: string }): Promise<string | null> {
+  async function handleAddLesson(data: {
+    name: string;
+    description: string;
+    file: File | null;
+    url: string;
+  }): Promise<string | null> {
     const moduleId = lessonDialogModuleId;
     if (!moduleId) return "No module selected";
 
@@ -209,7 +249,8 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        description: data.description,
+        name: data.name,
+        description: data.description || undefined,
         content_type: contentType,
         content_url: data.file ? undefined : data.url ? normalizeUrl(data.url) : undefined,
         sequence_order: sequenceOrder,
@@ -301,9 +342,9 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            description: lesson.description,
+            name: lesson.name,
             content_type: lesson.content_type,
-            content_url: lesson.content_url,
+            content_url: lesson.content_url ?? undefined,
             sequence_order: u.sequence_order,
             module_id: u.module_id,
           }),
@@ -330,6 +371,7 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     handleDeleteModule,
     handleDeleteLesson,
     handleRenameLesson,
+    handleUpdateLessonDescription,
     openLessonDialog,
     handleAddLesson,
     handleUpdateModuleSchedule,

@@ -8,9 +8,16 @@ interface CurrentTopicCardProps {
   isStaff: boolean;
   settingHighlight: boolean;
   onClearHighlight: () => void;
+  showDescription?: boolean;
 }
 
-export function CurrentTopicCard({ topic, isStaff, settingHighlight, onClearHighlight }: CurrentTopicCardProps) {
+export function CurrentTopicCard({
+  topic,
+  isStaff,
+  settingHighlight,
+  onClearHighlight,
+  showDescription = false,
+}: CurrentTopicCardProps) {
   return (
     <div className="rounded-xl border-2 border-brand/30 bg-brand/5 p-6 sm:p-7">
       <div className="flex items-center gap-2">
@@ -20,7 +27,10 @@ export function CurrentTopicCard({ topic, isStaff, settingHighlight, onClearHigh
 
       {topic ? (
         <div className="mt-3">
-          <h3 className="text-lg font-bold text-fg">{topic.lesson.description}</h3>
+          <h3 className="text-lg font-bold text-fg">{topic.lesson.name}</h3>
+          {showDescription && topic.lesson.description && (
+            <p className="mt-1 text-sm text-muted-fg">{topic.lesson.description}</p>
+          )}
           <div className="mt-1">
             <ModuleScheduleBadge startTime={topic.startTime} endTime={topic.endTime} speakerName={topic.speakerName} />
           </div>

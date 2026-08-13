@@ -353,7 +353,8 @@ export async function createLesson(
   supabase: DbClient,
   data: {
     module_id: number;
-    description: string;
+    name: string;
+    description?: string | null;
     content_type: string;
     content_url?: string;
     sequence_order: number;

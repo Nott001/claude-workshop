@@ -48,7 +48,8 @@ describe("Course content types", () => {
     const lesson: Lesson = {
       id: 1,
       module_id: 1,
-      description: "Test Lesson",
+      name: "Test Lesson",
+      description: "An optional blurb",
       content_type: "pdf",
       content_url: "https://example.com/doc.pdf",
       sequence_order: 1,
@@ -177,7 +178,7 @@ describe("moduleSchema schedule fields", () => {
 describe("lessonSchema", () => {
   it("accepts valid lesson data", () => {
     const result = lessonSchema.safeParse({
-      description: "Lesson 1",
+      name: "Lesson 1",
       content_type: "pdf",
       content_url: "https://example.com/doc.pdf",
       sequence_order: "1",
@@ -188,7 +189,7 @@ describe("lessonSchema", () => {
   it("accepts all content types", () => {
     for (const ct of ["pdf", "video", "image", "link"]) {
       const result = lessonSchema.safeParse({
-        description: "Lesson",
+        name: "Lesson",
         content_type: ct,
         content_url: "https://example.com/doc",
         sequence_order: "1",
@@ -199,7 +200,7 @@ describe("lessonSchema", () => {
 
   it("rejects invalid content type", () => {
     const result = lessonSchema.safeParse({
-      description: "Lesson",
+      name: "Lesson",
       content_type: "audio",
       content_url: "https://example.com/doc",
       sequence_order: "1",
@@ -209,7 +210,7 @@ describe("lessonSchema", () => {
 
   it("accepts relative or invalid URL (storage proxy path)", () => {
     const result = lessonSchema.safeParse({
-      description: "Lesson",
+      name: "Lesson",
       content_type: "pdf",
       content_url: "not-a-url",
       sequence_order: "1",
@@ -219,7 +220,7 @@ describe("lessonSchema", () => {
 
   it("accepts an optional module_id, used when a lesson moves to another module", () => {
     const result = lessonSchema.safeParse({
-      description: "Lesson",
+      name: "Lesson",
       content_type: "pdf",
       content_url: "https://example.com/doc",
       sequence_order: "2",
@@ -233,10 +234,48 @@ describe("lessonSchema", () => {
 
   it("rejects an invalid module_id", () => {
     const result = lessonSchema.safeParse({
-      description: "Lesson",
+      name: "Lesson",
       content_type: "pdf",
       sequence_order: "2",
       module_id: "not-a-number",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty name", () => {
+    const result = lessonSchema.safeParse({
+      name: "",
+      content_type: "pdf",
+      sequence_order: "1",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a lesson with no description", () => {
+    const result = lessonSchema.safeParse({
+      name: "Lesson",
+      content_type: "pdf",
+      sequence_order: "1",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a null description", () => {
+    const result = lessonSchema.safeParse({
+      name: "Lesson",
+      description: null,
+      content_type: "pdf",
+      sequence_order: "1",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a description over 140 chars", () => {
+    const result = lessonSchema.safeParse({
+      name: "Lesson",
+      description: "a".repeat(141),
+      content_type: "pdf",
+      sequence_order: "1",
     });
     expect(result.success).toBe(false);
   });

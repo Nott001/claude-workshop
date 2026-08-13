@@ -49,10 +49,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const supabase = getServiceClient();
 
   const updateData: Record<string, unknown> = {
-    description: parsed.data.description,
+    name: parsed.data.name,
     content_type: parsed.data.content_type,
     sequence_order: parsed.data.sequence_order,
   };
+  if (parsed.data.description !== undefined) {
+    updateData.description = parsed.data.description;
+  }
   if (parsed.data.content_url !== undefined) {
     updateData.content_url = parsed.data.content_url;
   }

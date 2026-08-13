@@ -273,15 +273,15 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Lessons — ids 1-4 (course 1), ids 5-7 (course 2)
 INSERT INTO public."LESSON" (
-  id, module_id, description, content_type, content_url, sequence_order
+  id, module_id, name, description, content_type, content_url, sequence_order
 ) OVERRIDING SYSTEM VALUE VALUES 
-  (1, 1, 'Welcome video', 'video', 'https://example.com/welcome.mp4', 1),
-  (2, 1, 'Reading: intro deck', 'pdf', 'https://example.com/intro.pdf', 2),
-  (3, 2, 'Product walkthrough', 'video', 'https://example.com/walkthrough.mp4', 1),
-  (4, 2, 'Resources', 'link', 'https://example.com/resources', 2),
-  (5, 3, 'Memory model intro', 'pdf', 'https://example.com/memory-model.pdf', 1),
-  (6, 3, 'Borrow checker demo', 'video', 'https://example.com/borrow-checker.mp4', 2),
-  (7, 4, 'Concurrency patterns', 'link', 'https://example.com/concurrency', 1)
+  (1, 1, 'Welcome video', NULL, 'video', 'https://example.com/welcome.mp4', 1),
+  (2, 1, 'Reading: intro deck', NULL, 'pdf', 'https://example.com/intro.pdf', 2),
+  (3, 2, 'Product walkthrough', NULL, 'video', 'https://example.com/walkthrough.mp4', 1),
+  (4, 2, 'Resources', NULL, 'link', 'https://example.com/resources', 2),
+  (5, 3, 'Memory model intro', NULL, 'pdf', 'https://example.com/memory-model.pdf', 1),
+  (6, 3, 'Borrow checker demo', NULL, 'video', 'https://example.com/borrow-checker.mp4', 2),
+  (7, 4, 'Concurrency patterns', NULL, 'link', 'https://example.com/concurrency', 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- Speaker profiles: id 1 (sign-in speaker Dana), ids 2-3 (background)

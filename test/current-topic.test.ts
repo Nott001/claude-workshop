@@ -9,6 +9,7 @@ function lesson(id: number, description: string, seq: number): Lesson {
   return {
     id,
     module_id: 10,
+    name: description,
     description,
     content_type: "link",
     content_url: null,
@@ -57,7 +58,7 @@ describe("resolveCurrentTopic", () => {
 
     const topic = resolveCurrentTopic(modules, EVENT_DATE, 11, at(10, 30));
 
-    expect(topic?.lesson.description).toBe("Introduction");
+    expect(topic?.lesson.name).toBe("Introduction");
     expect(topic?.moduleName).toBe("Foundations");
     expect(topic?.speakerName).toBe("Ada Lovelace");
   });
@@ -73,7 +74,7 @@ describe("resolveCurrentTopic", () => {
 
     const topic = resolveCurrentTopic(modules, EVENT_DATE, null, at(10, 30));
 
-    expect(topic?.lesson.description).toBe("Using Projects");
+    expect(topic?.lesson.name).toBe("Using Projects");
     expect(topic?.moduleName).toBe("Applied workflows");
   });
 

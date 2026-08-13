@@ -43,7 +43,8 @@ export interface Module {
 export interface Lesson {
   id: number;
   module_id: number;
-  description: string;
+  name: string;
+  description: string | null;
   content_type: ContentType;
   content_url: string | null;
   sequence_order: number;

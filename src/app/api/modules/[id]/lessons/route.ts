@@ -27,7 +27,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const lesson = await courseDao.createLesson(supabase, {
     module_id: Number(id),
-    description: parsed.data.description,
+    name: parsed.data.name,
+    description: parsed.data.description ?? undefined,
     content_type: parsed.data.content_type,
     content_url: parsed.data.content_url ?? undefined,
     sequence_order: parsed.data.sequence_order,
@@ -39,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   await requireAuditEvent(supabase, guard.user.id, "lesson.created", "lesson", lesson.id, {
     module_id: Number(id),
-    description: lesson.description,
+    name: lesson.name,
   });
 
   return NextResponse.json(lesson, { status: 201 });

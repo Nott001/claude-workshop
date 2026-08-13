@@ -57,9 +57,13 @@ export const qaModuleSchema = z.object({
 });
 
 export const lessonSchema = z.object({
-  description: z.string().min(1, "Description is required"),
+  name: z.string().min(1, "Name is required").max(255, "Name too long"),
+  description: z.string().max(140, "Description too long").optional().nullable(),
   content_type: contentTypeEnum,
-  content_url: z.string().optional(),
+  // A URL-less lesson (file upload pending, or link cleared) is valid; the
+  // client sends null verbatim from state, which the old `string().optional()`
+  // rejected with 400.
+  content_url: z.string().optional().nullable(),
   // Present only when a lesson is moved to another module.
   module_id: z.coerce.number().int().positive().optional(),
   sequence_order: z.coerce.number().int().positive("Must be at least 1"),
