@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ErrorBoundary>
         <main className={cn("flex flex-1 flex-col pt-16", usesSidebar && "lg:pl-[72px]")}>
           {children}
-          <Footer />
+          <Footer role={role} />
         </main>
       </ErrorBoundary>
       {showAssist && <FloatingAssistButton />}
