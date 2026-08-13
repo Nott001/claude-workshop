@@ -1,10 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import { existsSync } from "node:fs";
 
-// Locally the credentials live in .env.local; in CI they arrive as secrets on
+// Locally the credentials live in .env; in CI they arrive as secrets on
 // the environment already. Node's own loader avoids a dotenv dependency.
-if (existsSync(".env.local")) {
-  process.loadEnvFile(".env.local");
+if (existsSync(".env")) {
+  process.loadEnvFile(".env");
 }
 
 const PORT = Number(process.env.E2E_PORT ?? 3200);

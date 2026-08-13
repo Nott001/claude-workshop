@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ENV_PATH = join(ROOT, ".env.local");
+const ENV_PATH = join(ROOT, ".env");
 const REMOTE_PATH = join(ROOT, ".env.remote");
 
 const REWRITE_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
@@ -49,9 +49,7 @@ function rewrite(current, values) {
     return `${key}=${values[key]}`;
   });
   if (replaced < REWRITE_KEYS.length + (values.NEXT_PUBLIC_APP_URL ? 1 : 0)) {
-    throw new Error(
-      `expected to rewrite ${REWRITE_KEYS.length + 1} lines but matched ${replaced} — .env.local may be malformed`,
-    );
+    throw new Error(`expected to rewrite ${REWRITE_KEYS.length + 1} lines but matched ${replaced} — .env may be malformed`);
   }
   return next.join("\n");
 }
@@ -81,7 +79,7 @@ if (mode === "local") {
   const current = readEnv(ENV_PATH);
   if (!existsSync(REMOTE_PATH)) {
     atomicWrite(REMOTE_PATH, current);
-    console.log("Saved current .env.local to .env.remote for later restore.");
+    console.log("Saved current .env to .env.remote for later restore.");
   }
   const local = fetchLocalValues();
   const before = readEnv(ENV_PATH);

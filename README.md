@@ -13,7 +13,7 @@ pnpm db:start
 pnpm dev
 ```
 
-The first boot also needs a schema/seed reset and pointing `.env.local` at the
+The first boot also needs a schema/seed reset and pointing `.env` at the
 local stack — see [docs/LOCAL_DB.md](docs/LOCAL_DB.md) for the full sequence,
 seeded logins, and remote configuration.
 
