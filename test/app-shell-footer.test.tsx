@@ -21,8 +21,8 @@ afterEach(() => {
   cleanup();
 });
 
-function renderShell() {
-  useSession.mockReturnValue({ user: null, isSignedIn: false, signOut: vi.fn() });
+function renderShell(user: { role: string } | null = null) {
+  useSession.mockReturnValue({ user, isSignedIn: !!user, signOut: vi.fn() });
   return render(
     <AppShell>
       <p>page content</p>
@@ -40,6 +40,21 @@ describe("AppShell footer placement", () => {
     expect(footer?.className).toContain("mt-auto");
     expect(footer?.parentElement?.tagName.toLowerCase()).toBe("main");
     expect(screen.getByText(/StartupLab Business Center\. All rights reserved\./)).toBeTruthy();
+  });
+
+  it("hands the session role to the footer, so staff get the plain variant", () => {
+    vi.mocked(usePathname).mockReturnValue("/staff/events");
+    renderShell({ role: "admin" });
+
+    expect(screen.getByText(/StartupLab Business Center\. All rights reserved\./)).toBeTruthy();
+    expect(screen.queryByText("Company")).toBeNull();
+  });
+
+  it("gives a signed-in attendee the public footer", () => {
+    vi.mocked(usePathname).mockReturnValue("/home");
+    renderShell({ role: "attendee" });
+
+    expect(screen.getByText("Company")).toBeTruthy();
   });
 
   it("omits the footer when the navbar is hidden (room pages)", () => {
