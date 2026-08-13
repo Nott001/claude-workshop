@@ -44,9 +44,13 @@ afterEach(() => {
 // from walking into a page they cannot use; the page guards (SPEC-01-B/C) are
 // the second line, not the first.
 describe("Navbar role nav items", () => {
-  it("shows a speaker Dashboard and Community — no route into /staff", () => {
+  it("shows a speaker My Events and Community — no route into /staff", () => {
     renderAs(ROLES.SPEAKER);
-    expect(navLabels()).toEqual(["Dashboard", "Community"]);
+    expect(navLabels()).toEqual(["My Events", "Community"]);
+    const link = within(screen.getByRole("navigation", { name: "Primary navigation" })).getByRole("link", {
+      name: /My Events/,
+    });
+    expect(link.getAttribute("href")).toBe("/speaker/events");
   });
 
   it("shows a facilitator My Events and Community", () => {

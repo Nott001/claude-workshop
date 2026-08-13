@@ -39,12 +39,12 @@ describe("useRoleGuard", () => {
     expect(result.current.pending).toBe(false);
   });
 
-  it("routes a speaker who fails an admin guard to the speaker dashboard", async () => {
+  it("routes a speaker who fails an admin guard to the speaker events page", async () => {
     sessionValue.mockReturnValue({ user: speaker, loading: false, isSignedIn: true, signOut: vi.fn() });
 
     renderHook(() => useRoleGuard(ROLES.ADMIN));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/speaker/dashboard"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/speaker/events"));
   });
 
   it("routes a facilitator who fails an admin guard to their assigned events page", async () => {

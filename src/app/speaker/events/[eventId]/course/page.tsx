@@ -34,7 +34,7 @@ export default function SpeakerCoursePage() {
   useEffect(() => {
     if (speakerLoading || sessionPending) return;
     if (speakerError || !speakerEvent) {
-      router.replace(`/speaker/event/${eventId}?error=not_assigned`);
+      router.replace(`/speaker/events/${eventId}?error=not_assigned`);
     }
   }, [speakerLoading, sessionPending, speakerError, speakerEvent, eventId, router]);
 
@@ -56,7 +56,7 @@ export default function SpeakerCoursePage() {
     <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <Link
-          href={`/speaker/event/${eventId}`}
+          href={`/speaker/events/${eventId}`}
           className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
         >
           <span className="material-symbols-rounded text-base">arrow_back</span>

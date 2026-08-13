@@ -14,7 +14,7 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },
   ],
   speaker: [
-    { label: "Dashboard", href: "/speaker/dashboard", icon: "event" },
+    { label: "My Events", href: "/speaker/events", icon: "event" },
     { label: "Community", href: "/community", icon: "forum" },
   ],
   facilitator: [
