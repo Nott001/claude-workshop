@@ -77,7 +77,7 @@ export function useEventRegistration(eventId: string) {
 
     switch (destination.kind) {
       case "checkout":
-        router.push(`/checkout/${destination.paymentId}?success=true`);
+        router.push("/tickets");
         break;
       case "checkout-url": {
         // The simulated provider's "checkout URL" is our own /checkout page and
