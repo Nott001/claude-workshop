@@ -61,7 +61,7 @@ export default function CourseRoomPage() {
   const handleExit = useCallback(() => {
     if (!eventId) return;
     if (userRole === ROLES.SPEAKER) {
-      router.push(`/speaker/event/${eventId}`);
+      router.push(`/speaker/events/${eventId}`);
     } else if (isStaff) {
       router.push(`/staff/events/${eventId}`);
     } else {

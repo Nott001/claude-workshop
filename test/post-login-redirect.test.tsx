@@ -31,7 +31,7 @@ describe("PostLoginRedirect destination per role", () => {
     [ROLES.ADMIN, "/staff/events"],
     [ROLES.SUPER_ADMIN, "/staff/events"],
     [ROLES.FACILITATOR, "/staff/events/assigned"],
-    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.SPEAKER, "/speaker/events"],
     [ROLES.ATTENDEE, "/home"],
   ])("sends %s to %s", async (role, dest) => {
     signInAs(role);

@@ -75,7 +75,7 @@ describe("EventListPage event list", () => {
 
 describe("EventListPage for a signed-in non-attendee", () => {
   it.each([
-    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.SPEAKER, "/speaker/events"],
     [ROLES.FACILITATOR, "/staff/events/assigned"],
     [ROLES.ADMIN, "/staff/events"],
   ])("sends %s to %s instead of the staff list", async (role, dest) => {

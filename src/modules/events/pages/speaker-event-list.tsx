@@ -48,7 +48,7 @@ export function SpeakerEventListPage() {
                 // TODO: Speakers should be the one creating courses
                 // courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}
-                detailHref={`/speaker/event/${event.event_id}`}
+                detailHref={`/speaker/events/${event.event_id}`}
               />
             ))}
           </div>

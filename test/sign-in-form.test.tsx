@@ -59,7 +59,7 @@ describe("SignInForm redirect_url plumbing", () => {
 
 describe("SignInForm role-based destination", () => {
   it.each([
-    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.SPEAKER, "/speaker/events"],
     [ROLES.ATTENDEE, "/home"],
     [ROLES.ADMIN, "/staff/events"],
     [ROLES.SUPER_ADMIN, "/staff/events"],
