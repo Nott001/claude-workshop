@@ -67,6 +67,11 @@ role is not in `INVITABLE_ROLES` (`src/modules/auth/lib/invited-role.ts`), so
 `ensureUser` on sign-in cannot assert it. That mirrors prod and is intentional.
 Use `admin@example.com` for admin flows.
 
+The seed also creates ~16 **background** users (`USER` rows only, no
+`auth.users` — see the seed header). They fill attendee lists, tickets,
+payments, chat and survey responses so the app looks like prod, but they can
+never sign in.
+
 ## Seed
 
 `supabase/seed.sql` is idempotent: re-running `pnpm db:reset` yields the same
@@ -75,16 +80,28 @@ state, because every insert is `ON CONFLICT DO NOTHING` and sequences are
 
 What a fresh reset leaves:
 
-- 1 active event (`Product Summit 2026`, priced at 500 PHP) and 1 draft event.
-- 1 course with 2 modules, 4 lessons, 1 speaker profile and facilitator +
-  speaker assignments on the active event.
+- 6 events: `Product Summit 2026` (active, 500 PHP) as the nearest upcoming, 2
+  more upcoming (1 active AI/ML meetup, 1 draft meetup), and 3 past events
+  (Rust Hack Night, Startup Weekend Manila, Design Systems Day) stored `active`
+  with past end times — exactly how prod rows look, with `effectiveEventStatus`
+  deriving them as `complete` on read.
+- 2 courses (one per past/upcoming event; `COURSE.event_id` is UNIQUE) with 4
+  modules and 7 lessons total.
+- 3 speaker profiles with speaker assignments across events, and facilitator
+  assignments on 3 events.
 - 2 community links on the global `/community` page.
-- Commerce: 1 paid payment + issued ticket for `attendee@example.com`, 1 pending
-  payment (no ticket) for `attendee2@example.com` — useful for exercising
-  buy/resume flows.
-- 1 survey for the active event with an unsent, unsubmitted response for the
-  ticketed attendee.
-- 1 audit-log row (`checkin.performed`) for the staff audit page.
+- Commerce across all events: paid + issued tickets, `checked_in` tickets
+  (`checked_in_by`/`checked_in_at` on the event day), cancelled + refunded
+  payments, and failed/pending stragglers. `attendee@example.com` still holds a
+  paid ticket on the upcoming event and `attendee2@example.com` a pending
+  payment (no ticket) — useful for exercising buy/resume flows.
+- Surveys: an open one for the upcoming event (unsent, unsubmitted response for
+  the ticketed attendee, inside the 14-day window) and closed ones for two past
+  events with submitted responses (rating + comment) and one sent-but-unsubmitted
+  recipient.
+- Support cases with chat history (2 active, 2 ended), QA messages on courses,
+  and staff invites in `pending`/`accepted`/`expired` states.
+- Email and audit logs mirroring the ticket, check-in and survey activity.
 - 4 storage buckets (`event_images`, `profile_images`, `course_assets`,
   `course_videos`) matching `src/shared/integrations/storage/policy.ts`.
 
