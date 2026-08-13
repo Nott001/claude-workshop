@@ -2,6 +2,7 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useEffect } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
@@ -48,6 +49,14 @@ export function EventDetailPage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
+        <Link
+          href="/events"
+          className="mb-6 flex w-fit items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
+        >
+          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+          Back to Events
+        </Link>
+
         <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
         {/* fr, not %: gap is added to the tracks rather than taken out of them,
             so 65%+35% plus a 24px gap overflowed the container by exactly the

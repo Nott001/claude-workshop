@@ -129,6 +129,13 @@ describe("Event detail page assembly", () => {
     expect(screen.getByRole("button", { name: /share on facebook/i })).toBeTruthy();
   });
 
+  it("offers a way back to the events list", () => {
+    renderDetail(ROLES.ATTENDEE);
+    const back = screen.getByRole("link", { name: /back to events/i });
+
+    expect(back.getAttribute("href")).toBe("/events");
+  });
+
   it("shows Enter Room instead of Register for a ticket holder with a linked course once the event has started", () => {
     renderDetail(ROLES.ATTENDEE, {
       hasTicket: true,
