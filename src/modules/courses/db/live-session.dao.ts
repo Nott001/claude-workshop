@@ -4,7 +4,8 @@ import type { ContentType } from "@/shared/types";
 
 export type CourseHighlightLesson = {
   id: number;
-  description: string;
+  name: string;
+  description: string | null;
   content_type: ContentType;
 };
 
@@ -18,7 +19,7 @@ export type CourseHighlightStateRow = {
 export async function findStateWithLesson(supabase: DbClient, courseId: number): Promise<CourseHighlightStateRow | null> {
   const { data, error } = await supabase
     .from("LIVE_SESSION_STATE")
-    .select("*, LESSON(id, description, content_type)")
+    .select("*, LESSON(id, name, description, content_type)")
     .eq("course_id", courseId)
     .maybeSingle();
   throwOnDbError(error, "live-session.dao.findStateWithLesson");

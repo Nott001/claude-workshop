@@ -41,11 +41,11 @@ export function lessonMoveLabel(lesson: Lesson, info: LessonMoveInfo): string {
     return `Cannot move lesson ${info.direction}`;
   }
   if (info.kind === "within") {
-    return `Move "${lesson.description}" ${info.direction} one position`;
+    return `Move "${lesson.name}" ${info.direction} one position`;
   }
   return info.direction === "up"
-    ? `Move "${lesson.description}" to end of ${info.targetModuleName}`
-    : `Move "${lesson.description}" to start of ${info.targetModuleName}`;
+    ? `Move "${lesson.name}" to end of ${info.targetModuleName}`
+    : `Move "${lesson.name}" to start of ${info.targetModuleName}`;
 }
 
 export function moduleMoveLabel(info: ModuleMoveInfo): string {

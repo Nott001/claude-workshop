@@ -9,6 +9,7 @@ function topic(overrides: Partial<CurrentTopic> = {}): CurrentTopic {
     lesson: {
       id: 21,
       module_id: 2,
+      name: "Using Claude Projects",
       description: "Using Claude Projects",
       content_type: "link",
       content_url: "https://claude.ai/projects",
@@ -97,5 +98,50 @@ describe("CurrentTopicCard", () => {
 
     rerender(<CurrentTopicCard topic={topic()} isStaff settingHighlight onClearHighlight={onClear} />);
     expect((screen.getByRole("button", { name: "Clear highlight" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("renders the muted description under the name when showDescription is set", () => {
+    render(
+      <CurrentTopicCard
+        topic={topic({ lesson: { ...topic().lesson, description: "Hands-on with Claude" } })}
+        isStaff={false}
+        settingHighlight={false}
+        onClearHighlight={() => {}}
+        showDescription
+      />,
+    );
+
+    const description = screen.getByText("Hands-on with Claude");
+    expect(description).toBeTruthy();
+    expect(description.className).toContain("text-muted-fg");
+  });
+
+  it("hides a present description without showDescription", () => {
+    render(
+      <CurrentTopicCard
+        topic={topic({ lesson: { ...topic().lesson, description: "Hands-on with Claude" } })}
+        isStaff={false}
+        settingHighlight={false}
+        onClearHighlight={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Using Claude Projects")).toBeTruthy();
+    expect(screen.queryByText("Hands-on with Claude")).toBeNull();
+  });
+
+  it("renders no description line when showDescription is set but the lesson has none", () => {
+    render(
+      <CurrentTopicCard
+        topic={topic({ lesson: { ...topic().lesson, description: null } })}
+        isStaff={false}
+        settingHighlight={false}
+        onClearHighlight={() => {}}
+        showDescription
+      />,
+    );
+
+    expect(screen.getByText("Using Claude Projects")).toBeTruthy();
+    expect(screen.getAllByText("Using Claude Projects")).toHaveLength(1);
   });
 });

@@ -78,12 +78,12 @@ test("a facilitator adds a lesson to a module", async ({ page }) => {
   moduleIds.push(mod.id);
 
   const res = await page.request.post(`/api/modules/${mod.id}/lessons`, {
-    data: { description: "e2e-lesson-one", content_type: "link", sequence_order: 1 },
+    data: { name: "e2e-lesson-one", content_type: "link", sequence_order: 1 },
   });
 
   expect(res.status()).toBe(201);
   const lesson = await res.json();
-  expect(lesson.description).toBe("e2e-lesson-one");
+  expect(lesson.name).toBe("e2e-lesson-one");
   expect(lesson.module_id).toBe(mod.id);
 });
 
@@ -101,7 +101,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
   moduleIds.push(mod.id);
 
   await page.request.post(`/api/modules/${mod.id}/lessons`, {
-    data: { description: "e2e-lesson-readback", content_type: "link", sequence_order: 1 },
+    data: { name: "e2e-lesson-readback", content_type: "link", sequence_order: 1 },
   });
 
   // The course detail endpoint nests MODULE -> LESSONS, which is the join that
@@ -112,7 +112,7 @@ test("the curriculum reads back with its modules and lessons", async ({ page }) 
   const body = await detail.json();
   const found = (body.MODULE ?? []).find((m: { id: number }) => m.id === mod.id);
   expect(found, "the module just created should be in the course detail").toBeTruthy();
-  expect((found.LESSONS ?? []).some((l: { description: string }) => l.description === "e2e-lesson-readback")).toBe(true);
+  expect((found.LESSONS ?? []).some((l: { name: string }) => l.name === "e2e-lesson-readback")).toBe(true);
 });
 
 test("an invalid module is refused without writing", async ({ page }) => {
@@ -184,7 +184,7 @@ test("a facilitator deleting a module removes its lessons", async ({ page }) => 
   const mod = await modRes.json();
 
   await page.request.post(`/api/modules/${mod.id}/lessons`, {
-    data: { description: "e2e-lesson-doomed", content_type: "link", sequence_order: 1 },
+    data: { name: "e2e-lesson-doomed", content_type: "link", sequence_order: 1 },
   });
 
   const del = await page.request.delete(`/api/modules/${mod.id}`);

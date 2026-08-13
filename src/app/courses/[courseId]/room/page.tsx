@@ -173,6 +173,7 @@ export default function CourseRoomPage() {
                   isStaff={isStaff}
                   settingHighlight={settingHighlight}
                   onClearHighlight={handleClearHighlight}
+                  showDescription
                 />
 
                 <div className="rounded-xl border border-border bg-surface p-6">

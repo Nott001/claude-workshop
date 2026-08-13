@@ -11,7 +11,8 @@ function lesson(id: number, moduleId: number, seq: number): Lesson {
   return {
     id,
     module_id: moduleId,
-    description: `Lesson ${id}`,
+    name: `Lesson ${id}`,
+    description: null,
     content_type: "pdf",
     content_url: null,
     sequence_order: seq,
@@ -75,6 +76,7 @@ function renderStatic(overrides: Partial<CurriculumBuilderProps> = {}) {
       onReorderModules={noop}
       onMoveLesson={noop}
       onRenameLesson={noop}
+      onUpdateLessonDescription={noop}
       {...overrides}
     />,
   );
@@ -134,6 +136,7 @@ function Harness({
       onReorderModules={handleReorder}
       onMoveLesson={handleMove}
       onRenameLesson={noop}
+      onUpdateLessonDescription={noop}
     />
   );
 }
@@ -146,6 +149,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("CurriculumBuilder move affordances", () => {
@@ -516,8 +520,8 @@ describe("CurriculumBuilder schedule editing", () => {
   });
 });
 
-describe("CurriculumBuilder lesson rename", () => {
-  it("renders the description as clickable text", () => {
+describe("CurriculumBuilder lesson name", () => {
+  it("renders the lesson name as clickable text", () => {
     renderStatic();
 
     expect(screen.getByText("Lesson 1")).toBeTruthy();
@@ -559,5 +563,198 @@ describe("CurriculumBuilder lesson rename", () => {
 
     expect(onRenameLesson).not.toHaveBeenCalled();
     expect(screen.getByText("Lesson 1")).toBeTruthy();
+  });
+
+  it("enters edit mode from the name pencil and commits trimmed text on blur", async () => {
+    const onRenameLesson = vi.fn(async () => {});
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ onRenameLesson, onUpdateLessonDescription });
+
+    const row = screen.getByText("Lesson 1").closest("[data-lesson-id]") as HTMLElement;
+    fireEvent.click(within(row).getByLabelText("Rename lesson"));
+    const input = within(row).getByRole("textbox");
+    expect(input).toBeTruthy();
+    fireEvent.change(input, { target: { value: " Renamed via pencil " } });
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(onRenameLesson).toHaveBeenCalledWith(1, "Renamed via pencil"));
+    expect(onUpdateLessonDescription).not.toHaveBeenCalled();
+  });
+});
+
+describe("CurriculumBuilder lesson description", () => {
+  const describedModule = mod(1, "Module 1", "lessons", [{ ...lesson(1, 1, 1), description: "Foundations of prompting" }], 1);
+  const emptyDescriptionModule = mod(1, "Module 1", "lessons", [{ ...lesson(5, 1, 1), description: null }], 1);
+
+  it("renders a lesson's description as a muted line", () => {
+    renderStatic({ modules: [describedModule] });
+
+    const line = screen.getByText("Foundations of prompting");
+    expect(line).toBeTruthy();
+    expect(line.className).toContain("text-muted-fg");
+  });
+
+  it("renders an Add description placeholder when the description is null", () => {
+    renderStatic({ modules: [emptyDescriptionModule] });
+
+    expect(screen.getByText("Add description")).toBeTruthy();
+  });
+
+  it("opens the description editor empty from the placeholder", () => {
+    renderStatic({ modules: [emptyDescriptionModule] });
+
+    fireEvent.click(screen.getByText("Add description"));
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("");
+  });
+
+  it("commits a trimmed description on blur", async () => {
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ modules: [emptyDescriptionModule], onUpdateLessonDescription });
+
+    fireEvent.click(screen.getByText("Add description"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: " Workshop notes " } });
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    await waitFor(() => expect(onUpdateLessonDescription).toHaveBeenCalledWith(5, "Workshop notes"));
+  });
+
+  it("commits an emptied description as null", async () => {
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ modules: [describedModule], onUpdateLessonDescription });
+
+    fireEvent.click(screen.getByText("Foundations of prompting"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    await waitFor(() => expect(onUpdateLessonDescription).toHaveBeenCalledWith(1, null));
+  });
+
+  it("does not call onUpdateLessonDescription when the description is unchanged", () => {
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ modules: [describedModule], onUpdateLessonDescription });
+
+    fireEvent.click(screen.getByText("Foundations of prompting"));
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    expect(onUpdateLessonDescription).not.toHaveBeenCalled();
+  });
+
+  it("cancels a description edit on Escape without saving", () => {
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ modules: [describedModule], onUpdateLessonDescription });
+
+    fireEvent.click(screen.getByText("Foundations of prompting"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Changed" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(onUpdateLessonDescription).not.toHaveBeenCalled();
+    expect(screen.getByText("Foundations of prompting")).toBeTruthy();
+  });
+
+  it("editing the description never calls onRenameLesson", async () => {
+    const onRenameLesson = vi.fn(async () => {});
+    const onUpdateLessonDescription = vi.fn(async () => {});
+    renderStatic({ modules: [emptyDescriptionModule], onRenameLesson, onUpdateLessonDescription });
+
+    fireEvent.click(screen.getByText("Add description"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Notes" } });
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    await waitFor(() => expect(onUpdateLessonDescription).toHaveBeenCalledWith(5, "Notes"));
+    expect(onRenameLesson).not.toHaveBeenCalled();
+  });
+});
+
+describe("CurriculumBuilder lesson row", () => {
+  const describedModule = mod(1, "Module 1", "lessons", [{ ...lesson(1, 1, 1), description: "Foundations of prompting" }], 1);
+
+  it("opens the name editor with the name value on Enter", () => {
+    renderStatic();
+
+    fireEvent.keyDown(screen.getByText("Lesson 1"), { key: "Enter" });
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("Lesson 1");
+  });
+
+  it("does not open the name editor on a non-Enter key", () => {
+    renderStatic();
+
+    fireEvent.keyDown(screen.getByText("Lesson 1"), { key: "a" });
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("opens the description editor with the value on Enter", () => {
+    renderStatic({ modules: [describedModule] });
+
+    fireEvent.keyDown(screen.getByText("Foundations of prompting"), { key: "Enter" });
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("Foundations of prompting");
+  });
+
+  it("opens the description editor from the description pencil", () => {
+    renderStatic({ modules: [describedModule] });
+
+    fireEvent.click(screen.getByLabelText("Edit lesson description"));
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("Foundations of prompting");
+  });
+
+  it("ignores a plain key in the editor and still commits on blur", async () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ onRenameLesson });
+
+    fireEvent.click(screen.getByText("Lesson 1"));
+    const input = screen.getByRole("textbox");
+    fireEvent.keyDown(input, { key: "a" });
+    fireEvent.change(input, { target: { value: "Renamed" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(onRenameLesson).toHaveBeenCalledWith(1, "Renamed"));
+  });
+
+  it("opens linked content in a new tab from the row's View button", () => {
+    const withLink = mod(1, "Module 1", "lessons", [{ ...lesson(1, 1, 1), content_url: "https://example.com/v" }], 1);
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    renderStatic({ modules: [withLink] });
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    expect(open).toHaveBeenCalledWith("https://example.com/v", "_blank");
+  });
+});
+
+describe("CurriculumBuilder add module", () => {
+  it("starts renaming a newly added module and no-ops when the add returns null", async () => {
+    const onAddModule = vi.fn(async () => 1);
+    renderStatic({ onAddModule });
+
+    fireEvent.click(screen.getByRole("button", { name: /Add module$/ }));
+    expect(await screen.findByDisplayValue("New Module")).toBeTruthy();
+    expect(onAddModule).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderStatic();
+    fireEvent.click(screen.getByRole("button", { name: /Add module$/ }));
+    expect(screen.queryByDisplayValue("New Module")).toBeNull();
+  });
+
+  it("starts renaming a newly added Q&A module", async () => {
+    const onAddQaModule = vi.fn(async () => 1);
+    renderStatic({ onAddQaModule });
+
+    fireEvent.click(screen.getByRole("button", { name: /Add Q&A$/ }));
+    expect(await screen.findByDisplayValue("Q&A")).toBeTruthy();
+    expect(onAddQaModule).toHaveBeenCalledTimes(1);
   });
 });

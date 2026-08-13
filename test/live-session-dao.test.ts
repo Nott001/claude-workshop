@@ -41,7 +41,7 @@ describe("live-session.dao findStateWithLesson", () => {
           highlighted_lesson_id: 7,
           updated_by: 3,
           updated_at: "2026-08-05T00:00:00Z",
-          LESSON: { id: 7, description: "Intro", content_type: "pdf" },
+          LESSON: { id: 7, name: "Intro", description: "Intro", content_type: "pdf" },
         },
         error: null,
       },
@@ -52,7 +52,7 @@ describe("live-session.dao findStateWithLesson", () => {
     expect(state).toMatchObject({
       course_id: 4,
       highlighted_lesson_id: 7,
-      LESSON: { id: 7, description: "Intro", content_type: "pdf" },
+      LESSON: { id: 7, name: "Intro", description: "Intro", content_type: "pdf" },
     });
   });
 

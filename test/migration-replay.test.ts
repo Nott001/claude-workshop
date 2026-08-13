@@ -8,6 +8,7 @@ import { join } from "node:path";
  * scratch-DB dry-run would otherwise be the only place that caught. The 00001–
  * 00021 chain was later squashed into a single baseline; these assertions keep
  * pinning the replay of that file and the statements that survived into it.
+ * Additive migrations (e.g. 00002 for LESSON.name) extend it in order.
  */
 const migrations = readdirSync("supabase/migrations")
   .filter((f) => f.endsWith(".sql"))
@@ -33,8 +34,8 @@ describe("migration replay", () => {
     expect(new Set(prefixes).size).toBe(migrations.length);
   });
 
-  it("is exactly the single squashed baseline", () => {
-    expect(migrations).toEqual(["00001_initial_schema.sql"]);
+  it("is exactly the squashed baseline plus additive migrations", () => {
+    expect(migrations).toEqual(["00001_initial_schema.sql", "00002_lesson_name.sql"]);
   });
 
   describe("user-deletion final state (was 00015)", () => {

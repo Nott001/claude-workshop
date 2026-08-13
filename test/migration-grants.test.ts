@@ -32,8 +32,8 @@ describe("migration grants", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it("is a single squashed baseline", () => {
-    expect(files.map((f) => f.name)).toEqual([BASELINE]);
+  it("is the squashed baseline plus additive migrations", () => {
+    expect(files.map((f) => f.name)).toEqual([BASELINE, "00002_lesson_name.sql"]);
   });
 
   // The table grant must appear AFTER the table definition so it applies to

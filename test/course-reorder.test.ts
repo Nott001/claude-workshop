@@ -7,7 +7,8 @@ function lesson(id: number, moduleId: number, sequenceOrder: number): Lesson {
   return {
     id,
     module_id: moduleId,
-    description: `Lesson ${id}`,
+    name: `Lesson ${id}`,
+    description: null,
     content_type: "pdf",
     content_url: null,
     sequence_order: sequenceOrder,

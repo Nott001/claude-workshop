@@ -59,12 +59,15 @@ describe("GET /api/courses/[courseId]/live/highlight", () => {
       highlighted_lesson_id: 4,
       updated_by: 3,
       updated_at: "2026-08-05T00:00:00Z",
-      lesson: { id: 4, description: "Intro", content_type: "pdf" },
+      lesson: { id: 4, name: "Intro", description: "Intro", content_type: "pdf" },
     });
 
     const res = await GET(new Request("https://app.test/x"), params);
 
-    await expect(res.json()).resolves.toMatchObject({ highlighted_lesson_id: 4, lesson: { id: 4, description: "Intro" } });
+    await expect(res.json()).resolves.toMatchObject({
+      highlighted_lesson_id: 4,
+      lesson: { id: 4, name: "Intro", description: "Intro" },
+    });
   });
 });
 
