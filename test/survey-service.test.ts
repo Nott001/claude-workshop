@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DbClient } from "@/shared/db/dao/types";
-import type { Event, Survey, SurveyResponse } from "@/shared/types";
+import type { Event, SurveyResponse } from "@/shared/types";
 
 const supabase = {} as unknown as DbClient;
 
@@ -15,6 +15,8 @@ const dao = vi.hoisted(() => ({
   markSubmitted: vi.fn(),
   findSubmittedResponses: vi.fn(),
   countResponses: vi.fn(),
+  findResponseBySurveyAndUserId: vi.fn(),
+  findResponsesBySurveyAndUserIds: vi.fn(),
 }));
 
 const email = vi.hoisted(() => ({ sendEmailNotification: vi.fn() }));
@@ -24,6 +26,8 @@ vi.mock("@/shared/integrations/email/send-notification", () => email);
 
 import {
   sendEventSurvey,
+  sendSurveyToAttendee,
+  getAttendeeSurveyFlags,
   getSurveyByToken,
   submitSurvey,
   getSurveyResults,
@@ -241,6 +245,174 @@ describe("sendEventSurvey", () => {
     expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 102);
     expect(result).toEqual({ ok: true, survey_created: true, recipients: 2, delivered: 1, failed: 1 });
     consoleError.mockRestore();
+  });
+});
+
+describe("sendSurveyToAttendee", () => {
+  function liveSurvey() {
+    return { id: 11, event_id: 1, sent_at: new Date().toISOString(), created_at: "", updated_at: "" };
+  }
+
+  it("refuses when the event survey is not enabled", async () => {
+    await expect(sendSurveyToAttendee(supabase, finishedEvent({ survey_enabled: false }), 5)).resolves.toEqual({
+      ok: false,
+      reason: "not_enabled",
+    });
+  });
+
+  it("refuses while the event has not finished", async () => {
+    await expect(sendSurveyToAttendee(supabase, finishedEvent({ event_date: offsetDate(1) }), 5)).resolves.toEqual({
+      ok: false,
+      reason: "not_finished",
+    });
+  });
+
+  it("refuses when the bulk survey was never sent", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(null);
+    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({
+      ok: false,
+      reason: "no_survey",
+    });
+  });
+
+  it("refuses once the survey window has passed", async () => {
+    dao.findSurveyByEventId.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({ ok: false, reason: "expired" });
+  });
+
+  it("refuses an attendee who already responded", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(liveSurvey());
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(
+      response({ id: 101, user_id: 5, submitted_at: "2026-08-01T00:00:00Z" }),
+    );
+
+    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({
+      ok: false,
+      reason: "already_responded",
+    });
+  });
+
+  it("refuses a user who holds no ticket", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(liveSurvey());
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue([{ user_id: 2, full_name: "Ada Lovelace", email: "ada@example.com" }]);
+
+    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({
+      ok: false,
+      reason: "no_ticket",
+    });
+    expect(dao.createResponses).not.toHaveBeenCalled();
+  });
+
+  it("creates the response for a late registrant and delivers it", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(liveSurvey());
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue([{ user_id: 5, full_name: "Ada Lovelace", email: "ada@example.com" }]);
+    dao.createResponses.mockResolvedValue([response({ id: 101, survey_id: 11, user_id: 5, token: "t-ada" })]);
+
+    const result = await sendSurveyToAttendee(supabase, finishedEvent(), 5);
+
+    expect(dao.createResponses).toHaveBeenCalledWith(
+      supabase,
+      11,
+      expect.arrayContaining([expect.objectContaining({ user_id: 5 })]),
+    );
+    expect(email.sendEmailNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 5,
+        email: "ada@example.com",
+        name: "Ada Lovelace",
+        email_type: "event_survey",
+        surveyUrl: expect.stringContaining("t-ada"),
+      }),
+    );
+    expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 101);
+    expect(result).toEqual({ ok: true, delivered: true });
+  });
+
+  it("re-delivers an existing response that never went out", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(liveSurvey());
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(
+      response({ id: 101, survey_id: 11, user_id: 5, token: "t-ada", USER: { full_name: "Ada", email: "ada@example.com" } }),
+    );
+
+    const result = await sendSurveyToAttendee(supabase, finishedEvent(), 5);
+
+    expect(dao.createResponses).not.toHaveBeenCalled();
+    expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 101);
+    expect(result).toEqual({ ok: true, delivered: true });
+  });
+
+  it("reports an undelivered send so the admin can retry", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(liveSurvey());
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue([{ user_id: 5, full_name: "Ada", email: "ada@example.com" }]);
+    dao.createResponses.mockResolvedValue([response({ id: 101, survey_id: 11, user_id: 5, token: "t-ada" })]);
+    email.sendEmailNotification.mockResolvedValue(false);
+
+    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({ ok: true, delivered: false });
+    expect(dao.markResponseSent).not.toHaveBeenCalled();
+  });
+});
+
+describe("getAttendeeSurveyFlags", () => {
+  it("reports unusable when no survey was ever sent", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(null);
+
+    const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
+
+    expect(flags.usable).toBe(false);
+    expect(flags.byUser.size).toBe(0);
+    expect(dao.findResponsesBySurveyAndUserIds).not.toHaveBeenCalled();
+  });
+
+  it("reports unusable once the window has passed", async () => {
+    dao.findSurveyByEventId.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+
+    const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
+
+    expect(flags.usable).toBe(false);
+  });
+
+  it("flags sent and responded per attendee, leaving absent users out", async () => {
+    dao.findSurveyByEventId.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date().toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+    dao.findResponsesBySurveyAndUserIds.mockResolvedValue([
+      response({ id: 1, survey_id: 11, user_id: 5, token: "t", sent_at: "2026-08-01T00:00:00Z", submitted_at: null }),
+      response({
+        id: 2,
+        survey_id: 11,
+        user_id: 6,
+        token: "t",
+        sent_at: "2026-08-01T00:00:00Z",
+        submitted_at: "2026-08-02T00:00:00Z",
+      }),
+    ]);
+
+    const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
+
+    expect(flags.usable).toBe(true);
+    expect(flags.byUser.get(5)).toEqual({ sent: true, responded: false });
+    expect(flags.byUser.get(6)).toEqual({ sent: true, responded: true });
+    expect(flags.byUser.has(7)).toBe(false);
+    expect(dao.findResponsesBySurveyAndUserIds).toHaveBeenCalledWith(supabase, 11, [5, 6]);
   });
 });
 

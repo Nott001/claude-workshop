@@ -17,15 +17,17 @@ import type { EventWithCourse } from "@/modules/events/lib/types";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
+import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 
-const TAB_KEYS = ["overview", "course", "kiosk", "surveys"] as const;
+const TAB_KEYS = ["overview", "course", "kiosk", "attendees", "surveys"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: "overview", label: "Overview" },
   { key: "course", label: "Course" },
   { key: "kiosk", label: "Kiosk" },
+  { key: "attendees", label: "Attendees", adminOnly: true },
   { key: "surveys", label: "Surveys", adminOnly: true },
 ];
 
@@ -399,6 +401,16 @@ function KioskSection({ eventId, userRole }: { eventId: string; userRole: UserRo
   );
 }
 
+function AttendeesSection({ userRole, eventId }: { userRole: UserRole | null; eventId: string }) {
+  if (!hasMinRole(userRole, ROLES.ADMIN)) return null;
+
+  return (
+    <SectionCard title="Attendees" icon="group">
+      <AdminAttendeeManagement eventId={eventId} />
+    </SectionCard>
+  );
+}
+
 function SurveysSection({
   event,
   userRole,
@@ -462,7 +474,11 @@ function SurveysSection({
   }
 
   const canSend = enabled && finished;
-  const showSend = canSend && (!status?.survey || (status.survey.undelivered_count > 0 && !status.survey.expired));
+  // Fully delivered means every response already has an email out; re-sending
+  // would just spam people who already hold the link.
+  const surveyExpired = !!status?.survey && status.survey.expired;
+  const surveyComplete = !!status?.survey && !surveyExpired && status.survey.undelivered_count === 0;
+  const sendDisabled = sending || surveyComplete || surveyExpired;
   const respondedCount = status?.results.counts.reduce((sum, count) => sum + count, 0) ?? 0;
 
   return (
@@ -474,7 +490,9 @@ function SurveysSection({
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-fg">Post-event survey</p>
-              <p className="text-xs text-muted-fg">Email a rating + comment form to registered attendees.</p>
+              <p className="text-xs text-muted-fg">
+                Turning this on only enables the form &mdash; no email is sent until you use &ldquo;Send survey&rdquo;.
+              </p>
             </div>
             <button
               onClick={() => handleToggle(!enabled)}
@@ -496,13 +514,17 @@ function SurveysSection({
           {enabled && (
             <>
               <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                {showSend && (
+                {canSend && (
                   <button
                     onClick={handleSend}
-                    disabled={sending}
+                    disabled={sendDisabled}
                     className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
                   >
-                    {sending ? "Sending..." : status?.survey ? "Retry send" : "Send survey"}
+                    {sending
+                      ? "Sending..."
+                      : status?.survey && status.survey.undelivered_count > 0
+                        ? "Retry send"
+                        : "Send survey"}
                   </button>
                 )}
                 <button
@@ -512,6 +534,15 @@ function SurveysSection({
                   Preview form
                 </button>
               </div>
+
+              {surveyExpired && !sending && (
+                <p className="mb-3 text-xs text-muted-fg">
+                  The 14-day window has passed, so the survey can no longer be emailed.
+                </p>
+              )}
+              {surveyComplete && !sending && (
+                <p className="mb-3 text-xs text-success">Survey emailed to every registered attendee.</p>
+              )}
 
               {sendMessage && <p className="mb-3 text-xs text-success">{sendMessage}</p>}
 
@@ -697,6 +728,8 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         {currentTab === "course" && <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
 
         {currentTab === "kiosk" && <KioskSection eventId={eventId} userRole={userRole} />}
+
+        {currentTab === "attendees" && <AttendeesSection userRole={userRole} eventId={eventId} />}
 
         {currentTab === "surveys" && <SurveysSection event={event} userRole={userRole} />}
       </div>
