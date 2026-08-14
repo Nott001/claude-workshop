@@ -85,7 +85,9 @@ describe("landing page (logged out) event cards", () => {
     // link in the page made this event-card test fail on unrelated hero edits.
     const cardHrefs = links.map((link) => link.getAttribute("href")).filter((href) => href?.startsWith("/events/"));
 
-    expect(cardHrefs).toEqual(["/events/41", "/events/42"]);
+    // Tagged with the origin so the detail page's back link returns here
+    // rather than dropping the reader on the events list.
+    expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing"]);
   });
 
   it("shows the empty state when no events are published", async () => {

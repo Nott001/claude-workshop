@@ -136,7 +136,23 @@ describe("useEventDetail", () => {
     await act(async () => {
       await result.current.handleRegister();
     });
-    expect(push).toHaveBeenCalledWith("/sign-up?redirect_url=/events/7");
+    expect(push).toHaveBeenCalledWith("/sign-up?redirect_url=%2Fevents%2F7");
+  });
+
+  it("keeps the origin in the sign-up redirect so a guest lands back where they started", async () => {
+    stubSession(null);
+    stubFetch();
+
+    const { result } = renderHook(() => useEventDetail("7", "community"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.handleRegister();
+    });
+
+    const target = push.mock.calls.at(-1)?.[0] as string;
+    // Encoded, or the event's own `?from=` would read as a parameter of /sign-up.
+    expect(new URL(target, "https://x.test").searchParams.get("redirect_url")).toBe("/events/7?from=community");
   });
 
   it("sends a signed-in attendee to the register page", async () => {
@@ -149,6 +165,18 @@ describe("useEventDetail", () => {
       await result.current.handleRegister();
     });
     expect(push).toHaveBeenCalledWith("/events/7/register");
+  });
+
+  it("carries the origin into the register page so its back link can return there", async () => {
+    stubFetch();
+
+    const { result } = renderHook(() => useEventDetail("7", "community"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.handleRegister();
+    });
+    expect(push).toHaveBeenCalledWith("/events/7/register?from=community");
   });
 
   it("fetches recent attendees for a facilitator and clears the loading flag", async () => {

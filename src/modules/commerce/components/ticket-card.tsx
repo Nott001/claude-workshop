@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
+import { withBackLink } from "@/shared/lib/back-link";
 import { renderQrSvg } from "@/shared/integrations/qr/svg";
 import type { Ticket } from "@/modules/commerce/lib/use-tickets";
 
@@ -109,7 +110,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
 
           <div className="mt-4 flex items-center gap-3">
             <Link
-              href={`/events/${ticket.event_id}`}
+              href={withBackLink(`/events/${ticket.event_id}`, "tickets")}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand/80"
             >
               Go to event
