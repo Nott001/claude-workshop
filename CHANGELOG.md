@@ -4,6 +4,8 @@
 
 ### Added
 
+- Inviting a member to the organization now says so. The invite dialog reported failures at the form but said nothing at all on success — it closed, cleared itself, and left the admin to infer from the members table whether anything had been sent. A confirmation naming the address and the role it went to now appears where the account settings toasts already appear. It is deliberately absent on the error path, where a message claiming a send would contradict the error shown in the dialog.
+
 - The landing page leads with the hero from the design, and signing up is now the hero's job. The heading, the line about what StartupLab is for, and a white **Join Now** button sit beside a media card, all on the same brand panel as the attendee home page — the two now read as one page rather than two. The top bar drops **SIGN UP** entirely, since two calls to action competing on one screen is what the design set out to fix, and **SIGN IN** loses its outline and moves into the slot sign-up used to hold. The "Learn. Connect. Grow." line is gone, matching the design.
 
 - The public event page can be left again. Opening an event from the list was a one-way trip: the page carried no way back short of the browser button, while the staff view of the same event has had one all along. It now leads with the same "Back to Events" control the staff page uses, in the same place, pointing at the events list.

@@ -1,12 +1,13 @@
 "use client";
 
 import { INVITABLE_ROLES, ROLES } from "@/shared/lib/roles";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Button } from "@/shared/components/button";
 import { Badge } from "@/shared/components/badge";
 import { Input } from "@/shared/components/input";
+import { Toast } from "@/shared/components/toast";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -17,6 +18,18 @@ interface Member {
   full_name: string;
   email: string;
   role: UserRole;
+}
+
+// Every invitable role is a single word, so this is the whole of it. Shared by
+// the role picker and the confirmation so the two never drift apart.
+const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
+
+// `id` exists to re-key the Toast. Without it a second invitation reuses the
+// mounted instance, whose dismissal timer is still counting down for the first
+// message, and the new one disappears early.
+interface InviteToast {
+  id: number;
+  description: string;
 }
 
 const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "error" | "info"> = {
@@ -40,7 +53,12 @@ export default function StaffOrganizationPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>(ROLES.SPEAKER);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteToast, setInviteToast] = useState<InviteToast | null>(null);
   const [inviting, setInviting] = useState(false);
+
+  // Stable, so an unrelated re-render of this page does not restart the Toast's
+  // dismissal effect and leave the message on screen indefinitely.
+  const dismissToast = useCallback(() => setInviteToast(null), []);
 
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -80,6 +98,12 @@ export default function StaffOrganizationPage() {
       setInviting(false);
       return;
     }
+
+    // Read before the fields are cleared below — these still hold what was sent.
+    setInviteToast((prev) => ({
+      id: (prev?.id ?? 0) + 1,
+      description: `${inviteEmail} was invited as ${inviteRole}.`,
+    }));
 
     setInviteOpen(false);
     setInviteName("");
@@ -155,7 +179,7 @@ export default function StaffOrganizationPage() {
                   <SelectContent>
                     {allowedInviteRoles.map((r) => (
                       <SelectItem key={r} value={r}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                        {roleLabel(r)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -214,6 +238,12 @@ export default function StaffOrganizationPage() {
           </div>
         )}
       </div>
+
+      {inviteToast && (
+        <div className="fixed bottom-4 right-8 z-50">
+          <Toast key={inviteToast.id} title="Invitation sent" description={inviteToast.description} onClose={dismissToast} />
+        </div>
+      )}
     </div>
   );
 }
