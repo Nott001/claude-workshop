@@ -4,11 +4,6 @@ import { useEffect, useRef } from "react";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import { unsubscribe } from "@/shared/integrations/realtime";
 
-export const CHAT_TABLE = "CHAT_MESSAGE" as const;
-export const QA_TABLE = "QA_MESSAGE" as const;
-
-export type RealtimeTable = typeof CHAT_TABLE | typeof QA_TABLE;
-
 interface UseRealtimeMessagesOptions<T extends { id: number }> {
   /**
    * Stable channel name derived from the resource id. `Date.now()` in the name
@@ -16,7 +11,6 @@ interface UseRealtimeMessagesOptions<T extends { id: number }> {
    * name is removed on unmount and re-created cleanly on remount.
    */
   channelName: string;
-  table: RealtimeTable;
   /** postgres_changes filter, e.g. `support_type=eq.general`. */
   filter: string;
   /** Skip subscribing until true (e.g. a closed panel). */
@@ -37,12 +31,11 @@ interface UseRealtimeMessagesOptions<T extends { id: number }> {
 /**
  * One chat subscription, shared by the panels and the support inbox. Realtime
  * INSERT payloads carry no joined author row, so the hook refetches the message
- * through the DAO-backed GET routes — the browser never queries the database
- * under the anon key, keeping enrichment server-side.
+ * through the DAO-backed support GET route — the browser never queries the
+ * database under the anon key, keeping enrichment server-side.
  */
 export function useRealtimeMessages<T extends { id: number }>({
   channelName,
-  table,
   filter,
   enabled = true,
   relevant,
@@ -61,12 +54,12 @@ export function useRealtimeMessages<T extends { id: number }>({
 
     const sub = getBrowserClient()
       .channel(channelName)
-      .on("postgres_changes", { event: "*", schema: "public", table, filter }, async (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "CHAT_MESSAGE", filter }, async (payload) => {
         const current = handlersRef.current;
         if (payload.eventType === "INSERT") {
           const row = payload.new as T;
           if (current.relevant && !current.relevant(row)) return;
-          const full = await fetchEnriched(table, (row as { id: number }).id);
+          const full = await fetchEnriched((row as { id: number }).id);
           if (full) current.onInsert(full as T);
         } else if (payload.eventType === "UPDATE") {
           current.onUpdate?.(payload.new as T);
@@ -77,13 +70,12 @@ export function useRealtimeMessages<T extends { id: number }>({
       .subscribe();
 
     return () => unsubscribe(sub);
-  }, [channelName, table, filter, enabled]);
+  }, [channelName, filter, enabled]);
 }
 
-async function fetchEnriched(table: RealtimeTable, id: number): Promise<{ id: number } | null> {
-  const endpoint = table === "CHAT_MESSAGE" ? `/api/support/${id}` : `/api/qa/message/${id}`;
+async function fetchEnriched(id: number): Promise<{ id: number } | null> {
   try {
-    const res = await fetch(endpoint);
+    const res = await fetch(`/api/support/${id}`);
     if (!res.ok) return null;
     return (await res.json()) as { id: number };
   } catch {

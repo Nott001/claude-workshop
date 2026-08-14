@@ -1,5 +1,5 @@
-import type { DbClient } from "./types";
-import { runCursorFeed, throwOnDbError } from "./helpers";
+import type { DbClient } from "@/shared/db/dao/types";
+import { runCursorFeed, throwOnDbError } from "@/shared/db/dao/helpers";
 import type { QaMessage, UserRole } from "@/shared/types";
 
 export async function findByIdWithUser(

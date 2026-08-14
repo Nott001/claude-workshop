@@ -6,9 +6,8 @@ const {
   requireMinRole,
   requireAuth,
   requireModuleAccess,
-  qaFindById,
-  qaFindByIdWithUser,
-  qaSoftDelete,
+  getQuestion,
+  deleteQuestion,
   findMessageWithUser,
   updateMessage,
   sessionFindById,
@@ -21,9 +20,8 @@ const {
   requireMinRole: vi.fn(),
   requireAuth: vi.fn(),
   requireModuleAccess: vi.fn(),
-  qaFindById: vi.fn(),
-  qaFindByIdWithUser: vi.fn(),
-  qaSoftDelete: vi.fn(),
+  getQuestion: vi.fn(),
+  deleteQuestion: vi.fn(),
   findMessageWithUser: vi.fn(),
   updateMessage: vi.fn(),
   sessionFindById: vi.fn(),
@@ -37,10 +35,13 @@ vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole })
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({
-  qaMessageDao: { findById: qaFindById, findByIdWithUser: qaFindByIdWithUser, softDelete: qaSoftDelete },
   findMessageWithUser,
   updateMessage,
 }));
+vi.mock("@/modules/courses/qa/lib/service", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/courses/qa/lib/service")>("@/modules/courses/qa/lib/service");
+  return { ...actual, getQuestion, deleteQuestion };
+});
 vi.mock("@/shared/db/dao/support-session.dao", () => ({ findById: sessionFindById }));
 vi.mock("@/modules/courses/lib/course-access", () => ({ requireModuleAccess }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({
@@ -53,6 +54,7 @@ vi.mock("@/shared/integrations/storage/service", () => ({ deleteFromStorage }));
 import { GET as GET_QA, DELETE as DELETE_QA } from "@/app/api/qa/message/[messageId]/route";
 import { GET as GET_SUPPORT, DELETE as DELETE_SUPPORT } from "@/app/api/support/[messageId]/route";
 import { PATCH as PATCH_SPEAKER, DELETE as DELETE_SPEAKER } from "@/app/api/speakers/[id]/route";
+import { QaServiceError } from "@/modules/courses/qa/lib/service";
 
 const req = () => new Request("https://app.test/x");
 const msgParams = { params: Promise.resolve({ messageId: "42" }) };
@@ -80,51 +82,46 @@ describe("DELETE /api/qa/message/[messageId]", () => {
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(401);
-    expect(qaFindById).not.toHaveBeenCalled();
+    expect(deleteQuestion).not.toHaveBeenCalled();
   });
 
   it("answers 404 for a message that does not exist", async () => {
     requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
-    qaFindById.mockResolvedValue(null);
+    deleteQuestion.mockRejectedValue(new QaServiceError(404, "Message not found"));
 
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(404);
   });
 
-  it("lets the asker take their own question down", async () => {
+  it("asks the service to take down the asker's own question", async () => {
     requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
-    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
-    qaSoftDelete.mockResolvedValue(true);
+    deleteQuestion.mockResolvedValue(undefined);
 
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(200);
     expect(requireModuleAccess).not.toHaveBeenCalled();
-    expect(qaSoftDelete).toHaveBeenCalledWith({}, [42]);
+    expect(deleteQuestion).toHaveBeenCalledWith({}, 42, expect.objectContaining({ id: 5, role: ROLES.ATTENDEE }));
   });
 
-  it("lets an assigned team member remove someone else's question", async () => {
+  it("asks the service to remove someone else's question as team", async () => {
     requireAuth.mockResolvedValue(user(9, ROLES.SPEAKER));
-    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
-    requireModuleAccess.mockResolvedValue(null);
-    qaSoftDelete.mockResolvedValue(true);
+    deleteQuestion.mockResolvedValue(undefined);
 
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(200);
-    expect(requireModuleAccess).toHaveBeenCalledWith(9, 9, ROLES.SPEAKER);
+    expect(deleteQuestion).toHaveBeenCalledWith({}, 42, expect.objectContaining({ id: 9, role: ROLES.SPEAKER }));
   });
 
   it("refuses a caller who is neither the asker nor on the course's team", async () => {
     requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
-    qaFindById.mockResolvedValue({ id: 42, module_id: 9, user_id: 5 });
-    requireModuleAccess.mockResolvedValue(new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }));
+    deleteQuestion.mockRejectedValue(new QaServiceError(403, "Forbidden"));
 
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(403);
-    expect(qaSoftDelete).not.toHaveBeenCalled();
   });
 });
 
@@ -232,12 +229,12 @@ describe("GET /api/qa/message/[messageId]", () => {
     const res = await GET_QA(req(), msgParams);
 
     expect(res.status).toBe(401);
-    expect(qaFindByIdWithUser).not.toHaveBeenCalled();
+    expect(getQuestion).not.toHaveBeenCalled();
   });
 
   it("answers 404 for a message that does not exist", async () => {
     requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
-    qaFindByIdWithUser.mockResolvedValue(null);
+    getQuestion.mockRejectedValue(new QaServiceError(404, "Message not found"));
 
     const res = await GET_QA(req(), msgParams);
 
@@ -246,7 +243,7 @@ describe("GET /api/qa/message/[messageId]", () => {
 
   it("returns the pre-joined question to any authenticated user", async () => {
     requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
-    qaFindByIdWithUser.mockResolvedValue(joinedQuestion());
+    getQuestion.mockResolvedValue(joinedQuestion());
 
     const res = await GET_QA(req(), msgParams);
 

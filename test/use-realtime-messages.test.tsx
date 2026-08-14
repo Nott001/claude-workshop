@@ -10,7 +10,7 @@ const { getBrowserClient, unsubscribe } = vi.hoisted(() => ({
 vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient }));
 vi.mock("@/shared/integrations/realtime", () => ({ unsubscribe }));
 
-import { useRealtimeMessages, CHAT_TABLE, QA_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
 
 interface ChannelMock {
   name: string;
@@ -65,22 +65,21 @@ afterEach(() => {
 });
 
 describe("useRealtimeMessages", () => {
-  it("subscribes to a stable channel named after the resource", () => {
+  it("subscribes to CHAT_MESSAGE changes on a stable channel", () => {
     renderHook(() =>
       useRealtimeMessages({
-        channelName: "qa-module-4",
-        table: QA_TABLE,
-        filter: "module_id=eq.4",
+        channelName: "chat-panel-general",
+        filter: "support_type=eq.general",
         onInsert: vi.fn(),
       }),
     );
 
-    expect(getBrowserClient().channel).toHaveBeenCalledWith("qa-module-4");
+    expect(getBrowserClient().channel).toHaveBeenCalledWith("chat-panel-general");
     expect(channels[0].onConfig).toEqual({
       event: "*",
       schema: "public",
-      table: "QA_MESSAGE",
-      filter: "module_id=eq.4",
+      table: "CHAT_MESSAGE",
+      filter: "support_type=eq.general",
     });
     expect(channels[0].subscribe).toHaveBeenCalled();
   });
@@ -89,7 +88,6 @@ describe("useRealtimeMessages", () => {
     const { unmount } = renderHook(() =>
       useRealtimeMessages({
         channelName: "chat-panel-general",
-        table: CHAT_TABLE,
         filter: "support_type=eq.general",
         onInsert: vi.fn(),
       }),
@@ -102,7 +100,6 @@ describe("useRealtimeMessages", () => {
     renderHook(() =>
       useRealtimeMessages({
         channelName: "chat-panel-general",
-        table: CHAT_TABLE,
         filter: "support_type=eq.general",
         onInsert: vi.fn(),
       }),
@@ -116,7 +113,7 @@ describe("useRealtimeMessages", () => {
 
   it("tears the subscription down through removeChannel on unmount", () => {
     const { unmount } = renderHook(() =>
-      useRealtimeMessages({ channelName: "support-inbox-general", table: CHAT_TABLE, filter: "x=eq.y", onInsert: vi.fn() }),
+      useRealtimeMessages({ channelName: "support-inbox-general", filter: "x=eq.y", onInsert: vi.fn() }),
     );
 
     unmount();
@@ -129,7 +126,6 @@ describe("useRealtimeMessages", () => {
     renderHook(() =>
       useRealtimeMessages({
         channelName: "support-panel-general",
-        table: CHAT_TABLE,
         filter: "support_type=eq.general",
         enabled: false,
         onInsert: vi.fn(),
@@ -139,12 +135,11 @@ describe("useRealtimeMessages", () => {
     expect(getBrowserClient().channel).not.toHaveBeenCalled();
   });
 
-  it("enriches an INSERT through the chat endpoint before appending", async () => {
+  it("enriches an INSERT through the support endpoint before appending", async () => {
     const onInsert = vi.fn();
     renderHook(() =>
       useRealtimeMessages({
         channelName: "chat-general",
-        table: CHAT_TABLE,
         filter: "support_type=eq.general",
         onInsert,
       }),
@@ -157,23 +152,12 @@ describe("useRealtimeMessages", () => {
     expect(onInsert).toHaveBeenCalledWith(ENRICHED);
   });
 
-  it("fetches QA messages from the QA endpoint", async () => {
-    const onInsert = vi.fn();
-    renderHook(() => useRealtimeMessages({ channelName: "qa-module-4", table: QA_TABLE, filter: "module_id=eq.4", onInsert }));
-
-    channels[0].fire({ eventType: "INSERT", new: { id: 42, module_id: 4 } });
-
-    await waitFor(() => expect(onInsert).toHaveBeenCalledTimes(1));
-    expect(fetch).toHaveBeenCalledWith("/api/qa/message/42");
-  });
-
   it("skips an INSERT the relevance gate rejects", async () => {
     const onInsert = vi.fn();
     const relevant = vi.fn(() => false);
     renderHook(() =>
       useRealtimeMessages({
         channelName: "support-inbox-general",
-        table: CHAT_TABLE,
         filter: "support_type=eq.general",
         relevant,
         onInsert,
@@ -193,9 +177,7 @@ describe("useRealtimeMessages", () => {
       vi.fn(async () => ({ ok: false, json: async () => null })),
     );
     const onInsert = vi.fn();
-    renderHook(() =>
-      useRealtimeMessages({ channelName: "chat-general", table: CHAT_TABLE, filter: "support_type=eq.general", onInsert }),
-    );
+    renderHook(() => useRealtimeMessages({ channelName: "chat-general", filter: "support_type=eq.general", onInsert }));
 
     channels[0].fire({ eventType: "INSERT", new: { id: 42 } });
 
@@ -209,9 +191,8 @@ describe("useRealtimeMessages", () => {
     const onDelete = vi.fn();
     renderHook(() =>
       useRealtimeMessages({
-        channelName: "qa-module-4",
-        table: QA_TABLE,
-        filter: "module_id=eq.4",
+        channelName: "chat-general",
+        filter: "support_type=eq.general",
         onInsert,
         onUpdate,
         onDelete,

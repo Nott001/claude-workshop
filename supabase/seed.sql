@@ -723,6 +723,114 @@ INSERT INTO public."QA_MESSAGE" (
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------
+-- Today: the live QA workshop. This event is deliberately set to
+-- CURRENT_DATE with a full-day window (00:00-23:59) so the room reads as
+-- live at any hour — realtime (QA messages + the module lock) can be
+-- exercised against a room that is genuinely started. It carries a course
+-- with four modules and a Q&A thread that runs through all of them,
+-- plus tickets for the sign-in attendees so either can reach the room.
+-- ---------------------------------------------------------------
+
+INSERT INTO public."EVENT" (
+  id, title, event_date, start_time, end_time, venue_name, venue_address,
+  description, price, currency, status, survey_enabled
+) OVERRIDING SYSTEM VALUE VALUES
+  (7, 'Live QA Workshop', CURRENT_DATE, '00:00:00', '23:59:59',
+   'StartupLab HQ', '123 Innovation Drive, Manila',
+   'A live course room used to exercise realtime QA and the module lock.',
+   0.00, 'PHP', 'active', false)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public."COURSE" (
+  id, event_id, course_name, course_description
+) OVERRIDING SYSTEM VALUE VALUES (
+  3, 7, 'Live QA Course', 'Four modules exercised live during the workshop.'
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public."MODULE" (
+  id, course_id, module_name, sequence_order, module_type, is_locked
+) OVERRIDING SYSTEM VALUE VALUES
+  (5, 3, 'Kickoff', 1, 'lessons', false),
+  (6, 3, 'Discussion', 2, 'lessons', false),
+  (7, 3, 'Working Session', 3, 'lessons', false),
+  (8, 3, 'Wrap-up', 4, 'lessons', false),
+  (9, 3, 'Open Q&A', 5, 'qa', false)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public."LESSON" (
+  id, module_id, name, description, content_type, content_url, sequence_order
+) OVERRIDING SYSTEM VALUE VALUES
+  (19, 5, 'Opening remarks', 'A five-minute hello and a map of the day.', 'video', 'https://example.com/opening.mp4', 1),
+  (20, 5, 'Today overview', 'The agenda, live-updated as the day moves.', 'link', 'https://example.com/today-overview', 2),
+  (21, 6, 'Icebreaker: quick intros', 'Two minutes each; the room chats in parallel.', 'video', 'https://example.com/icebreaker.mp4', 1),
+  (22, 6, 'Discussion guide', 'The prompts the facilitators will pull from.', 'pdf', 'https://example.com/discussion-guide.pdf', 2),
+  (23, 7, 'Working session', 'Breakout work, live from the room.', 'video', 'https://example.com/working-session.mp4', 1),
+  (24, 7, 'Worksheet', 'The exercise sheet for the session.', 'pdf', 'https://example.com/worksheet.pdf', 2),
+  (25, 8, 'Wrap-up and next steps', 'Closing notes and what happens after today.', 'video', 'https://example.com/wrap-up.mp4', 1),
+  (26, 8, 'Feedback form', 'One question, thirty seconds.', 'link', 'https://example.com/feedback', 2)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public."EVENT_FACILITATOR" (event_id, user_id, assigned_by)
+VALUES
+  (7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000003'),
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000005'))
+ON CONFLICT (event_id, user_id) DO NOTHING;
+
+INSERT INTO public."EVENT_SPEAKER" (event_id, speaker_profile_id)
+VALUES (7, 1)
+ON CONFLICT (event_id, speaker_profile_id) DO NOTHING;
+
+-- Tickets so both sign-in attendees can open the room (see room-access
+-- policy: non-staff need a valid ticket).
+INSERT INTO public."PAYMENT" (
+  id, user_id, event_id, gateway_reference_id, status, paid_at, amount, currency
+) OVERRIDING SYSTEM VALUE VALUES
+  (28,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   7, 'dev-pay-0028', 'paid', now(), 0.00, 'PHP'),
+  (29,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
+   7, 'dev-pay-0029', 'paid', now(), 0.00, 'PHP')
+ON CONFLICT (gateway_reference_id) DO NOTHING;
+
+INSERT INTO public."TICKET" (
+  id, payment_id, user_id, event_id, qr_token, status
+) OVERRIDING SYSTEM VALUE VALUES
+  (21, 28,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   7, 'dev-ticket-today-alex', 'issued'),
+  (22, 29,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
+   7, 'dev-ticket-today-bri', 'issued')
+ON CONFLICT (qr_token) DO NOTHING;
+
+-- The Q&A thread lives in the Open Q&A module: an attendee asks, the
+-- speaker and facilitator answer, so the panel opens already populated.
+INSERT INTO public."QA_MESSAGE" (
+  id, event_id, user_id, message, module_id, created_at
+) OVERRIDING SYSTEM VALUE VALUES
+  (5, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   'Will the course materials stay available after today?', 9, now() - interval '95 minutes'),
+  (6, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000004'),
+   'Yes — everything stays up for 30 days after the event.', 9, now() - interval '90 minutes'),
+  (7, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
+   'How are the breakout groups decided for the working session?', 9, now() - interval '60 minutes'),
+  (8, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000003'),
+   'You stay in your seat; each table is a group.', 9, now() - interval '55 minutes'),
+  (9, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   'Where does the worksheet for the working session live?', 9, now() - interval '30 minutes'),
+  (10, 7,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000004'),
+   'It is the Working Session worksheet — grab it before the breakout starts.', 9, now() - interval '25 minutes')
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------
 -- Staff invites: a mix of pending / accepted / expired so the staff
 -- invite page has realistic rows.
 -- ---------------------------------------------------------------
@@ -842,17 +950,17 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 ON CONFLICT (id) DO NOTHING;
 
 -- Keep sequences ahead of seeded ids so app-created rows cannot collide.
-SELECT setval(pg_get_serial_sequence('public."EVENT"', 'id'), 6, true);
-SELECT setval(pg_get_serial_sequence('public."COURSE"', 'id'), 2, true);
-SELECT setval(pg_get_serial_sequence('public."MODULE"', 'id'), 4, true);
-SELECT setval(pg_get_serial_sequence('public."LESSON"', 'id'), 18, true);
+SELECT setval(pg_get_serial_sequence('public."EVENT"', 'id'), 7, true);
+SELECT setval(pg_get_serial_sequence('public."COURSE"', 'id'), 3, true);
+SELECT setval(pg_get_serial_sequence('public."MODULE"', 'id'), 9, true);
+SELECT setval(pg_get_serial_sequence('public."LESSON"', 'id'), 26, true);
 SELECT setval(pg_get_serial_sequence('public."SPEAKER_PROFILE"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."COMMUNITY_LINK"', 'id'), 2, true);
-SELECT setval(pg_get_serial_sequence('public."PAYMENT"', 'id'), 27, true);
-SELECT setval(pg_get_serial_sequence('public."TICKET"', 'id'), 20, true);
+SELECT setval(pg_get_serial_sequence('public."PAYMENT"', 'id'), 29, true);
+SELECT setval(pg_get_serial_sequence('public."TICKET"', 'id'), 22, true);
 SELECT setval(pg_get_serial_sequence('public."SURVEY"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."SURVEY_RESPONSE"', 'id'), 6, true);
-SELECT setval(pg_get_serial_sequence('public."QA_MESSAGE"', 'id'), 4, true);
+SELECT setval(pg_get_serial_sequence('public."QA_MESSAGE"', 'id'), 10, true);
 SELECT setval(pg_get_serial_sequence('public."CHAT_MESSAGE"', 'id'), 9, true);
 SELECT setval(pg_get_serial_sequence('public."SUPPORT_SESSION"', 'id'), 4, true);
 SELECT setval(pg_get_serial_sequence('public."STAFF_INVITE"', 'id'), 3, true);
