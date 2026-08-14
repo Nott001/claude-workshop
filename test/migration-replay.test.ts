@@ -40,6 +40,7 @@ describe("migration replay", () => {
       "00002_lesson_name.sql",
       "00003_qa_realtime.sql",
       "00004_qa_message_policy_helper.sql",
+      "00005_qa_message_policy_staff.sql",
     ]);
   });
 

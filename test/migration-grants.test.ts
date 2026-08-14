@@ -38,6 +38,7 @@ describe("migration grants", () => {
       "00002_lesson_name.sql",
       "00003_qa_realtime.sql",
       "00004_qa_message_policy_helper.sql",
+      "00005_qa_message_policy_staff.sql",
     ]);
   });
 
@@ -90,5 +91,17 @@ describe("migration grants", () => {
     expect(fix!.sql).toMatch(/SECURITY DEFINER/s);
     expect(fix!.sql).toMatch(/CREATE POLICY "Users read Q&A messages for their modules"/);
     expect(fix!.sql).toMatch(/USING \("public"\."qa_message_visible"\("id"\)\)/);
+  });
+
+  // The helper admits asker / event team / ticket holder, but the room also
+  // lets staff in regardless of assignment, so 00005 redefines it with the
+  // staff arm of the room gate. Without it, a facilitator/admin who can open
+  // the room read questions via REST yet realtime never delivered INSERTs.
+  it("keeps the staff arm of the room gate inside the helper", () => {
+    const staff = migrations().find((f) => f.name === "00005_qa_message_policy_staff.sql");
+    expect(staff, "00005 must exist to extend the helper").toBeDefined();
+    expect(staff!.sql).toMatch(/CREATE OR REPLACE FUNCTION "public"\."qa_message_visible"/);
+    expect(staff!.sql).toMatch(/SECURITY DEFINER/s);
+    expect(staff!.sql).toMatch(/me\.role IN \('facilitator', 'admin', 'super_admin'\)/);
   });
 });
