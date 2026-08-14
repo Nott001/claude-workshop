@@ -1,5 +1,8 @@
 import type { DbClient } from "@/shared/db/dao/types";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import { isEventFinished } from "@/shared/lib/date-utils";
+import { getAttendeeSurveyFlags } from "@/modules/surveys/lib/survey-service";
+import type { Event } from "@/shared/types";
 
 export interface AttendeeRow {
   user_id: number;
@@ -41,4 +44,51 @@ export async function listEventAttendees(
   }));
 
   return { attendees, total, page, limit };
+}
+
+/** The row the admin attendee table renders, with the flags that decide which
+ * actions are offered. Every "can" mirrors a server-side rule so the UI cannot
+ * drift ahead of what the endpoints will accept. */
+export interface AdminAttendeeRow extends AttendeeRow {
+  survey: { sent: boolean; responded: boolean } | null;
+  can_check_in: boolean;
+  can_cancel: boolean;
+  can_resend_ticket: boolean;
+  can_send_survey: boolean;
+}
+
+export async function listAdminEventAttendees(
+  supabase: DbClient,
+  event: Event,
+  options: { search: string; status: string; page: number; limit: number },
+): Promise<{
+  attendees: AdminAttendeeRow[];
+  total: number;
+  page: number;
+  limit: number;
+  survey_sendable: boolean;
+}> {
+  const listed = await listEventAttendees(supabase, event.id, options);
+  const { usable, byUser } = await getAttendeeSurveyFlags(
+    supabase,
+    event,
+    listed.attendees.map((attendee) => attendee.user_id),
+  );
+  const finished = isEventFinished(event.event_date, event.end_time);
+  const surveySendable = usable && event.survey_enabled && finished;
+
+  const attendees: AdminAttendeeRow[] = listed.attendees.map((row) => {
+    const flag = byUser.get(row.user_id) ?? null;
+    const responded = flag?.responded ?? false;
+    return {
+      ...row,
+      survey: flag ? { sent: flag.sent, responded: flag.responded } : null,
+      can_check_in: row.ticket_status === "issued",
+      can_cancel: row.ticket_status === "issued",
+      can_resend_ticket: row.ticket_status !== "cancelled",
+      can_send_survey: surveySendable && row.ticket_status !== "cancelled" && !responded,
+    };
+  });
+
+  return { attendees, total: listed.total, page: listed.page, limit: listed.limit, survey_sendable: surveySendable };
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ilikePattern } from "@/shared/db/dao/helpers";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
+import * as surveyDao from "@/modules/surveys/db/survey.dao";
 import type { DbClient } from "@/shared/db/dao/types";
 
 /**
@@ -227,5 +228,80 @@ describe("ticketDao.getAttendees", () => {
   it("reports a total of zero rather than null when the count is missing", async () => {
     const { client } = queryStub({ data: [] });
     await expect(ticketDao.getAttendees(client, 42, options)).resolves.toEqual({ data: [], total: 0 });
+  });
+});
+
+describe("ticketDao.findActiveTicketWithUser", () => {
+  it("scopes to user, event and live status, and embeds the owner", async () => {
+    const stored = {
+      id: 42,
+      payment_id: 100,
+      user_id: 5,
+      event_id: 10,
+      status: "issued",
+      USER: [{ id: 5, full_name: "Jane", email: "jane@example.com" }],
+    };
+    const { client, chain, calls } = queryStub({ data: stored });
+
+    const result = await ticketDao.findActiveTicketWithUser(client, 5, 10);
+
+    expect(chain.select).toHaveBeenCalledWith(expect.stringContaining("USER:user_id(full_name, email)"));
+    expect(filters(calls)).toEqual([
+      ["eq", ["user_id", 5]],
+      ["eq", ["event_id", 10]],
+      ["neq", ["status", "cancelled"]],
+    ]);
+    expect(result).toEqual(stored);
+  });
+
+  it("reports a clean miss as null", async () => {
+    const { client } = queryStub({ data: null });
+    await expect(ticketDao.findActiveTicketWithUser(client, 5, 10)).resolves.toBeNull();
+  });
+});
+
+describe("surveyDao.findResponseBySurveyAndUserId", () => {
+  it("looks the response up by survey and attendee only", async () => {
+    const row = { id: 101, survey_id: 11, user_id: 5 };
+    const { client, from, calls } = queryStub({ data: row });
+
+    const result = await surveyDao.findResponseBySurveyAndUserId(client, 11, 5);
+
+    expect(from).toHaveBeenCalledWith("SURVEY_RESPONSE");
+    expect(filters(calls)).toEqual([
+      ["eq", ["survey_id", 11]],
+      ["eq", ["user_id", 5]],
+    ]);
+    expect(result).toEqual(row);
+  });
+});
+
+describe("surveyDao.findResponsesBySurveyAndUserIds", () => {
+  it("scopes to the survey and the given attendees", async () => {
+    const { client, from, chain, calls } = queryStub({ data: [] });
+
+    await surveyDao.findResponsesBySurveyAndUserIds(client, 11, [5, 6]);
+
+    expect(from).toHaveBeenCalledWith("SURVEY_RESPONSE");
+    expect(filters(calls)).toEqual([["eq", ["survey_id", 11]]]);
+    expect(chain.in).toHaveBeenCalledWith("user_id", [5, 6]);
+  });
+
+  it("returns nothing without querying when no attendees are given", async () => {
+    const { client, from } = queryStub({ data: [] });
+
+    await surveyDao.findResponsesBySurveyAndUserIds(client, 11, []);
+
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("flattens a to-one user embed that arrives as an array", async () => {
+    const { client } = queryStub({
+      data: [{ id: 101, survey_id: 11, user_id: 5, USER: [{ full_name: "Jane", email: "j@example.com" }] }],
+    });
+
+    const rows = await surveyDao.findResponsesBySurveyAndUserIds(client, 11, [5]);
+
+    expect(rows[0].USER).toEqual({ full_name: "Jane", email: "j@example.com" });
   });
 });
