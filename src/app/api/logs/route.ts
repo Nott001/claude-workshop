@@ -19,6 +19,7 @@ export async function GET(req: Request) {
     user_id: searchParams.get("user_id") ?? undefined,
     date_from: searchParams.get("date_from") ?? undefined,
     date_to: searchParams.get("date_to") ?? undefined,
+    search: searchParams.get("search") ?? undefined,
     page: Number(searchParams.get("page") ?? 1),
     limit: Number(searchParams.get("limit") ?? 50),
   };

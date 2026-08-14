@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { AssignedEventListPage } from "@/modules/events/pages/assigned-event-list";
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn() }));
@@ -65,6 +65,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("AssignedEventListPage", () => {
@@ -81,7 +82,7 @@ describe("AssignedEventListPage", () => {
     expect(screen.queryByText("Gamma")).toBeNull();
   });
 
-  it("moves a finished event to the Completed tab", async () => {
+  it("moves a finished event under Completed via the select", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: events, total: 3, page: 1, limit: 50 }) }),
@@ -90,7 +91,12 @@ describe("AssignedEventListPage", () => {
     render(<AssignedEventListPage />);
     expect(await screen.findByText("Alpha")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Completed/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+      const completedOption = await screen.findByRole("option", { name: "Completed" });
+      fireEvent.pointerDown(completedOption, { pointerType: "mouse" });
+      fireEvent.click(completedOption);
+    });
 
     expect(screen.getByText("Gamma")).toBeTruthy();
     expect(screen.queryByText("Alpha")).toBeNull();
@@ -111,5 +117,35 @@ describe("AssignedEventListPage", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock).toHaveBeenLastCalledWith("/api/events?page=2&limit=50");
     expect(screen.getByText("Beta")).toBeTruthy();
+  });
+
+  it("renders a search input and drives the fetch server-side after the debounce", async () => {
+    vi.useFakeTimers();
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        return { ok: true, json: async () => ({ data: events, total: 3, page: 1, limit: 50 }) };
+      }),
+    );
+
+    render(<AssignedEventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), {
+      target: { value: "hall" },
+    });
+
+    expect(urls).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=hall");
   });
 });

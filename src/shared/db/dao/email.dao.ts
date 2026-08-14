@@ -1,5 +1,5 @@
 import type { DbClient, PaginatedResult } from "./types";
-import { pageBounds, throwOnDbError } from "./helpers";
+import { ilikePattern, pageBounds, throwOnDbError } from "./helpers";
 import type { EmailLog, EmailType, EmailStatus, User } from "@/shared/types";
 
 /** An EMAIL_LOG row with the USER embed both reads alias from user_id. */
@@ -25,6 +25,7 @@ export async function list(
     user_id?: string;
     date_from?: string;
     date_to?: string;
+    search?: string;
     page?: number;
     limit?: number;
   },
@@ -49,6 +50,18 @@ export async function list(
   }
   if (filters?.date_to) {
     query = query.lte("sent_at", filters.date_to);
+  }
+  // The recipient is an embedded USER row, which PostgREST cannot filter
+  // directly. Resolve matching user ids first, then narrow the main query.
+  // `[-1]` trades an empty subscriber list for a guaranteed-empty result
+  // instead of PostgREST matching every row on a treated-empty array.
+  if (filters?.search) {
+    const { data: matches } = await supabase
+      .from("USER")
+      .select("id")
+      .or(`full_name.ilike.${ilikePattern(filters.search)},email.ilike.${ilikePattern(filters.search)}`);
+    const ids = (matches ?? []).map((row) => row.id);
+    query = query.in("user_id", ids.length > 0 ? ids : [-1]);
   }
 
   query = query.range(from, to);

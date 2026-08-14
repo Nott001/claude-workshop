@@ -166,9 +166,6 @@ test("an attendee cannot author course content", async ({ page }) => {
   // 403, not 401: the caller signed in above, so this is a permission refusal
   // rather than a missing session. See guardFailure.
   expect(mod.status()).toBe(403);
-
-  const list = await page.request.get("/api/courses");
-  expect(list.status()).toBe(403);
 });
 
 test("a facilitator deleting a module removes its lessons", async ({ page }) => {

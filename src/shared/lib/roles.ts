@@ -28,3 +28,6 @@ export const ALL_ROLES: readonly UserRole[] = [
 export const INVITABLE_ROLES = [ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN] as const;
 
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+/** The roles that staff a listing, in roster display order. */
+export const STAFF_ROLES = [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN] as const;

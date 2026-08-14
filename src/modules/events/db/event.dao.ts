@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { effectiveEventStatus, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
+import { effectiveEventStatus, ilikePattern, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
 import { localDateString, localTimeString } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
@@ -50,11 +50,12 @@ export async function list(
     role?: string | null;
     userId?: number | null;
     filter?: string | null;
+    search?: string | null;
     page?: number;
     limit?: number;
   },
 ): Promise<PaginatedResult<EventWithCourseName>> {
-  const { role, userId, filter } = options ?? {};
+  const { role, userId, filter, search } = options ?? {};
   const { from, to, page, limit } = pageBounds(options);
 
   let query = supabase
@@ -90,6 +91,14 @@ export async function list(
     );
   } else if (filter === "past") {
     query = query.lt("event_date", new Date().toISOString().split("T")[0]);
+  }
+
+  // Title/venue search, only when a term is present. ilikePattern quotes and
+  // escapes the term so a comma, paren, percent or underscore in user input
+  // cannot rewrite the or() filter. Applies before the range bounds so staff
+  // search is correct against the whole event set, not just the fetched page.
+  if (search) {
+    query = query.or(`title.ilike.${ilikePattern(search)},venue_name.ilike.${ilikePattern(search)}`);
   }
 
   query = query.range(from, to);

@@ -1,9 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input } from "@/shared/components/input";
 import { Button } from "@/shared/components/button";
-import { cn } from "@/shared/lib/utils";
+import { Drawer } from "@/shared/components/drawer";
+import {
+  Table,
+  TableHead,
+  TableHeadCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableEmpty,
+  TableContainer,
+} from "@/shared/components/table";
+import { Badge } from "@/shared/components/badge";
+import { TableToolbar } from "@/shared/components/table-toolbar";
+import { Pagination } from "@/shared/components/table-pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 
 interface AdminAttendeeRow {
   user_id: number;
@@ -29,11 +42,11 @@ interface ManageResponse {
 
 type StatusFilter = "all" | "checked_in" | "not_checked_in";
 
-const STATUS_LABELS: Record<StatusFilter, string> = {
-  all: "All",
-  checked_in: "Checked in",
-  not_checked_in: "Not checked in",
-};
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "checked_in", label: "Checked in" },
+  { value: "not_checked_in", label: "Not checked in" },
+];
 
 function getInitials(name: string): string {
   return name
@@ -51,6 +64,14 @@ function formatTime(dateStr: string): string {
   });
 }
 
+function formatShortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
   const [attendees, setAttendees] = useState<AdminAttendeeRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -62,9 +83,9 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selected, setSelected] = useState<AdminAttendeeRow | null>(null);
 
   const pageSize = 15;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
     let ignore = false;
@@ -104,10 +125,9 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
     setPage(1);
   }
 
-  async function run(action: string, userId: number, url: string, confirmMessage?: string) {
+  async function run(action: string, url: string, confirmMessage?: string) {
     if (confirmMessage && !confirm(confirmMessage)) return;
-    const key = `${action}:${userId}`;
-    setBusy(key);
+    setBusy(action);
     setError(null);
     try {
       const res = await fetch(url, { method: "POST" });
@@ -126,34 +146,47 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
 
   const isBusy = (key: string) => busy === key;
 
+  const statusBadge = (attendee: AdminAttendeeRow) => {
+    if (attendee.ticket_status === "checked_in") {
+      return (
+        <Badge variant="success">
+          Checked in
+          {attendee.checked_in_at ? ` · ${formatTime(attendee.checked_in_at)}` : ""}
+        </Badge>
+      );
+    }
+    if (attendee.ticket_status === "cancelled") {
+      return <Badge variant="error">Cancelled</Badge>;
+    }
+    return <Badge>Registered</Badge>;
+  };
+
+  const surveyBadge = (attendee: AdminAttendeeRow) => {
+    if (attendee.survey?.responded) return <Badge variant="success">Responded</Badge>;
+    if (attendee.survey?.sent) return <Badge variant="info">Sent</Badge>;
+    return <span className="text-muted-fg">—</span>;
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="mb-3">
         <h2 className="text-sm font-bold text-fg">Registered users</h2>
       </div>
 
-      <div className="mb-3 flex flex-col gap-3">
-        <div className="flex gap-1.5">
-          {(["all", "checked_in", "not_checked_in"] as StatusFilter[]).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => handleStatusFilter(filter)}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                statusFilter === filter ? "bg-brand/10 text-brand" : "bg-muted text-muted-fg hover:bg-muted",
-              )}
-            >
-              {STATUS_LABELS[filter]}
-            </button>
-          ))}
-        </div>
-        <Input
-          placeholder="Search name or email..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="h-9 text-xs"
-        />
-      </div>
+      <TableToolbar search={{ value: search, onChange: handleSearch, placeholder: "Search name or email..." }} className="mb-3">
+        <Select value={statusFilter} onValueChange={(v) => handleStatusFilter(v as StatusFilter)}>
+          <SelectTrigger>
+            <SelectValue>{STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableToolbar>
 
       {error && <p className="mb-3 text-xs text-error">{error}</p>}
 
@@ -169,29 +202,31 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
           <span className="material-symbols-rounded animate-spin text-2xl text-brand">progress_activity</span>
         </div>
       ) : attendees.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted px-4 py-8 text-center">
-          <span className="material-symbols-rounded mb-1 text-2xl text-muted-fg">group</span>
-          <p className="text-xs font-medium text-fg">No attendees found</p>
-          <p className="mt-0.5 text-[10px] text-muted-fg">
-            {search ? "Try a different search term." : "No attendees match the current filter."}
-          </p>
-        </div>
+        <TableEmpty
+          icon="group"
+          title="No attendees found"
+          hint={search ? "Try a different search term." : "No attendees match the current filter."}
+        />
       ) : (
         <>
-          <div className="flex-1 overflow-auto rounded-lg border border-border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border bg-muted text-left text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                  <th className="px-3 py-2">Attendee</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Survey</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer className="flex-1 overflow-auto">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeadCell>Attendee</TableHeadCell>
+                  <TableHeadCell>Status</TableHeadCell>
+                  <TableHeadCell>Survey</TableHeadCell>
+                  <TableHeadCell className="w-12" aria-label="Actions" />
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {attendees.map((attendee) => (
-                  <tr key={attendee.user_id} className="border-b border-border last:border-b-0">
-                    <td className="px-3 py-2">
+                  <TableRow
+                    key={attendee.user_id}
+                    onClick={() => setSelected(attendee)}
+                    aria-label={`Manage ${attendee.full_name}`}
+                  >
+                    <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="grid size-6 shrink-0 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
                           {getInitials(attendee.full_name)}
@@ -201,140 +236,109 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
                           <p className="truncate text-[10px] text-muted-fg">{attendee.email}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                          attendee.ticket_status === "checked_in"
-                            ? "bg-success/10 text-success"
-                            : attendee.ticket_status === "cancelled"
-                              ? "bg-error/10 text-error"
-                              : "bg-muted text-muted-fg",
-                        )}
-                      >
-                        {attendee.ticket_status === "checked_in"
-                          ? `Checked in ${attendee.checked_in_at ? `· ${formatTime(attendee.checked_in_at)}` : ""}`
-                          : attendee.ticket_status === "cancelled"
-                            ? "Cancelled"
-                            : "Registered"}
+                    </TableCell>
+                    <TableCell>{statusBadge(attendee)}</TableCell>
+                    <TableCell>{surveyBadge(attendee)}</TableCell>
+                    <TableCell className="w-12">
+                      <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                        chevron_right
                       </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {attendee.survey?.responded ? (
-                        <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
-                          Responded
-                        </span>
-                      ) : attendee.survey?.sent ? (
-                        <span className="inline-flex items-center rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-medium text-brand">
-                          Sent
-                        </span>
-                      ) : (
-                        <span className="text-muted-fg">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {attendee.can_check_in && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            className="h-7 px-2 text-[10px]"
-                            disabled={isBusy(`checkin:${attendee.user_id}`)}
-                            onClick={() =>
-                              run("check in", attendee.user_id, `/api/events/${eventId}/attendees/${attendee.user_id}/checkin`)
-                            }
-                          >
-                            {isBusy(`checkin:${attendee.user_id}`) ? "Checking in..." : "Check in"}
-                          </Button>
-                        )}
-                        {attendee.can_send_survey && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 px-2 text-[10px]"
-                            disabled={isBusy(`survey:${attendee.user_id}`)}
-                            onClick={() =>
-                              run(
-                                "send survey",
-                                attendee.user_id,
-                                `/api/events/${eventId}/attendees/${attendee.user_id}/survey`,
-                              )
-                            }
-                          >
-                            {isBusy(`survey:${attendee.user_id}`) ? "Sending..." : "Send survey"}
-                          </Button>
-                        )}
-                        {attendee.can_resend_ticket && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-[10px]"
-                            disabled={isBusy(`resend:${attendee.user_id}`)}
-                            onClick={() =>
-                              run(
-                                "resend ticket",
-                                attendee.user_id,
-                                `/api/events/${eventId}/attendees/${attendee.user_id}/resend-ticket`,
-                              )
-                            }
-                          >
-                            {isBusy(`resend:${attendee.user_id}`) ? "Resending..." : "Resend ticket"}
-                          </Button>
-                        )}
-                        {attendee.can_cancel && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-[10px] text-error hover:bg-error/10"
-                            disabled={isBusy(`cancel:${attendee.user_id}`)}
-                            onClick={() =>
-                              run(
-                                "cancel",
-                                attendee.user_id,
-                                `/api/events/${eventId}/attendees/${attendee.user_id}/cancel`,
-                                `Cancel ${attendee.full_name}'s registration? This cannot be undone.`,
-                              )
-                            }
-                          >
-                            {isBusy(`cancel:${attendee.user_id}`) ? "Cancelling..." : "Cancel"}
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-          <div className="mt-2 flex items-center justify-between text-[10px] text-muted-fg">
-            <span>
-              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
-            </span>
-            <div className="flex gap-1.5">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="h-7 px-2 text-[10px]"
-              >
-                Prev
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="h-7 px-2 text-[10px]"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} className="mt-4" />
         </>
       )}
+
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title={selected?.full_name ?? ""}
+        description={selected?.email}
+        footer={
+          selected && (
+            <div className="flex flex-wrap items-center gap-2">
+              {selected.can_check_in && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={isBusy("checkin")}
+                  onClick={() => run("check in", `/api/events/${eventId}/attendees/${selected.user_id}/checkin`)}
+                >
+                  {isBusy("checkin") ? "Checking in..." : "Check in"}
+                </Button>
+              )}
+              {selected.can_send_survey && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={isBusy("survey")}
+                  onClick={() => run("send survey", `/api/events/${eventId}/attendees/${selected.user_id}/survey`)}
+                >
+                  {isBusy("survey") ? "Sending..." : "Send survey"}
+                </Button>
+              )}
+              {selected.can_resend_ticket && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isBusy("resend")}
+                  onClick={() => run("resend ticket", `/api/events/${eventId}/attendees/${selected.user_id}/resend-ticket`)}
+                >
+                  {isBusy("resend") ? "Resending..." : "Resend ticket"}
+                </Button>
+              )}
+              {selected.can_cancel && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-error hover:bg-error/10"
+                  disabled={isBusy("cancel")}
+                  onClick={() =>
+                    run(
+                      "cancel",
+                      `/api/events/${eventId}/attendees/${selected.user_id}/cancel`,
+                      `Cancel ${selected.full_name}'s registration? This cannot be undone.`,
+                    )
+                  }
+                >
+                  {isBusy("cancel") ? "Cancelling..." : "Cancel"}
+                </Button>
+              )}
+            </div>
+          )
+        }
+      >
+        {selected && (
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">
+                {getInitials(selected.full_name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-medium text-fg">{selected.full_name}</p>
+                <p className="truncate text-xs text-muted-fg">{selected.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Ticket status</span>
+              {statusBadge(selected)}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Survey</span>
+              {surveyBadge(selected)}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Issued</span>
+              <span>{formatShortDate(selected.issued_at)}</span>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }
