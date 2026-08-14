@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
+import { useAutoScrollToBottom } from "@/modules/chat/lib/use-auto-scroll-to-bottom";
 import { supportNoticeKind, type SupportNoticeKind } from "@/modules/chat/lib/support-notices";
 import { MessageComposer } from "@/shared/components/message-composer";
 import { SignInPrompt } from "@/modules/support/components/sign-in-prompt";
+import { SupportWaitingNotice } from "@/modules/support/components/support-waiting-notice";
 
 interface GlobalSupportChatProps {
   isOpen: boolean;
@@ -33,7 +35,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     assigned_to: number | null;
     assigned_staff_name: string | null;
   }>({ case_number: null, assigned_to: null, assigned_staff_name: null });
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const { containerRef, bottomRef, forceScroll } = useAutoScrollToBottom(messages, isOpen);
 
   const { user, isLoaded } = useSession();
   const currentUserId = user?.id ?? null;
@@ -95,12 +97,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       }),
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen]);
-
   function formatTime(sentAt: string) {
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
@@ -111,6 +107,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const text = newMessage.trim();
     setSending(true);
     setError(null);
+    forceScroll();
 
     const res = await fetch("/api/support", {
       method: "POST",
@@ -189,7 +186,8 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         loadingIndicator("Loading messages...")
       ) : (
         <>
-          <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
+          <SupportWaitingNotice visible={!chatEnded && sessionInfo.assigned_to == null} />
+          <div ref={containerRef} className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               {messages.length === 0 && (
                 <p className="py-12 text-center text-sm text-muted-fg">No messages yet. How can we help?</p>
@@ -231,6 +229,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 );
               })}
             </div>
+            <div ref={bottomRef} />
           </div>
 
           {chatEnded && (
