@@ -37,7 +37,7 @@ const {
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
-  getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, byUser: new Map() })),
+  getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, hasSurvey: true, byUser: new Map() })),
 }));
 
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
@@ -479,7 +479,7 @@ describe("listAdminEventAttendees", () => {
   };
 
   beforeEach(() => {
-    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, byUser: new Map() });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
   });
 
   it("maps action flags from the ticket and survey state", async () => {
@@ -493,6 +493,7 @@ describe("listAdminEventAttendees", () => {
     });
     getAttendeeSurveyFlags.mockResolvedValue({
       usable: true,
+      hasSurvey: true,
       byUser: new Map([
         [5, { sent: true, responded: false }],
         [6, { sent: true, responded: true }],
@@ -514,6 +515,7 @@ describe("listAdminEventAttendees", () => {
       can_cancel: true,
       can_resend_ticket: true,
       can_send_survey: true,
+      can_show_survey_send: true,
     });
     expect(checkedIn).toMatchObject({
       user_id: 6,
@@ -522,6 +524,7 @@ describe("listAdminEventAttendees", () => {
       can_cancel: false,
       can_resend_ticket: true,
       can_send_survey: false,
+      can_show_survey_send: false,
     });
     expect(cancelled).toMatchObject({
       user_id: 7,
@@ -530,17 +533,23 @@ describe("listAdminEventAttendees", () => {
       can_cancel: false,
       can_resend_ticket: false,
       can_send_survey: false,
+      can_show_survey_send: false,
     });
-    expect(result.survey_sendable).toBe(true);
+    expect(result.survey).toEqual({
+      opt_in: true,
+      finished: true,
+      sendable: true,
+      status: "open",
+    });
     expect(getAttendeeSurveyFlags).toHaveBeenCalledWith(supabase, pastEvent, [5, 6, 7]);
   });
 
-  it("turns off every survey send when the survey is unusable", async () => {
+  it("turns off every survey send when the survey is closed", async () => {
     ticketDao.getAttendees.mockResolvedValue({
       data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
       total: 1,
     });
-    getAttendeeSurveyFlags.mockResolvedValue({ usable: false, byUser: new Map() });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: false, hasSurvey: true, byUser: new Map() });
 
     const result = await listAdminEventAttendees(supabase, pastEvent, {
       search: "",
@@ -550,6 +559,62 @@ describe("listAdminEventAttendees", () => {
     });
 
     expect(result.attendees[0].can_send_survey).toBe(false);
-    expect(result.survey_sendable).toBe(false);
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.survey).toEqual({ opt_in: true, finished: true, sendable: false, status: "closed" });
+  });
+
+  it("allows a standalone send before any survey exists", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: false, hasSurvey: false, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(supabase, pastEvent, {
+      search: "",
+      status: "all",
+      page: 1,
+      limit: 15,
+    });
+
+    expect(result.attendees[0].can_send_survey).toBe(true);
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.survey).toEqual({ opt_in: true, finished: true, sendable: true, status: "open" });
+  });
+
+  it("locks survey sends until the event ends", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(
+      supabase,
+      { ...pastEvent, event_date: "2050-01-01" },
+      { search: "", status: "all", page: 1, limit: 15 },
+    );
+
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.attendees[0].can_send_survey).toBe(false);
+    expect(result.survey).toEqual({ opt_in: true, finished: false, sendable: false, status: "locked" });
+  });
+
+  it("reports the survey status as disabled when surveys are off", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(
+      supabase,
+      { ...pastEvent, survey_enabled: false },
+      { search: "", status: "all", page: 1, limit: 15 },
+    );
+
+    expect(result.attendees[0].can_show_survey_send).toBe(false);
+    expect(result.attendees[0].can_send_survey).toBe(false);
+    expect(result.survey).toEqual({ opt_in: false, finished: true, sendable: false, status: "disabled" });
   });
 });

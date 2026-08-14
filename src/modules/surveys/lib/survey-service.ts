@@ -96,13 +96,13 @@ export type SendSurveyToAttendeeResult =
   | { ok: true; delivered: boolean }
   | {
       ok: false;
-      reason: "not_enabled" | "not_finished" | "no_survey" | "expired" | "already_responded" | "no_ticket";
+      reason: "not_enabled" | "not_finished" | "expired" | "already_responded" | "no_ticket";
     };
 
-/** Admin-triggered send targeted at one attendee. The event must be finished and
- * the bulk survey already sent (its window decides eligibility), so this only
- * reaches late registrants and retries that the bulk run missed — the cases the
- * Surveys tab cannot fix without re-emailing everyone. */
+/** Admin-triggered send targeted at one attendee. The event must be finished;
+ * the survey is lazily created on first use, anchoring the 14-day window at
+ * that moment. This reaches late registrants and retries that the bulk run
+ * missed — the cases the Surveys tab cannot fix without re-emailing everyone. */
 export async function sendSurveyToAttendee(
   supabase: DbClient,
   event: Event,
@@ -112,9 +112,9 @@ export async function sendSurveyToAttendee(
   if (!event.survey_enabled) return { ok: false, reason: "not_enabled" };
   if (!isEventFinished(event.event_date, event.end_time)) return { ok: false, reason: "not_finished" };
 
-  const survey = await surveyDao.findSurveyByEventId(supabase, event.id);
-  if (!survey) return { ok: false, reason: "no_survey" };
-  if (!isSurveyWithinWindow(survey.sent_at, now)) return { ok: false, reason: "expired" };
+  let survey = await surveyDao.findSurveyByEventId(supabase, event.id);
+  if (survey && !isSurveyWithinWindow(survey.sent_at, now)) return { ok: false, reason: "expired" };
+  if (!survey) survey = await surveyDao.createSurvey(supabase, event.id, now.toISOString());
 
   let response: SurveyResponse | null = await surveyDao.findResponseBySurveyAndUserId(supabase, survey.id, userId);
   if (response?.submitted_at) return { ok: false, reason: "already_responded" };
@@ -145,12 +145,15 @@ export interface AttendeeSurveyFlag {
 export interface AttendeeSurveyFlags {
   /** Whether the event has a survey still inside its response window. */
   usable: boolean;
+  /** Whether the event has a survey row at all. */
+  hasSurvey: boolean;
   byUser: Map<number, AttendeeSurveyFlag>;
 }
 
 /** Per-attendee survey progress for the admin table. `usable` is false when the
  * event has no sendable survey (never sent, or outside its 14-day window);
- * users who hold no response row are simply absent from `byUser`. */
+ * `hasSurvey` tells those two apart so callers can distinguish "never sent"
+ * from "expired". Users who hold no response row are absent from `byUser`. */
 export async function getAttendeeSurveyFlags(
   supabase: DbClient,
   event: Event,
@@ -158,14 +161,15 @@ export async function getAttendeeSurveyFlags(
   now = new Date(),
 ): Promise<AttendeeSurveyFlags> {
   const survey = await surveyDao.findSurveyByEventId(supabase, event.id);
-  if (!survey || !isSurveyWithinWindow(survey.sent_at, now)) return { usable: false, byUser: new Map() };
+  if (!survey) return { usable: false, hasSurvey: false, byUser: new Map() };
+  if (!isSurveyWithinWindow(survey.sent_at, now)) return { usable: false, hasSurvey: true, byUser: new Map() };
 
   const responses = await surveyDao.findResponsesBySurveyAndUserIds(supabase, survey.id, userIds);
   const byUser = new Map<number, AttendeeSurveyFlag>();
   for (const response of responses) {
     byUser.set(response.user_id, { sent: response.sent_at != null, responded: response.submitted_at != null });
   }
-  return { usable: true, byUser };
+  return { usable: true, hasSurvey: true, byUser };
 }
 
 export type SurveyTokenState = { state: "open"; event_title: string } | { state: "submitted" } | { state: "expired" };

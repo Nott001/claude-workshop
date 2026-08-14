@@ -267,12 +267,32 @@ describe("sendSurveyToAttendee", () => {
     });
   });
 
-  it("refuses when the bulk survey was never sent", async () => {
+  it("lazily creates the survey on a standalone first send", async () => {
     dao.findSurveyByEventId.mockResolvedValue(null);
-    await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({
-      ok: false,
-      reason: "no_survey",
-    });
+    dao.findResponseBySurveyAndUserId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue([{ user_id: 5, full_name: "Ada Lovelace", email: "ada@example.com" }]);
+    dao.createSurvey.mockResolvedValue(liveSurvey());
+    dao.createResponses.mockResolvedValue([response({ id: 101, survey_id: 11, user_id: 5, token: "t-ada" })]);
+
+    const result = await sendSurveyToAttendee(supabase, finishedEvent(), 5);
+
+    expect(dao.createSurvey).toHaveBeenCalledWith(supabase, 1, expect.any(String));
+    expect(dao.createResponses).toHaveBeenCalledWith(
+      supabase,
+      11,
+      expect.arrayContaining([expect.objectContaining({ user_id: 5 })]),
+    );
+    expect(email.sendEmailNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 5,
+        email: "ada@example.com",
+        name: "Ada Lovelace",
+        email_type: "event_survey",
+        surveyUrl: expect.stringContaining("t-ada"),
+      }),
+    );
+    expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 101);
+    expect(result).toEqual({ ok: true, delivered: true });
   });
 
   it("refuses once the survey window has passed", async () => {
@@ -284,6 +304,7 @@ describe("sendSurveyToAttendee", () => {
       updated_at: "",
     });
     await expect(sendSurveyToAttendee(supabase, finishedEvent(), 5)).resolves.toEqual({ ok: false, reason: "expired" });
+    expect(dao.createSurvey).not.toHaveBeenCalled();
   });
 
   it("refuses an attendee who already responded", async () => {
@@ -368,6 +389,7 @@ describe("getAttendeeSurveyFlags", () => {
     const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
 
     expect(flags.usable).toBe(false);
+    expect(flags.hasSurvey).toBe(false);
     expect(flags.byUser.size).toBe(0);
     expect(dao.findResponsesBySurveyAndUserIds).not.toHaveBeenCalled();
   });
@@ -384,6 +406,7 @@ describe("getAttendeeSurveyFlags", () => {
     const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
 
     expect(flags.usable).toBe(false);
+    expect(flags.hasSurvey).toBe(true);
   });
 
   it("flags sent and responded per attendee, leaving absent users out", async () => {
@@ -409,6 +432,7 @@ describe("getAttendeeSurveyFlags", () => {
     const flags = await getAttendeeSurveyFlags(supabase, finishedEvent(), [5, 6]);
 
     expect(flags.usable).toBe(true);
+    expect(flags.hasSurvey).toBe(true);
     expect(flags.byUser.get(5)).toEqual({ sent: true, responded: false });
     expect(flags.byUser.get(6)).toEqual({ sent: true, responded: true });
     expect(flags.byUser.has(7)).toBe(false);
