@@ -1,4 +1,4 @@
-import { ROLES } from "@/shared/lib/roles";
+import { ROLES, STAFF_ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
@@ -36,9 +36,16 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const search = searchParams.get("search")?.trim() || "";
 
+  // `role` reaches the DAO as an .eq value, so pinch it to the staff set rather
+  // than let an arbitrary string ride the filter out to PostgREST.
+  const role = searchParams.get("role") ?? undefined;
+  if (role && !(STAFF_ROLES as readonly string[]).includes(role)) {
+    return NextResponse.json({ error: { message: "Invalid role" } }, { status: 400 });
+  }
+
   const supabase = getServiceClient();
 
-  const result = await userDao.listStaff(supabase, page, search, PAGE_SIZE);
+  const result = await userDao.listStaff(supabase, { page, search, pageSize: PAGE_SIZE, role });
 
   return NextResponse.json({
     users: result.data,
