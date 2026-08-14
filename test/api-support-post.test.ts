@@ -1,13 +1,16 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMessage } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
-  countRecentByUser: vi.fn(),
-  findActiveSession: vi.fn(),
-  createSession: vi.fn(),
-  sendMessage: vi.fn(),
-}));
+const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMessage, deleteSessionsExcept } = vi.hoisted(
+  () => ({
+    requireAuth: vi.fn(),
+    countRecentByUser: vi.fn(),
+    findActiveSession: vi.fn(),
+    createSession: vi.fn(),
+    sendMessage: vi.fn(),
+    deleteSessionsExcept: vi.fn(),
+  }),
+);
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
@@ -16,6 +19,7 @@ vi.mock("@/shared/db/dao/chat.dao", () => ({
   findActiveSession,
   createSession,
   sendMessage,
+  deleteSessionsExcept,
   listSupportMessages: vi.fn(),
 }));
 
@@ -31,6 +35,7 @@ beforeEach(() => {
   findActiveSession.mockResolvedValue(null);
   createSession.mockResolvedValue({ id: 31 });
   sendMessage.mockResolvedValue({ id: 100, message: "help" });
+  deleteSessionsExcept.mockResolvedValue(true);
 });
 
 describe("session creation failure", () => {

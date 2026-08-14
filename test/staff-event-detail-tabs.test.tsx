@@ -66,7 +66,7 @@ function emptyBuilder() {
   };
 }
 
-function renderDetail(role: UserRole, initialTab?: string) {
+function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Partial<typeof event>) {
   (useSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 1, role },
     loading: false,
@@ -74,7 +74,7 @@ function renderDetail(role: UserRole, initialTab?: string) {
     isSignedIn: true,
   });
   (useEventDetail as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-    event,
+    event: { ...event, ...eventOverride },
     loading: false,
     error: null,
     badgeProps: null,
@@ -186,5 +186,26 @@ describe("Staff event detail tabs", () => {
 
     expect(screen.getByText("OVERVIEW")).toBeTruthy();
     expect(screen.queryByText("Post-event survey")).toBeNull();
+  });
+
+  it("shows a locked bulk send button until the event ends", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: true, event_date: "2099-01-01" });
+
+    const sendButton = screen.getByRole("button", { name: "Locked until event ends" });
+    expect((sendButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("shows an enabled bulk send button once the event has ended", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: true, event_date: "2020-01-01" });
+
+    const sendButton = screen.getByRole("button", { name: "Send bulk survey" });
+    expect((sendButton as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("renders no bulk send button when surveys are off", () => {
+    renderDetail(ROLES.ADMIN, "surveys");
+
+    expect(screen.queryByRole("button", { name: "Send bulk survey" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Locked until event ends" })).toBeNull();
   });
 });

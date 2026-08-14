@@ -33,7 +33,7 @@ afterEach(() => {
 describe("StaffNavbar", () => {
   it("shows the brand and the account menu in the top bar", () => {
     renderStaff();
-    expect(screen.getByText("StartupLab")).toBeTruthy();
+    expect(screen.getByAltText("StartupLab")).toBeTruthy();
     expect(screen.getByText("Ada Lovelace")).toBeTruthy();
   });
 

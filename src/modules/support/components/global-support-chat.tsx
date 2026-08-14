@@ -1,18 +1,27 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
+import { useAutoScrollToBottom } from "@/modules/chat/lib/use-auto-scroll-to-bottom";
+import { supportNoticeKind, type SupportNoticeKind } from "@/modules/chat/lib/support-notices";
 import { MessageComposer } from "@/shared/components/message-composer";
 import { SignInPrompt } from "@/modules/support/components/sign-in-prompt";
+import { SupportWaitingNotice } from "@/modules/support/components/support-waiting-notice";
 
 interface GlobalSupportChatProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const NOTICE_COPY: Record<SupportNoticeKind, { icon: string; label: string }> = {
+  assigned: { icon: "support_agent", label: "A support staff member has picked up your case." },
+  unassigned: { icon: "hourglass_empty", label: "Your case is waiting for the next available support staff member." },
+  ended: { icon: "call_end", label: "This conversation has ended." },
+};
 
 export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
@@ -26,7 +35,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     assigned_to: number | null;
     assigned_staff_name: string | null;
   }>({ case_number: null, assigned_to: null, assigned_staff_name: null });
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const { containerRef, bottomRef, forceScroll } = useAutoScrollToBottom(messages, isOpen);
 
   const { user, isLoaded } = useSession();
   const currentUserId = user?.id ?? null;
@@ -88,12 +97,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       }),
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen]);
-
   function formatTime(sentAt: string) {
     return new Date(sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
@@ -104,6 +107,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
     const text = newMessage.trim();
     setSending(true);
     setError(null);
+    forceScroll();
 
     const res = await fetch("/api/support", {
       method: "POST",
@@ -182,21 +186,23 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         loadingIndicator("Loading messages...")
       ) : (
         <>
-          <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
+          <SupportWaitingNotice visible={!chatEnded && sessionInfo.assigned_to == null} />
+          <div ref={containerRef} className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               {messages.length === 0 && (
                 <p className="py-12 text-center text-sm text-muted-fg">No messages yet. How can we help?</p>
               )}
 
               {messages.map((msg) => {
-                const isChatEnded = msg.message.startsWith("[Chat ended");
+                const notice = supportNoticeKind(msg.message);
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = isChatStaff(msg.USER?.role);
-                if (isChatEnded) {
+                if (notice) {
+                  const { icon, label } = NOTICE_COPY[notice];
                   return (
                     <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
-                      <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
-                      <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
+                      <span className="material-symbols-rounded text-sm text-muted-fg">{icon}</span>
+                      <span className="text-[11px] text-muted-fg">{label}</span>
                     </div>
                   );
                 }
@@ -223,6 +229,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
                 );
               })}
             </div>
+            <div ref={bottomRef} />
           </div>
 
           {chatEnded && (

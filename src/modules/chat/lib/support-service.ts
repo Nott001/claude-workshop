@@ -4,6 +4,7 @@ import type { UserRole } from "@/shared/types";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/shared/lib/rate-limit";
+import { CHAT_CLAIMED_MESSAGE, CHAT_ENDED_MESSAGE, CHAT_UNCLAIMED_MESSAGE } from "./support-notices";
 
 export class SupportServiceError extends Error {
   constructor(
@@ -68,7 +69,30 @@ export async function openOrReuseSession(
   if (!created) {
     throw new SupportServiceError(500, "Failed to start a support session");
   }
+  // A fresh case number means the previous ended session is retired with its
+  // transcript, instead of accumulating quietly forever.
+  await chatDao.deleteSessionsExcept(supabase, sessionUserId, "general", created.id);
   return created;
+}
+
+/**
+ * A lifecycle notice lands on the attendee's thread as a row from the acting
+ * staff member, so existing read and realtime grants reach both parties.
+ */
+async function recordNotice(
+  supabase: DbClient,
+  sessionId: number,
+  actorId: number,
+  recipientUserId: number,
+  message: string,
+): Promise<void> {
+  await chatDao.sendMessage(supabase, {
+    support_type: "general",
+    user_id: actorId,
+    message,
+    session_id: sessionId,
+    recipient_user_id: recipientUserId,
+  });
 }
 
 export async function sendSupportMessage(
@@ -113,6 +137,7 @@ export async function claimCase(
   if (!session) {
     throw new SupportServiceError(409, "This case is already claimed or has no active session");
   }
+  await recordNotice(supabase, session.id, actorId, targetUserId, CHAT_CLAIMED_MESSAGE);
   return session;
 }
 
@@ -127,6 +152,7 @@ export async function releaseCase(
   if (!session) {
     throw new SupportServiceError(409, "You are not the assigned handler of this case");
   }
+  await recordNotice(supabase, session.id, actorId, targetUserId, CHAT_UNCLAIMED_MESSAGE);
   return session;
 }
 
@@ -142,6 +168,7 @@ export async function endCase(
 ): Promise<Awaited<ReturnType<typeof chatDao.endSession>>> {
   const isOwn = targetUserId === actor.id;
 
+  let session: Awaited<ReturnType<typeof chatDao.endSession>>;
   if (!isOwn) {
     const active = await chatDao.findActiveSession(supabase, targetUserId, "general");
     if (!active) {
@@ -150,8 +177,15 @@ export async function endCase(
     if (active.assigned_to !== null && active.assigned_to !== actor.id) {
       throw new SupportServiceError(403, "Only the assigned handler can end this case");
     }
-    return chatDao.endSession(supabase, targetUserId, "general", { ownerId: active.assigned_to });
+    session = await chatDao.endSession(supabase, targetUserId, "general", { ownerId: active.assigned_to });
+  } else {
+    session = await chatDao.endSession(supabase, targetUserId, "general");
   }
 
-  return chatDao.endSession(supabase, targetUserId, "general");
+  // Tell the attendee in the thread why the chat stopped; the case is kept
+  // until their next message opens a fresh one.
+  if (session) {
+    await recordNotice(supabase, session.id, actor.id, targetUserId, CHAT_ENDED_MESSAGE);
+  }
+  return session;
 }

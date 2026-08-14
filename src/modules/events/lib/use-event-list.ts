@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 
 interface Course {
   course_name: string;
@@ -40,21 +41,31 @@ export function useEventList(options?: UseEventListOptions) {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [activeTab, setActiveTab] = useState<FilterTab>("upcoming");
+  const [search, setSearch] = useState("");
   const pageRef = useRef(1);
 
-  const load = useCallback(async (page: number): Promise<{ rows: Event[]; hasMore: boolean; ok: boolean }> => {
-    try {
-      const res = await fetch(`/api/events?page=${page}&limit=${PAGE_SIZE}`);
-      if (!res.ok) return { rows: [], hasMore: false, ok: false };
-      const data = await res.json();
-      const rows = (Array.isArray(data.data) ? data.data : []) as Event[];
-      return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
-    } catch {
-      // A rejected request or a body that is not JSON leaves the page on an
-      // error rather than stranded on the loading skeleton forever.
-      return { rows: [], hasMore: false, ok: false };
-    }
-  }, []);
+  // Trimmed so a trailing space doesn't change the query and trigger a
+  // spurious refetch; the raw value still shows in the input.
+  const debouncedSearch = useDebouncedValue(search.trim());
+
+  const load = useCallback(
+    async (page: number): Promise<{ rows: Event[]; hasMore: boolean; ok: boolean }> => {
+      try {
+        const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+        if (debouncedSearch) params.set("search", debouncedSearch);
+        const res = await fetch(`/api/events?${params}`);
+        if (!res.ok) return { rows: [], hasMore: false, ok: false };
+        const data = await res.json();
+        const rows = (Array.isArray(data.data) ? data.data : []) as Event[];
+        return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
+      } catch {
+        // A rejected request or a body that is not JSON leaves the page on an
+        // error rather than stranded on the loading skeleton forever.
+        return { rows: [], hasMore: false, ok: false };
+      }
+    },
+    [debouncedSearch],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -124,5 +135,7 @@ export function useEventList(options?: UseEventListOptions) {
     activeTab,
     setActiveTab,
     tabCounts,
+    search,
+    setSearch,
   };
 }

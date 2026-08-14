@@ -27,7 +27,7 @@ const {
   sendEmailNotification: vi.fn(),
   logAuditEvent: vi.fn(),
   generateQRDataUrl: vi.fn(),
-  getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, byUser: new Map() })),
+  getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, hasSurvey: true, byUser: new Map() })),
   sendSurveyToAttendee: vi.fn(),
 }));
 
@@ -128,6 +128,7 @@ describe("GET /api/events/[id]/attendees/manage", () => {
     });
     getAttendeeSurveyFlags.mockResolvedValue({
       usable: true,
+      hasSurvey: true,
       byUser: new Map([[5, { sent: true, responded: false }]]),
     });
 
@@ -148,7 +149,12 @@ describe("GET /api/events/[id]/attendees/manage", () => {
         can_send_survey: true,
       }),
     ]);
-    expect(body.survey_sendable).toBe(true);
+    expect(body.survey).toEqual({
+      opt_in: true,
+      finished: true,
+      sendable: true,
+      status: "open",
+    });
   });
 });
 

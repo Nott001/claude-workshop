@@ -17,6 +17,7 @@ function mapError(err: unknown): NextResponse {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter");
+  const search = searchParams.get("search");
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
   const supabase = getServiceClient();
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
   const user = await requireAuth(supabase);
   const userRole = user?.role ?? null;
 
-  const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter, page, limit });
+  const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter, search, page, limit });
 
   return NextResponse.json(events);
 }

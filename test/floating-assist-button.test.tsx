@@ -119,4 +119,20 @@ describe("FloatingAssistButton signed in", () => {
     clickAssist();
     await waitFor(() => expect(panel.classList.contains("hidden")).toBe(true));
   });
+
+  it("shows a white headset glyph that swaps to close while the panel is open", async () => {
+    stubFetch();
+    subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
+    renderAssist({ user: USER, isLoaded: true, isSignedIn: true });
+
+    const button = screen.getByRole("button", { name: "Ask for assistance" });
+    const glyph = within(button).getByText("headset_mic");
+    expect(glyph.className).toContain("text-white");
+
+    clickAssist();
+    await screen.findByPlaceholderText("Type a message...");
+
+    expect(within(button).getByText("close")).toBeTruthy();
+    expect(within(button).queryByText("headset_mic")).toBeNull();
+  });
 });

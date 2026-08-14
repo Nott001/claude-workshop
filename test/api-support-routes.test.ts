@@ -12,6 +12,8 @@ const { requireAuth, chatDao } = vi.hoisted(() => ({
     claimSession: vi.fn(),
     relinquishSession: vi.fn(),
     endSession: vi.fn(),
+    sendMessage: vi.fn(),
+    deleteSessionsExcept: vi.fn(),
   },
 }));
 
@@ -40,7 +42,9 @@ beforeEach(() => {
   chatDao.createSession.mockResolvedValue({ id: 50, status: "active" });
   chatDao.claimSession.mockResolvedValue({ id: 50, status: "active" });
   chatDao.relinquishSession.mockResolvedValue({ id: 50, status: "active" });
-  chatDao.endSession.mockResolvedValue({ id: 50, status: "ended" });
+  chatDao.endSession.mockResolvedValue({ id: 50, status: "ended_by_facilitator" });
+  chatDao.sendMessage.mockResolvedValue({ id: 100 });
+  chatDao.deleteSessionsExcept.mockResolvedValue(true);
 });
 
 describe("GET /api/support/users", () => {

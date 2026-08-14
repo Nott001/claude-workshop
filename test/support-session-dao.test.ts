@@ -18,6 +18,7 @@ function makeChain(result: { data?: unknown; error?: unknown }) {
     "lt",
     "gte",
     "in",
+    "neq",
     "order",
     "limit",
     "range",
@@ -105,13 +106,24 @@ describe("support-session.dao ownership", () => {
     expect(callsList[0].some(([, a]) => a[0] === "assigned_to")).toBe(false);
   });
 
-  it("purges the ended session instead of marking it ended", async () => {
-    const { client, callsList } = stub([{ data: { id: 1 } }]);
+  it("purges the previous ended sessions when a fresh case opens", async () => {
+    const { client, callsList } = stub([{ data: null }]);
 
-    await dao.endSession(client, 5, "general");
+    await dao.deleteSessionsExcept(client, 5, "general", 9);
 
     expect(callsList[0].some(([m]) => m === "delete")).toBe(true);
-    expect(callsList[0].some(([m]) => m === "update")).toBe(false);
+    expect(callsList[0].some(([m, a]) => m === "eq" && a[0] === "user_id" && a[1] === 5)).toBe(true);
+    expect(callsList[0].some(([m, a]) => m === "neq" && a[0] === "id" && a[1] === 9)).toBe(true);
+  });
+
+  it("marks the case ended instead of purging the tread", async () => {
+    const { client, callsList } = stub([{ data: { id: 1, status: "ended_by_facilitator" } }]);
+
+    const session = await dao.endSession(client, 5, "general");
+
+    expect(session).toMatchObject({ id: 1, status: "ended_by_facilitator" });
+    expect(callsList[0].some(([m]) => m === "update")).toBe(true);
+    expect(callsList[0].some(([m]) => m === "delete")).toBe(false);
   });
 });
 

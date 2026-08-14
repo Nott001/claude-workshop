@@ -37,7 +37,7 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({
 }));
 vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
-import { POST } from "@/app/api/organization/route";
+import { POST, GET } from "@/app/api/organization/route";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 
 const admin = { allowed: true, error: null, user: { id: 3, role: ROLES.ADMIN } };
@@ -61,6 +61,46 @@ beforeEach(() => {
   deleteUser.mockResolvedValue({ error: null });
   send.mockResolvedValue({ success: true });
   logAuditEvent.mockResolvedValue(undefined);
+});
+
+describe("GET /api/organization", () => {
+  const staff = [
+    { id: 1, full_name: "Ada Lovelace", email: "ada@example.com", role: ROLES.SPEAKER },
+    { id: 2, full_name: "Grace Hopper", email: "grace@example.com", role: ROLES.ADMIN },
+  ];
+
+  it("lists a page of staff with no filters", async () => {
+    listStaff.mockResolvedValue({ data: staff, total: 2, page: 1, limit: 10 });
+
+    const res = await GET(new Request("https://app.test/api/organization"));
+
+    expect(res.status).toBe(200);
+    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "", pageSize: 10, role: undefined });
+    await expect(res.json()).resolves.toMatchObject({ users: staff, total: 2, page: 1 });
+  });
+
+  it("forwards a validated role filter", async () => {
+    listStaff.mockResolvedValue({ data: [staff[1]], total: 1, page: 1, limit: 10 });
+
+    await GET(new Request("https://app.test/api/organization?role=admin"));
+
+    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "", pageSize: 10, role: ROLES.ADMIN });
+  });
+
+  it("rejects a role that is not in the staff set", async () => {
+    const res = await GET(new Request("https://app.test/api/organization?role=attendee"));
+
+    expect(res.status).toBe(400);
+    expect(listStaff).not.toHaveBeenCalled();
+  });
+
+  it("forwards a search term alongside a role", async () => {
+    listStaff.mockResolvedValue({ data: [staff[0]], total: 1, page: 1, limit: 10 });
+
+    await GET(new Request("https://app.test/api/organization?search=ada&role=speaker"));
+
+    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "ada", pageSize: 10, role: ROLES.SPEAKER });
+  });
 });
 
 describe("POST /api/organization", () => {

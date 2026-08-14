@@ -2,8 +2,25 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
+import type { AuditLogWithActor } from "@/modules/audit/db/audit.dao";
+import { Badge } from "@/shared/components/badge";
+import { Drawer } from "@/shared/components/drawer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
+import { TableToolbar } from "@/shared/components/table-toolbar";
+import { Pagination } from "@/shared/components/table-pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableEmpty,
+  TableHead,
+  TableHeadCell,
+  TableRow,
+} from "@/shared/components/table";
 
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
@@ -30,9 +47,9 @@ function actionLabel(action: string): string {
   return labels[action] ?? action;
 }
 
-function actionColor(action: string): string {
+function actionVariant(action: string): "error" | "success" | "info" {
   if (action.includes("deleted") || action.includes("removed") || action.includes("unassigned")) {
-    return "text-error bg-error/10";
+    return "error";
   }
   if (
     action.includes("created") ||
@@ -40,15 +57,48 @@ function actionColor(action: string): string {
     action.includes("assigned") ||
     action === "checkin.performed"
   ) {
-    return "text-success bg-success/10";
+    return "success";
   }
-  return "text-info bg-info/10";
+  return "info";
 }
 
+type Category = "all" | "created" | "deleted/removed" | "updated" | "assigned" | "check-in" | "invited";
+
+// Substring mapping mirrors actionVariant. `event.published` and
+// `organization.role_changed` are state changes of an existing entity, so they
+// filter as updates even though neither name contains "updated".
+function categoryOf(action: string): Category {
+  if (action.includes("deleted") || action.includes("removed") || action.includes("unassigned")) {
+    return "deleted/removed";
+  }
+  if (action.includes("created")) return "created";
+  if (action.includes("updated") || action === "event.published" || action === "organization.role_changed") {
+    return "updated";
+  }
+  if (action.includes("assigned")) return "assigned";
+  if (action === "checkin.performed") return "check-in";
+  if (action === "organization.invited") return "invited";
+  return "all";
+}
+
+const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "created", label: "Created" },
+  { value: "deleted/removed", label: "Deleted/Removed" },
+  { value: "updated", label: "Updated" },
+  { value: "assigned", label: "Assigned" },
+  { value: "check-in", label: "Check-in" },
+  { value: "invited", label: "Invited" },
+];
+
+// The hook debounces search itself and resets page on a new term (sheet 05), so
+// the page feeds keystrokes straight through and never fights the pagination.
 export default function StaffAuditLogsPage() {
   const router = useRouter();
   const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
-  const { logs, loading, page, setPage, totalPages } = useAuditLogs();
+  const { logs, total, loading, page, setPage, search, setSearch } = useAuditLogs();
+  const [category, setCategory] = useState<Category>("all");
+  const [selected, setSelected] = useState<AuditLogWithActor | null>(null);
 
   if (pending) {
     return (
@@ -59,6 +109,8 @@ export default function StaffAuditLogsPage() {
   }
 
   if (!allowed) return null;
+
+  const filteredLogs = category === "all" ? logs : logs.filter((log) => categoryOf(log.action) === category);
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
@@ -76,6 +128,21 @@ export default function StaffAuditLogsPage() {
           </button>
         </div>
 
+        <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search action, entity, or actor..." }}>
+          <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
+            <SelectTrigger>
+              <SelectValue>{CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? "All"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableToolbar>
+
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-2">
@@ -83,87 +150,100 @@ export default function StaffAuditLogsPage() {
               <p className="text-sm text-muted-fg">Loading audit logs...</p>
             </div>
           </div>
-        ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <span className="material-symbols-rounded text-4xl text-muted-fg/50">history</span>
-            <p className="mt-3 text-sm text-muted-fg">No audit logs found.</p>
-          </div>
+        ) : filteredLogs.length === 0 ? (
+          <TableEmpty
+            icon="history"
+            title="No audit logs found"
+            hint={search ? "Try a different search term." : "No logs match the current filter."}
+          />
         ) : (
           <>
-            <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted">
-                    <th className="px-5 py-3 font-semibold text-muted-fg">Action</th>
-                    <th className="px-5 py-3 font-semibold text-muted-fg">Actor</th>
-                    <th className="px-5 py-3 font-semibold text-muted-fg">Details</th>
-                    <th className="px-5 py-3 font-semibold text-muted-fg">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-muted">
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColor(log.action)}`}
-                        >
-                          {actionLabel(log.action)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeadCell>Action</TableHeadCell>
+                    <TableHeadCell>Actor</TableHeadCell>
+                    <TableHeadCell>Details</TableHeadCell>
+                    <TableHeadCell>Date</TableHeadCell>
+                    <TableHeadCell className="w-12" aria-label="Details" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredLogs.map((log) => (
+                    <TableRow key={log.id} onClick={() => setSelected(log)} aria-label={`View ${actionLabel(log.action)}`}>
+                      <TableCell>
+                        <Badge variant={actionVariant(log.action)}>{actionLabel(log.action)}</Badge>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-fg">{log.ACTOR?.full_name ?? "Unknown"}</span>
                           <span className="text-xs text-muted-fg">{log.ACTOR?.email ?? ""}</span>
                         </div>
-                      </td>
-                      <td className="px-5 py-4">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="text-fg">
                             {log.entity_type}
                             {log.entity_id ? ` #${log.entity_id}` : ""}
                           </span>
-                          {log.metadata && (
-                            <span className="text-xs text-muted-fg">
-                              {JSON.stringify(log.metadata).length > 80
-                                ? JSON.stringify(log.metadata).slice(0, 80) + "..."
-                                : JSON.stringify(log.metadata)}
-                            </span>
-                          )}
                         </div>
-                      </td>
-                      <td className="px-5 py-4 text-muted-fg">{new Date(log.created_at).toLocaleString()}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-muted-fg">{new Date(log.created_at).toLocaleString()}</TableCell>
+                      <TableCell className="w-12">
+                        <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                          chevron_right
+                        </span>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-fg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <span className="material-symbols-rounded text-sm">chevron_left</span>
-                  Previous
-                </button>
-                <span className="text-sm text-muted-fg">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-fg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Next
-                  <span className="material-symbols-rounded text-sm">chevron_right</span>
-                </button>
-              </div>
-            )}
+            <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
           </>
         )}
       </div>
+
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title={selected ? actionLabel(selected.action) : ""}
+        description={selected?.ACTOR?.full_name ?? "Unknown"}
+      >
+        {selected && (
+          <div className="space-y-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Action</span>
+              <Badge variant={actionVariant(selected.action)}>{actionLabel(selected.action)}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Actor</span>
+              <span className="text-right text-fg">
+                {selected.ACTOR?.full_name ?? "Unknown"}
+                {selected.ACTOR?.email ? (
+                  <>
+                    <br />
+                    <span className="text-xs text-muted-fg">{selected.ACTOR.email}</span>
+                  </>
+                ) : null}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Entity</span>
+              <span className="text-fg">
+                {selected.entity_type}
+                {selected.entity_id ? ` #${selected.entity_id}` : ""}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Created</span>
+              <span className="text-fg">{new Date(selected.created_at).toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

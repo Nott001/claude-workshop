@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { cn } from "@/shared/lib/utils";
 
-export function Brand({ className }: { className?: string }) {
+export function Brand({ className, height = 46 }: { className?: string; height?: number }) {
+  const width = Math.round((height * 1765) / 680);
   return (
-    <Link href="/" className={cn("flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]", className)}>
-      <span className="grid size-8 place-items-center rounded-lg bg-brand text-white">
-        <svg className="size-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      </span>
-      StartupLab
+    <Link href="/" className={cn("flex items-center", className)}>
+      {/* 1765:680 is the logo SVG's viewBox ratio; height is locked inline because
+          Tailwind's preflight forces img height to auto. */}
+      <img src="/images/logo.svg" alt="StartupLab" width={width} height={height} style={{ height, width: "auto" }} />
     </Link>
   );
 }

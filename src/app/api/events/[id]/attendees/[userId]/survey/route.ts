@@ -7,7 +7,6 @@ import { sendSurveyToAttendee } from "@/modules/surveys/lib/survey-service";
 const NOT_SENT_MESSAGES: Record<string, string> = {
   not_enabled: "Enable surveys for this event before sending",
   not_finished: "The event has not ended yet",
-  no_survey: "Send the survey to everyone first from the Surveys tab",
   expired: "This survey is past its 14-day window and can no longer be sent",
   already_responded: "This attendee has already responded",
   no_ticket: "No active registration found",
