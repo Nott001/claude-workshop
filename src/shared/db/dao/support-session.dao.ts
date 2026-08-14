@@ -121,12 +121,13 @@ export async function endSession(
   supportType: string,
   opts?: { ownerId?: number | null },
 ): Promise<SupportSession | null> {
-  // Ending a case removes it and its message history outright: the attendee
-  // should start fresh, with no old conversation to continue. Deleting the
-  // session cascades to its CHAT_MESSAGE rows via ON DELETE CASCADE.
+  // Ending a case marks it ended instead of purging it: the attendee keeps
+  // reading the thread plus the closing notice, and ships a fresh case only
+  // when they send a new message. `deleteSessionsExcept` removes the husk at
+  // that point, so history is still not left behind forever.
   let query = supabase
     .from("SUPPORT_SESSION")
-    .delete()
+    .update({ status: "ended_by_facilitator", updated_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("support_type", supportType)
     .eq("status", "active");
@@ -139,6 +140,23 @@ export async function endSession(
 
   if (error && error.code !== "PGRST116") return null;
   return data ?? null;
+}
+
+export async function deleteSessionsExcept(
+  supabase: DbClient,
+  userId: number,
+  supportType: string,
+  keepId: number,
+): Promise<boolean> {
+  // Opening a fresh case purges whatever prior non-active sessions the user
+  // left behind; their CHAT_MESSAGE rows go with them via ON DELETE CASCADE.
+  const { error } = await supabase
+    .from("SUPPORT_SESSION")
+    .delete()
+    .eq("user_id", userId)
+    .eq("support_type", supportType)
+    .neq("id", keepId);
+  return !error;
 }
 
 export async function deleteSession(supabase: DbClient, userId: number): Promise<boolean> {

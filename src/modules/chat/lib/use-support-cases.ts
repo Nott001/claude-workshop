@@ -133,7 +133,7 @@ export function useSupportCases() {
       if (
         action === "end" &&
         !confirm(
-          `End case CASE-${selected.case_number}? This deletes the conversation history; ${selected.full_name} can start a new one later.`,
+          `End case CASE-${selected.case_number}? ${selected.full_name} is told the chat ended and can open a new case by messaging again.`,
         )
       ) {
         return;

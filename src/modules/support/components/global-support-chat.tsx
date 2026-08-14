@@ -6,6 +6,7 @@ import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/r
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
+import { supportNoticeKind, type SupportNoticeKind } from "@/modules/chat/lib/support-notices";
 import { MessageComposer } from "@/shared/components/message-composer";
 import { SignInPrompt } from "@/modules/support/components/sign-in-prompt";
 
@@ -13,6 +14,12 @@ interface GlobalSupportChatProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const NOTICE_COPY: Record<SupportNoticeKind, { icon: string; label: string }> = {
+  assigned: { icon: "support_agent", label: "A support staff member has picked up your case." },
+  unassigned: { icon: "hourglass_empty", label: "Your case is waiting for the next available support staff member." },
+  ended: { icon: "call_end", label: "This conversation has ended." },
+};
 
 export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChatProps) {
   const [messages, setMessages] = useState<ChatMessageWithUser[]>([]);
@@ -189,14 +196,15 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
               )}
 
               {messages.map((msg) => {
-                const isChatEnded = msg.message.startsWith("[Chat ended");
+                const notice = supportNoticeKind(msg.message);
                 const isOwn = msg.user_id === currentUserId;
                 const isStaff = isChatStaff(msg.USER?.role);
-                if (isChatEnded) {
+                if (notice) {
+                  const { icon, label } = NOTICE_COPY[notice];
                   return (
                     <div key={msg.id} className="flex items-center justify-center gap-1.5 py-3">
-                      <span className="material-symbols-rounded text-sm text-muted-fg">call_end</span>
-                      <span className="text-[11px] text-muted-fg">This conversation has ended.</span>
+                      <span className="material-symbols-rounded text-sm text-muted-fg">{icon}</span>
+                      <span className="text-[11px] text-muted-fg">{label}</span>
                     </div>
                   );
                 }

@@ -18,6 +18,7 @@ vi.mock("@/modules/chat/lib/use-realtime-messages", () => ({
   useRealtimeMessages: vi.fn(),
 }));
 
+import { CHAT_CLAIMED_MESSAGE, CHAT_ENDED_MESSAGE, CHAT_UNCLAIMED_MESSAGE } from "@/modules/chat/lib/support-notices";
 import GlobalSupportChat from "@/modules/support/components/global-support-chat";
 
 const USER = { id: 7, role: ROLES.ATTENDEE, full_name: "Grace", email: "grace@example.com" };
@@ -136,5 +137,65 @@ describe("GlobalSupportChat signed in", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() => expect(fetchCalls.some((c) => c.method === "POST" && c.url === "/api/support")).toBe(true));
+  });
+
+  it("shows a pickup notice when a staff member claims the case", async () => {
+    mockFetch(() => ({
+      messages: [
+        {
+          id: 2,
+          user_id: 1,
+          message: CHAT_CLAIMED_MESSAGE,
+          sent_at: "2026-08-05T09:01:00Z",
+          USER: { role: ROLES.ADMIN },
+        },
+      ],
+      session_active: true,
+      session: { case_number: 100, assigned_to: 1, assigned_staff_name: "Ada" },
+    }));
+    subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
+
+    renderChat({ user: USER, isLoaded: true, isSignedIn: true });
+
+    expect(await screen.findByText("A support staff member has picked up your case.")).toBeTruthy();
+  });
+
+  it("shows a notice when the case is left unassigned", async () => {
+    mockFetch(() => ({
+      messages: [
+        {
+          id: 2,
+          user_id: 1,
+          message: CHAT_UNCLAIMED_MESSAGE,
+          sent_at: "2026-08-05T09:01:00Z",
+          USER: { role: ROLES.ADMIN },
+        },
+      ],
+      session_active: true,
+      session: { case_number: 100, assigned_to: null, assigned_staff_name: null },
+    }));
+    subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
+
+    renderChat({ user: USER, isLoaded: true, isSignedIn: true });
+
+    expect(await screen.findByText("Your case is waiting for the next available support staff member.")).toBeTruthy();
+  });
+
+  it("keeps the thread and explains the staff ended the chat", async () => {
+    mockFetch(() => ({
+      messages: [
+        { id: 1, user_id: 7, message: "Thanks", sent_at: "2026-08-05T09:00:00Z", USER: { role: ROLES.ATTENDEE } },
+        { id: 2, user_id: 1, message: CHAT_ENDED_MESSAGE, sent_at: "2026-08-05T09:05:00Z", USER: { role: ROLES.ADMIN } },
+      ],
+      session_active: false,
+      session: { case_number: 100, assigned_to: null, assigned_staff_name: null },
+    }));
+    subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
+
+    renderChat({ user: USER, isLoaded: true, isSignedIn: true });
+
+    expect(await screen.findByText("Thanks")).toBeTruthy();
+    expect(screen.getByText("This conversation has ended.")).toBeTruthy();
+    expect(screen.getByText("This conversation has ended. Send a message to start a new one.")).toBeTruthy();
   });
 });
