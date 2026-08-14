@@ -196,7 +196,7 @@ describe("uploading a profile photo", () => {
     await upload(settings, "https://cdn.example/new.jpg");
 
     expect(screen.queryByText("AL")).toBeNull();
-    const avatar = document.querySelector("header img");
+    const avatar = document.querySelector("header img.rounded-full");
     expect(avatar?.getAttribute("src")).toBe("https://cdn.example/new.jpg");
   });
 

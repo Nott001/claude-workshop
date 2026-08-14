@@ -43,7 +43,7 @@ export function FloatingAssistButton() {
           className="flex size-14 items-center justify-center rounded-full bg-brand shadow-[0_8px_10px_-6px_rgba(0,0,0,0.1),0_20px_25px_-5px_rgba(0,0,0,0.1)] transition-transform hover:scale-105"
           aria-label="Ask for assistance"
         >
-          <span className="material-symbols-rounded text-[24px] text-brand">headset_mic</span>
+          <span className="material-symbols-rounded text-[24px] text-white">{isOpen ? "close" : "headset_mic"}</span>
         </button>
       </div>
     </>
