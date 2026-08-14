@@ -90,20 +90,15 @@ describe("TopNavbar guest view", () => {
     expect(navLink("Home").getAttribute("href")).toBe("/");
   });
 
-  it("shows SIGN IN alone, with no profile menu", () => {
+  it("shows outlined SIGN IN and filled SIGN UP, with no profile menu", () => {
     renderAs(null);
     const signIn = screen.getByRole("link", { name: "SIGN IN" });
+    const signUp = screen.getByRole("link", { name: "SIGN UP" });
 
     expect(signIn.getAttribute("href")).toBe("/sign-in");
-    expect(signIn.className).not.toContain("border");
+    expect(signIn.className).toContain("border");
+    expect(signUp.getAttribute("href")).toBe("/sign-up");
+    expect(signUp.className).toContain("bg-brand");
     expect(screen.queryByText("Ada Lovelace")).toBeNull();
-  });
-
-  // Signing up moved to the landing hero's "Join Now"; a second bar button
-  // would put two competing calls to action on the same screen.
-  it("no longer offers SIGN UP in the bar", () => {
-    renderAs(null);
-    expect(screen.queryByRole("link", { name: "SIGN UP" })).toBeNull();
-    expect([...document.querySelectorAll('a[href="/sign-up"]')]).toEqual([]);
   });
 });
