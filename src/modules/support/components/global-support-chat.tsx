@@ -7,6 +7,7 @@ import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
 import { MessageComposer } from "@/shared/components/message-composer";
+import { SignInPrompt } from "@/modules/support/components/sign-in-prompt";
 
 interface GlobalSupportChatProps {
   isOpen: boolean;
@@ -27,13 +28,16 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
   }>({ case_number: null, assigned_to: null, assigned_staff_name: null });
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { user: currentUser } = useSession();
-  const currentUserId = currentUser?.id ?? null;
+  const { user, isLoaded } = useSession();
+  const currentUserId = user?.id ?? null;
 
   const apiUrl = "/api/support";
 
   useEffect(() => {
-    if (!isOpen) return;
+    // Guests have no session, so `/api/support` answers 401 and there is
+    // nothing to load or subscribe to. The `currentUserId` dep re-runs this
+    // when a guest signs in with the panel open.
+    if (!isOpen || currentUserId == null) return;
 
     let active = true;
 
@@ -71,7 +75,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
       active = false;
       unsubscribe(sessionSub);
     };
-  }, [isOpen, apiUrl]);
+  }, [isOpen, apiUrl, currentUserId]);
 
   useRealtimeMessages<ChatMessageWithUser>({
     channelName: "support-panel-general",
@@ -121,6 +125,17 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
 
   const chatEnded = !sessionActive && messages.length > 0;
 
+  function loadingIndicator(text: string) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="flex items-center gap-2">
+          <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+          <p className="text-sm text-muted-fg">{text}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={
@@ -156,13 +171,15 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center p-4">
-          <div className="flex items-center gap-2">
-            <div className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-            <p className="text-sm text-muted-fg">Loading messages...</p>
-          </div>
+      {!isLoaded ? (
+        loadingIndicator("Loading...")
+      ) : !user ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <span className="material-symbols-rounded text-3xl text-muted-fg">support_agent</span>
+          <SignInPrompt />
         </div>
+      ) : loading ? (
+        loadingIndicator("Loading messages...")
       ) : (
         <>
           <div ref={bottomRef} className="flex-1 overflow-y-auto p-4 min-h-0">
