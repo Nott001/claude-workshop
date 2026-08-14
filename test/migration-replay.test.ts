@@ -35,7 +35,13 @@ describe("migration replay", () => {
   });
 
   it("is exactly the squashed baseline plus additive migrations", () => {
-    expect(migrations).toEqual(["00001_initial_schema.sql", "00002_lesson_name.sql"]);
+    expect(migrations).toEqual([
+      "00001_initial_schema.sql",
+      "00002_lesson_name.sql",
+      "00003_qa_realtime.sql",
+      "00004_qa_message_policy_helper.sql",
+      "00005_qa_message_policy_staff.sql",
+    ]);
   });
 
   describe("user-deletion final state (was 00015)", () => {

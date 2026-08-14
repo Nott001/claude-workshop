@@ -82,6 +82,24 @@ export async function findActiveTicketByUserAndEvent(
   return data;
 }
 
+/** The same live-ticket lookup, carrying the owner's name and email for admin
+ * actions (manual check-in notification, ticket re-send) that need them. */
+export async function findActiveTicketWithUser(
+  supabase: DbClient,
+  userId: number,
+  eventId: number,
+): Promise<TicketWithUser | null> {
+  const { data, error } = await supabase
+    .from("TICKET")
+    .select("*, USER:user_id(full_name, email)")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .neq("status", "cancelled")
+    .maybeSingle();
+  throwOnDbError(error, "ticket.dao.findActiveTicketWithUser");
+  return data;
+}
+
 // Everything a ticket card renders, so it never has to ask a second time.
 const TICKET_CARD_SELECT =
   "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";

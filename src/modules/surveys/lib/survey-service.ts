@@ -12,8 +12,9 @@ export const SURVEY_WINDOW_DAYS = 14;
 
 const WINDOW_MS = SURVEY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
-function isWithinWindow(sentAt: string): boolean {
-  return new Date(sentAt).getTime() >= Date.now() - WINDOW_MS;
+/** Whether a survey sent at `sentAt` is still inside the 14-day response window. */
+export function isSurveyWithinWindow(sentAt: string, now = new Date()): boolean {
+  return new Date(sentAt).getTime() >= now.getTime() - WINDOW_MS;
 }
 
 function newToken(): string {
@@ -32,7 +33,7 @@ export async function sendEventSurvey(supabase: DbClient, event: Event, now = ne
   if (!isEventFinished(event.event_date, event.end_time)) return { ok: false, reason: "not_finished" };
 
   const existing = await surveyDao.findSurveyByEventId(supabase, event.id);
-  if (existing && !isWithinWindow(existing.sent_at)) return { ok: false, reason: "expired" };
+  if (existing && !isSurveyWithinWindow(existing.sent_at, now)) return { ok: false, reason: "expired" };
 
   const recipients = await surveyDao.findRecipients(supabase, event.id);
   if (recipients.length === 0) return { ok: false, reason: "no_recipients" };
@@ -91,13 +92,89 @@ async function deliver(
   }
 }
 
+export type SendSurveyToAttendeeResult =
+  | { ok: true; delivered: boolean }
+  | {
+      ok: false;
+      reason: "not_enabled" | "not_finished" | "no_survey" | "expired" | "already_responded" | "no_ticket";
+    };
+
+/** Admin-triggered send targeted at one attendee. The event must be finished and
+ * the bulk survey already sent (its window decides eligibility), so this only
+ * reaches late registrants and retries that the bulk run missed — the cases the
+ * Surveys tab cannot fix without re-emailing everyone. */
+export async function sendSurveyToAttendee(
+  supabase: DbClient,
+  event: Event,
+  userId: number,
+  now = new Date(),
+): Promise<SendSurveyToAttendeeResult> {
+  if (!event.survey_enabled) return { ok: false, reason: "not_enabled" };
+  if (!isEventFinished(event.event_date, event.end_time)) return { ok: false, reason: "not_finished" };
+
+  const survey = await surveyDao.findSurveyByEventId(supabase, event.id);
+  if (!survey) return { ok: false, reason: "no_survey" };
+  if (!isSurveyWithinWindow(survey.sent_at, now)) return { ok: false, reason: "expired" };
+
+  let response: SurveyResponse | null = await surveyDao.findResponseBySurveyAndUserId(supabase, survey.id, userId);
+  if (response?.submitted_at) return { ok: false, reason: "already_responded" };
+
+  let recipient: { full_name: string; email: string };
+  if (!response) {
+    const ticketRecipient = (await surveyDao.findRecipients(supabase, event.id)).find((r) => r.user_id === userId);
+    if (!ticketRecipient) return { ok: false, reason: "no_ticket" };
+    recipient = { full_name: ticketRecipient.full_name, email: ticketRecipient.email };
+    const created = await surveyDao.createResponses(supabase, survey.id, [{ user_id: userId, token: newToken() }]);
+    response = created[0];
+  } else {
+    const withUser = response as SurveyResponseWithAttendee;
+    recipient = {
+      full_name: withUser.USER?.full_name ?? "",
+      email: withUser.USER?.email ?? "",
+    };
+  }
+
+  return { ok: true, delivered: await deliver(supabase, event.title, response, recipient) };
+}
+
+export interface AttendeeSurveyFlag {
+  sent: boolean;
+  responded: boolean;
+}
+
+export interface AttendeeSurveyFlags {
+  /** Whether the event has a survey still inside its response window. */
+  usable: boolean;
+  byUser: Map<number, AttendeeSurveyFlag>;
+}
+
+/** Per-attendee survey progress for the admin table. `usable` is false when the
+ * event has no sendable survey (never sent, or outside its 14-day window);
+ * users who hold no response row are simply absent from `byUser`. */
+export async function getAttendeeSurveyFlags(
+  supabase: DbClient,
+  event: Event,
+  userIds: number[],
+  now = new Date(),
+): Promise<AttendeeSurveyFlags> {
+  const survey = await surveyDao.findSurveyByEventId(supabase, event.id);
+  if (!survey || !isSurveyWithinWindow(survey.sent_at, now)) return { usable: false, byUser: new Map() };
+
+  const responses = await surveyDao.findResponsesBySurveyAndUserIds(supabase, survey.id, userIds);
+  const byUser = new Map<number, AttendeeSurveyFlag>();
+  for (const response of responses) {
+    byUser.set(response.user_id, { sent: response.sent_at != null, responded: response.submitted_at != null });
+  }
+  return { usable: true, byUser };
+}
+
 export type SurveyTokenState = { state: "open"; event_title: string } | { state: "submitted" } | { state: "expired" };
 
 export async function getSurveyByToken(supabase: DbClient, token: string): Promise<SurveyTokenState | null> {
   const response = await surveyDao.findByToken(supabase, token);
   if (!response) return null;
   if (response.submitted_at) return { state: "submitted" };
-  if (!isWithinWindow(response.SURVEY.sent_at)) return { state: "expired" };
+  if (!isSurveyWithinWindow(response.SURVEY.sent_at)) return { state: "expired" };
   return { state: "open", event_title: response.SURVEY.EVENT?.title ?? "this event" };
 }
 
@@ -120,7 +197,7 @@ export async function submitSurvey(
   const response = await surveyDao.findByToken(supabase, token);
   if (!response) return { ok: false, reason: "not_found" };
   if (response.submitted_at) return { ok: false, reason: "already_submitted" };
-  if (!isWithinWindow(response.SURVEY.sent_at)) return { ok: false, reason: "expired" };
+  if (!isSurveyWithinWindow(response.SURVEY.sent_at)) return { ok: false, reason: "expired" };
 
   const comment = parsed.data.comment?.trim() ? parsed.data.comment.trim() : null;
   await surveyDao.markSubmitted(supabase, response.id, parsed.data.rating, comment);
@@ -185,7 +262,7 @@ export async function getStaffSurveyStatus(supabase: DbClient, event: Event): Pr
           total_recipients: await surveyDao.countResponses(supabase, survey.id),
           responded_count: results.counts.reduce((sum, count) => sum + count, 0),
           undelivered_count: (await surveyDao.findResponsesNeedingSend(supabase, [survey.id])).length,
-          expired: !isWithinWindow(survey.sent_at),
+          expired: !isSurveyWithinWindow(survey.sent_at),
         }
       : null,
     results,

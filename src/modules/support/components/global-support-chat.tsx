@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
-import { isChatStaff, type ChatMessageWithUser } from "@/modules/chat/lib/types";
-import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
-import { MessageComposer } from "@/modules/chat/components/message-composer";
+import { isChatStaff } from "@/shared/lib/is-chat-staff";
+import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
+import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
+import { MessageComposer } from "@/shared/components/message-composer";
 
 interface GlobalSupportChatProps {
   isOpen: boolean;
@@ -74,7 +75,6 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
 
   useRealtimeMessages<ChatMessageWithUser>({
     channelName: "support-panel-general",
-    table: CHAT_TABLE,
     filter: "support_type=eq.general",
     enabled: isOpen,
     onInsert: (msg) =>

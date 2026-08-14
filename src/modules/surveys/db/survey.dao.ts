@@ -81,6 +81,41 @@ export async function findResponsesNeedingSend(supabase: DbClient, surveyIds: nu
   }));
 }
 
+/** The response row one attendee holds for a survey, or null when never created. */
+export async function findResponseBySurveyAndUserId(
+  supabase: DbClient,
+  surveyId: number,
+  userId: number,
+): Promise<SurveyResponseWithAttendee | null> {
+  const { data, error } = await supabase
+    .from("SURVEY_RESPONSE")
+    .select("*, USER:user_id(full_name, email)")
+    .eq("survey_id", surveyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  throwOnDbError(error, "survey.dao.findResponseBySurveyAndUserId");
+  return data ?? null;
+}
+
+/** The response rows for one survey among a set of attendees, for the admin table. */
+export async function findResponsesBySurveyAndUserIds(
+  supabase: DbClient,
+  surveyId: number,
+  userIds: number[],
+): Promise<SurveyResponseWithAttendee[]> {
+  if (userIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("SURVEY_RESPONSE")
+    .select("*, USER:user_id(full_name, email)")
+    .eq("survey_id", surveyId)
+    .in("user_id", userIds);
+  throwOnDbError(error, "survey.dao.findResponsesBySurveyAndUserIds");
+  return (data ?? []).map((row) => ({
+    ...row,
+    USER: Array.isArray(row.USER) ? (row.USER[0] ?? null) : row.USER,
+  }));
+}
+
 export async function markResponseSent(supabase: DbClient, responseId: number): Promise<boolean> {
   const { data, error } = await supabase
     .from("SURVEY_RESPONSE")

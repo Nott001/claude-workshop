@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { MessageComposer } from "@/modules/chat/components/message-composer";
+import { MessageComposer } from "@/shared/components/message-composer";
 
 afterEach(cleanup);
 

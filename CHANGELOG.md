@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Q/A now lives with the course it belongs to instead of sharing the support chat module. The two features only meet in the `CHAT_MESSAGE` table: Q/A owns its own `QA_MESSAGE` rows, hangs off a course as `module_type='qa'` modules, and is read under the event's team rules, so the code that talks to it now sits in `src/modules/courses/qa/`, a submodule of courses, while the chat module keeps only support-chat code. The Q/A panel subscribes to its own realtime channel — `qa-module-<id>`, scoped to the module's row-level security — instead of the generic chat subscription, and the new replay-safe migration `00003` re-asserts the `SELECT` grant and `supabase_realtime` publication membership the browser needs for that channel on environments that drifted. The `/api/qa/*` routes are unchanged and stay under `src/app/api` (Next.js requires handlers there); they are now thin handlers over the submodule's service, and the two dead 410 stubs left over from the pre-extraction `/api/qa/[eventId]` shape are gone. How a course session behaves is unchanged.
+
 ### Added
 
 - Inviting a member to the organization now says so. The invite dialog reported failures at the form but said nothing at all on success — it closed, cleared itself, and left the admin to infer from the members table whether anything had been sent. A confirmation naming the address and the role it went to now appears where the account settings toasts already appear. It is deliberately absent on the error path, where a message claiming a send would contradict the error shown in the dialog.
@@ -36,6 +40,7 @@
 
 ### Fixed
 
+- Q&A messages now reach staff who are not on the event's team. The room lets any facilitator, admin or superadmin in regardless of assignment, but the realtime read policy only admitted the asker, the event's assigned team and ticket holders — so a moderator watching a room they were not assigned to saw new questions only after a refresh, even though REST had been showing them all along. The policy helper now mirrors the room's staff arm: delivery matches what the room displays. Unassigned speakers stay excluded, exactly as the room door turns them away.
 - Lessons in the curriculum builder now have a real name and an optional description, instead of one field doubling as both. Renaming a lesson edits its name, and a description can be added or edited in place — a muted line with an "Add description" placeholder when empty — capped at 140 characters. The course room's highlighted current-topic card shows the lesson's name, with the description beneath it when one exists. Lesson names and descriptions no longer overwrite each other, and editing a lesson without a content URL no longer fails with a 400.
 - Unknown URLs (including the deprecated `/speaker/event` paths) no longer reload in an endless loop. The root layout's session provider called `router.refresh()` on the mount-time `INITIAL_SESSION` auth event, and on a URL with no matching page Next recovered from that refresh by reloading the browser — a 404 page reloading onto itself forever, and `/api/auth/me` kept answering the request while it ran. The refresh now fires only on genuine session transitions, and unmatched routes render a branded not-found page instead of the framework default, so a stale or mistyped address lands on a 404 that says so and links home. The old speaker URLs remain deprecated and answer `404` by design — no redirect was added for a single internal rename.
 - Speakers now land on `/speaker/events` instead of `/speaker/dashboard`, and the speaker nav item is labelled "My Events" to match the facilitator list; event detail and course links moved under `/speaker/events/{id}`.
