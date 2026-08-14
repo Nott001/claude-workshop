@@ -5,12 +5,13 @@ import { ROLES } from "@/shared/lib/roles";
 import type { UserRole } from "@/shared/types";
 import type { QaMessage } from "@/shared/types";
 
-const { subscribeToQaMessagesByModule, unsubscribe } = vi.hoisted(() => ({
+const { subscribeToQaMessagesByModule, subscribeToModuleLock, unsubscribe } = vi.hoisted(() => ({
   subscribeToQaMessagesByModule: vi.fn(),
+  subscribeToModuleLock: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 
-vi.mock("@/modules/courses/qa/lib/realtime", () => ({ subscribeToQaMessagesByModule }));
+vi.mock("@/modules/courses/qa/lib/realtime", () => ({ subscribeToQaMessagesByModule, subscribeToModuleLock }));
 vi.mock("@/shared/integrations/realtime", () => ({ unsubscribe }));
 
 import QAPanel from "@/modules/courses/qa/components/qa-panel";
@@ -50,13 +51,21 @@ interface QaCallbacks {
 
 let callbacks: QaCallbacks = {};
 let subscription: { name: string } = { name: "qa-module-4" };
+let lockCallbacks: { onLockChange?: (locked: boolean) => void } = {};
+let lockSubscription: { name: string } = { name: "module-lock-4" };
 
 function stubRealtime() {
   callbacks = {};
   subscription = { name: "qa-module-4" };
+  lockCallbacks = {};
+  lockSubscription = { name: "module-lock-4" };
   subscribeToQaMessagesByModule.mockImplementation((_moduleId: number, cb: QaCallbacks) => {
     callbacks = cb;
     return subscription;
+  });
+  subscribeToModuleLock.mockImplementation((_moduleId: number, cb: (locked: boolean) => void) => {
+    lockCallbacks = { onLockChange: cb };
+    return lockSubscription;
   });
 }
 
@@ -72,7 +81,7 @@ function stubFetch(responses: Array<{ method: string; url: string; body: unknown
   );
 }
 
-function renderPanel(userRole: UserRole, isSpeakerAssigned = false) {
+function renderPanel(userRole: UserRole, isSpeakerAssigned = false, isLocked = false) {
   stubFetch([
     { method: "GET", url: "/api/qa/module/4", body: { messages: [question(1, "Any question?")] } },
     { method: "GET", url: "/api/qa/message/1", body: question(1, "Any question?") },
@@ -85,7 +94,7 @@ function renderPanel(userRole: UserRole, isSpeakerAssigned = false) {
       isSpeakerAssigned={isSpeakerAssigned}
       eventStarted={true}
       eventEnded={false}
-      isLocked={false}
+      isLocked={isLocked}
       onToggleLock={vi.fn()}
     />,
   );
@@ -142,11 +151,31 @@ describe("QAPanel", () => {
     expect(screen.queryByRole("button", { name: "delete" })).toBeNull();
   });
 
+  it("renders the lock state it is seeded with", async () => {
+    renderPanel(ROLES.FACILITATOR, false, true);
+
+    await screen.findByText("Any question?");
+    await waitFor(() => expect(screen.getByRole("button", { name: /unlock/i })).toBeTruthy());
+  });
+
+  it("flips the lock live when the module channel broadcasts an UPDATE", async () => {
+    renderPanel(ROLES.FACILITATOR);
+
+    await screen.findByText("Any question?");
+    await waitFor(() => expect(screen.getByRole("button", { name: /locked/i })).toBeTruthy());
+
+    lockCallbacks.onLockChange?.(true);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /unlock/i })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /locked/i })).toBeNull();
+  });
+
   it("subscribes to the module's owned realtime channel", async () => {
     renderPanel(ROLES.ATTENDEE);
 
     await screen.findByText("Any question?");
     expect(subscribeToQaMessagesByModule).toHaveBeenCalledWith(4, expect.objectContaining({}));
+    expect(subscribeToModuleLock).toHaveBeenCalledWith(4, expect.any(Function));
   });
 
   it("appends a question that arrives on the channel after enriching it", async () => {
@@ -187,12 +216,13 @@ describe("QAPanel", () => {
     await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
   });
 
-  it("tears the subscription down through the shared unsubscribe", async () => {
+  it("tears both subscriptions down through the shared unsubscribe", async () => {
     const view = renderPanel(ROLES.ATTENDEE);
     await screen.findByText("Any question?");
 
     view.unmount();
 
     expect(unsubscribe).toHaveBeenCalledWith(subscription);
+    expect(unsubscribe).toHaveBeenCalledWith(lockSubscription);
   });
 });

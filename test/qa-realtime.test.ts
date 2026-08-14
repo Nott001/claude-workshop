@@ -11,7 +11,7 @@ vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ channel, removeChannel }),
 }));
 
-import { subscribeToQaMessagesByModule } from "@/modules/courses/qa/lib/realtime";
+import { subscribeToModuleLock, subscribeToQaMessagesByModule } from "@/modules/courses/qa/lib/realtime";
 import { unsubscribe } from "@/shared/integrations/realtime";
 
 beforeEach(() => {
@@ -84,5 +84,44 @@ describe("subscribeToQaMessagesByModule", () => {
     captureHandler()({ eventType: "DELETE", old: { id: 43, module_id: 4 } });
 
     expect(onDelete).toHaveBeenCalledWith({ id: 43, module_id: 4 });
+  });
+});
+
+describe("subscribeToModuleLock", () => {
+  it("subscribes to MODULE updates scoped to the module", () => {
+    subscribeToModuleLock(4, vi.fn());
+
+    expect(on).toHaveBeenCalledWith(
+      "postgres_changes",
+      expect.objectContaining({ event: "UPDATE", table: "MODULE", filter: "id=eq.4" }),
+      expect.any(Function),
+    );
+  });
+
+  it("uses a stable channel name per module", () => {
+    subscribeToModuleLock(4, vi.fn());
+    subscribeToModuleLock(9, vi.fn());
+
+    expect(channel.mock.calls[0][0]).toBe("module-lock-4");
+    expect(channel.mock.calls[1][0]).toBe("module-lock-9");
+  });
+
+  it("fires onLockChange with the new is_locked on UPDATE", () => {
+    const onLockChange = vi.fn();
+    subscribeToModuleLock(4, onLockChange);
+
+    captureHandler()({ eventType: "UPDATE", new: { id: 4, is_locked: true } });
+
+    expect(onLockChange).toHaveBeenCalledWith(true);
+  });
+
+  it("ignores an UPDATE that carries no boolean lock", () => {
+    const onLockChange = vi.fn();
+    subscribeToModuleLock(4, onLockChange);
+
+    captureHandler()({ eventType: "UPDATE", new: { id: 4 } });
+    captureHandler()({ eventType: "UPDATE", new: { id: 4, is_locked: null } });
+
+    expect(onLockChange).not.toHaveBeenCalled();
   });
 });

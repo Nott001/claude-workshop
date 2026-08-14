@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import type { UserRole } from "@/shared/types";
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { QaMessageWithUser } from "@/modules/courses/qa/lib/types";
-import { subscribeToQaMessagesByModule } from "@/modules/courses/qa/lib/realtime";
+import { subscribeToQaMessagesByModule, subscribeToModuleLock } from "@/modules/courses/qa/lib/realtime";
 import { unsubscribe } from "@/shared/integrations/realtime";
 import { MessageComposer } from "@/shared/components/message-composer";
 
@@ -32,6 +32,16 @@ export default function QAPanel({
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The lock is broadcast by realtime; the prop only seeds it, so a toggle by
+  // any moderator lands here live instead of surviving only for the one who
+  // reloaded. React's "adjust state during render" pattern keeps the seed
+  // current when the room refetches, without a setState-in-effect cascade.
+  const [locked, setLocked] = useState(isLocked);
+  const [prevLockedProp, setPrevLockedProp] = useState(isLocked);
+  if (prevLockedProp !== isLocked) {
+    setPrevLockedProp(isLocked);
+    setLocked(isLocked);
+  }
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -78,11 +88,17 @@ export default function QAPanel({
   }, [moduleId]);
 
   useEffect(() => {
+    const sub = subscribeToModuleLock(moduleId, setLocked);
+
+    return () => unsubscribe(sub);
+  }, [moduleId]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function handleSend() {
-    if (!newMessage.trim() || sending || !eventStarted || isLocked) return;
+    if (!newMessage.trim() || sending || !eventStarted || locked) return;
 
     const text = newMessage.trim();
     setSending(true);
@@ -135,13 +151,13 @@ export default function QAPanel({
           <button
             onClick={onToggleLock}
             className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
-              isLocked
+              locked
                 ? "border border-error/30 text-error hover:bg-error/10"
                 : "border border-success/30 text-success hover:bg-success/10"
             }`}
           >
-            <span className="material-symbols-rounded text-xs">{isLocked ? "lock" : "lock_open"}</span>
-            {isLocked ? "Unlock" : "Locked"}
+            <span className="material-symbols-rounded text-xs">{locked ? "lock" : "lock_open"}</span>
+            {locked ? "Unlock" : "Locked"}
           </button>
         )}
       </div>
@@ -193,7 +209,7 @@ export default function QAPanel({
                 Q&A opens when the event starts.
               </p>
             </div>
-          ) : isLocked ? (
+          ) : locked ? (
             <div className="shrink-0 border-t border-border px-4 py-3 text-center">
               <p className="flex items-center justify-center gap-1.5 text-[10px] text-muted-fg">
                 <span className="material-symbols-rounded text-xs">lock</span>

@@ -44,19 +44,15 @@ export default function CourseRoomPage() {
     handleClearHighlight,
   } = useCourseRoomAccess(courseId);
 
-  const handleToggleLock = useCallback(
-    async (moduleId: number, currentLocked: boolean) => {
-      await fetch(`/api/qa/module/${moduleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_locked: !currentLocked }),
-      });
-      if (isStaff) {
-        window.location.reload();
-      }
-    },
-    [isStaff],
-  );
+  const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
+    await fetch(`/api/qa/module/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_locked: !currentLocked }),
+    });
+    // No reload: the panel's MODULE subscription broadcasts the new lock state
+    // to every viewer, the toggler included.
+  }, []);
 
   const handleExit = useCallback(() => {
     if (!eventId) return;

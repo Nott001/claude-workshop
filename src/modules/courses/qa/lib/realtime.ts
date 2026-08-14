@@ -39,3 +39,29 @@ export function subscribeToQaMessagesByModule(moduleId: number, callbacks: QaRea
 
   return sub;
 }
+
+/**
+ * Subscribes to the module's lock column. MODULE is already a member of the
+ * supabase_realtime publication with a `USING (true)` read policy, so the
+ * browser gets UPDATE events under its own role. The default replica identity
+ * sends only the changed columns, and is_locked is what the lock PATCH
+ * changes, so the payload carries it; anything else is ignored.
+ */
+export function subscribeToModuleLock(moduleId: number, onLockChange: (isLocked: boolean) => void): RealtimeChannel {
+  return getBrowserClient()
+    .channel(`module-lock-${moduleId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "MODULE",
+        filter: `id=eq.${moduleId}`,
+      },
+      (payload) => {
+        const isLocked = (payload.new as { is_locked?: unknown }).is_locked;
+        if (typeof isLocked === "boolean") onLockChange(isLocked);
+      },
+    )
+    .subscribe();
+}
