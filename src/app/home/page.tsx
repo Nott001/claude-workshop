@@ -52,7 +52,7 @@ export default function HomePage() {
         </HeroSection>
 
         <div className="px-6 py-12">
-          <EventGrid events={events} />
+          <EventGrid events={events} backOrigin="home" />
         </div>
       </div>
     </>

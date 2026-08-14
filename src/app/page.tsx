@@ -49,7 +49,7 @@ export default async function HomePage() {
 
         <div className="px-6 py-12">
           <h2 className="mb-6 text-lg font-bold text-fg">Upcoming Events</h2>
-          <EventGrid events={events} />
+          <EventGrid events={events} backOrigin="landing" />
         </div>
       </div>
     </>

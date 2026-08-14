@@ -42,7 +42,10 @@ export function EventDetailHero({ event, badgeLabel }: EventDetailHeroProps) {
           the card, where overflow-hidden clipped it — costing this panel most
           of its right padding and leaving the title against the edge. */}
       <div className="grid gap-6 lg:grid-cols-[65fr_35fr]">
-        <div className="relative min-h-[320px]">
+        {/* Only the two-column layout gets the taller panel. Stacked on a
+            phone this column is pure decoration sitting above the facts, and
+            400px of it would push the title below the fold. */}
+        <div className="relative min-h-[320px] lg:min-h-[400px]">
           <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
           {event.cover_image_url && (
             <img src={event.cover_image_url} alt={event.title} className="absolute inset-0 size-full object-cover" />

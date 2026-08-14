@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
+import { resolveBackLink, toBackLinkOrigin } from "@/shared/lib/back-link";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { EventSchedule } from "@/modules/events/components/event-schedule";
@@ -13,12 +14,14 @@ import { EventRegisterCard } from "@/modules/events/components/event-register-ca
 import { EventMapCard } from "@/modules/events/components/event-map-card";
 import { EventShare } from "@/modules/events/components/event-share";
 
-export function EventDetailPage() {
+export function EventDetailPage({ from }: { from?: string }) {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId);
+  const backOrigin = toBackLinkOrigin(from);
+  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
+  const backLink = resolveBackLink(backOrigin);
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
@@ -48,13 +51,16 @@ export function EventDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
+      {/* Gutters stay at sm:px-8. Widening them at lg would take width back off
+          the content on any viewport narrower than the cap, where the cap is
+          not what is limiting the layout in the first place. */}
+      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
         <Link
-          href="/events"
+          href={backLink.href}
           className="mb-6 flex w-fit items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
         >
           <span className="material-symbols-rounded text-[16px]">arrow_back</span>
-          Back to Events
+          {backLink.label}
         </Link>
 
         <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />

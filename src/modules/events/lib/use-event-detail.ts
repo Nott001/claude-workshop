@@ -4,6 +4,8 @@ import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
+import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
+import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
 import { getBadgeProps } from "@/modules/events/lib/schemas";
 import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -18,7 +20,9 @@ export interface AttendeeRow {
   checked_in_at: string | null;
 }
 
-export function useEventDetail(eventId: string) {
+/** `backOrigin` is carried into every hop this hook navigates to, so a reader
+ *  who registers or signs up still lands back where they started. */
+export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useSession();
   const userRole = user?.role ?? null;
@@ -85,10 +89,12 @@ export function useEventDetail(eventId: string) {
 
   async function handleRegister() {
     if (!isSignedIn) {
-      router.push(`/sign-up?redirect_url=/events/${eventId}`);
+      // Encoded, not interpolated: the return path now carries a query of its
+      // own, which raw would read as a second parameter of /sign-up.
+      router.push(`/sign-up${redirectUrlParam(withBackLink(`/events/${eventId}`, backOrigin))}`);
       return;
     }
-    router.push(`/events/${eventId}/register`);
+    router.push(withBackLink(`/events/${eventId}/register`, backOrigin));
   }
 
   async function handlePublish() {
