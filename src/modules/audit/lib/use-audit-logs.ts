@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 // The route serves auditDao.list's rows verbatim. The hand-written copy that
 // used to live here called the key `log_id`; AUDIT_LOG's primary key is `id`,
 // so every row's key was undefined.
@@ -11,14 +12,31 @@ export function useAuditLogs() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const appliedSearchRef = useRef(debouncedSearch);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchLogs() {
       setLoading(true);
+      // A new search means a fresh result set, so pagination starts back at
+      // page 1. Reset here and hand the fetch back to the re-render's own
+      // effect run, which carries page 1 — fetching immediately would double
+      // the request. The reset is state set inside the async function, never
+      // synchronously in the effect body.
+      if (debouncedSearch !== appliedSearchRef.current && page !== 1) {
+        appliedSearchRef.current = debouncedSearch;
+        setPage(1);
+        return;
+      }
+      appliedSearchRef.current = debouncedSearch;
+
       try {
-        const res = await fetch(`/api/audit-logs?page=${page}`);
+        const params = new URLSearchParams({ page: String(page) });
+        if (debouncedSearch) params.set("search", debouncedSearch);
+        const res = await fetch(`/api/audit-logs?${params}`);
         const data = res.ok ? await res.json() : { logs: [], total: 0 };
         if (!cancelled) {
           setLogs(Array.isArray(data.logs) ? data.logs : []);
@@ -38,7 +56,7 @@ export function useAuditLogs() {
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, debouncedSearch]);
 
-  return { logs, loading, page, setPage, totalPages };
+  return { logs, loading, page, setPage, totalPages, search, setSearch };
 }
