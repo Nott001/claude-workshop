@@ -43,20 +43,20 @@ function TableSearch({ value, onChange, placeholder, className }: TableSearchPro
   );
 }
 
-interface FilterTab {
-  key: string;
+interface FilterTab<K extends string = string> {
+  key: K;
   label: string;
 }
 
-interface FilterTabsProps {
-  tabs: FilterTab[];
-  active: string;
-  onChange: (key: string) => void;
+interface FilterTabsProps<K extends string = string> {
+  tabs: FilterTab<K>[];
+  active: K;
+  onChange: (key: K) => void;
   counts?: Record<string, number>;
   className?: string;
 }
 
-function FilterTabs({ tabs, active, onChange, counts, className }: FilterTabsProps) {
+function FilterTabs<K extends string = string>({ tabs, active, onChange, counts, className }: FilterTabsProps<K>) {
   return (
     <div className={cn("flex gap-1.5", className)}>
       {tabs.map((tab) => {

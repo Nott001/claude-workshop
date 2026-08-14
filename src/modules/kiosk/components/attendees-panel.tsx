@@ -1,9 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input } from "@/shared/components/input";
-import { Button } from "@/shared/components/button";
 import { subscribeToCheckins, unsubscribe } from "@/shared/integrations/realtime";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import {
+  Table,
+  TableHead,
+  TableHeadCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableEmpty,
+  TableContainer,
+} from "@/shared/components/table";
+import { Badge } from "@/shared/components/badge";
+import { TableSearch, FilterTabs, type FilterTab } from "@/shared/components/table-toolbar";
+import { Pagination } from "@/shared/components/table-pagination";
+import { Drawer } from "@/shared/components/drawer";
 
 interface Attendee {
   user_id: number;
@@ -16,11 +29,11 @@ interface Attendee {
 
 type StatusFilter = "all" | "checked_in" | "not_checked_in";
 
-const STATUS_LABELS: Record<StatusFilter, string> = {
-  all: "All",
-  checked_in: "Checked in",
-  not_checked_in: "Not checked in",
-};
+const STATUS_TABS: FilterTab<StatusFilter>[] = [
+  { key: "all", label: "All" },
+  { key: "checked_in", label: "Checked in" },
+  { key: "not_checked_in", label: "Not checked in" },
+];
 
 function getInitials(name: string): string {
   return name
@@ -38,6 +51,14 @@ function formatTime(dateStr: string): string {
   });
 }
 
+function formatShortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function AttendeesPanel({ eventId }: { eventId: string }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,9 +67,14 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selected, setSelected] = useState<Attendee | null>(null);
 
   const pageSize = 15;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Debounced server-side search: keystrokes update the input immediately but
+  // only settle into a fetch after the pause, so each search term triggers one
+  // request. Trimmed so a trailing space doesn't produce a spurious refetch.
+  const debouncedSearch = useDebouncedValue(search.trim());
 
   useEffect(() => {
     let ignore = false;
@@ -59,7 +85,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
         page: String(page),
         limit: String(pageSize),
       });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (statusFilter !== "all") params.set("status", statusFilter);
 
       const res = await fetch(`/api/events/${eventId}/attendees?${params}`);
@@ -75,8 +101,10 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
     return () => {
       ignore = true;
     };
-  }, [eventId, page, search, statusFilter, refreshKey]);
+  }, [eventId, page, debouncedSearch, statusFilter, refreshKey]);
 
+  // Deliberately keyed on eventId only: the subscription must survive drawer
+  // open/close, so `selected` must not appear in these deps.
   useEffect(() => {
     if (!eventId) return;
     const sub = subscribeToCheckins(Number(eventId), () => {
@@ -97,6 +125,12 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
     setPage(1);
   }
 
+  const statusBadge = (attendee: Attendee) => {
+    if (attendee.ticket_status === "checked_in") return <Badge variant="success">Checked in</Badge>;
+    if (attendee.ticket_status === "cancelled") return <Badge variant="error">Cancelled</Badge>;
+    return <Badge>Registered</Badge>;
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="mb-3">
@@ -104,25 +138,8 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
       </div>
 
       <div className="mb-3 flex flex-col gap-3">
-        <div className="flex gap-1.5">
-          {(["all", "checked_in", "not_checked_in"] as StatusFilter[]).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => handleStatusFilter(filter)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                statusFilter === filter ? "bg-brand/10 text-brand" : "bg-muted text-muted-fg hover:bg-muted"
-              }`}
-            >
-              {STATUS_LABELS[filter]}
-            </button>
-          ))}
-        </div>
-        <Input
-          placeholder="Search name or email..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="h-9 text-xs"
-        />
+        <FilterTabs tabs={STATUS_TABS} active={statusFilter} onChange={handleStatusFilter} />
+        <TableSearch value={search} onChange={handleSearch} placeholder="Search name or email..." />
       </div>
 
       {loading ? (
@@ -130,28 +147,31 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
           <span className="material-symbols-rounded animate-spin text-2xl text-brand">progress_activity</span>
         </div>
       ) : attendees.length === 0 ? (
-        <div className="rounded-lg border border-border bg-muted px-4 py-8 text-center">
-          <span className="material-symbols-rounded mb-1 text-2xl text-muted-fg">group</span>
-          <p className="text-xs font-medium text-fg">No attendees found</p>
-          <p className="mt-0.5 text-[10px] text-muted-fg">
-            {search ? "Try a different search term." : "No attendees match the current filter."}
-          </p>
-        </div>
+        <TableEmpty
+          icon="group"
+          title="No attendees found"
+          hint={search ? "Try a different search term." : "No attendees match the current filter."}
+        />
       ) : (
         <>
-          <div className="flex-1 overflow-auto rounded-lg border border-border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border bg-muted text-left text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Checked In</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer className="flex-1 overflow-auto">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeadCell>Name</TableHeadCell>
+                  <TableHeadCell>Status</TableHeadCell>
+                  <TableHeadCell>Checked In</TableHeadCell>
+                  <TableHeadCell className="w-12" aria-label="Actions" />
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {attendees.map((attendee) => (
-                  <tr key={attendee.user_id} className="border-b border-border last:border-b-0">
-                    <td className="px-3 py-2">
+                  <TableRow
+                    key={attendee.user_id}
+                    onClick={() => setSelected(attendee)}
+                    aria-label={`View ${attendee.full_name}`}
+                  >
+                    <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="grid size-6 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
                           {getInitials(attendee.full_name)}
@@ -161,60 +181,58 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
                           <p className="truncate text-[10px] text-muted-fg">{attendee.email}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          attendee.ticket_status === "checked_in"
-                            ? "bg-success/10 text-success"
-                            : attendee.ticket_status === "cancelled"
-                              ? "bg-error/10 text-error"
-                              : "bg-muted text-muted-fg"
-                        }`}
-                      >
-                        {attendee.ticket_status === "checked_in"
-                          ? "Checked in"
-                          : attendee.ticket_status === "cancelled"
-                            ? "Cancelled"
-                            : "Registered"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-muted-fg">
+                    </TableCell>
+                    <TableCell>{statusBadge(attendee)}</TableCell>
+                    <TableCell className="text-muted-fg">
                       {attendee.checked_in_at ? formatTime(attendee.checked_in_at) : "\u2014"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="w-12">
+                      <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                        chevron_right
+                      </span>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-          <div className="mt-2 flex items-center justify-between text-[10px] text-muted-fg">
-            <span>
-              {(page - 1) * pageSize + 1}\u2013{Math.min(page * pageSize, total)} of {total}
-            </span>
-            <div className="flex gap-1.5">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="h-7 px-2 text-[10px]"
-              >
-                Prev
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="h-7 px-2 text-[10px]"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} className="mt-4" />
         </>
       )}
+
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title={selected?.full_name ?? ""}
+        description={selected?.email}
+      >
+        {selected && (
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">
+                {getInitials(selected.full_name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-medium text-fg">{selected.full_name}</p>
+                <p className="truncate text-xs text-muted-fg">{selected.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Ticket status</span>
+              {statusBadge(selected)}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Issued</span>
+              <span>{formatShortDate(selected.issued_at)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Checked in</span>
+              <span>{selected.checked_in_at ? formatTime(selected.checked_in_at) : "—"}</span>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

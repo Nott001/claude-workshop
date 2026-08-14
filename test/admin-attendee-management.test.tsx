@@ -31,6 +31,17 @@ const checkedInAttendee = {
   can_send_survey: false,
 };
 
+const noPermissionsAttendee = {
+  ...attendee,
+  user_id: 3,
+  full_name: "No Perms",
+  email: "noperms@example.com",
+  can_check_in: false,
+  can_cancel: false,
+  can_resend_ticket: false,
+  can_send_survey: false,
+};
+
 function manageResponse(attendees: unknown[], surveySendable: boolean) {
   return {
     ok: true,
@@ -62,7 +73,7 @@ afterEach(() => {
 });
 
 describe("AdminAttendeeManagement", () => {
-  it("renders registered users with status, survey and action columns", async () => {
+  it("renders registered users with status, survey and attendee columns but no in-row actions", async () => {
     list = [attendee, checkedInAttendee];
 
     render(<AdminAttendeeManagement eventId="7" />);
@@ -72,10 +83,10 @@ describe("AdminAttendeeManagement", () => {
     expect(screen.getByText("Registered")).toBeTruthy();
     expect(screen.getByText(/Checked in ·/)).toBeTruthy();
     expect(screen.getByText("Sent")).toBeTruthy();
-    expect(screen.getByText("Check in")).toBeTruthy();
-    expect(screen.getByText("Cancel")).toBeTruthy();
-    expect(screen.getByText("Send survey")).toBeTruthy();
-    expect(screen.getByText("Resend ticket")).toBeTruthy();
+    expect(screen.queryByText("Check in")).toBeNull();
+    expect(screen.queryByText("Cancel")).toBeNull();
+    expect(screen.queryByText("Send survey")).toBeNull();
+    expect(screen.queryByText("Resend ticket")).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith("/api/events/7/attendees/manage?page=1&limit=15");
   });
 
@@ -124,10 +135,27 @@ describe("AdminAttendeeManagement", () => {
     expect(fetchMock).toHaveBeenLastCalledWith("/api/events/7/attendees/manage?page=1&limit=15&search=rina&status=checked_in");
   });
 
-  it("checks an attendee in by POSTing and refreshing the list", async () => {
+  it("opens the drawer on row click with details and actions", async () => {
     render(<AdminAttendeeManagement eventId="7" />);
     await screen.findByText("Rina Dela Cruz");
 
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain("rina@example.com");
+    expect(dialog.textContent).toContain("Aug 1, 2026");
+    expect(screen.getByRole("button", { name: "Check in" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Send survey" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Resend ticket" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+  });
+
+  it("checks an attendee in from the drawer by POSTing and refreshing the list", async () => {
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("Rina Dela Cruz");
+
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Check in" }));
     });
@@ -135,10 +163,11 @@ describe("AdminAttendeeManagement", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/events/7/attendees/1/checkin", { method: "POST" }));
   });
 
-  it("cancels a registration only after confirmation", async () => {
+  it("cancels a registration from the drawer only after confirmation", async () => {
     render(<AdminAttendeeManagement eventId="7" />);
     await screen.findByText("Rina Dela Cruz");
 
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     });
@@ -157,10 +186,27 @@ describe("AdminAttendeeManagement", () => {
       }
       return Promise.resolve(manageResponse(list, surveySendable));
     });
+
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Send survey" }));
     });
 
     expect(await screen.findByText("Ticket already cancelled")).toBeTruthy();
+  });
+
+  it("shows the drawer with no action buttons when the attendee has no permissions", async () => {
+    list = [noPermissionsAttendee];
+
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("No Perms");
+
+    fireEvent.click(screen.getByRole("row", { name: /Manage No Perms/ }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Check in" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send survey" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Resend ticket" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 });
