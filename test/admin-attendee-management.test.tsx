@@ -130,7 +130,10 @@ describe("AdminAttendeeManagement", () => {
     expect(fetchMock).toHaveBeenLastCalledWith("/api/events/7/attendees/manage?page=1&limit=15&search=rina");
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Checked in" }));
+      fireEvent.click(screen.getByRole("combobox"));
+      const checkedInOption = await screen.findByRole("option", { name: "Checked in" });
+      fireEvent.pointerDown(checkedInOption, { pointerType: "mouse" });
+      fireEvent.click(checkedInOption);
     });
     expect(fetchMock).toHaveBeenLastCalledWith("/api/events/7/attendees/manage?page=1&limit=15&search=rina&status=checked_in");
   });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { TableSearch, FilterTabs } from "@/shared/components/table-toolbar";
+import { TableSearch, TableToolbar } from "@/shared/components/table-toolbar";
 
 afterEach(() => {
   cleanup();
@@ -36,32 +36,36 @@ describe("TableSearch", () => {
   });
 });
 
-describe("FilterTabs", () => {
-  const tabs = [
-    { key: "all", label: "All" },
-    { key: "checked_in", label: "Checked in" },
-  ];
+describe("TableToolbar", () => {
+  it("renders the search above the filter children", () => {
+    const { container } = render(
+      <TableToolbar search={{ value: "", onChange: () => {}, placeholder: "Search rows..." }}>
+        <button type="button">Filter</button>
+      </TableToolbar>,
+    );
 
-  it("marks the active tab", () => {
-    render(<FilterTabs tabs={tabs} active="checked_in" onChange={() => {}} />);
+    const input = container.querySelector("input");
+    const filter = screen.getByRole("button", { name: "Filter" });
 
-    expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByRole("button", { name: "Checked in" }).getAttribute("aria-pressed")).toBe("true");
+    expect(input).toBeTruthy();
+    // The search input precedes the filter controls in document order.
+    expect(input!.compareDocumentPosition(filter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("calls onChange with the clicked tab key", () => {
+  it("passes the search value and onChange through", () => {
     const onChange = vi.fn();
-    render(<FilterTabs tabs={tabs} active="all" onChange={onChange} />);
+    render(<TableToolbar search={{ value: "ada", onChange, placeholder: "Search rows..." }} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Checked in" }));
+    expect(screen.getByPlaceholderText("Search rows...").getAttribute("value")).toBe("ada");
 
-    expect(onChange).toHaveBeenCalledWith("checked_in");
+    fireEvent.change(screen.getByPlaceholderText("Search rows..."), { target: { value: "grace" } });
+
+    expect(onChange).toHaveBeenCalledWith("grace");
   });
 
-  it("renders counts when given", () => {
-    render(<FilterTabs tabs={tabs} active="all" onChange={() => {}} counts={{ all: 34, checked_in: 7 }} />);
+  it("renders without filter children", () => {
+    render(<TableToolbar search={{ value: "", onChange: () => {}, placeholder: "Search rows..." }} />);
 
-    expect(screen.getByRole("button", { name: "All (34)" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Checked in (7)" })).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search rows...")).toBeTruthy();
   });
 });

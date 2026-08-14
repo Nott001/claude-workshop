@@ -76,14 +76,17 @@ describe("StaffOrganizationPage", () => {
     expect(urls[urls.length - 1]).toBe("/api/organization?page=1&limit=10&search=ada");
   });
 
-  it("filters by role via the tab", async () => {
+  it("filters by role via the select", async () => {
     stubFetch([], 0);
 
     render(<StaffOrganizationPage />);
     await screen.findByText("No members found");
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Facilitator" }));
+      fireEvent.click(screen.getByRole("combobox"));
+      const facilitatorOption = await screen.findByRole("option", { name: "Facilitator" });
+      fireEvent.pointerDown(facilitatorOption, { pointerType: "mouse" });
+      fireEvent.click(facilitatorOption);
     });
 
     expect(fetchMock).toHaveBeenLastCalledWith("/api/organization?page=1&limit=10&role=facilitator");

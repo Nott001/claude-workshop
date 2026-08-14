@@ -8,7 +8,8 @@ import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
 import type { AuditLogWithActor } from "@/modules/audit/db/audit.dao";
 import { Badge } from "@/shared/components/badge";
 import { Drawer } from "@/shared/components/drawer";
-import { FilterTabs, TableSearch, type FilterTab } from "@/shared/components/table-toolbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
+import { TableToolbar } from "@/shared/components/table-toolbar";
 import { Pagination } from "@/shared/components/table-pagination";
 import {
   Table,
@@ -80,14 +81,14 @@ function categoryOf(action: string): Category {
   return "all";
 }
 
-const CATEGORY_TABS: FilterTab<Category>[] = [
-  { key: "all", label: "All" },
-  { key: "created", label: "Created" },
-  { key: "deleted/removed", label: "Deleted/Removed" },
-  { key: "updated", label: "Updated" },
-  { key: "assigned", label: "Assigned" },
-  { key: "check-in", label: "Check-in" },
-  { key: "invited", label: "Invited" },
+const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "created", label: "Created" },
+  { value: "deleted/removed", label: "Deleted/Removed" },
+  { value: "updated", label: "Updated" },
+  { value: "assigned", label: "Assigned" },
+  { value: "check-in", label: "Check-in" },
+  { value: "invited", label: "Invited" },
 ];
 
 // The hook debounces search itself and resets page on a new term (sheet 05), so
@@ -127,10 +128,20 @@ export default function StaffAuditLogsPage() {
           </button>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3">
-          <TableSearch value={search} onChange={setSearch} placeholder="Search action, entity, or actor..." />
-          <FilterTabs tabs={CATEGORY_TABS} active={category} onChange={setCategory} />
-        </div>
+        <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search action, entity, or actor..." }}>
+          <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
+            <SelectTrigger>
+              <SelectValue>{CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? "All"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableToolbar>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">

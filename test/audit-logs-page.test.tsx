@@ -63,18 +63,28 @@ describe("StaffAuditLogsPage", () => {
     expect(screen.getByText("1–20 of 25")).toBeTruthy();
   });
 
-  it("filters the loaded page by category", async () => {
+  it("filters the loaded page by category via the select", async () => {
     stubFetch(logs, 2);
 
     render(<StaffAuditLogsPage />);
     await screen.findByText("Event Created");
 
-    fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+      const checkInOption = await screen.findByRole("option", { name: "Check-in" });
+      fireEvent.pointerDown(checkInOption, { pointerType: "mouse" });
+      fireEvent.click(checkInOption);
+    });
 
     expect(screen.getByText("ticket #42")).toBeTruthy();
     expect(screen.queryByText("event #7")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+      const allOption = await screen.findByRole("option", { name: "All" });
+      fireEvent.pointerDown(allOption, { pointerType: "mouse" });
+      fireEvent.click(allOption);
+    });
     expect(screen.getByText("event #7")).toBeTruthy();
   });
 

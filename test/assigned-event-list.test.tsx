@@ -82,7 +82,7 @@ describe("AssignedEventListPage", () => {
     expect(screen.queryByText("Gamma")).toBeNull();
   });
 
-  it("moves a finished event to the Completed tab", async () => {
+  it("moves a finished event under Completed via the select", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: events, total: 3, page: 1, limit: 50 }) }),
@@ -91,7 +91,12 @@ describe("AssignedEventListPage", () => {
     render(<AssignedEventListPage />);
     expect(await screen.findByText("Alpha")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Completed/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+      const completedOption = await screen.findByRole("option", { name: "Completed" });
+      fireEvent.pointerDown(completedOption, { pointerType: "mouse" });
+      fireEvent.click(completedOption);
+    });
 
     expect(screen.getByText("Gamma")).toBeTruthy();
     expect(screen.queryByText("Alpha")).toBeNull();

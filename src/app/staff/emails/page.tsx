@@ -8,7 +8,7 @@ import { useEmailLogs } from "@/shared/integrations/email/use-email-logs";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { Badge } from "@/shared/components/badge";
 import { Drawer } from "@/shared/components/drawer";
-import { TableSearch } from "@/shared/components/table-toolbar";
+import { TableToolbar } from "@/shared/components/table-toolbar";
 import {
   Table,
   TableBody,
@@ -84,8 +84,7 @@ export default function StaffEmailsPage() {
           <h1 className="text-2xl font-bold text-fg">Email Logs</h1>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3">
-          <TableSearch value={search} onChange={setSearch} placeholder="Search recipient name or email..." />
+        <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search recipient name or email..." }}>
           <div className="flex gap-3">
             <Select value={emailTypeFilter} onValueChange={(v) => setEmailTypeFilter(v as EmailType | "")}>
               <SelectTrigger>
@@ -113,7 +112,7 @@ export default function StaffEmailsPage() {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </TableToolbar>
 
         {loading ? (
           <div className="flex flex-1 items-center justify-center p-8">

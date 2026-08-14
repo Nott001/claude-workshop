@@ -6,32 +6,22 @@ import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { LoadMoreButton } from "@/shared/components/load-more";
-import { TableSearch, FilterTabs } from "@/shared/components/table-toolbar";
+import { TableToolbar } from "@/shared/components/table-toolbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 
-const TABS: { key: FilterTab; label: string }[] = [
-  { key: "upcoming", label: "Upcoming" },
-  { key: "completed", label: "Completed" },
+const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
+  { value: "upcoming", label: "Upcoming" },
+  { value: "completed", label: "Completed" },
 ];
 
 export function AssignedEventListPage() {
   // Exact facilitator, not min-role: an admin clears a facilitator minimum, but
   // the server hands admins every event and this page must not leak that.
   const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { exactRole: true });
-  const {
-    filteredEvents,
-    loading,
-    loadingMore,
-    error,
-    hasMore,
-    loadMore,
-    activeTab,
-    setActiveTab,
-    tabCounts,
-    search,
-    setSearch,
-  } = useEventList({
-    upcomingIncludesDrafts: true,
-  });
+  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
+    useEventList({
+      upcomingIncludesDrafts: true,
+    });
 
   if (pending || loading) {
     return (
@@ -58,11 +48,20 @@ export function AssignedEventListPage() {
           <span className="text-base font-bold text-foreground">My Events</span>
         </div>
 
-        <TableSearch value={search} onChange={setSearch} placeholder="Search events" className="mb-3 max-w-xs" />
-
-        <div className="mb-3">
-          <FilterTabs tabs={TABS} active={activeTab} onChange={setActiveTab} counts={tabCounts} />
-        </div>
+        <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search events" }}>
+          <Select value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+            <SelectTrigger>
+              <SelectValue>{STATUS_OPTIONS.find((o) => o.value === activeTab)?.label ?? "Upcoming"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableToolbar>
 
         <EventTable events={filteredEvents} showKiosk />
 

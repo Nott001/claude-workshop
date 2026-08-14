@@ -22,7 +22,7 @@ import {
   TableEmpty,
   TableContainer,
 } from "@/shared/components/table";
-import { TableSearch, FilterTabs, type FilterTab } from "@/shared/components/table-toolbar";
+import { TableToolbar } from "@/shared/components/table-toolbar";
 import { Pagination } from "@/shared/components/table-pagination";
 import { Drawer } from "@/shared/components/drawer";
 import type { UserRole } from "@/shared/types";
@@ -57,9 +57,9 @@ const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "er
 type RoleFilter = "all" | UserRole;
 
 // The filter shows every staff role, not just the ones this user may hand out.
-const ROLE_TABS: FilterTab<RoleFilter>[] = [
-  { key: "all", label: "All" },
-  ...STAFF_ROLES.map((role) => ({ key: role as RoleFilter, label: roleLabel(role) })),
+const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
+  { value: "all", label: "All roles" },
+  ...STAFF_ROLES.map((role) => ({ value: role as RoleFilter, label: roleLabel(role) })),
 ];
 
 export default function StaffOrganizationPage() {
@@ -202,10 +202,20 @@ export default function StaffOrganizationPage() {
           </Button>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3">
-          <FilterTabs tabs={ROLE_TABS} active={roleFilter} onChange={handleRoleFilter} />
-          <TableSearch value={search} onChange={handleSearch} placeholder="Search name or email..." />
-        </div>
+        <TableToolbar search={{ value: search, onChange: handleSearch, placeholder: "Search name or email..." }}>
+          <Select value={roleFilter} onValueChange={(v) => handleRoleFilter(v as RoleFilter)}>
+            <SelectTrigger>
+              <SelectValue>{ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label ?? "All roles"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ROLE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableToolbar>
 
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
           <DialogContent>

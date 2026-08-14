@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Input } from "@/shared/components/input";
 import { cn } from "@/shared/lib/utils";
 
@@ -43,43 +44,22 @@ function TableSearch({ value, onChange, placeholder, className }: TableSearchPro
   );
 }
 
-interface FilterTab<K extends string = string> {
-  key: K;
-  label: string;
-}
-
-interface FilterTabsProps<K extends string = string> {
-  tabs: FilterTab<K>[];
-  active: K;
-  onChange: (key: K) => void;
-  counts?: Record<string, number>;
+interface TableToolbarProps {
+  search: TableSearchProps;
   className?: string;
+  children?: ReactNode;
 }
 
-function FilterTabs<K extends string = string>({ tabs, active, onChange, counts, className }: FilterTabsProps<K>) {
+// Enforces the canonical order across every staff table: search above, filter
+// controls below. Composing search/filters through this one component is what
+// keeps the six tables from drifting into alternately-arranged toolbars again.
+function TableToolbar({ search, className, children }: TableToolbarProps) {
   return (
-    <div className={cn("flex gap-1.5", className)}>
-      {tabs.map((tab) => {
-        const isActive = tab.key === active;
-        const count = counts?.[tab.key];
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            aria-pressed={isActive}
-            className={cn(
-              "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
-              isActive ? "bg-brand/10 text-brand" : "bg-muted text-muted-fg hover:bg-muted",
-            )}
-          >
-            {tab.label}
-            {count !== undefined && ` (${count})`}
-          </button>
-        );
-      })}
+    <div className={cn("mb-4 flex flex-col gap-3", className)}>
+      <TableSearch {...search} />
+      {children}
     </div>
   );
 }
 
-export { TableSearch, FilterTabs, type FilterTab };
+export { TableSearch, TableToolbar };

@@ -85,7 +85,7 @@ describe("AttendeesPanel", () => {
     expect(urls[urls.length - 1]).toBe("/api/events/7/attendees?page=1&limit=15&search=rina");
   });
 
-  it("filters by status via the tab", async () => {
+  it("filters by status via the select", async () => {
     fetchMock = stubFetch([], 0);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -93,7 +93,10 @@ describe("AttendeesPanel", () => {
     await screen.findByText("No attendees found");
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Checked in" }));
+      fireEvent.click(screen.getByRole("combobox"));
+      const checkedInOption = await screen.findByRole("option", { name: "Checked in" });
+      fireEvent.pointerDown(checkedInOption, { pointerType: "mouse" });
+      fireEvent.click(checkedInOption);
     });
 
     expect(fetchMock).toHaveBeenLastCalledWith("/api/events/7/attendees?page=1&limit=15&status=checked_in");

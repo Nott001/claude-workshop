@@ -14,7 +14,8 @@ import {
   TableContainer,
 } from "@/shared/components/table";
 import { Badge } from "@/shared/components/badge";
-import { TableSearch, FilterTabs, type FilterTab } from "@/shared/components/table-toolbar";
+import { TableToolbar } from "@/shared/components/table-toolbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { Pagination } from "@/shared/components/table-pagination";
 import { Drawer } from "@/shared/components/drawer";
 
@@ -29,10 +30,10 @@ interface Attendee {
 
 type StatusFilter = "all" | "checked_in" | "not_checked_in";
 
-const STATUS_TABS: FilterTab<StatusFilter>[] = [
-  { key: "all", label: "All" },
-  { key: "checked_in", label: "Checked in" },
-  { key: "not_checked_in", label: "Not checked in" },
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "checked_in", label: "Checked in" },
+  { value: "not_checked_in", label: "Not checked in" },
 ];
 
 function getInitials(name: string): string {
@@ -137,10 +138,20 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
         <h2 className="text-sm font-bold text-fg">Attendees</h2>
       </div>
 
-      <div className="mb-3 flex flex-col gap-3">
-        <FilterTabs tabs={STATUS_TABS} active={statusFilter} onChange={handleStatusFilter} />
-        <TableSearch value={search} onChange={handleSearch} placeholder="Search name or email..." />
-      </div>
+      <TableToolbar search={{ value: search, onChange: handleSearch, placeholder: "Search name or email..." }} className="mb-3">
+        <Select value={statusFilter} onValueChange={(v) => handleStatusFilter(v as StatusFilter)}>
+          <SelectTrigger>
+            <SelectValue>{STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableToolbar>
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
