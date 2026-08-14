@@ -682,7 +682,10 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
+      {/* Same content width as the public detail page: a non-attendee is
+          redirected here from /events/[id], so the two are one journey and
+          should not change shape halfway through it. */}
+      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
         <button
           onClick={() => router.push(backHref)}
           className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
