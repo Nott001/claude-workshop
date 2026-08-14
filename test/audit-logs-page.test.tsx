@@ -9,8 +9,6 @@ vi.mock("@/modules/auth/lib/use-role-guard", () => ({ useRoleGuard: vi.fn() }));
 
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 
-const LONG_PAYLOAD = "x".repeat(200);
-
 const logs = [
   {
     id: 1,
@@ -26,7 +24,7 @@ const logs = [
     action: "checkin.performed",
     entity_type: "ticket",
     entity_id: 42,
-    metadata: { payload: LONG_PAYLOAD },
+    metadata: { payload: "confidential" },
     created_at: "2026-08-02T11:30:00Z",
     ACTOR: null,
   },
@@ -136,7 +134,7 @@ describe("StaffAuditLogsPage", () => {
     expect(fetchMock).toHaveBeenLastCalledWith("/api/audit-logs?page=2");
   });
 
-  it("opens the drawer on row click and shows the full metadata JSON", async () => {
+  it("opens the drawer on row click without leaking the metadata payload", async () => {
     stubFetch(logs, 2);
 
     render(<StaffAuditLogsPage />);
@@ -146,10 +144,8 @@ describe("StaffAuditLogsPage", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeTruthy();
-    const pre = dialog.querySelector("pre");
-    expect(pre).toBeTruthy();
-    expect(pre?.textContent).toContain(`"payload": "${LONG_PAYLOAD}"`);
-    expect(pre?.textContent).not.toContain("...");
+    expect(dialog.querySelector("pre")).toBeNull();
+    expect(dialog.textContent).not.toContain("confidential");
   });
 
   it("shows the full created_at in the drawer", async () => {

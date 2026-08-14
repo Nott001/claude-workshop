@@ -241,14 +241,6 @@ export default function StaffAuditLogsPage() {
               <span className="text-muted-fg">Created</span>
               <span className="text-fg">{new Date(selected.created_at).toLocaleString()}</span>
             </div>
-            {selected.metadata != null && (
-              <div>
-                <span className="text-muted-fg">Metadata</span>
-                <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-relaxed whitespace-pre-wrap break-words text-fg">
-                  {JSON.stringify(selected.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
           </div>
         )}
       </Drawer>
