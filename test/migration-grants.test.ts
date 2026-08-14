@@ -33,7 +33,12 @@ describe("migration grants", () => {
   });
 
   it("is the squashed baseline plus additive migrations", () => {
-    expect(files.map((f) => f.name)).toEqual([BASELINE, "00002_lesson_name.sql", "00003_qa_realtime.sql"]);
+    expect(files.map((f) => f.name)).toEqual([
+      BASELINE,
+      "00002_lesson_name.sql",
+      "00003_qa_realtime.sql",
+      "00004_qa_message_policy_helper.sql",
+    ]);
   });
 
   // The table grant must appear AFTER the table definition so it applies to
@@ -67,5 +72,23 @@ describe("migration grants", () => {
       "i",
     );
     expect(exposed.test(all)).toBe(false);
+  });
+
+  // The QA read policy used to subquery TICKET inline, which raised 42501 for
+  // authenticated and killed realtime delivery. 00004 routes the check through
+  // a SECURITY DEFINER helper instead; a grant on TICKET would make that read a
+  // public surface again, so its absence is pinned.
+  it("keeps TICKET unreadable by anon and authenticated", () => {
+    const exposed = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\.\\"TICKET\\"[^;]*TO[^;]*(anon|authenticated)`, "i");
+    expect(exposed.test(all)).toBe(false);
+  });
+
+  it("routes the QA read policy through the SECURITY DEFINER helper", () => {
+    const fix = migrations().find((f) => f.name === "00004_qa_message_policy_helper.sql");
+    expect(fix, "00004 must exist to hold the swap").toBeDefined();
+    expect(fix!.sql).toMatch(/qa_message_visible/);
+    expect(fix!.sql).toMatch(/SECURITY DEFINER/s);
+    expect(fix!.sql).toMatch(/CREATE POLICY "Users read Q&A messages for their modules"/);
+    expect(fix!.sql).toMatch(/USING \("public"\."qa_message_visible"\("id"\)\)/);
   });
 });
