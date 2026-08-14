@@ -83,6 +83,30 @@ describe("eventDao upcoming filter", () => {
     );
   });
 
+  it("list with filter=past includes today's already-finished events via the or() bound", async () => {
+    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.list(client, { role: ROLES.ATTENDEE, filter: "past" });
+
+    expect(chain.or).toHaveBeenCalledWith(
+      expect.stringMatching(/^event_date\.lt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.lt\.15:00:00\)$/),
+    );
+  });
+
+  it("list orders past events newest first and every other listing oldest first", async () => {
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.list(client, { role: ROLES.ATTENDEE, filter: "past" });
+    expect(chain.order).toHaveBeenCalledWith("event_date", { ascending: false });
+
+    await eventDao.list(client, { role: ROLES.ATTENDEE, filter: "upcoming" });
+    expect(chain.order).toHaveBeenCalledWith("event_date", { ascending: true });
+  });
+
   it("getUpcomingForLanding excludes today's finished events via the or() bound", async () => {
     vi.setSystemTime(new Date("2026-08-12T15:00:00"));
 
