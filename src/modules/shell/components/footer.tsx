@@ -27,7 +27,7 @@ function PublicFooter() {
     <footer className="mt-auto flex flex-col gap-12 border-t border-border bg-surface px-6 pt-12 pb-6 lg:px-16">
       <div className="flex flex-wrap items-start justify-between gap-10">
         <div className="flex max-w-[320px] flex-col gap-6">
-          <Brand className="gap-3 text-[24px] leading-8" />
+          <Brand height={64} />
           <p className="text-sm leading-5 text-muted-fg">
             Empowering the next generation of business leaders through AI-driven innovation and education.
           </p>
