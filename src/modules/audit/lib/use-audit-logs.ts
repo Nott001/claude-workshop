@@ -9,6 +9,7 @@ import type { AuditLogWithActor } from "@/modules/audit/db/audit.dao";
 
 export function useAuditLogs() {
   const [logs, setLogs] = useState<AuditLogWithActor[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -40,11 +41,13 @@ export function useAuditLogs() {
         const data = res.ok ? await res.json() : { logs: [], total: 0 };
         if (!cancelled) {
           setLogs(Array.isArray(data.logs) ? data.logs : []);
+          setTotal(data.total ?? 0);
           setTotalPages(Math.max(1, Math.ceil((data.total ?? 0) / 20)));
         }
       } catch {
         if (!cancelled) {
           setLogs([]);
+          setTotal(0);
           setTotalPages(1);
         }
       } finally {
@@ -58,5 +61,5 @@ export function useAuditLogs() {
     };
   }, [page, debouncedSearch]);
 
-  return { logs, loading, page, setPage, totalPages, search, setSearch };
+  return { logs, total, loading, page, setPage, totalPages, search, setSearch };
 }
