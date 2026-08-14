@@ -66,7 +66,7 @@ describe("useAccountSettings", () => {
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "New Name" });
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Profile updated",
       description: "Your name has been saved.",
       type: "success",
@@ -119,7 +119,7 @@ describe("useAccountSettings", () => {
       await result.current.saveName(submitEvent);
     });
 
-    expect(result.current.toast).toEqual({ title: "Error", description: "Failed to update profile.", type: "error" });
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
   });
 
   it("asks supabase to send the link and reports sent, without writing the address anywhere", async () => {
@@ -164,7 +164,7 @@ describe("useAccountSettings", () => {
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Error",
       description: "That is already your email address.",
       type: "error",
@@ -278,7 +278,7 @@ describe("useAccountSettings", () => {
       await result.current.changeEmail(submitEvent);
     });
 
-    expect(result.current.toast).toEqual({ title: "Error", description: "Email already in use", type: "error" });
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Email already in use", type: "error" });
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
   });
 
@@ -298,7 +298,7 @@ describe("useAccountSettings", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.currentPassword).toBe("");
     expect(result.current.newPassword).toBe("");
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Password updated",
       description: "Your password has been changed.",
       type: "success",
@@ -651,5 +651,43 @@ describe("proving the current password", () => {
 
     expect(result.current.currentPasswordError).toBeNull();
     expect(result.current.toast?.title).toBe("Password updated");
+  });
+});
+
+describe("useAccountSettings toast lifecycle", () => {
+  it("gives each message its own id so the rendered Toast is re-keyed", () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.notify({ title: "First", description: "one", type: "success" }));
+    const first = result.current.toast!.id;
+
+    act(() => result.current.notify({ title: "Second", description: "two", type: "success" }));
+
+    expect(result.current.toast!.title).toBe("Second");
+    // A shared id would let the second message inherit the first's dismissal
+    // countdown, because Toast keeps that timer in state keyed on its identity.
+    expect(result.current.toast!.id).not.toBe(first);
+  });
+
+  it("keeps dismissToast stable across renders", () => {
+    const { result, rerender } = renderHook(() => useAccountSettings());
+    const first = result.current.dismissToast;
+
+    rerender();
+    act(() => result.current.notify({ title: "Saved", description: "ok", type: "success" }));
+
+    // Toast restarts its dismissal effect whenever onClose changes identity, so
+    // a handler rebuilt each render leaves the message on screen indefinitely.
+    expect(result.current.dismissToast).toBe(first);
+  });
+
+  it("clears the message on dismiss", () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.notify({ title: "Saved", description: "ok", type: "success" }));
+    expect(result.current.toast).not.toBeNull();
+
+    act(() => result.current.dismissToast());
+    expect(result.current.toast).toBeNull();
   });
 });

@@ -86,6 +86,7 @@ export function AccountSettings() {
       {settings.toast && (
         <div className="fixed bottom-4 right-8 z-50">
           <Toast
+            key={settings.toast.id}
             title={settings.toast.title}
             description={settings.toast.description}
             type={settings.toast.type}

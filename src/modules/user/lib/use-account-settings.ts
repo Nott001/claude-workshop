@@ -12,6 +12,12 @@ import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
 
+// `id` is assigned here rather than by callers, who have no reason to care: it
+// exists so the rendered Toast can be re-keyed per message. Without it a second
+// message reuses the mounted instance, whose dismissal timer is still counting
+// down for the first, and disappears early.
+export type ActiveToast = ToastData & { id: number };
+
 // Matches the provider's own minimum gap between messages, so the countdown
 // runs out at about the moment a second send would be accepted.
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -20,9 +26,12 @@ export function useAccountSettings() {
   const { user: currentUser, updateUser } = useSession();
   const supabase = getBrowserClient();
 
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [toast, setToast] = useState<ActiveToast | null>(null);
   // Shared with the speaker profile hook so every section toasts in one place.
-  const notify = useCallback((data: ToastData) => setToast(data), []);
+  const notify = useCallback((data: ToastData) => setToast((prev) => ({ ...data, id: (prev?.id ?? 0) + 1 })), []);
+  // Stable, so an unrelated re-render does not restart Toast's dismissal effect
+  // — it is keyed on `onClose` — and leave the message on screen indefinitely.
+  const dismissToast = useCallback(() => setToast(null), []);
 
   // The page renders before the session resolves, so the field cannot simply be
   // seeded once at mount — it would stay empty and Save would then write that
@@ -254,7 +263,7 @@ export function useAccountSettings() {
 
   return {
     toast,
-    dismissToast: () => setToast(null),
+    dismissToast,
     notify,
     currentUser,
     name,
