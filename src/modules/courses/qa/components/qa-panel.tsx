@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { UserRole } from "@/shared/types";
-import { isChatStaff, type QaMessageWithUser } from "@/modules/chat/lib/types";
-import { useRealtimeMessages, QA_TABLE } from "@/modules/chat/lib/use-realtime-messages";
-import { MessageComposer } from "./message-composer";
+import { isChatStaff } from "@/shared/lib/is-chat-staff";
+import type { QaMessageWithUser } from "@/modules/courses/qa/lib/types";
+import { subscribeToQaMessagesByModule } from "@/modules/courses/qa/lib/realtime";
+import { unsubscribe } from "@/shared/integrations/realtime";
+import { MessageComposer } from "@/shared/components/message-composer";
 
 interface QAPanelProps {
   moduleId: number;
@@ -49,18 +51,31 @@ export default function QAPanel({
       .catch(() => setLoading(false));
   }, [moduleId]);
 
-  useRealtimeMessages<QaMessageWithUser>({
-    channelName: `qa-module-${moduleId}`,
-    table: QA_TABLE,
-    filter: `module_id=eq.${moduleId}`,
-    onInsert: (msg) =>
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      }),
-    onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
-    onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
-  });
+  useEffect(() => {
+    // Realtime INSERT payloads carry no joined author row, so the panel refetches
+    // the question through the DAO-backed GET route, exactly as the chat hook's
+    // enrichment did — the browser never queries the database under the anon key.
+    const sub = subscribeToQaMessagesByModule(moduleId, {
+      onInsert: async (msg) => {
+        try {
+          const res = await fetch(`/api/qa/message/${msg.id}`);
+          if (!res.ok) return;
+          const full = (await res.json()) as QaMessageWithUser | null;
+          if (!full) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === full.id)) return prev;
+            return [...prev, full];
+          });
+        } catch {
+          // A failed enrichment fetch drops the row until the next REST load.
+        }
+      },
+      onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
+      onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
+    });
+
+    return () => unsubscribe(sub);
+  }, [moduleId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

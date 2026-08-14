@@ -1,4 +1,4 @@
-# Speaker route rename — run spec
+# QA extraction into courses — run spec
 
 Each file in this directory is one spec sheet. They are **run sequentially**, in
 filename order: `01` must be complete and verified before `02` starts, and so on.
@@ -7,22 +7,21 @@ Every sheet has the same shape: goal, run order, files touched, prerequisites,
 steps, verification (definition of done) and risks. Do not skip the verification
 section of a sheet — the next sheet depends on it.
 
-This series renames the speaker routes so they match the staff pattern:
-`/speaker/dashboard` becomes `/speaker/events` (behaviourally the same page as
-`/staff/events/assigned`), and the detail route `/speaker/event/[eventId]`
-becomes `/speaker/events/[eventId]`. The nav label "Dashboard" becomes
-"My Events" to match the facilitator nav.
+Q/A software has nothing to do with support chat anymore: it owns its own
+`QA_MESSAGE` table and hangs off courses as `module_type='qa'` modules. This
+series finishes the extraction by moving all Q/A code into `src/modules/courses/qa/`
+(a submodule of courses), gives it a course-owned realtime seam, hardens the
+schema grants that seam needs, and prunes the chat module back to support-only.
+The `/api/qa/*` HTTP surface is kept: Next.js requires route handlers to live
+under `src/app/api`, so those files stay put and become thin handlers over the
+new submodule.
 
-| #   | Sheet                                                     | What it produces                                  |
-| --- | --------------------------------------------------------- | ------------------------------------------------- |
-| 01  | [`01-route-directory-move`](01-route-directory-move.md)   | Route files moved; empty `speaker/event/` removed |
-| 02  | [`02-role-home`](02-role-home.md)                         | `role-home.ts` speaker → `/speaker/events`        |
-| 03  | [`03-nav-items`](03-nav-items.md)                         | Speaker nav "My Events" → `/speaker/events`       |
-| 04  | [`04-event-list-hrefs`](04-event-list-hrefs.md)           | `speaker-event-list` detail links updated         |
-| 05  | [`05-event-detail-hrefs`](05-event-detail-hrefs.md)       | `speaker-event-detail` back/course links updated  |
-| 06  | [`06-course-and-room-links`](06-course-and-room-links.md) | Course page + room exit links updated             |
-| 07  | [`07-test-updates`](07-test-updates.md)                   | All route/label assertions green                  |
-| 08  | [`08-changelog-and-gates`](08-changelog-and-gates.md)     | CHANGELOG entry, gates green, commit on branch    |
-
-The old `/speaker/dashboard` URL is not redirected after this rename; it 404s
-for a signed-in user. Bookmarked links to it are out of scope.
+| #   | Sheet                                                           | What it produces                                                     |
+| --- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 01  | [`01-shared-helpers`](01-shared-helpers.md)                     | Branch created; shared helpers neutralised                           |
+| 02  | [`02-qa-module-data-layer`](02-qa-module-data-layer.md)         | courses/qa owns dao, schemas, types, realtime seam; routes repointed |
+| 03  | [`03-qa-realtime-migration`](03-qa-realtime-migration.md)       | `00003` hardens realtime grants/policy; migration tests updated      |
+| 04  | [`04-qa-route-orchestration`](04-qa-route-orchestration.md)     | Route logic folded into `courses/qa/lib/service.ts`; routes thin     |
+| 05  | [`05-qa-panel-adopts-realtime`](05-qa-panel-adopts-realtime.md) | QAPanel → courses/qa, subscribes via its own realtime seam           |
+| 06  | [`06-prune-chat-to-support`](06-prune-chat-to-support.md)       | 410 stubs removed; chat module contains only support code            |
+| 07  | [`07-changelog-gates-commit`](07-changelog-gates-commit.md)     | CHANGELOG entry, all gates green, commit on branch                   |

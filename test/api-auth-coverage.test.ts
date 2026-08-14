@@ -45,10 +45,7 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
  * finding, not an exemption. Remove the entry when the route is fixed; the
  * test then holds the fix in place.
  */
-const KNOWN_UNGUARDED: Record<string, string> = {
-  "qa/[eventId]/[messageId]/route.ts": "Deprecated — returns 410 Gone. Use /api/qa/module/[moduleId] instead.",
-  "qa/[eventId]/route.ts": "Deprecated — returns 410 Gone. Use /api/qa/module/[moduleId] instead.",
-};
+const KNOWN_UNGUARDED: Record<string, string> = {};
 
 function routeFiles(): string[] {
   return globSync("**/route.ts", { cwd: API_DIR })

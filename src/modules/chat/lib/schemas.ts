@@ -7,8 +7,3 @@ export const sendMessageSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
   recipient_user_id: z.number().int().positive().optional(),
 });
-
-export const qaMessageSchema = z.object({
-  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
-  module_id: z.number().int().positive(),
-});

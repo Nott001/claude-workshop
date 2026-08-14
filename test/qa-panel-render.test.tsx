@@ -3,16 +3,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { ROLES } from "@/shared/lib/roles";
 import type { UserRole } from "@/shared/types";
+import type { QaMessage } from "@/shared/types";
 
-const { getBrowserClient, unsubscribe } = vi.hoisted(() => ({
-  getBrowserClient: vi.fn(),
+const { subscribeToQaMessagesByModule, unsubscribe } = vi.hoisted(() => ({
+  subscribeToQaMessagesByModule: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 
-vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient }));
+vi.mock("@/modules/courses/qa/lib/realtime", () => ({ subscribeToQaMessagesByModule }));
 vi.mock("@/shared/integrations/realtime", () => ({ unsubscribe }));
 
-import QAPanel from "@/modules/chat/components/qa-panel";
+import QAPanel from "@/modules/courses/qa/components/qa-panel";
 
 function question(id: number, message: string) {
   return {
@@ -28,16 +29,34 @@ function question(id: number, message: string) {
   };
 }
 
-let handler: (payload: { eventType: string; new?: unknown; old?: unknown }) => void = () => {};
+function rawQuestion(id: number, message: string): QaMessage {
+  return {
+    id,
+    event_id: 9,
+    module_id: 4,
+    user_id: 2,
+    message,
+    created_at: "2026-08-05T09:00:00Z",
+    deleted_at: null,
+    updated_at: "2026-08-05T09:00:00Z",
+  };
+}
+
+interface QaCallbacks {
+  onInsert?: (msg: QaMessage) => void;
+  onUpdate?: (msg: QaMessage) => void;
+  onDelete?: (msg: QaMessage) => void;
+}
+
+let callbacks: QaCallbacks = {};
+let subscription: { name: string } = { name: "qa-module-4" };
 
 function stubRealtime() {
-  getBrowserClient.mockReturnValue({
-    channel: vi.fn(() => ({
-      on: vi.fn((_event: string, _config: unknown, h: typeof handler) => {
-        handler = h;
-        return { subscribe: () => ({}) };
-      }),
-    })),
+  callbacks = {};
+  subscription = { name: "qa-module-4" };
+  subscribeToQaMessagesByModule.mockImplementation((_moduleId: number, cb: QaCallbacks) => {
+    callbacks = cb;
+    return subscription;
   });
 }
 
@@ -123,12 +142,57 @@ describe("QAPanel", () => {
     expect(screen.queryByRole("button", { name: "delete" })).toBeNull();
   });
 
-  it("appends a question that arrives on the channel", async () => {
+  it("subscribes to the module's owned realtime channel", async () => {
+    renderPanel(ROLES.ATTENDEE);
+
+    await screen.findByText("Any question?");
+    expect(subscribeToQaMessagesByModule).toHaveBeenCalledWith(4, expect.objectContaining({}));
+  });
+
+  it("appends a question that arrives on the channel after enriching it", async () => {
     renderPanel(ROLES.ATTENDEE);
     await screen.findByText("Any question?");
 
-    handler({ eventType: "INSERT", new: question(2, "Follow-up") });
+    callbacks.onInsert?.(rawQuestion(2, "Follow-up"));
 
     expect(await screen.findByText("Follow-up")).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith("/api/qa/message/2");
+  });
+
+  it("dedupes an INSERT whose id is already shown", async () => {
+    renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+
+    callbacks.onInsert?.(rawQuestion(1, "Any question?"));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/qa/message/1"));
+    expect(screen.getAllByText("Any question?")).toHaveLength(1);
+  });
+
+  it("merges an UPDATE into the listed row", async () => {
+    renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+
+    callbacks.onUpdate?.({ ...rawQuestion(1, "Edited"), id: 1 });
+
+    expect(await screen.findByText("Edited")).toBeTruthy();
+  });
+
+  it("removes the row on DELETE", async () => {
+    renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+
+    callbacks.onDelete?.(rawQuestion(1, "Any question?"));
+
+    await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
+  });
+
+  it("tears the subscription down through the shared unsubscribe", async () => {
+    const view = renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+
+    view.unmount();
+
+    expect(unsubscribe).toHaveBeenCalledWith(subscription);
   });
 });

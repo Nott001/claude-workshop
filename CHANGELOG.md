@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Q/A now lives with the course it belongs to instead of sharing the support chat module. The two features only meet in the `CHAT_MESSAGE` table: Q/A owns its own `QA_MESSAGE` rows, hangs off a course as `module_type='qa'` modules, and is read under the event's team rules, so the code that talks to it now sits in `src/modules/courses/qa/`, a submodule of courses, while the chat module keeps only support-chat code. The Q/A panel subscribes to its own realtime channel — `qa-module-<id>`, scoped to the module's row-level security — instead of the generic chat subscription, and the new replay-safe migration `00003` re-asserts the `SELECT` grant and `supabase_realtime` publication membership the browser needs for that channel on environments that drifted. The `/api/qa/*` routes are unchanged and stay under `src/app/api` (Next.js requires handlers there); they are now thin handlers over the submodule's service, and the two dead 410 stubs left over from the pre-extraction `/api/qa/[eventId]` shape are gone. How a course session behaves is unchanged.
+
 ### Added
 
 - The footer now differs by who is reading it. Attendees, speakers and signed-out visitors get the full footer from the design: the brand mark and wordmark, the line about what StartupLab is for, and a Company column holding About Us — which leaves for startuplab.ph — and Contact. Contact opens an overlay rather than a page, because there was no contact page to link to and the information it would hold is four short facts: the email address, the phone number, the office address and the office hours, each one a link where a link makes sense, so the number dials and the address opens a mail client. Facilitators, admins and superadmins keep the plain copyright bar they have always had; staff pages carry their own chrome and a marketing footer under an events table is noise. The role decides which of the two renders, read from the session the shell already holds.

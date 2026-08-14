@@ -2,25 +2,12 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
-const {
-  requireAuth,
-  requireRole,
-  findModuleById,
-  findCourseEvent,
-  findCourseByModule,
-  setModuleLock,
-  isAssigned,
-  listQuestionsByModule,
-  sendQuestion,
-} = vi.hoisted(() => ({
+const { requireAuth, requireRole, findCourseByModule, setModuleLock, isAssigned, sendQuestion } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
-  findModuleById: vi.fn(),
-  findCourseEvent: vi.fn(),
   findCourseByModule: vi.fn(),
   setModuleLock: vi.fn(),
   isAssigned: vi.fn(),
-  listQuestionsByModule: vi.fn(),
   sendQuestion: vi.fn(),
 }));
 
@@ -30,10 +17,13 @@ vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => NextResponse.json({ error: guard.error }, { status: 403 }),
 }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ findModuleById, findCourseEvent, findCourseByModule, setModuleLock }));
+vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseByModule }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId: vi.fn() }));
-vi.mock("@/shared/db/dao/chat.dao", () => ({ qaMessageDao: { listQuestionsByModule, sendQuestion } }));
+vi.mock("@/modules/courses/qa/lib/service", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/courses/qa/lib/service")>("@/modules/courses/qa/lib/service");
+  return { ...actual, setModuleLock, sendQuestion };
+});
 
 import { POST, PATCH } from "@/app/api/qa/module/[moduleId]/route";
 
@@ -59,30 +49,20 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(speaker);
   requireAuth.mockResolvedValue({ id: 5, role: ROLES.ATTENDEE });
-  findModuleById.mockResolvedValue(qaModule);
-  findCourseEvent.mockResolvedValue(course);
   findCourseByModule.mockResolvedValue(course);
   setModuleLock.mockResolvedValue({ ...qaModule, is_locked: true });
   isAssigned.mockResolvedValue(false);
-  listQuestionsByModule.mockResolvedValue({ messages: [] });
   sendQuestion.mockResolvedValue({ id: 9, module_id: 2, message: "hello" });
 });
 
 describe("POST /api/qa/module/[moduleId]", () => {
-  it("answers on the course resolved from the module it already loaded", async () => {
+  it("files the question as the authenticated attendee", async () => {
     const res = await POST(jsonRequest("POST", { message: "hello", module_id: 2 }), {
       params: Promise.resolve({ moduleId: "2" }),
     });
 
     expect(res.status).toBe(201);
-    expect(findCourseEvent).toHaveBeenCalledWith(expect.anything(), qaModule.course_id);
-    expect(findCourseByModule).not.toHaveBeenCalled();
-    expect(sendQuestion).toHaveBeenCalledWith(expect.anything(), {
-      event_id: course.event_id,
-      module_id: 2,
-      user_id: 5,
-      message: "hello",
-    });
+    expect(sendQuestion).toHaveBeenCalledWith(expect.anything(), 2, 5, "hello");
   });
 
   it("400s a message missing the module_id the schema requires", async () => {

@@ -3,7 +3,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import QAPanel from "@/modules/chat/components/qa-panel";
+import QAPanel from "@/modules/courses/qa/components/qa-panel";
 import { CurrentTopicCard } from "@/modules/courses/components/current-topic-card";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { RoomLessonRow } from "@/modules/courses/components/room-lesson-row";
