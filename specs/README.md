@@ -25,3 +25,5 @@ new submodule.
 | 05  | [`05-qa-panel-adopts-realtime`](05-qa-panel-adopts-realtime.md) | QAPanel → courses/qa, subscribes via its own realtime seam           |
 | 06  | [`06-prune-chat-to-support`](06-prune-chat-to-support.md)       | 410 stubs removed; chat module contains only support code            |
 | 07  | [`07-changelog-gates-commit`](07-changelog-gates-commit.md)     | CHANGELOG entry, all gates green, commit on branch                   |
+| 08  | [`08-qa-realtime-emission`](08-qa-realtime-emission.md)         | `00004` policy helper fixes QA_MESSAGE realtime delivery             |
+| 09  | [`09-live-lock-propagation`](09-live-lock-propagation.md)       | Lock toggle updates live for everyone; the full-page reload is gone  |
