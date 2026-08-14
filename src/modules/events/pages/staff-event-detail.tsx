@@ -473,7 +473,6 @@ function SurveysSection({
     mutate();
   }
 
-  const canSend = enabled && finished;
   // Fully delivered means every response already has an email out; re-sending
   // would just spam people who already hold the link.
   const surveyExpired = !!status?.survey && status.survey.expired;
@@ -491,7 +490,7 @@ function SurveysSection({
             <div>
               <p className="text-sm font-medium text-fg">Post-event survey</p>
               <p className="text-xs text-muted-fg">
-                Turning this on only enables the form &mdash; no email is sent until you use &ldquo;Send survey&rdquo;.
+                Turning this on only enables the form &mdash; no email is sent until you use &ldquo;Send bulk survey&rdquo;.
               </p>
             </div>
             <button
@@ -514,19 +513,19 @@ function SurveysSection({
           {enabled && (
             <>
               <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                {canSend && (
-                  <button
-                    onClick={handleSend}
-                    disabled={sendDisabled}
-                    className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-                  >
-                    {sending
-                      ? "Sending..."
+                <button
+                  onClick={handleSend}
+                  disabled={sendDisabled || !finished}
+                  className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
+                >
+                  {sending
+                    ? "Sending..."
+                    : !finished
+                      ? "Locked until event ends"
                       : status?.survey && status.survey.undelivered_count > 0
                         ? "Retry send"
-                        : "Send survey"}
-                  </button>
-                )}
+                        : "Send bulk survey"}
+                </button>
                 <button
                   onClick={() => router.push(`/staff/events/${eventId}/survey-preview`)}
                   className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-fg hover:bg-muted"

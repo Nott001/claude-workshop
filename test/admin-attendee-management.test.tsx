@@ -15,6 +15,7 @@ const attendee = {
   can_cancel: true,
   can_resend_ticket: true,
   can_send_survey: true,
+  can_show_survey_send: true,
 };
 
 const checkedInAttendee = {
@@ -40,12 +41,22 @@ const noPermissionsAttendee = {
   can_cancel: false,
   can_resend_ticket: false,
   can_send_survey: false,
+  can_show_survey_send: false,
 };
 
-function manageResponse(attendees: unknown[], surveySendable: boolean) {
+type SurveyState = {
+  opt_in: boolean;
+  finished: boolean;
+  sendable: boolean;
+  status: "disabled" | "locked" | "open" | "closed";
+};
+
+const openSurvey: SurveyState = { opt_in: true, finished: true, sendable: true, status: "open" };
+
+function manageResponse(attendees: unknown[], survey: SurveyState = openSurvey) {
   return {
     ok: true,
-    json: async () => ({ attendees, total: attendees.length, page: 1, limit: 15, survey_sendable: surveySendable }),
+    json: async () => ({ attendees, total: attendees.length, page: 1, limit: 15, survey }),
   };
 }
 
@@ -53,15 +64,15 @@ const postOk = { ok: true, json: async () => ({}) };
 
 let fetchMock: ReturnType<typeof vi.fn>;
 let list: unknown[];
-let surveySendable: boolean;
+let surveyState: SurveyState;
 
 beforeEach(() => {
   vi.clearAllMocks();
   list = [attendee];
-  surveySendable = true;
+  surveyState = openSurvey;
   fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (init?.method === "POST") return Promise.resolve(postOk);
-    return Promise.resolve(manageResponse(list, surveySendable));
+    return Promise.resolve(manageResponse(list, surveyState));
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -90,17 +101,34 @@ describe("AdminAttendeeManagement", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/events/7/attendees/manage?page=1&limit=15");
   });
 
-  it("warns when survey sends are unavailable and stays quiet when they are", async () => {
-    surveySendable = false;
+  it("renders the survey status badge and hint in each state", async () => {
+    surveyState = { opt_in: true, finished: false, sendable: false, status: "locked" };
     const { unmount } = render(<AdminAttendeeManagement eventId="7" />);
 
-    expect(await screen.findByText(/Survey sends are unavailable/)).toBeTruthy();
+    expect(await screen.findByText("Survey locked")).toBeTruthy();
+    expect(screen.getByText("Individual sends unlock once the event ends.")).toBeTruthy();
     unmount();
 
-    surveySendable = true;
+    surveyState = { opt_in: false, finished: false, sendable: false, status: "disabled" };
     render(<AdminAttendeeManagement eventId="7" />);
-    expect(await screen.findByText("Rina Dela Cruz")).toBeTruthy();
-    expect(screen.queryByText(/Survey sends are unavailable/)).toBeNull();
+    expect(await screen.findByText("Survey off")).toBeTruthy();
+    expect(screen.getByText("Enable surveys from the Surveys tab.")).toBeTruthy();
+  });
+
+  it("shows an open survey window without a hint", async () => {
+    render(<AdminAttendeeManagement eventId="7" />);
+
+    expect(await screen.findByText("Survey window open")).toBeTruthy();
+    expect(screen.queryByText("Individual sends unlock once the event ends.")).toBeNull();
+  });
+
+  it("shows a closed survey window with its hint", async () => {
+    surveyState = { opt_in: true, finished: true, sendable: false, status: "closed" };
+
+    render(<AdminAttendeeManagement eventId="7" />);
+
+    expect(await screen.findByText("Survey window closed")).toBeTruthy();
+    expect(screen.getByText("The 14-day response window has passed.")).toBeTruthy();
   });
 
   it("shows the empty state when nothing matches", async () => {
@@ -187,7 +215,7 @@ describe("AdminAttendeeManagement", () => {
       if (init?.method === "POST") {
         return Promise.resolve({ ok: false, json: async () => ({ error: "Ticket already cancelled" }) });
       }
-      return Promise.resolve(manageResponse(list, surveySendable));
+      return Promise.resolve(manageResponse(list, surveyState));
     });
 
     fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
@@ -196,6 +224,46 @@ describe("AdminAttendeeManagement", () => {
     });
 
     expect(await screen.findByText("Ticket already cancelled")).toBeTruthy();
+  });
+
+  it("shows a disabled locked button in the drawer before the event ends and makes no POST", async () => {
+    list = [{ ...attendee, can_send_survey: false }];
+    surveyState = { opt_in: true, finished: false, sendable: false, status: "locked" };
+
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("Rina Dela Cruz");
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
+
+    const sendButton = screen.getByRole("button", { name: "Locked until event ends" });
+    expect((sendButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(sendButton);
+    await act(async () => {});
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/events/7/attendees/1/survey", { method: "POST" });
+  });
+
+  it("shows a disabled closed-window button in the drawer once the window has passed", async () => {
+    list = [{ ...attendee, can_send_survey: false }];
+    surveyState = { opt_in: true, finished: true, sendable: false, status: "closed" };
+
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("Rina Dela Cruz");
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
+
+    const sendButton = screen.getByRole("button", { name: "Survey window closed" });
+    expect((sendButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("omits the send button when the attendee cannot see it", async () => {
+    list = [{ ...attendee, can_show_survey_send: false }];
+
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("Rina Dela Cruz");
+    fireEvent.click(screen.getByRole("row", { name: /Manage Rina Dela Cruz/ }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send survey" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Locked until event ends" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Survey window closed" })).toBeNull();
   });
 
   it("shows the drawer with no action buttons when the attendee has no permissions", async () => {

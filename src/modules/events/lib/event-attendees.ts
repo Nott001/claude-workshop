@@ -55,6 +55,16 @@ export interface AdminAttendeeRow extends AttendeeRow {
   can_cancel: boolean;
   can_resend_ticket: boolean;
   can_send_survey: boolean;
+  can_show_survey_send: boolean;
+}
+
+export type SurveyStatus = "disabled" | "locked" | "open" | "closed";
+
+export interface AdminSurveyState {
+  opt_in: boolean;
+  finished: boolean;
+  sendable: boolean;
+  status: SurveyStatus;
 }
 
 export async function listAdminEventAttendees(
@@ -66,16 +76,25 @@ export async function listAdminEventAttendees(
   total: number;
   page: number;
   limit: number;
-  survey_sendable: boolean;
+  survey: AdminSurveyState;
 }> {
   const listed = await listEventAttendees(supabase, event.id, options);
-  const { usable, byUser } = await getAttendeeSurveyFlags(
+  const { usable, hasSurvey, byUser } = await getAttendeeSurveyFlags(
     supabase,
     event,
     listed.attendees.map((attendee) => attendee.user_id),
   );
   const finished = isEventFinished(event.event_date, event.end_time);
-  const surveySendable = usable && event.survey_enabled && finished;
+  const windowOpen = !hasSurvey || usable;
+  const surveySendable = event.survey_enabled && finished && windowOpen;
+
+  const surveyStatus: SurveyStatus = !event.survey_enabled
+    ? "disabled"
+    : !finished
+      ? "locked"
+      : !windowOpen
+        ? "closed"
+        : "open";
 
   const attendees: AdminAttendeeRow[] = listed.attendees.map((row) => {
     const flag = byUser.get(row.user_id) ?? null;
@@ -87,8 +106,15 @@ export async function listAdminEventAttendees(
       can_cancel: row.ticket_status === "issued",
       can_resend_ticket: row.ticket_status !== "cancelled",
       can_send_survey: surveySendable && row.ticket_status !== "cancelled" && !responded,
+      can_show_survey_send: event.survey_enabled && row.ticket_status !== "cancelled" && !responded,
     };
   });
 
-  return { attendees, total: listed.total, page: listed.page, limit: listed.limit, survey_sendable: surveySendable };
+  return {
+    attendees,
+    total: listed.total,
+    page: listed.page,
+    limit: listed.limit,
+    survey: { opt_in: event.survey_enabled, finished, sendable: surveySendable, status: surveyStatus },
+  };
 }

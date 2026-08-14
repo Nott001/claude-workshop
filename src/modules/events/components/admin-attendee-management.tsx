@@ -30,6 +30,7 @@ interface AdminAttendeeRow {
   can_cancel: boolean;
   can_resend_ticket: boolean;
   can_send_survey: boolean;
+  can_show_survey_send: boolean;
 }
 
 interface ManageResponse {
@@ -37,7 +38,12 @@ interface ManageResponse {
   total: number;
   page: number;
   limit: number;
-  survey_sendable: boolean;
+  survey: {
+    opt_in: boolean;
+    finished: boolean;
+    sendable: boolean;
+    status: "disabled" | "locked" | "open" | "closed";
+  };
 }
 
 type StatusFilter = "all" | "checked_in" | "not_checked_in";
@@ -75,7 +81,8 @@ function formatShortDate(dateStr: string): string {
 export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
   const [attendees, setAttendees] = useState<AdminAttendeeRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [surveySendable, setSurveySendable] = useState(false);
+  const [surveyStatus, setSurveyStatus] = useState<"disabled" | "locked" | "open" | "closed">("open");
+  const [eventFinished, setEventFinished] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -101,7 +108,8 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
         const data = (await res.json()) as ManageResponse;
         setAttendees(data.attendees);
         setTotal(data.total);
-        setSurveySendable(data.survey_sendable);
+        setSurveyStatus(data.survey.status);
+        setEventFinished(data.survey.finished);
         setError(null);
       } else if (!ignore) {
         setError("Failed to load attendees");
@@ -167,10 +175,39 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
     return <span className="text-muted-fg">—</span>;
   };
 
+  const surveyIndicator = (() => {
+    switch (surveyStatus) {
+      case "disabled":
+        return {
+          badge: <Badge>Survey off</Badge>,
+          hint: "Enable surveys from the Surveys tab.",
+        };
+      case "locked":
+        return {
+          badge: <Badge variant="warning">Survey locked</Badge>,
+          hint: "Individual sends unlock once the event ends.",
+        };
+      case "open":
+        return {
+          badge: <Badge variant="success">Survey window open</Badge>,
+          hint: null,
+        };
+      case "closed":
+        return {
+          badge: <Badge variant="error">Survey window closed</Badge>,
+          hint: "The 14-day response window has passed.",
+        };
+    }
+  })();
+
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-fg">Registered users</h2>
+        <div className="flex items-center gap-2">
+          {surveyIndicator.badge}
+          {surveyIndicator.hint && <span className="text-[10px] text-muted-fg">{surveyIndicator.hint}</span>}
+        </div>
       </div>
 
       <TableToolbar search={{ value: search, onChange: handleSearch, placeholder: "Search name or email..." }} className="mb-3">
@@ -189,13 +226,6 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
       </TableToolbar>
 
       {error && <p className="mb-3 text-xs text-error">{error}</p>}
-
-      {attendees.length > 0 && !surveySendable && (
-        <p className="mb-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-fg">
-          Survey sends are unavailable &mdash; enable surveys for this event, wait for it to end, then send once from the
-          Surveys tab.
-        </p>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
@@ -272,14 +302,20 @@ export function AdminAttendeeManagement({ eventId }: { eventId: string }) {
                   {isBusy("checkin") ? "Checking in..." : "Check in"}
                 </Button>
               )}
-              {selected.can_send_survey && (
+              {selected.can_show_survey_send && (
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={isBusy("survey")}
+                  disabled={!selected.can_send_survey || isBusy("survey")}
                   onClick={() => run("send survey", `/api/events/${eventId}/attendees/${selected.user_id}/survey`)}
                 >
-                  {isBusy("survey") ? "Sending..." : "Send survey"}
+                  {isBusy("survey")
+                    ? "Sending..."
+                    : selected.can_send_survey
+                      ? "Send survey"
+                      : !eventFinished
+                        ? "Locked until event ends"
+                        : "Survey window closed"}
                 </Button>
               )}
               {selected.can_resend_ticket && (
