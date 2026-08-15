@@ -1,49 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 interface QrScannerProps {
   onScan: (token: string) => void;
   active: boolean;
+  paused?: boolean;
   onError?: (message: string) => void;
 }
 
-export function QrScanner({ onScan, active, onError }: QrScannerProps) {
+// `active` owns the camera lifecycle (start, error). `paused` only stops
+// decoded tokens reaching `onScan`, so showing a card does not tear the camera
+// down and re-acquire getUserMedia a few hundred ms later. A session counter
+// keeps one lifecycle's async start/stop from clobbering the next camera's
+// state when the two overlap.
+export function QrScanner({ onScan, active, paused = false, onError }: QrScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<InstanceType<typeof import("html5-qrcode").Html5Qrcode> | null>(null);
-  const scanningRef = useRef(false);
-
-  // The camera outlives the caller's renders, so the handlers are held in refs
-  // rather than listed as effect dependencies. KioskScannerView passes a fresh
-  // pair every render, and with them in the deps the effect stopped and
-  // restarted the camera on each one — once per keystroke in the manual field,
-  // once per scan result, and again when the result cleared three seconds on.
+  const sessionRef = useRef(0);
+  // The library refires the same decoded text ~10x/sec while a QR stays in
+  // frame. Mirrors keep the effect and the camera stable; identical-token
+  // dedupe stops the spam at its source.
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
+  const pausedRef = useRef(paused);
+  const lastTokenRef = useRef<string | null>(null);
+
   useEffect(() => {
     onScanRef.current = onScan;
     onErrorRef.current = onError;
+    pausedRef.current = paused;
   });
 
-  const stopScanner = useCallback(async () => {
-    if (scannerRef.current && scanningRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Scanner may already be stopped
-      }
-      scanningRef.current = false;
-    }
-  }, []);
-
   useEffect(() => {
-    let cancelled = false;
+    if (!active) return;
+
+    const session = ++sessionRef.current;
+    let mounted = true;
 
     async function startScanner() {
-      if (!active || !containerRef.current) return;
+      if (!containerRef.current) return;
 
       const { Html5Qrcode } = await import("html5-qrcode");
-      if (cancelled) return;
+      if (!mounted || session !== sessionRef.current) return;
 
       const containerId = containerRef.current.id;
       const scanner = new Html5Qrcode(containerId);
@@ -58,27 +57,39 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            if (!cancelled) onScanRef.current(decodedText);
+            if (!mounted || session !== sessionRef.current) return;
+            if (pausedRef.current) return;
+            if (decodedText === lastTokenRef.current) return;
+            lastTokenRef.current = decodedText;
+            onScanRef.current(decodedText);
           },
           () => {
             // No code detected this frame — expected, not an error
           },
         );
-        if (!cancelled) scanningRef.current = true;
       } catch (err) {
-        if (!cancelled) {
-          onErrorRef.current?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
-        }
+        if (!mounted || session !== sessionRef.current) return;
+        onErrorRef.current?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
       }
     }
 
     startScanner();
 
     return () => {
-      cancelled = true;
-      stopScanner();
+      // Bump the session so an in-flight start for this lifecycle cannot touch
+      // the next camera's refs, and stop the exact instance this effect owns.
+      mounted = false;
+      sessionRef.current += 1;
+      lastTokenRef.current = null;
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+      if (scanner) {
+        void scanner.stop().catch(() => {
+          // Scanner may already be stopped
+        });
+      }
     };
-  }, [active, stopScanner]);
+  }, [active]);
 
   return (
     <div className="relative mb-6 overflow-hidden rounded-xl border border-border">
@@ -96,7 +107,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
         }
       `}</style>
       <div ref={containerRef} id="qr-reader-container" className="w-full" />
-      {active && (
+      {active && !paused && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div className="h-[140px] w-[140px] rounded-xl border-2 border-dashed border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]" />
         </div>

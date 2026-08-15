@@ -54,6 +54,7 @@ describe("route protection", () => {
     ["/api/community", { method: "POST" }],
     ["/api/tickets/1", undefined],
     ["/api/checkin", undefined],
+    ["/api/checkin/lookup", undefined],
   ];
 
   it.each(protectedPaths)("redirects signed-out users away from %s", async (path, init) => {

@@ -38,10 +38,34 @@ const event: Event = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function stubFetch(checkin: unknown, checkinOk = true) {
+const issuedPreview = {
+  attendee: { full_name: "Jane Doe", email: "jane@example.com" },
+  qr_token: "tok-123",
+  status: "issued",
+  checked_in_at: null,
+};
+
+function stubFetch({
+  lookup,
+  lookupOk = true,
+  confirm,
+  confirmOk = true,
+  confirmError,
+}: {
+  lookup: unknown;
+  lookupOk?: boolean;
+  confirm?: unknown;
+  confirmOk?: boolean;
+  confirmError?: unknown;
+}) {
   const impl = async (input: string | URL | Request) => {
-    if (String(input).includes("/api/checkin")) {
-      return { ok: checkinOk, json: async () => checkin };
+    const url = String(input);
+    if (url.startsWith("/api/checkin/lookup")) {
+      return { ok: lookupOk, json: async () => lookup };
+    }
+    if (url.startsWith("/api/checkin")) {
+      if (confirmError) throw confirmError;
+      return { ok: confirmOk, json: async () => confirm };
     }
     return { ok: true, json: async () => ({ attendees: [], total: 0 }) };
   };
@@ -50,9 +74,9 @@ function stubFetch(checkin: unknown, checkinOk = true) {
 
 const qrInput = () => screen.getByPlaceholderText(/Scan or type QR token/);
 
-async function submitManualCheckin(token: string) {
+async function submitManualToken(token: string) {
   fireEvent.change(qrInput(), { target: { value: token } });
-  fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Find Attendee/ }));
 }
 
 beforeEach(() => {
@@ -66,7 +90,7 @@ afterEach(() => {
 
 describe("KioskScannerView controls", () => {
   it("shows the Start Camera button and manual check-in input", () => {
-    stubFetch(null);
+    stubFetch({ lookup: null });
     render(<KioskScannerView event={event} />);
 
     expect(screen.getByRole("button", { name: /Start Camera Scanner/ })).toBeTruthy();
@@ -74,7 +98,7 @@ describe("KioskScannerView controls", () => {
   });
 
   it("mounts the scanner and its frame when Start Camera is clicked", async () => {
-    stubFetch(null);
+    stubFetch({ lookup: null });
     const { container } = render(<KioskScannerView event={event} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Start Camera Scanner/ }));
@@ -86,44 +110,143 @@ describe("KioskScannerView controls", () => {
   });
 });
 
-describe("KioskScannerView check-in", () => {
-  it("posts the QR token to /api/checkin and greets a checked-in attendee", async () => {
-    stubFetch({ status: "success", attendee: { full_name: "Jane Doe", email: "jane@example.com" } });
+describe("KioskScannerView lookup-then-confirm", () => {
+  it("looks up a token and previews the attendee without checking them in", async () => {
+    stubFetch({ lookup: issuedPreview });
     render(<KioskScannerView event={event} />);
 
-    await submitManualCheckin("tok-123");
+    await submitManualToken("tok-123");
 
-    expect(await screen.findByText("Checked in")).toBeTruthy();
-    expect(screen.getByText("Jane Doe")).toBeTruthy();
+    expect(await screen.findByText("Jane Doe")).toBeTruthy();
+    expect(screen.getByText("jane@example.com")).toBeTruthy();
+    expect(screen.getByText("tok-123")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/checkin/lookup?qr_token=tok-123");
+  });
+
+  it("checks in only after the operator confirms", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "success" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByRole("button", { name: /Checked in/ })).toBeTruthy();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       "/api/checkin",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ qr_token: "tok-123" }) }),
     );
   });
 
-  it("reports a ticket already checked in", async () => {
-    stubFetch({ status: "duplicate" });
+  it("keeps the confirmed attendee on the card until the operator clears it", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "success" } });
     render(<KioskScannerView event={event} />);
 
-    await submitManualCheckin("tok-123");
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
 
-    expect(await screen.findByText("Already checked in")).toBeTruthy();
+    expect(await screen.findByText("Jane Doe")).toBeTruthy();
+    expect(screen.getByText("tok-123")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Done$/ }));
+    expect(screen.queryByText("Jane Doe")).toBeNull();
   });
 
-  it("calls out a cancelled ticket", async () => {
-    stubFetch({ status: "rejected", reason: "cancelled" });
+  it("shows why the check-in failed on the card and lets the operator retry", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "internal server error" }, confirmOk: false });
     render(<KioskScannerView event={event} />);
 
-    await submitManualCheckin("tok-123");
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("The check-in could not be recorded. Try again.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("surfaces a network failure on the card as an operator error, not a silent reset", async () => {
+    stubFetch({ lookup: issuedPreview, confirmError: new TypeError("Failed to fetch") });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("Could not reach the server. Check the network and try again.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("keeps the preview when confirm is rejected for an unexpected reason", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "rejected", reason: "session_mismatch" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("This ticket is not in a state that can be checked in.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("marks a cancelled ticket on the card when it was revoked mid-scan", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "rejected", reason: "cancelled" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
 
     expect(await screen.findByText("Ticket cancelled")).toBeTruthy();
   });
 
-  it("treats an unrecognised token as invalid", async () => {
-    stubFetch({ error: "Invalid QR token" }, false);
+  it("uses the server check-in time on a duplicate instead of synthesizing now", async () => {
+    const serverCheckedInAt = "2026-08-14T10:00:00.000Z";
+    stubFetch({
+      lookup: issuedPreview,
+      confirm: { status: "duplicate", ticket: { checked_in_at: serverCheckedInAt } },
+    });
     render(<KioskScannerView event={event} />);
 
-    await submitManualCheckin("unknown-token");
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    const expectedTime = new Date(serverCheckedInAt).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    expect(await screen.findByText(expectedTime)).toBeTruthy();
+  });
+
+  it("shows an already-checked-in ticket without offering to write again", async () => {
+    stubFetch({ lookup: { ...issuedPreview, status: "checked_in", checked_in_at: "2026-08-14T10:00:00.000Z" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+
+    expect(await screen.findByText("Already checked in")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Check In$/ })).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith("/api/checkin", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("calls out a cancelled ticket without offering to write", async () => {
+    stubFetch({ lookup: { ...issuedPreview, status: "cancelled" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+
+    expect(await screen.findByText("Ticket cancelled")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Check In$/ })).toBeNull();
+  });
+
+  it("treats an unrecognised token as invalid", async () => {
+    stubFetch({ lookup: { error: "Invalid QR token" }, lookupOk: false });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("unknown-token");
 
     expect(await screen.findByText("Invalid ticket")).toBeTruthy();
   });
