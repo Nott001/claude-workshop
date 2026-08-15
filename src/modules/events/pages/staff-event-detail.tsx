@@ -19,6 +19,7 @@ import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
 import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
+import { BackLink } from "@/shared/components/back-link";
 
 const TAB_KEYS = ["overview", "course", "kiosk", "attendees", "surveys"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -622,7 +623,6 @@ function SurveysSection({
 }
 
 export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
-  const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
@@ -685,13 +685,9 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
           redirected here from /events/[id], so the two are one journey and
           should not change shape halfway through it. */}
       <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
-        <button
-          onClick={() => router.push(backHref)}
-          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+        <BackLink href={backHref} className="mb-6">
           Back to Events
-        </button>
+        </BackLink>
 
         <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
 

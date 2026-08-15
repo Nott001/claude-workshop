@@ -90,15 +90,41 @@ describe("TopNavbar guest view", () => {
     expect(navLink("Home").getAttribute("href")).toBe("/");
   });
 
-  it("shows outlined SIGN IN and filled SIGN UP, with no profile menu", () => {
+  it("shows SIGN IN alone, with no profile menu", () => {
     renderAs(null);
     const signIn = screen.getByRole("link", { name: "SIGN IN" });
-    const signUp = screen.getByRole("link", { name: "SIGN UP" });
 
-    expect(signIn.getAttribute("href")).toBe("/sign-in");
-    expect(signIn.className).toContain("border");
-    expect(signUp.getAttribute("href")).toBe("/sign-up");
-    expect(signUp.className).toContain("bg-brand");
+    // Tagged with the route the guest is on, so the auth screen can offer the
+    // way back to it. This view renders at "/".
+    expect(signIn.getAttribute("href")).toBe("/sign-in?from=landing");
+    expect(signIn.className).not.toContain("border");
     expect(screen.queryByText("Ada Lovelace")).toBeNull();
+  });
+
+  // Signing up moved to the landing hero's "Join Now"; a second bar button
+  // would put two competing calls to action on the same screen. This assertion
+  // has been deleted once already, and the button came back with it.
+  it("no longer offers SIGN UP in the bar", () => {
+    renderAs(null);
+    expect(screen.queryByRole("link", { name: "SIGN UP" })).toBeNull();
+    expect([...document.querySelectorAll('a[href^="/sign-up"]')]).toEqual([]);
+  });
+});
+
+describe("TopNavbar auth buttons", () => {
+  it.each([
+    ["/events", "/sign-in?from=events"],
+    ["/community/3", "/sign-in?from=community"],
+    ["/", "/sign-in?from=landing"],
+  ])("tells the auth screen a guest came from %s", (pathname, signIn) => {
+    renderAs(null, pathname);
+
+    expect(screen.getByRole("link", { name: "SIGN IN" }).getAttribute("href")).toBe(signIn);
+  });
+
+  it("leaves the link bare from a route with no way back to offer", () => {
+    renderAs(null, "/staff/events");
+
+    expect(screen.getByRole("link", { name: "SIGN IN" }).getAttribute("href")).toBe("/sign-in");
   });
 });

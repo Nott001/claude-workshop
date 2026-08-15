@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { toBackLinkOrigin, withBackLink } from "@/shared/lib/back-link";
 import { useEventRegistration } from "@/modules/events/lib/use-event-registration";
+import { BackLink } from "@/shared/components/back-link";
 
 export function EventRegisterPage({ from }: { from?: string }) {
   const params = useParams();
@@ -72,13 +73,9 @@ export function EventRegisterPage({ from }: { from?: string }) {
     <>
       <div className="flex flex-1 flex-col p-6 sm:p-8">
         <div className="mx-auto w-full max-w-lg">
-          <button
-            onClick={() => router.push(eventHref)}
-            className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <span className="material-symbols-rounded text-sm">arrow_back</span>
+          <BackLink href={eventHref} className="mb-6">
             Back to event
-          </button>
+          </BackLink>
 
           <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
             <div className="relative bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300 p-6 text-white">

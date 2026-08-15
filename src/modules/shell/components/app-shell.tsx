@@ -11,9 +11,12 @@ import { ErrorBoundary } from "@/modules/shell/components/error-boundary";
 import { Footer } from "@/modules/shell/components/footer";
 import { cn } from "@/shared/lib/utils";
 
-const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
+// Every screen that asks an unauthenticated visitor for credentials. The two
+// password ones were missing, so a locked-out user was choosing a new password
+// under a navbar inviting them to sign in.
+const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"];
 
-const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login"];
+const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"];
 const HIDE_ASSIST_PATTERNS = [/^\/courses\/[^/]+\/room/];
 
 const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/];

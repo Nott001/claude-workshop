@@ -3,13 +3,13 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
 import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
 import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
 import type { Event } from "@/shared/types";
+import { BackLink } from "@/shared/components/back-link";
 
 export default function StaffEventCoursePage() {
   const params = useParams();
@@ -68,13 +68,9 @@ export default function StaffEventCoursePage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <Link
-          href={`/staff/events/${eventId}`}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-base">arrow_back</span>
+        <BackLink href={`/staff/events/${eventId}`} className="mb-8">
           Back to event
-        </Link>
+        </BackLink>
 
         <h1 className="mb-8 text-[32px] font-bold tracking-[-0.02em] text-fg">Manage Course</h1>
 

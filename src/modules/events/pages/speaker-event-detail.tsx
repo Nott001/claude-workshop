@@ -7,6 +7,7 @@ import { StatusBadge } from "@/modules/events/components/status-badge";
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
+import { BackLink } from "@/shared/components/back-link";
 
 export function SpeakerEventDetailPage() {
   const params = useParams();
@@ -40,13 +41,9 @@ export function SpeakerEventDetailPage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <button
-          onClick={() => router.push("/speaker/events")}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-base">arrow_back</span>
+        <BackLink href="/speaker/events" className="mb-8">
           Back to My Events
-        </button>
+        </BackLink>
 
         <div className="grid grid-cols-12 gap-6">
           {/* Hero Card */}

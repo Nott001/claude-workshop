@@ -4,12 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/shared/components/button";
-import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
+import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
 import { resolvePostSignInDestination } from "@/modules/auth/lib/post-sign-in-destination";
+import { IconInput } from "./icon-input";
+import { PasswordInput } from "./password-input";
+import { AuthHeading } from "./auth-heading";
 
-export function SignInForm({ redirectUrl = null }: { redirectUrl?: string | null }) {
+export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: string | null; backOrigin?: BackLinkOrigin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,59 +40,70 @@ export function SignInForm({ redirectUrl = null }: { redirectUrl?: string | null
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="mb-8">
-        <span className="material-symbols-rounded mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-          lock_open
-        </span>
-        <h1 className="text-xl font-bold text-fg">Welcome back</h1>
-        <p className="mt-1 text-sm text-muted-fg">Sign in to your account to continue.</p>
-      </div>
+    <div>
+      <AuthHeading title="Welcome Back" subtitle="Please enter your details to sign in." />
 
-      <Form onSubmit={handleSubmit} className="space-y-4">
+      <Form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <FormField>
-          <FormLabel htmlFor="signin-email">Email</FormLabel>
-          <Input
+          <FormLabel htmlFor="signin-email" className="text-sm font-medium tracking-wider text-fg">
+            Email address
+          </FormLabel>
+          <IconInput
             id="signin-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
           />
         </FormField>
 
         <FormField>
-          <div className="flex items-center justify-between">
-            <FormLabel htmlFor="signin-password">Password</FormLabel>
-            <Link href="/forgot-password" className="text-xs text-muted-fg hover:text-fg transition-colors">
-              Forgot password?
+          <div className="flex items-center justify-between gap-2">
+            <FormLabel htmlFor="signin-password" className="text-sm font-medium tracking-wider text-fg">
+              Password
+            </FormLabel>
+            <Link
+              href={withBackLink("/forgot-password", backOrigin)}
+              className="text-sm font-medium tracking-wider text-brand transition-colors hover:text-brand/80"
+            >
+              Forgot Password?
             </Link>
           </div>
-          <Input
+          <PasswordInput
             id="signin-password"
-            type="password"
-            placeholder="Enter your password"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
           />
         </FormField>
 
-        {error && <FormMessage>{error}</FormMessage>}
+        {error && <FormMessage role="alert">{error}</FormMessage>}
 
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Signing in\u2026" : "Sign in"}
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-12 w-full gap-2 text-base font-semibold shadow-lg shadow-brand/20"
+        >
+          {loading ? "Signing in…" : "Sign In"}
+          {!loading && (
+            <span aria-hidden className="material-symbols-rounded text-[18px]">
+              arrow_forward
+            </span>
+          )}
         </Button>
       </Form>
 
-      <p className="mt-6 text-center text-sm text-muted-fg">
+      <p className="mt-8 text-center text-base text-muted-fg">
         Don&apos;t have an account?{" "}
         <Link
-          href={`/sign-up${redirectUrlParam(redirectUrl)}`}
-          className="font-medium text-brand hover:text-brand/80 transition-colors"
+          href={withBackLink(`/sign-up${redirectUrlParam(redirectUrl)}`, backOrigin)}
+          className="font-bold text-brand transition-colors hover:text-brand/80"
         >
-          Sign up
+          Create an account
         </Link>
       </p>
     </div>

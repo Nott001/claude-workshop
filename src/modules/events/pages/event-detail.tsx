@@ -2,7 +2,6 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useEffect } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { resolveBackLink, toBackLinkOrigin } from "@/shared/lib/back-link";
@@ -13,6 +12,7 @@ import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card
 import { EventRegisterCard } from "@/modules/events/components/event-register-card";
 import { EventMapCard } from "@/modules/events/components/event-map-card";
 import { EventShare } from "@/modules/events/components/event-share";
+import { BackLink } from "@/shared/components/back-link";
 
 export function EventDetailPage({ from }: { from?: string }) {
   const router = useRouter();
@@ -55,13 +55,9 @@ export function EventDetailPage({ from }: { from?: string }) {
           the content on any viewport narrower than the cap, where the cap is
           not what is limiting the layout in the first place. */}
       <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
-        <Link
-          href={backLink.href}
-          className="mb-6 flex w-fit items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+        <BackLink href={backLink.href} className="mb-6">
           {backLink.label}
-        </Link>
+        </BackLink>
 
         <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
         {/* fr, not %: gap is added to the tracks rather than taken out of them,

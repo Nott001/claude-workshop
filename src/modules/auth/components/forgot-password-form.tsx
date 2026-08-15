@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/shared/components/button";
-import { Input } from "@/shared/components/input";
 import { Form, FormField, FormLabel } from "@/shared/components/form";
+import { IconInput } from "./icon-input";
+import { AuthHeading } from "./auth-heading";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -30,17 +31,17 @@ export function ForgotPasswordForm() {
 
   if (submitted) {
     return (
-      <div className="w-full max-w-sm text-center">
+      <div className="text-center">
         <span className="material-symbols-rounded mb-4 inline-flex size-14 items-center justify-center rounded-2xl bg-brand/10 text-3xl text-brand">
           mark_email_read
         </span>
-        <h1 className="text-xl font-bold text-fg">Check your inbox</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-fg">
+        <AuthHeading title="Check your inbox" subtitle="The link can only be used once." />
+        <p className="mt-4 text-sm leading-relaxed text-muted-fg">
           If an account exists for <span className="font-medium text-fg">{email}</span>, we have sent a link to reset its
-          password. The link can only be used once.
+          password.
         </p>
-        <p className="mt-6 text-sm text-muted-fg">
-          <Link href="/sign-in" className="font-medium text-brand hover:text-brand/80 transition-colors">
+        <p className="mt-8 text-base text-muted-fg">
+          <Link href="/sign-in" className="font-bold text-brand transition-colors hover:text-brand/80">
             Back to sign in
           </Link>
         </p>
@@ -49,37 +50,38 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="mb-8">
-        <span className="material-symbols-rounded mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-          lock_reset
-        </span>
-        <h1 className="text-xl font-bold text-fg">Reset your password</h1>
-        <p className="mt-1 text-sm text-muted-fg">Enter your email and we will send you a link to choose a new one.</p>
-      </div>
+    <div>
+      <AuthHeading title="Reset your password" subtitle="We will send you a link to choose a new one." />
 
-      <Form onSubmit={handleSubmit} className="space-y-4">
+      <Form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <FormField>
-          <FormLabel htmlFor="forgot-email">Email</FormLabel>
-          <Input
+          <FormLabel htmlFor="forgot-email" className="text-sm font-medium tracking-wider text-fg">
+            Email address
+          </FormLabel>
+          <IconInput
             id="forgot-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
           />
         </FormField>
 
-        <Button type="submit" disabled={loading} className="w-full">
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-12 w-full gap-2 text-base font-semibold shadow-lg shadow-brand/20"
+        >
           {loading ? "Sending…" : "Send reset link"}
         </Button>
       </Form>
 
-      <p className="mt-6 text-center text-sm text-muted-fg">
+      <p className="mt-8 text-center text-base text-muted-fg">
         Remembered it?{" "}
-        <Link href="/sign-in" className="font-medium text-brand hover:text-brand/80 transition-colors">
-          Sign in
+        <Link href="/sign-in" className="font-bold text-brand transition-colors hover:text-brand/80">
+          Sign In
         </Link>
       </p>
     </div>
