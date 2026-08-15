@@ -111,14 +111,16 @@ describe("EventRegisterCard", () => {
     expect(screen.queryByText(/price/i)).toBeNull();
   });
 
-  it("renders the venue row as the joined name and address", () => {
+  it("lists the price and leaves the venue to the address card", () => {
     const { container } = render(
       <EventRegisterCard event={baseEvent} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />,
     );
 
-    expect(screen.getByText("Hall A, 123 Main St")).toBeTruthy();
     expect(screen.getByText(/PHP 250\.00/)).toBeTruthy();
     expect(container.querySelectorAll(".text-right").length).toBeGreaterThan(0);
+    // The venue is shown once on the page now, on the card that maps it.
+    expect(screen.queryByText("Hall A, 123 Main St")).toBeNull();
+    expect(screen.queryByText(/venue/i)).toBeNull();
   });
 
   it("hides the price once the caller already holds a ticket", () => {
@@ -126,6 +128,16 @@ describe("EventRegisterCard", () => {
 
     expect(screen.queryByText(/PHP 250\.00/)).toBeNull();
     expect(screen.queryByText(/price/i)).toBeNull();
+  });
+
+  it("drops the list entirely rather than leaving an empty one above the button", () => {
+    // A ticket holder sees no price, and the venue has moved out, so there is
+    // no row left to render — and an empty <ul> would still carry its margin.
+    const { container } = render(
+      <EventRegisterCard event={baseEvent} hasTicket={true} isSignedIn={true} onRegister={vi.fn()} />,
+    );
+
+    expect(container.querySelector("ul")).toBeNull();
   });
 
   it("places the Add to Calendar control directly below the register button", () => {
