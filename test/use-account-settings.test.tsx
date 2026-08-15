@@ -413,6 +413,144 @@ describe("useAccountSettings", () => {
   });
 });
 
+describe("saveChanges dirty-only submission", () => {
+  const STRONG = "the quiet kettle sings";
+
+  it("sends only the changed name when nothing else is dirty", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ full_name: "Ada Lovelace" });
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(verifyPassword).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when the form is untouched", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(verifyPassword).not.toHaveBeenCalled();
+  });
+
+  it("flags an emptied name and aborts before any request", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("  "));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.nameError).toBe("Name is required.");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("reports the account's own address inline and writes nothing", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail(speaker.email));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.emailError).toBe("This is already your email address.");
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+  });
+
+  it("reports a dead domain inline with the suggestion and writes nothing", async () => {
+    checkMailDomain.mockResolvedValue("no-mail-server");
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada@gmial.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.emailError).toBe("We could not find a mail server for gmial.com. Did you mean ada@gmail.com?");
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+  });
+
+  it("changes the password through saveChanges and clears the fields", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
+    expect(result.current.currentPassword).toBe("");
+    expect(result.current.newPassword).toBe("");
+  });
+
+  it("batches name and password changes, leaving the untouched email alone", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setName("Grace Hopper");
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
+    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
+    expect(checkMailDomain).not.toHaveBeenCalled();
+  });
+
+  it("flips dirty back to false once the dirty groups have been saved", async () => {
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response({ ...speaker, full_name: "Ada Lovelace" }));
+    const { result, rerender } = renderHook(() => useAccountSettings());
+    expect(result.current.dirty).toBe(false);
+
+    act(() => result.current.setName("Ada Lovelace"));
+    rerender();
+    expect(result.current.dirty).toBe(true);
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    rerender();
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("keeps an untouched password group from counting as dirty", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+    expect(result.current.dirty).toBe(false);
+
+    act(() => result.current.setName("Ada Lovelace"));
+
+    expect(result.current.dirty).toBe(true);
+  });
+});
+
 describe("the sent state", () => {
   it("starts a cooldown so a second link cannot be asked for immediately", async () => {
     updateUser.mockResolvedValue({ error: null });

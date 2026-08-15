@@ -40,17 +40,35 @@ export function useAccountSettings() {
   const sessionName = currentUser?.full_name ?? "";
   const [name, setName] = useState(sessionName);
   const [lastSessionName, setLastSessionName] = useState(sessionName);
+  const [savedName, setSavedName] = useState(sessionName);
   const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   if (sessionName !== lastSessionName) {
     setLastSessionName(sessionName);
     setName(sessionName);
+    setSavedName(sessionName);
   }
+
+  // Editing the field is the retry, so the message clears with the keystroke
+  // rather than lingering over input it no longer describes.
+  const editName = useCallback((value: string) => {
+    setName(value);
+    setNameError(null);
+  }, []);
 
   const [newEmail, setNewEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // Editing the field is the retry, so the message clears with the keystroke
+  // rather than lingering over input it no longer describes.
+  const editEmail = useCallback((value: string) => {
+    setNewEmail(value);
+    setEmailError(null);
+  }, []);
 
   // One timeout per remaining second rather than a repeating interval: it
   // cancels itself on unmount and cannot outlive the countdown it belongs to.
@@ -70,6 +88,10 @@ export function useAccountSettings() {
   const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
   const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
 
+  // Full-form submission state: the unified form (sheet 04) paints one button
+  // off this, while the per-section flags above keep the current cards working.
+  const [saving, setSaving] = useState(false);
+
   // Editing the field is the retry, so the message clears with the keystroke
   // rather than lingering over input it no longer describes.
   const editCurrentPassword = useCallback((value: string) => {
@@ -85,9 +107,12 @@ export function useAccountSettings() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  async function saveName(e: React.FormEvent) {
-    e.preventDefault();
-    const fullName = name.trim();
+  function validateFullName(fullName: string): string | null {
+    if (fullName.trim() === "") return "Name is required.";
+    return null;
+  }
+
+  async function persistFullName(fullName: string) {
     setSavingName(true);
     try {
       const res = await fetch("/api/auth/me", {
@@ -104,6 +129,7 @@ export function useAccountSettings() {
       const persisted = saved.full_name ?? fullName;
       updateUser({ full_name: persisted });
       setName(persisted);
+      setSavedName(persisted);
 
       notify({ title: "Profile updated", description: "Your name has been saved.", type: "success" });
     } catch {
@@ -111,6 +137,11 @@ export function useAccountSettings() {
     } finally {
       setSavingName(false);
     }
+  }
+
+  async function saveName(e: React.FormEvent) {
+    e.preventDefault();
+    await persistFullName(name.trim());
   }
 
   /** Asks Supabase to mail the confirmation link, and starts the resend clock. */
@@ -145,20 +176,16 @@ export function useAccountSettings() {
     setResendIn(0);
   }
 
-  async function changeEmail(e: React.FormEvent) {
-    e.preventDefault();
-    const email = newEmail.trim();
+  type EmailVerdict = { ok: true } | { ok: false; title: "Error" | "Check the address"; message: string };
 
+  async function validateEmailAddress(email: string): Promise<EmailVerdict> {
     // Caught before the request rather than after: asking Supabase to move the
     // address to the one it already holds spends a slot of the per-address
     // rate limit that a real change would need, and answers by mailing a
     // confirmation link to the inbox the user is already reading.
     if (isSameEmail(email, currentUser?.email)) {
-      notify({ title: "Error", description: "That is already your email address.", type: "error" });
-      return;
+      return { ok: false, title: "Error", message: "This is already your email address." };
     }
-
-    setSavingEmail(true);
 
     // A mistyped domain is the one failure worth catching before sending,
     // because its confirmation link goes nowhere and the account is left
@@ -167,48 +194,67 @@ export function useAccountSettings() {
     const domain = emailDomain(email);
     if (domain && (await checkMailDomain(domain)) === "no-mail-server") {
       const suggestion = suggestEmailCorrection(email);
-      notify({
+      return {
+        ok: false,
         title: "Check the address",
-        description: suggestion
+        message: suggestion
           ? `We could not find a mail server for ${domain}. Did you mean ${suggestion}?`
           : `We could not find a mail server for ${domain}. Check the spelling.`,
-        type: "error",
-      });
-      setSavingEmail(false);
-      return;
+      };
     }
 
-    if (!(await sendVerification(email))) {
-      setSavingEmail(false);
-      return;
-    }
-
-    // Nothing is written here on purpose. The address is a claim until the link
-    // in the message is opened; the app row is caught up at that point, by the
-    // callback route. Writing it now would put an unverified address on every
-    // surface that reads the session, and leave it there for good if the link
-    // were never opened.
-    setEmailSent(true);
-    setSavingEmail(false);
+    return { ok: true };
   }
 
-  async function changePassword(e: React.FormEvent) {
-    e.preventDefault();
-    setCurrentPasswordError(null);
-    setNewPasswordError(null);
+  async function persistEmailChange(email: string) {
+    setSavingEmail(true);
+    try {
+      if (await sendVerification(email)) {
+        // Nothing is written here on purpose. The address is a claim until the
+        // link in the message is opened; the app row is caught up at that
+        // point, by the callback route. Writing it now would put an unverified
+        // address on every surface that reads the session, and leave it there
+        // for good if the link were never opened.
+        setEmailSent(true);
+      }
+    } finally {
+      setSavingEmail(false);
+    }
+  }
 
+  async function changeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const email = newEmail.trim();
+
+    const verdict = await validateEmailAddress(email);
+    if (!verdict.ok) {
+      // The toast keeps the copy the email card has always shown, while the
+      // inline form error uses the field-level wording ("This is already your
+      // email address.") that matches the input it sits under.
+      notify({
+        title: verdict.title,
+        description: verdict.title === "Error" ? "That is already your email address." : verdict.message,
+        type: "error",
+      });
+      return;
+    }
+
+    await persistEmailChange(email);
+  }
+
+  async function validatePassword(
+    current: string,
+    next: string,
+  ): Promise<{ ok: true } | { ok: false; field: "current" | "new"; message: string }> {
     // Named before the request, because the provider answers a rejected
     // password with one generic message for every rule it could have broken.
-    const verdict = evaluatePassword(newPassword, {
+    const verdict = evaluatePassword(next, {
       email: currentUser?.email,
       fullName: currentUser?.full_name,
     });
     if (!verdict.ok) {
-      setNewPasswordError(verdict.problem!);
-      return;
+      return { ok: false, field: "new", message: verdict.problem! };
     }
-
-    setSavingPassword(true);
 
     // The field asking for it was decorative until now: the provider changes a
     // password on the strength of the session alone, so an open laptop or a
@@ -217,26 +263,112 @@ export function useAccountSettings() {
     // that a real gate. Checked after the free local rules and before anything
     // is written, so a weak new password costs no round trip and a wrong
     // current one changes nothing.
-    if (!currentUser?.email || !(await verifyPassword(currentUser.email, currentPassword))) {
-      setCurrentPasswordError("That is not your current password.");
-      setSavingPassword(false);
-      return;
+    if (!currentUser?.email || !(await verifyPassword(currentUser.email, current))) {
+      return { ok: false, field: "current", message: "That is not your current password." };
     }
 
+    return { ok: true };
+  }
+
+  async function persistPasswordChange(next: string) {
     // The provider only ever rejects this call over the new password itself —
     // too weak for its own rules, or identical to the one being replaced — so
     // its message belongs on that field rather than in a toast.
-    const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+    const { error: authError } = await supabase.auth.updateUser({ password: next });
     if (authError) {
       setNewPasswordError(authError.message);
-      setSavingPassword(false);
       return;
     }
 
     setCurrentPassword("");
     setNewPassword("");
     notify({ title: "Password updated", description: "Your password has been changed.", type: "success" });
-    setSavingPassword(false);
+  }
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setCurrentPasswordError(null);
+    setNewPasswordError(null);
+
+    setSavingPassword(true);
+    try {
+      const verdict = await validatePassword(currentPassword, newPassword);
+      if (!verdict.ok) {
+        // A rejected password belongs to the field the user can fix, not to the
+        // whole-form error surface.
+        if (verdict.field === "current") setCurrentPasswordError(verdict.message);
+        else setNewPasswordError(verdict.message);
+        return;
+      }
+
+      await persistPasswordChange(newPassword);
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  const nameDirty = name.trim() !== savedName.trim();
+  const emailDirty = !emailSent && newEmail.trim() !== "";
+  const passwordDirty = currentPassword.trim() !== "" || newPassword.trim() !== "";
+  const dirty = nameDirty || emailDirty || passwordDirty;
+
+  async function saveChanges(e: React.FormEvent) {
+    e.preventDefault();
+    setNameError(null);
+    setEmailError(null);
+    setCurrentPasswordError(null);
+    setNewPasswordError(null);
+
+    // Validate only the groups that changed; an untouched field's stale value
+    // must not block saving something else, and any failure aborts the whole
+    // batch before anything is written.
+    let failed = false;
+
+    if (nameDirty) {
+      const problem = validateFullName(name);
+      if (problem) {
+        setNameError(problem);
+        failed = true;
+      }
+    }
+
+    if (emailDirty) {
+      const verdict = await validateEmailAddress(newEmail.trim());
+      if (!verdict.ok) {
+        setEmailError(verdict.message);
+        failed = true;
+      }
+    }
+
+    if (passwordDirty) {
+      const verdict = await validatePassword(currentPassword, newPassword);
+      if (!verdict.ok) {
+        if (verdict.field === "current") setCurrentPasswordError(verdict.message);
+        else setNewPasswordError(verdict.message);
+        failed = true;
+      }
+    }
+
+    if (failed) return;
+
+    setSaving(true);
+    try {
+      if (nameDirty) {
+        // persistFullName writes savedName from what was stored, which is what
+        // flips the name group from dirty once the write lands.
+        await persistFullName(name.trim());
+      }
+
+      if (emailDirty) {
+        await persistEmailChange(newEmail.trim());
+      }
+
+      if (passwordDirty) {
+        await persistPasswordChange(newPassword);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function changeProfilePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -290,11 +422,13 @@ export function useAccountSettings() {
     notify,
     currentUser,
     name,
-    setName,
+    setName: editName,
+    nameError,
     savingName,
     saveName,
     newEmail,
-    setNewEmail,
+    setNewEmail: editEmail,
+    emailError,
     emailSent,
     savingEmail,
     changeEmail,
@@ -309,6 +443,9 @@ export function useAccountSettings() {
     newPasswordError,
     savingPassword,
     changePassword,
+    dirty,
+    saving,
+    saveChanges,
     uploading,
     changeProfilePhoto,
     deleting,
