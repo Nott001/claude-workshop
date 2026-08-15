@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getRouteClient } from "@/shared/db/route-client";
+import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
+import { emailChangeAlertTemplate } from "@/shared/integrations/email/templates";
 import { appBaseUrl } from "@/shared/lib/app-url";
 import { isSameEmail, RESEND_COOLDOWN_SECONDS } from "@/shared/lib/email";
 
@@ -57,6 +59,21 @@ export async function POST(request: Request) {
   if (error) {
     const status = error.status ?? 400;
     return NextResponse.json({ ok: false, error: { status, message: error.message } }, { status });
+  }
+
+  // The new address owns the confirm link now (single-confirm, sheet 03), so
+  // the old mailbox only learns of the change from this notice. It must not
+  // carry a link: a clickable old-address email is what takeover phishing
+  // fakes. A notice that fails to send must not undo an accept that already
+  // landed.
+  try {
+    await sendTemplatedEmail(
+      emailChangeAlertTemplate,
+      { name: guard.full_name || "there", newEmail: target },
+      { email: guard.email, name: guard.full_name || "there" },
+    );
+  } catch (err) {
+    console.error("Old-address email-change notice failed:", err);
   }
 
   return NextResponse.json({ ok: true });

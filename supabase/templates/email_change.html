@@ -1,10 +1,3 @@
-{{ if eq .SendingTo .NewEmail }}
 <h2>Confirm your new email address</h2>
 <p>{{ .NewEmail }} will become the login email for your account once you confirm.</p>
 <p><a href="{{ .ConfirmationURL }}">Confirm your new email address</a></p>
-{{ else }}
-<h2>Someone requested to change the email on this account</h2>
-<p>Someone requested to change the email on this account to {{ .NewEmail }}. If this was you, you can use the link below to allow it.</p>
-<p>If this was <strong>not</strong> you, someone else is trying to take over the account: do not click the link, change your password and contact us.</p>
-<p><a href="{{ .ConfirmationURL }}">Review the email change</a></p>
-{{ end }}

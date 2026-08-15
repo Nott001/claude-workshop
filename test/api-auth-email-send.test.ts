@@ -1,19 +1,22 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { requireAuth, getRouteClient, routeAuth } = vi.hoisted(() => {
+const { requireAuth, getRouteClient, routeAuth, sendTemplatedEmail } = vi.hoisted(() => {
   const routeAuth = { getUser: vi.fn(), updateUser: vi.fn() };
   return {
     requireAuth: vi.fn(),
     getRouteClient: vi.fn(async () => ({ auth: routeAuth })),
     routeAuth,
+    sendTemplatedEmail: vi.fn(),
   };
 });
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
+vi.mock("@/shared/integrations/email/send-templated", () => ({ sendTemplatedEmail }));
 
 import { POST } from "@/app/api/auth/email/send/route";
+import { emailChangeAlertTemplate } from "@/shared/integrations/email/templates";
 
 const USER = {
   id: 1,
@@ -40,6 +43,7 @@ beforeEach(() => {
   requireAuth.mockResolvedValue(USER);
   routeAuth.getUser.mockResolvedValue({ data: { user: goTrueUser() }, error: null });
   routeAuth.updateUser.mockResolvedValue({ error: null, data: { user: goTrueUser() } });
+  sendTemplatedEmail.mockResolvedValue({ success: true });
 });
 
 afterEach(() => {
@@ -55,6 +59,7 @@ describe("POST /api/auth/email/send", () => {
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: "Unauthenticated" });
     expect(routeAuth.updateUser).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("rejects a request without a usable email before touching GoTrue", async () => {
@@ -64,6 +69,7 @@ describe("POST /api/auth/email/send", () => {
     await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 400, message: "Bad request" } });
     expect(routeAuth.getUser).not.toHaveBeenCalled();
     expect(routeAuth.updateUser).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("treats an unparseable body as a bad request instead of crashing the route", async () => {
@@ -79,6 +85,7 @@ describe("POST /api/auth/email/send", () => {
     await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 400, message: "Bad request" } });
     expect(routeAuth.getUser).not.toHaveBeenCalled();
     expect(routeAuth.updateUser).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("refuses the address already on the account, whatever the casing or padding", async () => {
@@ -91,6 +98,7 @@ describe("POST /api/auth/email/send", () => {
         error: { status: 400, message: "This is already your email address." },
       });
       expect(routeAuth.updateUser).not.toHaveBeenCalled();
+      expect(sendTemplatedEmail).not.toHaveBeenCalled();
     }
   });
 
@@ -110,6 +118,7 @@ describe("POST /api/auth/email/send", () => {
     expect(res.status).toBe(429);
     await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 429, message: "" } });
     expect(routeAuth.updateUser).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("lets a different address supersede a pending change instead of cooldown-gating it", async () => {
@@ -140,6 +149,7 @@ describe("POST /api/auth/email/send", () => {
       ok: false,
       error: { status: 422, message: "Email already in use" },
     });
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("answers ok when the send lands", async () => {
@@ -164,5 +174,39 @@ describe("POST /api/auth/email/send", () => {
       { email: "new@example.com" },
       { emailRedirectTo: "https://app.test/api/auth/callback" },
     );
+  });
+
+  it("notifies the old address that the email is changing", async () => {
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
+    expect(sendTemplatedEmail).toHaveBeenCalledWith(
+      emailChangeAlertTemplate,
+      { name: "Ada", newEmail: "new@example.com" },
+      { email: "ada@example.com", name: "Ada" },
+    );
+    expect(sendTemplatedEmail.mock.invocationCallOrder[0]).toBeGreaterThan(routeAuth.updateUser.mock.invocationCallOrder[0]);
+  });
+
+  it("still ok when the notice reports it could not send", async () => {
+    sendTemplatedEmail.mockResolvedValue({ success: false });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("still ok and logs when the notice throws", async () => {
+    sendTemplatedEmail.mockRejectedValue(new Error("provider down"));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(logged).toHaveBeenCalledTimes(1);
+    logged.mockRestore();
   });
 });

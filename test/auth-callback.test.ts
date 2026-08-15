@@ -67,8 +67,26 @@ describe("GET /api/auth/callback", () => {
     expect(location.searchParams.get("error")).toBe("auth_failed");
   });
 
-  it("redirects to /sign-in with error when no code is present", async () => {
+  it("redirects to /sign-in with error for a reach with no code at all", async () => {
     const req = new Request("https://app.test/api/auth/callback");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    const location = new URL(res.headers.get("location")!);
+    expect(location.pathname).toBe("/sign-in");
+    expect(location.searchParams.get("error")).toBe("auth_failed");
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  // A double-confirm build of GoTrue 303s the NEW-address leg to the callback
+  // carrying only a message and no code — precisely the shape this suite must
+  // never let regress. Single-confirm (specs/03) removed the fork, and the
+  // callback answers a codeless reach with an auth failure, never a false
+  // /email-verified.
+  it("does not fake a verified email for a message-only hop with no code", async () => {
+    const req = new Request(
+      "https://app.test/api/auth/callback?message=Confirmation+link+accepted.+Please+proceed+to+confirm+link+sent+to+the+other+email",
+    );
     const res = await GET(req);
 
     expect(res.status).toBe(307);
