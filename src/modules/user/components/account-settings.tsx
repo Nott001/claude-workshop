@@ -54,7 +54,7 @@ export function AccountSettings() {
                 saving={settings.savingEmail}
                 resendIn={settings.resendIn}
                 onResend={settings.resendVerification}
-                onUseDifferent={settings.useDifferentEmail}
+                onCancel={settings.cancelEmailChange}
               />
             </div>
             <div className="p-6">
@@ -89,6 +89,20 @@ export function AccountSettings() {
               </div>
             )}
           </div>
+          {settings.savedNotice && (
+            <div className="mt-6 flex items-start gap-2 rounded-lg bg-success/10 p-3">
+              <span className="material-symbols-rounded mt-0.5 text-sm text-success">check_circle</span>
+              <p className="flex-1 text-xs text-muted-fg">{settings.savedNotice}</p>
+              <button
+                type="button"
+                onClick={settings.dismissSavedNotice}
+                aria-label="Dismiss"
+                className="material-symbols-rounded text-sm text-muted-fg hover:text-fg"
+              >
+                close
+              </button>
+            </div>
+          )}
           <div className="mt-6 flex justify-end">
             <Button type="submit" disabled={!settings.dirty || settings.saving}>
               {settings.saving ? "Saving\u2026" : "Save Changes"}

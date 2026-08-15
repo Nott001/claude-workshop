@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import { ROLES } from "@/shared/lib/roles";
 import { getBrowserClient } from "@/shared/db/browser-client";
-import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
-import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
+import { emailDomain, isSameEmail, RESEND_COOLDOWN_SECONDS } from "@/shared/lib/email";
+import { authErrorMessage } from "@/shared/lib/auth-error-message";
 import { evaluatePassword } from "@/shared/lib/password-policy";
 import { verifyPassword } from "@/modules/auth/lib/verify-password";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
@@ -19,10 +19,6 @@ export type ToastData = { title: string; description: string; type: "success" | 
 // down for the first, and disappears early.
 export type ActiveToast = ToastData & { id: number };
 
-// Matches the provider's own minimum gap between messages, so the countdown
-// runs out at about the moment a second send would be accepted.
-const RESEND_COOLDOWN_SECONDS = 60;
-
 export function useAccountSettings() {
   const { user: currentUser, updateUser } = useSession();
   const supabase = getBrowserClient();
@@ -33,6 +29,12 @@ export function useAccountSettings() {
   // Stable, so an unrelated re-render does not restart Toast's dismissal effect
   // — it is keyed on `onClose` — and leave the message on screen indefinitely.
   const dismissToast = useCallback(() => setToast(null), []);
+
+  // A save that the user may miss if it only reached the auto-dismissing toast.
+  // Declared before the field editors (which clear it on a keystroke) so a
+  // stale confirmation never outlives the input it matched.
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const dismissSavedNotice = useCallback(() => setSavedNotice(null), []);
 
   // The page renders before the session resolves, so the field cannot simply be
   // seeded once at mount — it would stay empty and Save would then write that
@@ -50,24 +52,38 @@ export function useAccountSettings() {
     setSavedName(sessionName);
   }
 
-  // Editing the field is the retry, so the message clears with the keystroke
-  // rather than lingering over input it no longer describes.
-  const editName = useCallback((value: string) => {
-    setName(value);
-    setNameError(null);
-  }, []);
-
-  const [newEmail, setNewEmail] = useState("");
+  // The email field is prefilled the same way, and for the same reason: the
+  // page renders before the session resolves, and adopting the session address
+  // keeps the box in step with a confirmed change. An edit in progress is left
+  // alone on unrelated renders.
+  const sessionEmail = currentUser?.email ?? "";
+  const [newEmail, setNewEmail] = useState(sessionEmail);
+  const [lastSessionEmail, setLastSessionEmail] = useState(sessionEmail);
   const [emailSent, setEmailSent] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  if (sessionEmail !== lastSessionEmail) {
+    setLastSessionEmail(sessionEmail);
+    setNewEmail(sessionEmail);
+  }
+
+  // Editing the field is the retry, so the message clears with the keystroke
+  // rather than lingering over input it no longer describes. The fresh keystroke
+  // also clears the save confirmation, so it never outlives the input it matched.
+  const editName = useCallback((value: string) => {
+    setName(value);
+    setNameError(null);
+    setSavedNotice(null);
+  }, []);
 
   // Editing the field is the retry, so the message clears with the keystroke
   // rather than lingering over input it no longer describes.
   const editEmail = useCallback((value: string) => {
     setNewEmail(value);
     setEmailError(null);
+    setSavedNotice(null);
   }, []);
 
   // One timeout per remaining second rather than a repeating interval: it
@@ -77,6 +93,37 @@ export function useAccountSettings() {
     const id = setTimeout(() => setResendIn(resendIn - 1), 1000);
     return () => clearTimeout(id);
   }, [resendIn]);
+
+  // A reload wipes emailSent and resendIn, leaving an in-flight change to look
+  // like a fresh form that re-sends straight into the same rate-limit window.
+  // GoTrue records the pending address on the auth user, so read it back and
+  // resume. Waiting for a resolved session keeps this from stamping the pending
+  // value in before the session adoption (above) has a chance to agree on what
+  // the account currently owns.
+  const restoredPendingRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser?.email) return;
+    let cancelled = false;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const pending = data.user?.new_email?.trim() ?? "";
+        if (!pending || isSameEmail(pending, currentUser?.email)) return;
+        if (restoredPendingRef.current === pending) return;
+        restoredPendingRef.current = pending;
+        setNewEmail(pending);
+        setEmailSent(true);
+        const sentAt = data.user?.email_change_sent_at ?? null;
+        const elapsed = sentAt ? (Date.now() - new Date(sentAt).getTime()) / 1000 : 0;
+        setResendIn(elapsed < RESEND_COOLDOWN_SECONDS ? Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed) : 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, currentUser?.email]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -96,11 +143,13 @@ export function useAccountSettings() {
   const editCurrentPassword = useCallback((value: string) => {
     setCurrentPassword(value);
     setCurrentPasswordError(null);
+    setSavedNotice(null);
   }, []);
 
   const editNewPassword = useCallback((value: string) => {
     setNewPassword(value);
     setNewPasswordError(null);
+    setSavedNotice(null);
   }, []);
 
   const [uploading, setUploading] = useState(false);
@@ -164,25 +213,35 @@ export function useAccountSettings() {
     };
   }, [isSpeaker]);
 
-  const editSpeakerDesignation = useCallback((value: string) => setDesignation(value), []);
-  const editSpeakerBio = useCallback((value: string) => setBio(value), []);
+  const editSpeakerDesignation = useCallback((value: string) => {
+    setDesignation(value);
+    setSavedNotice(null);
+  }, []);
+  const editSpeakerBio = useCallback((value: string) => {
+    setBio(value);
+    setSavedNotice(null);
+  }, []);
   // Editing a field is the retry for its own rejection, so the message clears
   // with the keystroke rather than lingering under input it no longer describes.
   const editSpeakerLinkedin = useCallback((value: string) => {
     setLinkedinUrl(value);
     setSpeakerFieldErrors((prev) => ({ ...prev, linkedin: undefined }));
+    setSavedNotice(null);
   }, []);
   const editSpeakerTwitter = useCallback((value: string) => {
     setTwitterUrl(value);
     setSpeakerFieldErrors((prev) => ({ ...prev, twitter: undefined }));
+    setSavedNotice(null);
   }, []);
   const editSpeakerGithub = useCallback((value: string) => {
     setGithubUrl(value);
     setSpeakerFieldErrors((prev) => ({ ...prev, github: undefined }));
+    setSavedNotice(null);
   }, []);
   const editSpeakerWebsite = useCallback((value: string) => {
     setWebsiteUrl(value);
     setSpeakerFieldErrors((prev) => ({ ...prev, website: undefined }));
+    setSavedNotice(null);
   }, []);
 
   function validateFullName(fullName: string): string | null {
@@ -190,7 +249,7 @@ export function useAccountSettings() {
     return null;
   }
 
-  async function persistProfileChange() {
+  async function persistProfileChange(): Promise<boolean> {
     try {
       // One PATCH for the whole profile — name and speaker fields together, so
       // the merged form's Save Changes writes everything it owns in a single
@@ -234,17 +293,41 @@ export function useAccountSettings() {
         setSavedWebsiteUrl(websiteUrl.trim());
       }
 
-      notify({ title: "Profile updated", description: "Your profile has been saved.", type: "success" });
+      return true;
     } catch {
       notify({ title: "Error", description: "Failed to update profile.", type: "error" });
+      return false;
     }
   }
 
-  /** Asks Supabase to mail the confirmation link, and starts the resend clock. */
+  // The route failure shape is `{ ok: false, error: { status, message } }`, with
+  // the auth-route 401 convention (`{ error: "Unauthenticated" }`) as the one
+  // bare variant. Fold either into the object the mapping helper expects.
+  function routeError(data: { error?: unknown }): { status?: number; message: string } {
+    const error = data.error;
+    if (typeof error === "string") return { message: error };
+    if (error && typeof error === "object") {
+      const { status, message } = error as { status?: number; message?: string };
+      return { status, message: typeof message === "string" ? message : "" };
+    }
+    return { message: "" };
+  }
+
+  /** Asks the route to send the confirmation link, and starts the resend clock. */
   async function sendVerification(email: string): Promise<boolean> {
-    const { error: authError } = await supabase.auth.updateUser({ email });
-    if (authError) {
-      notify({ title: "Error", description: authError.message, type: "error" });
+    const res = await fetch("/api/auth/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: unknown };
+
+    if (!data.ok) {
+      notify({
+        title: "Error",
+        description: authErrorMessage(routeError(data), "We could not send the verification link. Please try again."),
+        type: "error",
+      });
       return false;
     }
     setResendIn(RESEND_COOLDOWN_SECONDS);
@@ -266,37 +349,27 @@ export function useAccountSettings() {
     setSavingEmail(false);
   }
 
-  /** Returns to the form with the address still in it, so a typo is one edit away. */
-  function useDifferentEmail() {
+  /**
+   * Returns to the form. The change is not undone — GoTrue keeps it pending
+   * until it expires (sheet 12 gate FAIL: no admin write clears new_email) — so
+   * this only dismisses the sent state, and a reload before the token expires
+   * shows the pending banner again. The typed address stays in the field.
+   */
+  function cancelEmailChange() {
     setEmailSent(false);
     setResendIn(0);
   }
 
-  type EmailVerdict = { ok: true } | { ok: false; title: "Error" | "Check the address"; message: string };
+  type EmailVerdict = { ok: true } | { ok: false; message: string };
 
-  async function validateEmailAddress(email: string): Promise<EmailVerdict> {
-    // Caught before the request rather than after: asking Supabase to move the
-    // address to the one it already holds spends a slot of the per-address
-    // rate limit that a real change would need, and answers by mailing a
-    // confirmation link to the inbox the user is already reading.
-    if (isSameEmail(email, currentUser?.email)) {
-      return { ok: false, title: "Error", message: "This is already your email address." };
-    }
-
-    // A mistyped domain is the one failure worth catching before sending,
-    // because its confirmation link goes nowhere and the account is left
-    // waiting on a message that cannot arrive. An inconclusive lookup lets the
-    // address through: the confirmation is what actually proves it works.
-    const domain = emailDomain(email);
-    if (domain && (await checkMailDomain(domain)) === "no-mail-server") {
-      const suggestion = suggestEmailCorrection(email);
-      return {
-        ok: false,
-        title: "Check the address",
-        message: suggestion
-          ? `We could not find a mail server for ${domain}. Did you mean ${suggestion}?`
-          : `We could not find a mail server for ${domain}. Check the spelling.`,
-      };
+  function validateEmailAddress(email: string): EmailVerdict {
+    // The dirty gate keeps the session's own address and a blank field out of
+    // here, so the only thing left to refuse is a domain that does not look
+    // like one. No DNS lookup: tagged aliases (you+tag@…), sub-domains and
+    // small domains are all legitimate mailboxes, and the verification link is
+    // the real proof one works.
+    if (!emailDomain(email)) {
+      return { ok: false, message: "Enter a valid email address, like name@example.com." };
     }
 
     return { ok: true };
@@ -346,23 +419,26 @@ export function useAccountSettings() {
     return { ok: true };
   }
 
-  async function persistPasswordChange(next: string) {
+  async function persistPasswordChange(next: string): Promise<boolean> {
     // The provider only ever rejects this call over the new password itself —
     // too weak for its own rules, or identical to the one being replaced — so
     // its message belongs on that field rather than in a toast.
     const { error: authError } = await supabase.auth.updateUser({ password: next });
     if (authError) {
-      setNewPasswordError(authError.message);
-      return;
+      setNewPasswordError(authErrorMessage(authError, "We could not change your password. Please try again."));
+      return false;
     }
 
     setCurrentPassword("");
     setNewPassword("");
-    notify({ title: "Password updated", description: "Your password has been changed.", type: "success" });
+    return true;
   }
 
   const nameDirty = name.trim() !== savedName.trim();
-  const emailDirty = !emailSent && newEmail.trim() !== "";
+  // Prefilled against the session address, the field is only a change when it
+  // differs from it — the address already on file, or a blank, is never
+  // resubmitted as if it were one.
+  const emailDirty = !emailSent && newEmail.trim() !== "" && !isSameEmail(newEmail, currentUser?.email);
   const passwordDirty = currentPassword.trim() !== "" || newPassword.trim() !== "";
   const speakerDirty =
     isSpeaker &&
@@ -381,6 +457,9 @@ export function useAccountSettings() {
     setCurrentPasswordError(null);
     setNewPasswordError(null);
     setSpeakerFieldErrors({});
+    // A new attempt must not leave a stale confirmation on screen; it is set
+    // again, only for what actually landed, after the persists below.
+    setSavedNotice(null);
 
     // Validate only the groups that changed; an untouched field's stale value
     // must not block saving something else, and any failure aborts the whole
@@ -438,13 +517,16 @@ export function useAccountSettings() {
 
     if (failed) return;
 
+    let savedProfile = false;
+    let savedPassword = false;
+
     setSaving(true);
     try {
       if (nameDirty || speakerDirty) {
         // persistProfileChange writes the dirty profile groups and resets their
         // saved originals to what was stored, which is what flips them clean
-        // once the write lands.
-        await persistProfileChange();
+        // once the write lands. It answers whether the write actually landed.
+        savedProfile = await persistProfileChange();
       }
 
       if (emailDirty) {
@@ -452,11 +534,23 @@ export function useAccountSettings() {
       }
 
       if (passwordDirty) {
-        await persistPasswordChange(newPassword);
+        savedPassword = await persistPasswordChange(newPassword);
       }
     } finally {
       setSaving(false);
     }
+
+    // The email section confirms in place with its own green sent-box, so only
+    // profile and password saves announce themselves here — one surface per save.
+    setSavedNotice(
+      savedProfile && savedPassword
+        ? "Your settings have been updated."
+        : savedProfile
+          ? "Your profile has been updated."
+          : savedPassword
+            ? "Your password has been updated."
+            : null,
+    );
   }
 
   async function changeProfilePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -509,6 +603,8 @@ export function useAccountSettings() {
     dismissToast,
     notify,
     currentUser,
+    savedNotice,
+    dismissSavedNotice,
     name,
     setName: editName,
     nameError,
@@ -519,7 +615,7 @@ export function useAccountSettings() {
     savingEmail,
     resendIn,
     resendVerification,
-    useDifferentEmail,
+    cancelEmailChange,
     currentPassword,
     setCurrentPassword: editCurrentPassword,
     currentPasswordError,

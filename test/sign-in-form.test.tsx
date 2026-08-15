@@ -106,3 +106,33 @@ describe("SignInForm role-based destination", () => {
     await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith("/"));
   });
 });
+
+describe("SignInForm auth error copy", () => {
+  it("names the wait instead of the raw {} when a 429 rate-limits the attempt", async () => {
+    signInWithPassword.mockResolvedValue({ error: { status: 429, message: "{}" } });
+
+    render(<SignInForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Too many attempts. Please wait, then try again."));
+    expect(window.location.assign).not.toHaveBeenCalled();
+  });
+
+  it("falls back to sign-in copy for a {} error that is not a rate limit", async () => {
+    signInWithPassword.mockResolvedValue({ error: { message: "{}" } });
+
+    render(<SignInForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("We could not sign you in. Please try again."));
+  });
+
+  it("keeps a usable provider message", async () => {
+    signInWithPassword.mockResolvedValue({ error: { message: "Invalid login credentials" } });
+
+    render(<SignInForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Invalid login credentials"));
+  });
+});

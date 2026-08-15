@@ -10,17 +10,13 @@ vi.mock("@/modules/auth/components/session-context", () => ({
 
 const sessionUpdateUser = vi.fn();
 
-// vi.mock is hoisted above the module body, so this double must be created
-// inside vi.hoisted rather than as a plain const.
-const { checkMailDomain } = vi.hoisted(() => ({ checkMailDomain: vi.fn() }));
-vi.mock("@/shared/integrations/dns/mail-domain", () => ({ checkMailDomain }));
-
 const { verifyPassword } = vi.hoisted(() => ({ verifyPassword: vi.fn() }));
 vi.mock("@/modules/auth/lib/verify-password", () => ({ verifyPassword }));
 
 const updateUser = vi.fn();
+const getUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
-  getBrowserClient: () => ({ auth: { updateUser } }),
+  getBrowserClient: () => ({ auth: { updateUser, getUser } }),
 }));
 
 import { useAccountSettings } from "@/modules/user/lib/use-account-settings";
@@ -42,13 +38,32 @@ function response(body: unknown, ok = true): Promise<Response> {
   return Promise.resolve({ ok, json: async () => body } as Response);
 }
 
+const SEND_ROUTE = "/api/auth/email/send";
+const CANCEL_ROUTE = "/api/auth/email/cancel";
+
+// Answers an app route with the given JSON while keeping the default empty
+// response for everything else, so tests exercise the request shape without a
+// global mockImplementation for every call the hook makes.
+function respondTo(route: string, body: unknown, ok = true) {
+  const fetch = stubFetch();
+  fetch.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).includes(route)) {
+      return Promise.resolve({ ok, json: async () => body } as Response);
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
+  });
+  return fetch;
+}
+
 const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  checkMailDomain.mockResolvedValue("deliverable");
   verifyPassword.mockResolvedValue(true);
   sessionValue.mockReturnValue({ user, updateUser: sessionUpdateUser });
+  // The restore effect reads GoTrue on mount; a resolved no-pending record is
+  // the resting state every other describe asserts on.
+  getUser.mockResolvedValue({ data: { user: null } });
 });
 
 afterEach(() => {
@@ -58,7 +73,7 @@ afterEach(() => {
 });
 
 describe("saving the profile name", () => {
-  it("saves the name via PATCH /api/auth/me and toasts success", async () => {
+  it("saves the name via PATCH /api/auth/me and confirms in the form", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
@@ -69,11 +84,8 @@ describe("saving the profile name", () => {
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "New Name" });
-    expect(result.current.toast).toMatchObject({
-      title: "Profile updated",
-      description: "Your profile has been saved.",
-      type: "success",
-    });
+    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+    expect(result.current.toast).toBeNull();
   });
 
   it("pushes the saved name into the session so the navbar follows", async () => {
@@ -124,13 +136,13 @@ describe("saving the profile name", () => {
     });
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
+    expect(result.current.savedNotice).toBeNull();
   });
 });
 
 describe("changing the email", () => {
-  it("asks supabase to send the link and reports sent, without writing the address anywhere", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    const fetch = stubFetch();
+  it("posts the address to the send route and reports sent, without writing the address anywhere", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("new@example.com"));
@@ -138,15 +150,17 @@ describe("changing the email", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
+    expect(fetch).toHaveBeenCalledWith(SEND_ROUTE, expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(String(fetch.mock.calls.find((c) => String(c[0]).includes(SEND_ROUTE))![1]!.body))).toEqual({
+      email: "new@example.com",
+    });
     expect(result.current.emailSent).toBe(true);
     // The row is only caught up once the link is opened, by the callback route.
     expect(fetch.mock.calls.find((c) => c[1]?.method === "PATCH")).toBeUndefined();
   });
 
   it("keeps showing the address the account actually owns while a change is pending", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
+    respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("new@example.com"));
@@ -158,8 +172,8 @@ describe("changing the email", () => {
     expect(sessionUpdateUser).not.toHaveBeenCalledWith(expect.objectContaining({ email: expect.anything() }));
   });
 
-  it("refuses the address already on the account without calling supabase or the API", async () => {
-    const fetch = stubFetch();
+  it("does not treat the address already on the account as a change", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail(user.email));
@@ -167,13 +181,13 @@ describe("changing the email", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.emailError).toBe("This is already your email address.");
+    expect(result.current.emailError).toBeNull();
   });
 
-  it("refuses it however it is capitalised or padded", async () => {
+  it("also quits being a change however it is capitalised or padded", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
     for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
@@ -182,13 +196,13 @@ describe("changing the email", () => {
         await result.current.saveChanges(submitEvent);
       });
 
-      expect(updateUser).not.toHaveBeenCalled();
+      expect(result.current.emailError).toBeNull();
+      expect(result.current.emailSent).toBe(false);
     }
   });
 
   it("sends a trimmed address so stray space cannot pass as a different one", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("  grace@example.com  "));
@@ -196,12 +210,17 @@ describe("changing the email", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
+    expect(JSON.parse(String(fetch.mock.calls.find((c) => String(c[0]).includes(SEND_ROUTE))![1]!.body))).toEqual({
+      email: "grace@example.com",
+    });
   });
 
-  it("refuses a domain with no mail server and suggests the likely typo", async () => {
-    checkMailDomain.mockResolvedValue("no-mail-server");
-    const fetch = stubFetch();
+  // How the address looks is the only gate now: there is no DNS lookup, so a
+  // mistyped-but-well-formed domain is not refused. Tagged aliases and
+  // sub-domains are legitimate mailboxes, and the verification link is the real
+  // proof one works.
+  it("sends to a well-formed domain without a mail check", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("ada@gmial.com"));
@@ -209,14 +228,12 @@ describe("changing the email", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(updateUser).not.toHaveBeenCalled();
-    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.emailError).toBe("We could not find a mail server for gmial.com. Did you mean ada@gmail.com?");
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.emailError).toBeNull();
   });
 
-  it("refuses an unrecognisable dead domain without inventing a suggestion", async () => {
-    checkMailDomain.mockResolvedValue("no-mail-server");
+  it("accepts an address on any well-formed looking domain", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("ada@nowhere-at-all.test"));
@@ -224,42 +241,41 @@ describe("changing the email", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.emailError).toBe("We could not find a mail server for nowhere-at-all.test. Check the spelling.");
-  });
-
-  // A resolver that is down or blocked must not be able to lock someone out of
-  // changing their email; the confirmation link is the real proof.
-  it("lets the change through when the lookup cannot answer", async () => {
-    checkMailDomain.mockResolvedValue("unknown");
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
-    const { result } = renderHook(() => useAccountSettings());
-
-    act(() => result.current.setNewEmail("ada@obscure.test"));
-    await act(async () => {
-      await result.current.saveChanges(submitEvent);
-    });
-
-    expect(updateUser).toHaveBeenCalledWith({ email: "ada@obscure.test" });
     expect(result.current.emailSent).toBe(true);
   });
 
-  it("checks the domain only after the address is known to be a real change", async () => {
+  it("refuses an address whose domain does not look like one", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(user.email));
+    for (const typed of ["ada@localhost", "ada@no-dot"]) {
+      act(() => result.current.setNewEmail(typed));
+      await act(async () => {
+        await result.current.saveChanges(submitEvent);
+      });
+
+      expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
+      expect(result.current.emailSent).toBe(false);
+      expect(result.current.emailError).toBe("Enter a valid email address, like name@example.com.");
+    }
+  });
+
+  it("accepts a tagged alias such as ada+events@example.com", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("ada+events@example.com"));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(checkMailDomain).not.toHaveBeenCalled();
+    expect(result.current.emailSent).toBe(true);
   });
 
-  it("stops showing progress after refusing the domain", async () => {
-    checkMailDomain.mockResolvedValue("no-mail-server");
+  it("stops showing progress after refusing a malformed address", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@gmial.com"));
+    act(() => result.current.setNewEmail("ada@localhost"));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
@@ -267,9 +283,8 @@ describe("changing the email", () => {
     expect(result.current.saving).toBe(false);
   });
 
-  it("toasts the supabase error and skips the PATCH when the email update fails", async () => {
-    updateUser.mockResolvedValue({ error: { message: "Email already in use" } });
-    const fetch = stubFetch();
+  it("toasts the route's refusal and skips the PATCH when the email update fails", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: false, error: { status: 422, message: "Email already in use" } }, false);
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("new@example.com"));
@@ -279,6 +294,270 @@ describe("changing the email", () => {
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Email already in use", type: "error" });
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+  });
+
+  it("names the wait instead of the raw {} when a 429 exhausts the send budget", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: false, error: { status: 429, message: "" } }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "Too many attempts. Please wait, then try again.",
+      type: "error",
+    });
+    // A failure must leave emailSent false so the field stays editable with the
+    // typed address intact and Save Changes stays enabled after the window.
+    expect(result.current.emailSent).toBe(false);
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+  });
+
+  it("maps the bare 401 error convention the auth routes use", async () => {
+    respondTo(SEND_ROUTE, { error: "Unauthenticated" }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "Unauthenticated",
+      type: "error",
+    });
+    expect(result.current.emailSent).toBe(false);
+  });
+
+  it("uses the email fallback when a {} error carries no status", async () => {
+    respondTo(SEND_ROUTE, { ok: false, error: { message: "{}" } }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "We could not send the verification link. Please try again.",
+      type: "error",
+    });
+    expect(result.current.emailSent).toBe(false);
+  });
+
+  it("shows the same-address refusal copy the route returns and keeps the sent box down", async () => {
+    respondTo(SEND_ROUTE, { ok: false, error: { status: 400, message: "This is already your email address." } }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("other@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "This is already your email address.",
+      type: "error",
+    });
+    expect(result.current.emailSent).toBe(false);
+  });
+
+  it("uses the email fallback when the route answers something that is not JSON", async () => {
+    const fetch = stubFetch();
+    fetch.mockReturnValue(
+      Promise.resolve({ ok: true, json: () => Promise.reject(new Error("unparseable")) } as unknown as Response),
+    );
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "We could not send the verification link. Please try again.",
+      type: "error",
+    });
+    expect(result.current.emailSent).toBe(false);
+  });
+});
+
+describe("the prefilled email field", () => {
+  it("mounts with the session address in the field and saveChanges disabled", () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    expect(result.current.newEmail).toBe(user.email);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("counts a genuinely different address as a change and sends it", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
+    const { result } = renderHook(() => useAccountSettings());
+    expect(result.current.dirty).toBe(false);
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+
+    expect(result.current.dirty).toBe(true);
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(true);
+  });
+
+  it("stops being a change again when the field is returned to the session address", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("GRACE@EXAMPLE.COM"));
+    expect(result.current.dirty).toBe(true);
+
+    act(() => result.current.setNewEmail("  ada@example.com  "));
+    expect(result.current.dirty).toBe(false);
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+  });
+
+  it("leaves an emptied field clean and writes nothing", async () => {
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    expect(result.current.dirty).toBe(true);
+
+    act(() => result.current.setNewEmail(""));
+    expect(result.current.dirty).toBe(false);
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    expect(result.current.emailError).toBeNull();
+  });
+});
+
+describe("restoring an in-flight email change", () => {
+  it("resumes the sent state for a pending change GoTrue still holds", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 1,
+          new_email: "grace@example.com",
+          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+        },
+      },
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(result.current.emailSent).toBe(true));
+    expect(result.current.newEmail).toBe("grace@example.com");
+    expect(result.current.resendIn).toBe(50);
+  });
+
+  it("restores the sent state with the cooldown spent once the window elapsed", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 1,
+          new_email: "grace@example.com",
+          email_change_sent_at: new Date(Date.now() - 70_000).toISOString(),
+        },
+      },
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(result.current.emailSent).toBe(true));
+    expect(result.current.newEmail).toBe("grace@example.com");
+    expect(result.current.resendIn).toBe(0);
+  });
+
+  it("leaves the form untouched when GoTrue reports no pending change", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 1, email: user.email } } });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(getUser).toHaveBeenCalled());
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.newEmail).toBe(user.email);
+  });
+
+  it("ignores a pending change that only re-states the address the account owns", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: 1, new_email: "  ADA@example.com  " } },
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(getUser).toHaveBeenCalled());
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.newEmail).toBe(user.email);
+  });
+
+  it("waits for the session to resolve before restoring", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 1,
+          new_email: "grace@example.com",
+          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+        },
+      },
+    });
+    sessionValue.mockReturnValue({ user: { ...user, email: "" }, updateUser: sessionUpdateUser });
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    await act(async () => {});
+    expect(result.current.emailSent).toBe(false);
+    expect(getUser).not.toHaveBeenCalled();
+
+    sessionValue.mockReturnValue({ user, updateUser: sessionUpdateUser });
+    await act(async () => {
+      rerender();
+    });
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.newEmail).toBe("grace@example.com");
+  });
+
+  it("does not clobber a value typed since the restore, but adopts a genuinely new pending address", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 1,
+          new_email: "grace@example.com",
+          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+        },
+      },
+    });
+    const { result, rerender } = renderHook(() => useAccountSettings());
+    await waitFor(() => expect(result.current.emailSent).toBe(true));
+
+    act(() => result.current.setNewEmail("ada@typed.io"));
+    expect(result.current.newEmail).toBe("ada@typed.io");
+
+    await act(async () => {
+      rerender();
+    });
+    expect(result.current.newEmail).toBe("ada@typed.io");
+
+    getUser.mockResolvedValue({
+      data: { user: { id: 1, new_email: "second@example.com", email_change_sent_at: null } },
+    });
+    await act(async () => {
+      rerender();
+    });
+    await waitFor(() => expect(result.current.newEmail).toBe("second@example.com"));
+    expect(result.current.emailSent).toBe(true);
   });
 });
 
@@ -332,6 +611,21 @@ describe("the speaker profile inside the unified hook", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("does not seed fields from a speaker fetch that resolves after unmount", async () => {
+    useAsSpeaker();
+    let resolve: (v: Response | PromiseLike<Response>) => void = () => {};
+    const fetch = stubFetch();
+    fetch.mockReturnValue(new Promise<Response>((r) => (resolve = r)));
+    const { result, unmount } = renderHook(() => useAccountSettings());
+
+    unmount();
+    resolve(response(speakerData));
+    await act(async () => {});
+
+    expect(result.current.speakerProfileId).toBeUndefined();
+    expect(result.current.designation).toBe("");
+  });
+
   it("waits for the speaker fetch before the seeded values count as clean", async () => {
     useAsSpeaker();
     const fetch = stubFetch();
@@ -343,6 +637,24 @@ describe("the speaker profile inside the unified hook", () => {
     expect(result.current.dirty).toBe(false);
     await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
     expect(result.current.dirty).toBe(false);
+  });
+
+  // A speaker with no profile row yet: /api/auth/me can omit the speaker block
+  // entirely, and the seeds have to land at empty rather than stay dirty.
+  it("seeds empty speaker fields when the profile fetch omits them", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response({}));
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(result.current.speakerProfileId).toBeNull());
+    expect(result.current.designation).toBe("");
+    expect(result.current.bio).toBe("");
+    expect(result.current.linkedinUrl).toBe("");
+    expect(result.current.twitterUrl).toBe("");
+    expect(result.current.githubUrl).toBe("");
+    expect(result.current.websiteUrl).toBe("");
+    expect(result.current.speakerDirty).toBe(false);
   });
 });
 
@@ -392,7 +704,7 @@ describe("saveChanges dirty-only submission", () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it("reports the account's own address inline and writes nothing", async () => {
+  it("treats the account's own prefilled address as no change and writes nothing", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
@@ -401,22 +713,21 @@ describe("saveChanges dirty-only submission", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.emailError).toBe("This is already your email address.");
+    expect(result.current.emailError).toBeNull();
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
   });
 
-  it("reports a dead domain inline with the suggestion and writes nothing", async () => {
-    checkMailDomain.mockResolvedValue("no-mail-server");
+  it("refuses a malformed address inline and writes nothing", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@gmial.com"));
+    act(() => result.current.setNewEmail("ada@localhost"));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.emailError).toBe("We could not find a mail server for gmial.com. Did you mean ada@gmail.com?");
+    expect(result.current.emailError).toBe("Enter a valid email address, like name@example.com.");
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
   });
@@ -456,7 +767,7 @@ describe("saveChanges dirty-only submission", () => {
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
     expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
-    expect(checkMailDomain).not.toHaveBeenCalled();
+    expect(result.current.savedNotice).toBe("Your settings have been updated.");
   });
 
   it("flips dirty back to false once the dirty groups have been saved", async () => {
@@ -483,6 +794,104 @@ describe("saveChanges dirty-only submission", () => {
     act(() => result.current.setName("Ada Lovelace"));
 
     expect(result.current.dirty).toBe(true);
+  });
+});
+
+describe("the in-form save confirmation", () => {
+  it("leaves savedNotice untouched by an email-only save, which confirms in the sent-box", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.savedNotice).toBeNull();
+  });
+
+  it("clears a live confirmation when a field is edited", async () => {
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+
+    act(() => result.current.setName("Ada"));
+
+    expect(result.current.savedNotice).toBeNull();
+  });
+
+  it("clears a live confirmation when a speaker field is edited", async () => {
+    const speaker = { speaker_profile_id: 5, designation: "CTO", bio: "Leads.", linkedin_url: "https://linkedin.com/in/ada" };
+    sessionValue.mockReturnValue({ user: speakerUser, updateUser: sessionUpdateUser });
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speaker));
+    const { result } = renderHook(() => useAccountSettings());
+    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+
+    act(() => result.current.setLinkedinUrl("https://linkedin.com/in/grace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+
+    act(() => result.current.setBio("Fresh bio."));
+
+    expect(result.current.savedNotice).toBeNull();
+  });
+
+  it("drops the confirmation at the start of the next attempt, before validation", async () => {
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+
+    // A new attempt that dies in validation must not leave the old
+    // confirmation on screen as if the last save were the one that landed.
+    act(() => result.current.setName(""));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.nameError).toBe("Name is required.");
+    expect(result.current.savedNotice).toBeNull();
+  });
+
+  it("never sets savedNotice when the profile PATCH fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "boom" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
+  });
+
+  it("dismisses the confirmation on demand", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+
+    act(() => result.current.dismissSavedNotice());
+
+    expect(result.current.savedNotice).toBeNull();
   });
 });
 
@@ -550,6 +959,32 @@ describe("speaker PATCH through saveChanges", () => {
       twitter_url: null,
       github_url: "https://github.com/ada",
       website_url: null,
+    });
+  });
+
+  it("coerces an emptied free-text block to null while a fresh link survives", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setDesignation(""));
+    act(() => result.current.setBio(""));
+    act(() => result.current.setGithubUrl(""));
+    act(() => result.current.setTwitterUrl("https://twitter.com/ada_lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({
+      designation: null,
+      bio: null,
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: "https://twitter.com/ada_lovelace",
+      github_url: null,
+      website_url: "https://ada.dev",
     });
   });
 
@@ -640,8 +1075,7 @@ describe("speaker PATCH through saveChanges", () => {
 
 describe("the sent state", () => {
   it("starts a cooldown so a second link cannot be asked for immediately", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
+    respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("grace@example.com"));
@@ -654,28 +1088,65 @@ describe("the sent state", () => {
   });
 
   it("ignores a resend while the cooldown is running", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
+    const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("grace@example.com"));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
-    updateUser.mockClear();
 
     await act(async () => {
       await result.current.resendVerification();
     });
 
-    expect(updateUser).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.filter((c) => String(c[0]).includes(SEND_ROUTE))).toHaveLength(1);
+  });
+
+  it("does not claim a resend the provider refused", async () => {
+    vi.useFakeTimers();
+    try {
+      respondTo(SEND_ROUTE, { ok: true });
+      const { result } = renderHook(() => useAccountSettings());
+
+      act(() => result.current.setNewEmail("grace@example.com"));
+      await act(async () => {
+        await result.current.saveChanges(submitEvent);
+      });
+      // Walk the countdown down (one tick per scheduled second) so the resend is
+      // actually allowed to fire.
+      for (let i = 0; i < 60; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      expect(result.current.resendIn).toBe(0);
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({ ok: false, json: async () => ({ ok: false, error: { message: "Email already in use" } }) }),
+        ),
+      );
+      await act(async () => {
+        await result.current.resendVerification();
+      });
+
+      expect(result.current.toast?.title).toBe("Error");
+      expect(result.current.emailSent).toBe(true);
+      // A refused send must not start a fresh countdown, or the wait it
+      // advertises would be a lie.
+      expect(result.current.resendIn).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
   });
 
   it("counts the cooldown down and then sends again", async () => {
     vi.useFakeTimers();
     try {
-      updateUser.mockResolvedValue({ error: null });
-      stubFetch();
+      respondTo(SEND_ROUTE, { ok: true });
       const { result } = renderHook(() => useAccountSettings());
 
       act(() => result.current.setNewEmail("grace@example.com"));
@@ -692,33 +1163,88 @@ describe("the sent state", () => {
       }
       expect(result.current.resendIn).toBe(0);
 
-      updateUser.mockClear();
       await act(async () => {
         await result.current.resendVerification();
       });
 
-      expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
       expect(result.current.toast?.title).toBe("Link sent again");
+      expect(result.current.resendIn).toBe(60);
     } finally {
+      vi.unstubAllGlobals();
       vi.useRealTimers();
     }
   });
+});
 
-  it("goes back to the form with the address still in it, so a typo is one edit away", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
+describe("dismissing an email change", () => {
+  function stubSendOk() {
+    const fetch = stubFetch();
+    fetch.mockImplementation((input: string | URL | Request) => {
+      if (String(input).includes(SEND_ROUTE)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
+    });
+    return fetch;
+  }
+
+  async function getSentState() {
     const { result } = renderHook(() => useAccountSettings());
-
-    act(() => result.current.setNewEmail("grace@gmial.com"));
+    act(() => result.current.setNewEmail("grace@example.com"));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
+    return result;
+  }
 
-    act(() => result.current.useDifferentEmail());
+  it("returns to the form, keeping the typed address, without any server call", async () => {
+    const fetch = stubSendOk();
+    const result = await getSentState();
+    expect(result.current.emailSent).toBe(true);
+
+    await act(async () => {
+      await result.current.cancelEmailChange();
+    });
 
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.newEmail).toBe("grace@gmial.com");
     expect(result.current.resendIn).toBe(0);
+    // The pending change survives server-side until it expires (sheet 12 gate
+    // FAIL), so the typed address stays in the field — the form just reopens.
+    expect(result.current.newEmail).toBe("grace@example.com");
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(CANCEL_ROUTE))).toBe(false);
+  });
+
+  // The honest counterpart to a server cancel: since the change is not voided,
+  // a reload finds GoTrue still holding new_email and the restore effect puts
+  // the banner back. The dismiss resets only the transient UI state.
+  it("re-shows the pending banner after a reload while GoTrue still holds the change", async () => {
+    stubSendOk();
+    const { result: first, unmount } = renderHook(() => useAccountSettings());
+    act(() => first.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await first.current.saveChanges(submitEvent);
+    });
+    expect(first.current.emailSent).toBe(true);
+
+    await act(async () => {
+      await first.current.cancelEmailChange();
+    });
+    expect(first.current.emailSent).toBe(false);
+
+    unmount();
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 1,
+          new_email: "grace@example.com",
+          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+        },
+      },
+    });
+    const { result: reloaded } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(reloaded.current.emailSent).toBe(true));
+    expect(reloaded.current.newEmail).toBe("grace@example.com");
   });
 });
 
@@ -779,7 +1305,7 @@ describe("changing the password", () => {
 
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.newPassword).toBe("");
-    expect(result.current.toast?.title).toBe("Password updated");
+    expect(result.current.savedNotice).toBe("Your password has been updated.");
   });
 });
 
@@ -904,6 +1430,26 @@ describe("proving the current password", () => {
     expect(result.current.toast).toBeNull();
   });
 
+  it("names the password wait rather than the raw {} on a 429", async () => {
+    updateUser.mockResolvedValue({ error: { status: 429, message: "{}" } });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.newPasswordError).toBe("Too many attempts. Please wait, then try again.");
+    // A refusal over the rate limit is not a verdict on the password itself,
+    // so nothing the user typed should be discarded.
+    expect(result.current.currentPassword).toBe("old-pass");
+    expect(result.current.newPassword).toBe(STRONG);
+    expect(result.current.toast).toBeNull();
+  });
+
   it("drops a stale message when the form is submitted again", async () => {
     verifyPassword.mockResolvedValue(false);
     const { result } = renderHook(() => useAccountSettings());
@@ -924,11 +1470,21 @@ describe("proving the current password", () => {
     });
 
     expect(result.current.currentPasswordError).toBeNull();
-    expect(result.current.toast?.title).toBe("Password updated");
+    expect(result.current.savedNotice).toBe("Your password has been updated.");
   });
 });
 
 describe("profile photo", () => {
+  it("ignores a change event that carries no file", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.changeProfilePhoto({ target: { files: [] } } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(result.current.uploading).toBe(false);
+  });
+
   it("uploads the photo and updates the session user's profile_image_url", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation((url: string | URL | Request) =>
@@ -1021,6 +1577,23 @@ describe("profile photo", () => {
 
   it("leaves the session photo alone and toasts an error when the delete fails", async () => {
     stubFetch().mockImplementation(() => response({ error: "delete failed" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      id: expect.any(Number),
+      title: "Delete failed",
+      description: "Could not remove your profile photo.",
+      type: "error",
+    });
+  });
+
+  it("toasts the same error when the delete request itself rejects", async () => {
+    stubFetch().mockRejectedValue(new Error("network down"));
     const { result } = renderHook(() => useAccountSettings());
 
     await act(async () => {

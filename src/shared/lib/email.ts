@@ -15,6 +15,14 @@ export function isSameEmail(a?: string | null, b?: string | null): boolean {
   return normalizeEmail(a) === normalizeEmail(b);
 }
 
+/**
+ * How long a confirmation link may be re-asked for after one was sent. The
+ * client countdown and the server-side rate gate read the same constant, so
+ * the window can never drift between the copy on screen and what the route
+ * enforces.
+ */
+export const RESEND_COOLDOWN_SECONDS = 60;
+
 /** The part after the last `@`, or null if there is nothing usable there. */
 export function emailDomain(email: string): string | null {
   const at = normalizeEmail(email).lastIndexOf("@");

@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/button";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
+import { authErrorMessage } from "@/shared/lib/auth-error-message";
 import { VerifyEmailCard } from "./verify-email-card";
 import { IconInput } from "./icon-input";
 import { PasswordInput } from "./password-input";
@@ -80,7 +81,7 @@ export function SignUpForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(authErrorMessage(authError, "We could not create your account. Please try again."));
       setLoading(false);
       return;
     }

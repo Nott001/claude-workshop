@@ -15,7 +15,7 @@ function renderSection(newEmail: string, emailSent = false, overrides: Partial<P
     saving: false,
     resendIn: 0,
     onResend: vi.fn(),
-    onUseDifferent: vi.fn(),
+    onCancel: vi.fn(),
     ...overrides,
   };
   render(<EmailSection {...props} />);
@@ -42,7 +42,7 @@ describe("EmailSection", () => {
   it("points a screen reader at the reason rather than only colouring it", () => {
     renderSection("ada@example.com", false, { emailError: "This is already your email address." });
 
-    const input = screen.getByPlaceholderText("new@example.com");
+    const input = screen.getByPlaceholderText("you@example.com");
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toBe("email-error");
     expect(document.getElementById("email-error")).toBeTruthy();
@@ -52,7 +52,7 @@ describe("EmailSection", () => {
     renderSection("grace@example.com");
 
     expect(screen.queryByText("This is already your email address.")).toBeNull();
-    expect(screen.getByPlaceholderText("new@example.com").getAttribute("aria-invalid")).toBe("false");
+    expect(screen.getByPlaceholderText("you@example.com").getAttribute("aria-invalid")).toBe("false");
   });
 
   // The case that slipped through: gmoil.com is registered, answers DNS and
@@ -91,19 +91,29 @@ describe("EmailSection", () => {
     expect(screen.queryByText("This is already your email address.")).toBeNull();
   });
 
-  it("shows the verification notice instead of the form once sent", () => {
+  it("forwards what is typed into the input", () => {
+    const { onChange } = renderSection("ada@example.com");
+
+    fireEvent.change(screen.getByPlaceholderText("you@example.com"), {
+      target: { value: "ada+events@example.com" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith("ada+events@example.com");
+  });
+
+  it("shows the pending status instead of the form once sent", () => {
     renderSection("grace@example.com", true);
 
-    expect(screen.getByText(/Check your inbox/)).toBeTruthy();
+    expect(screen.getByText("Email change pending")).toBeTruthy();
   });
 });
 
 describe("EmailSection after the link is sent", () => {
-  it("offers a way to send it again and a way back to the field", () => {
+  it("offers a way to send it again and a way out to the field", () => {
     renderSection("grace@example.com", true);
 
     expect(screen.getByRole("button", { name: "Send it again" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Use a different address" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   });
 
   it("names the wait instead of letting a press fail against the rate limit", () => {
@@ -121,19 +131,22 @@ describe("EmailSection after the link is sent", () => {
     expect(onResend).toHaveBeenCalled();
   });
 
-  it("returns to the field when the address was wrong", () => {
-    const { onUseDifferent } = renderSection("grace@example.com", true);
+  it("dismisses the pending status when cancelled", () => {
+    const { onCancel } = renderSection("grace@example.com", true);
 
-    fireEvent.click(screen.getByRole("button", { name: "Use a different address" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(onUseDifferent).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
   });
 
-  // The link silently going nowhere is the whole failure mode, so the copy has
-  // to point at the place people actually look next.
-  it("mentions the spam folder", () => {
+  // A pending change outlives the dismiss — the sheet-12 gate FAILed, so there
+  // is no server-side cancel to void it. The copy has to say the change lasts
+  // until the link expires rather than pretending a dismiss removed it.
+  it("says the change expires on its own rather than that it was undone", () => {
     renderSection("grace@example.com", true);
 
-    expect(screen.getByText(/spam folder/)).toBeTruthy();
+    expect(screen.getByText("Email change pending")).toBeTruthy();
+    expect(screen.getByText(/expires on its own/)).toBeTruthy();
+    expect(screen.queryByText("Use a different address")).toBeNull();
   });
 });

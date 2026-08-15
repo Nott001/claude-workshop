@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
 }));
 
-const browserAuth = { updateUser: vi.fn() };
+const browserAuth = { updateUser: vi.fn(), getUser: vi.fn() };
 vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient: () => ({ auth: browserAuth }) }));
 
 vi.mock("@supabase/ssr", () => ({
@@ -82,6 +82,7 @@ function navbarName(): string {
 beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ data: { session: { user: { id: "auth_1" } } as unknown as Session } });
+  browserAuth.getUser.mockResolvedValue({ data: { user: null } });
   vi.stubGlobal(
     "fetch",
     vi.fn((_url: string, init?: RequestInit) => {
