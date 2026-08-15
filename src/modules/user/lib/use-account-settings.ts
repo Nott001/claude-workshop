@@ -83,6 +83,7 @@ export function useAccountSettings() {
   }, []);
 
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
@@ -261,6 +262,28 @@ export function useAccountSettings() {
     }
   }
 
+  async function deleteProfilePhoto() {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/upload/profile-image", { method: "DELETE" });
+
+      if (!res.ok) {
+        notify({ title: "Delete failed", description: "Could not remove your profile photo.", type: "error" });
+        return;
+      }
+
+      // The route has already nulled the row, so the session is only being
+      // caught up to it — this is what hides the photo in the preview and the
+      // navbar avatar without a reload.
+      updateUser({ profile_image_url: null });
+      notify({ title: "Photo removed", description: "Your profile photo has been deleted.", type: "success" });
+    } catch {
+      notify({ title: "Delete failed", description: "Could not remove your profile photo.", type: "error" });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return {
     toast,
     dismissToast,
@@ -288,5 +311,7 @@ export function useAccountSettings() {
     changePassword,
     uploading,
     changeProfilePhoto,
+    deleting,
+    deleteProfilePhoto,
   };
 }

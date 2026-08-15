@@ -78,7 +78,7 @@ describe("AccountSettings", () => {
     render(<AccountSettings />);
 
     expect(screen.getByRole("heading", { name: "Account Settings" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Profile Photo" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Profile photo" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Profile Name" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Email" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Password" })).toBeTruthy();

@@ -362,6 +362,55 @@ describe("useAccountSettings", () => {
     expect(sessionUpdateUser).not.toHaveBeenCalled();
     expect(result.current.toast?.type).toBe("error");
   });
+
+  it("deletes the photo and nulls the session photo on success", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    const del = fetch.mock.calls.find((c) => c[1]?.method === "DELETE");
+    expect(del).toBeTruthy();
+    expect(String(del![0])).toContain("/api/upload/profile-image");
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: null });
+    expect(result.current.toast?.type).toBe("success");
+  });
+
+  it("nulls the session photo so the preview and navbar avatar clear together", async () => {
+    let user = { ...speaker, profile_image_url: "https://cdn.example/old.jpg" };
+    sessionUpdateUser.mockImplementation((patch) => {
+      user = { ...user, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
+    stubFetch();
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBeNull();
+  });
+
+  it("leaves the session photo alone and toasts an error when the delete fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "delete failed" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      id: expect.any(Number),
+      title: "Delete failed",
+      description: "Could not remove your profile photo.",
+      type: "error",
+    });
+  });
 });
 
 describe("the sent state", () => {

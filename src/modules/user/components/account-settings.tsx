@@ -27,7 +27,9 @@ export function AccountSettings() {
           <ProfilePhotoSection
             previewUrl={settings.currentUser?.profile_image_url}
             uploading={settings.uploading}
+            deleting={settings.deleting}
             onChange={settings.changeProfilePhoto}
+            onDelete={settings.deleteProfilePhoto}
           />
           <ProfileNameSection
             name={settings.name}
