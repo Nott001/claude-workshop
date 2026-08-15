@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { ButtonLink } from "@/shared/components/button-link";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
-import { Button } from "@/shared/components/button";
 import {
   Table,
   TableHead,
@@ -107,18 +107,18 @@ export function EventTable({ events, basePath = "/staff/events", showKiosk = fal
         footer={
           selected && (
             <div className="flex items-center gap-2">
-              <Button render={<Link href={`${basePath}/${selected.id}`} />} variant="secondary" size="sm">
+              <ButtonLink href={`${basePath}/${selected.id}`} variant="secondary" size="sm">
                 Open
-              </Button>
+              </ButtonLink>
               {showKiosk && (
-                <Button render={<Link href={`${basePath}/${selected.id}/kiosk`} />} variant="secondary" size="sm">
+                <ButtonLink href={`${basePath}/${selected.id}/kiosk`} variant="secondary" size="sm">
                   Kiosk
-                </Button>
+                </ButtonLink>
               )}
               {showEdit && (
-                <Button render={<Link href={`${basePath}/${selected.id}`} />} variant="secondary" size="sm">
+                <ButtonLink href={`${basePath}/${selected.id}`} variant="secondary" size="sm">
                   Edit
-                </Button>
+                </ButtonLink>
               )}
             </div>
           )

@@ -26,16 +26,21 @@ function Button({
   size = "md",
   ...props
 }: ButtonPrimitive.Props & { variant?: ButtonVariant; size?: ButtonSize }) {
-  return (
-    <ButtonPrimitive
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-lg font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
-        variantStyles[variant],
-        sizeStyles[size],
-        className,
-      )}
-      {...props}
-    />
+  return <ButtonPrimitive className={buttonStyles(variant, size, className)} {...props} />;
+}
+
+/** Shared between Button and ButtonLink so a link styled as a button and a real
+ *  button cannot drift apart. */
+export function buttonStyles(
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
+  className?: ButtonPrimitive.Props["className"],
+) {
+  return cn(
+    "inline-flex shrink-0 items-center justify-center rounded-lg font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+    variantStyles[variant],
+    sizeStyles[size],
+    className,
   );
 }
 
