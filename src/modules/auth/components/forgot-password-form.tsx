@@ -41,7 +41,7 @@ export function ForgotPasswordForm() {
           password.
         </p>
         <p className="mt-8 text-base text-muted-fg">
-          <Link href="/sign-in" className="font-bold text-brand transition-colors hover:text-brand/80">
+          <Link href="/sign-in" prefetch={false} className="font-bold text-brand transition-colors hover:text-brand/80">
             Back to sign in
           </Link>
         </p>
@@ -80,7 +80,7 @@ export function ForgotPasswordForm() {
 
       <p className="mt-8 text-center text-base text-muted-fg">
         Remembered it?{" "}
-        <Link href="/sign-in" className="font-bold text-brand transition-colors hover:text-brand/80">
+        <Link href="/sign-in" prefetch={false} className="font-bold text-brand transition-colors hover:text-brand/80">
           Sign In
         </Link>
       </p>

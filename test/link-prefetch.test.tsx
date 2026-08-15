@@ -8,6 +8,12 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
+// The auth forms build a browser client at render; none of these tests submit
+// anything, so it only has to exist.
+vi.mock("@supabase/ssr", () => ({
+  createBrowserClient: () => ({ auth: { signInWithPassword: vi.fn(), signUp: vi.fn() } }),
+}));
+
 // `next/link` consumes `prefetch` instead of forwarding it to the anchor, so
 // the prop is invisible in the rendered DOM. Standing in for the component is
 // the only way to observe what each of these actually asks for.
@@ -35,6 +41,9 @@ import { Brand } from "@/modules/shell/components/brand";
 import { BackLink } from "@/shared/components/back-link";
 import { EventCard } from "@/modules/events/components/event-card";
 import { EventMemoryCard } from "@/modules/community/components/event-memory-card";
+import { EventTable, type EventTableRow } from "@/modules/events/components/event-table";
+import { SignInForm } from "@/modules/auth/components/sign-in-form";
+import { SignUpForm } from "@/modules/auth/components/sign-up-form";
 
 function renderAs(role: string | null) {
   useSession.mockReturnValue({
@@ -193,5 +202,71 @@ describe("Chrome and card prefetching", () => {
       />,
     );
     expect(within(container).getByRole("link").dataset.prefetch).toBe("false");
+  });
+});
+
+/**
+ * The per-row links. A grid, a table and a ticket list each multiply one page
+ * load by however many rows it holds, which is what made these worth finding
+ * separately from the chrome.
+ */
+describe("Per-row prefetching", () => {
+  it("does not prefetch a detail page per row of the staff event table", () => {
+    const rows: EventTableRow[] = [
+      {
+        id: 7,
+        title: "Launch",
+        event_date: "2026-09-01",
+        start_time: "09:00",
+        end_time: "17:00",
+        venue_name: "Main Hall",
+        status: "active",
+        attendee_count: 12,
+      },
+      {
+        id: 8,
+        title: "Retro",
+        event_date: "2026-08-01",
+        start_time: "10:00",
+        end_time: "18:00",
+        venue_name: "Room B",
+        status: "draft",
+        attendee_count: 0,
+      },
+    ];
+    const { container } = render(<EventTable events={rows} />);
+    const rowLinks = within(container).getAllByRole("link");
+    expect(rowLinks).toHaveLength(rows.length);
+    for (const link of rowLinks) {
+      expect(link.dataset.prefetch).toBe("false");
+    }
+  });
+});
+
+/**
+ * The auth screens. Two of the fourteen killed requests in the capture were
+ * `/sign-up` and `/forgot-password` prefetched from the sign-in form, and both
+ * carry the visitor's origin in the query string, so each prefetch asks for a
+ * URL no other visitor will reuse.
+ */
+describe("Auth form prefetching", () => {
+  it("does not prefetch the ways out of the sign-in form", () => {
+    const { container } = render(<SignInForm />);
+    const links = within(container).getAllByRole("link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.dataset.prefetch).toBe("false");
+    }
+  });
+
+  it("does not prefetch the sign-up form's links, including the two policy pages that 404", () => {
+    const { container } = render(<SignUpForm />);
+    const links = within(container).getAllByRole("link");
+    const hrefs = links.map((a) => a.getAttribute("href"));
+    expect(hrefs).toContain("/terms");
+    expect(hrefs).toContain("/privacy");
+    for (const link of links) {
+      expect(link.dataset.prefetch).toBe("false");
+    }
   });
 });
