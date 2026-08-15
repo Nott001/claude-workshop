@@ -17,7 +17,7 @@ export function EventMapCard({ event }: EventMapCardProps) {
     <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
       {/* A real <a>: the Base UI Button forces button semantics on its render
           target, so a link would be mislabelled to screen readers. */}
-      <a href={url} target="_blank" rel="noopener" className={`mt-4 ${LINK_STYLES}`}>
+      <a href={url} target="_blank" rel="noopener" className={LINK_STYLES}>
         <span className="material-symbols-rounded">map</span>
         View in Google Maps
       </a>

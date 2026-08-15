@@ -8,8 +8,8 @@ export function FeaturedSessionCard({ event }: { event: LandingEvent | null }) {
   return (
     <div className="relative w-full rounded-2xl border border-white/25 bg-slate-950/30 p-4 text-white backdrop-blur-md">
       <div className="flex items-center justify-between text-xs font-medium text-white/80">
-        <span>{event?.title ?? "Workshop"}</span>
-        <span>{event ? eventStatusLabel(event.status) : "Live session"}</span>
+        <span>{event?.title ?? "No upcoming events"}</span>
+        <span>{event ? eventStatusLabel(event.status) : "Check back soon"}</span>
       </div>
       {event && (
         <div className="mt-3 flex items-center gap-3">

@@ -93,8 +93,11 @@ describe("landing page (logged out) event cards", () => {
   it("shows the empty state when no events are published", async () => {
     getUpcomingForLanding.mockResolvedValue([]);
 
-    render(await LandingPage());
+    const { container } = render(await LandingPage());
 
+    const heroTile = container.querySelector('[class*="rounded-3xl"]');
+    expect(within(heroTile as HTMLElement).getByText("No upcoming events")).toBeTruthy();
+    expect(within(heroTile as HTMLElement).queryByText("Live session")).toBeNull();
     expect(screen.getByText("No upcoming events.")).toBeTruthy();
   });
 
