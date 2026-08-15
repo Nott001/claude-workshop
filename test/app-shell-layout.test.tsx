@@ -78,3 +78,27 @@ describe("AppShell main column offset", () => {
     expect(className).toContain("lg:pl-[72px]");
   });
 });
+
+describe("AppShell credential screens", () => {
+  it.each(["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"])(
+    "renders %s bare, without a navbar to sign in from",
+    (path) => {
+      usePathname.mockReturnValue(path);
+
+      const { container } = renderShell(null);
+
+      expect(TopNavbar).not.toHaveBeenCalled();
+      expect(StaffNavbar).not.toHaveBeenCalled();
+      expect(container.querySelector("main")).toBeNull();
+      expect(container.textContent).toContain("page content");
+    },
+  );
+
+  it("keeps the navbar on a page that merely links to one", () => {
+    usePathname.mockReturnValue("/home");
+
+    renderShell(null);
+
+    expect(TopNavbar).toHaveBeenCalledTimes(1);
+  });
+});

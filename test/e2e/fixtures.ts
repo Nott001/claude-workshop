@@ -186,7 +186,7 @@ export async function signIn(page: import("@playwright/test").Page, user: Seeded
   await page.goto("/sign-in");
   await page.locator("#signin-email").fill(user.email);
   await page.locator("#signin-password").fill(user.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: /^sign in$/i }).click();
   // Anchored to the end of the path, so a role whose home is a prefix of
   // another's — /staff/events against /staff/events/assigned — cannot pass on
   // the wrong page, while a query or hash the app appends is still tolerated.
