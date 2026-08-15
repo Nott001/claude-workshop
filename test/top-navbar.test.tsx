@@ -128,3 +128,47 @@ describe("TopNavbar auth buttons", () => {
     expect(screen.getByRole("link", { name: "SIGN IN" }).getAttribute("href")).toBe("/sign-in");
   });
 });
+
+describe("TopNavbar minimal", () => {
+  function renderMinimal(role: string | null, pathname = "/sign-up") {
+    usePathname.mockReturnValue(pathname);
+    useSession.mockReturnValue({
+      user: role ? { id: 1, role, full_name: "Ada Lovelace", email: "ada@example.com", profile_image_url: null } : null,
+      isSignedIn: role !== null,
+      signOut: vi.fn(),
+    });
+    return render(<TopNavbar minimal />);
+  }
+
+  it("carries the mark and nothing else", () => {
+    renderMinimal(null);
+
+    expect(screen.getByRole("link", { name: "StartupLab" })).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Primary navigation" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "SIGN IN" })).toBeNull();
+  });
+
+  it("does not offer an account menu to a signed-in visitor either", () => {
+    renderMinimal(ROLES.ATTENDEE);
+
+    expect(screen.queryByRole("button", { name: /ada/i })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Primary navigation" })).toBeNull();
+  });
+
+  it("scrolls with the page instead of pinning over the form", () => {
+    const { container } = renderMinimal(null);
+
+    const header = container.querySelector("header");
+    expect(header?.className).toContain("sticky");
+    expect(header?.className).not.toContain("fixed");
+  });
+
+  it("still pins on an ordinary page", () => {
+    usePathname.mockReturnValue("/home");
+    useSession.mockReturnValue({ user: null, isSignedIn: false, signOut: vi.fn() });
+
+    const { container } = render(<TopNavbar />);
+
+    expect(container.querySelector("header")?.className).toContain("fixed");
+  });
+});

@@ -16,19 +16,14 @@ import { cn } from "@/shared/lib/utils";
 // under a navbar inviting them to sign in.
 const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"];
 
-const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"];
-const HIDE_ASSIST_PATTERNS = [/^\/courses\/[^/]+\/room/];
-
-const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/];
+// Surfaces that own the whole screen and carry a bar of their own. The chrome
+// is not merely redundant here: the kiosk is a tablet propped at a door, and
+// the staff rail would hand the next attendee in the queue the admin console.
+const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/, /^\/staff\/events\/[^/]+\/kiosk/];
 
 function shouldHideNavbar(pathname: string) {
   if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;
   return HIDE_NAVBAR_PATTERNS.some((re) => re.test(pathname));
-}
-
-function shouldHideAssist(pathname: string) {
-  if (HIDE_ASSIST_PATHS.some((path) => pathname.startsWith(path))) return true;
-  return HIDE_ASSIST_PATTERNS.some((re) => re.test(pathname));
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,12 +31,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   const role = user?.role ?? null;
   const usesSidebar = !!role && role !== ROLES.ATTENDEE;
-  const hideNavbar = shouldHideNavbar(pathname);
-  const showAssist = !shouldHideAssist(pathname) && !hasMinRole(role, ROLES.SPEAKER);
 
-  if (hideNavbar) {
+  if (shouldHideNavbar(pathname)) {
     return <>{children}</>;
   }
+
+  // Past the return above, only the role decides. The assist button used to
+  // consult a path list of its own, but it named the same credential screens
+  // and full-screen surfaces that leave here without any chrome at all, so it
+  // could never be what hid the button. Hiding it on a route that does keep
+  // its chrome would need a list again.
+  const showAssist = !hasMinRole(role, ROLES.SPEAKER);
 
   return (
     <div className="flex min-h-screen">

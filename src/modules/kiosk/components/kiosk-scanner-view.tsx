@@ -135,8 +135,10 @@ export function KioskScannerView({ event }: { event: Event }) {
   const lookingUp = scanState.phase === "looking_up";
 
   return (
-    <div className="flex flex-1 flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col items-center px-6 py-8 lg:border-r lg:border-border">
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      {/* The kiosk locks to the viewport, so this column scrolls itself rather
+          than pushing the attendee panel off the bottom of a tablet. */}
+      <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 py-8 lg:border-r lg:border-border">
         <div className="flex w-full max-w-lg flex-col items-center">
           <span className="material-symbols-rounded mb-3 text-[40px] text-brand">qr_code_scanner</span>
           <p className="mb-1 text-sm font-semibold text-fg">Align the participant&apos;s QR code within the frame</p>

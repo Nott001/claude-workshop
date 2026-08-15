@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
-import { Button } from "@/shared/components/button";
+import { buttonStyles } from "@/shared/components/button";
 import {
   Table,
   TableHead,
@@ -17,6 +17,8 @@ import {
   TableContainer,
 } from "@/shared/components/table";
 import { Drawer } from "@/shared/components/drawer";
+
+const actionClass = buttonStyles({ variant: "secondary", size: "sm" });
 
 export interface EventTableRow {
   id: number;
@@ -107,18 +109,18 @@ export function EventTable({ events, basePath = "/staff/events", showKiosk = fal
         footer={
           selected && (
             <div className="flex items-center gap-2">
-              <Button render={<Link href={`${basePath}/${selected.id}`} />} variant="secondary" size="sm">
+              <Link href={`${basePath}/${selected.id}`} className={actionClass}>
                 Open
-              </Button>
+              </Link>
               {showKiosk && (
-                <Button render={<Link href={`${basePath}/${selected.id}/kiosk`} />} variant="secondary" size="sm">
+                <Link href={`${basePath}/${selected.id}/kiosk`} className={actionClass}>
                   Kiosk
-                </Button>
+                </Link>
               )}
               {showEdit && (
-                <Button render={<Link href={`${basePath}/${selected.id}`} />} variant="secondary" size="sm">
+                <Link href={`${basePath}/${selected.id}`} className={actionClass}>
                   Edit
-                </Button>
+                </Link>
               )}
             </div>
           )

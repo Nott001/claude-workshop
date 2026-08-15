@@ -1,4 +1,4 @@
-import { Brand } from "@/modules/shell/components/brand";
+import { TopNavbar } from "@/modules/shell/components/top-navbar";
 import { AuthBackLink } from "./auth-back-link";
 import type { BackLinkOrigin } from "@/shared/lib/back-link";
 
@@ -16,9 +16,10 @@ import type { BackLinkOrigin } from "@/shared/lib/back-link";
 export function SignUpLayout({ children, backOrigin }: { children: React.ReactNode; backOrigin?: BackLinkOrigin }) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-10 flex h-16 items-center border-b border-border/40 bg-bg/80 px-6 backdrop-blur-md lg:px-16">
-        <Brand height={40} />
-      </header>
+      {/* The app's own bar, stripped to the mark. Rendered here rather than by
+          AppShell, whose non-hidden branch also brings the site footer and
+          would hand a signed-in admin the staff sidebar over a sign-up form. */}
+      <TopNavbar minimal />
 
       <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-6 py-8 lg:px-16">
         <AuthBackLink origin={backOrigin} className="mb-8" />

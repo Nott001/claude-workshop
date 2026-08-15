@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { EventTable, type EventTableRow } from "@/modules/events/components/event-table";
 
 const rows: EventTableRow[] = [
@@ -59,6 +59,21 @@ describe("EventTable", () => {
     const drawerLinks = Array.from(dialog.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(drawerLinks).toContain("/staff/events/7");
     expect(drawerLinks).toContain("/staff/events/7/kiosk");
+  });
+
+  it("renders the drawer actions as links, not buttons wearing a link", () => {
+    render(<EventTable events={rows} showKiosk showEdit />);
+
+    fireEvent.click(screen.getByRole("row", { name: /Open Launch/ }));
+
+    const dialog = screen.getByRole("dialog");
+    for (const name of ["Open", "Kiosk", "Edit"]) {
+      const action = within(dialog).getByRole("link", { name });
+      // role="button" or type="button" here means it went back through the
+      // button primitive, which costs the anchor its link semantics.
+      expect(action.getAttribute("role")).toBeNull();
+      expect(action.getAttribute("type")).toBeNull();
+    }
   });
 
   it("keeps Kiosk and Edit out of the drawer unless asked", () => {
