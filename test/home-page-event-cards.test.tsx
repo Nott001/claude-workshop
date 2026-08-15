@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, within, cleanup } from "@testing-library/react";
 
 vi.mock("@/shared/db/client", () => ({ supabase: {} }));
 
@@ -97,6 +97,33 @@ describe("landing page (logged out) event cards", () => {
 
     expect(screen.getByText("No upcoming events.")).toBeTruthy();
   });
+
+  it("leads the hero with the Learn. Connect. Grow. eyebrow", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+
+    render(await LandingPage());
+
+    expect(screen.getByText("Learn. Connect. Grow.")).toBeTruthy();
+  });
+
+  it("heads the strip with Upcoming Events", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+
+    render(await LandingPage());
+
+    expect(screen.getByRole("heading", { name: "Upcoming Events" })).toBeTruthy();
+  });
+
+  it("overlays the featured event on the hero tile", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+
+    const { container } = render(await LandingPage());
+
+    const heroTile = container.querySelector('[class*="rounded-3xl"]');
+    expect(heroTile).toBeTruthy();
+    expect(within(heroTile as HTMLElement).getByText("Alpha")).toBeTruthy();
+    expect(within(heroTile as HTMLElement).getByText("Upcoming")).toBeTruthy();
+  });
 });
 
 describe("attendee home page event grid", () => {
@@ -121,5 +148,21 @@ describe("attendee home page event grid", () => {
     expect(wrapper?.className).toContain("px-6");
     expect(wrapper?.className).toContain("py-12");
     expect(wrapper?.className).not.toContain("max-w");
+  });
+
+  it("heads the strip with Upcoming Events, matching the guest landing", async () => {
+    signInAsAttendee();
+
+    render(<AttendeeHomePage />);
+
+    expect(await screen.findByRole("heading", { name: "Upcoming Events" })).toBeTruthy();
+  });
+
+  it("leads the hero with the Learn. Connect. Grow. eyebrow", async () => {
+    signInAsAttendee();
+
+    render(<AttendeeHomePage />);
+
+    expect(await screen.findByText("Learn. Connect. Grow.")).toBeTruthy();
   });
 });

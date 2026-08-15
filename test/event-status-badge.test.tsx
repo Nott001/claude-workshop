@@ -36,6 +36,19 @@ describe("EventStatusBadge", () => {
     unmount();
 
     render(<EventStatusBadge status="complete" date="2026-06-02" startTime="13:00" endTime="14:00" />);
-    expect(screen.getByText("Past")).toBeTruthy();
+    expect(screen.getByText("Completed")).toBeTruthy();
+  });
+
+  it("gives the completed pill a check icon instead of the upcoming sparkle", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+
+    const { unmount } = render(<EventStatusBadge status="active" date="2026-06-05" startTime="13:00" endTime="14:00" />);
+    expect(screen.getByText("auto_awesome")).toBeTruthy();
+    unmount();
+
+    render(<EventStatusBadge status="complete" date="2026-06-02" startTime="13:00" endTime="14:00" />);
+    expect(screen.getByText("check_circle")).toBeTruthy();
+    expect(screen.queryByText("auto_awesome")).toBeNull();
   });
 });

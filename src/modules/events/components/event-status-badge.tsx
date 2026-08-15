@@ -17,9 +17,12 @@ export function EventStatusBadge({ status, date, startTime, endTime }: EventStat
     );
   }
 
+  const label = eventStatusLabel(status);
+  const icon = label === "Completed" ? "check_circle" : "auto_awesome";
+
   return (
     <span className="relative inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-      <span className="material-symbols-rounded text-sm">auto_awesome</span> {eventStatusLabel(status)}
+      <span className="material-symbols-rounded text-sm">{icon}</span> {label}
     </span>
   );
 }

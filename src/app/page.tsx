@@ -2,7 +2,8 @@ import Link from "next/link";
 import { supabase } from "@/shared/db/client";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
-import { EventGrid } from "@/modules/events/components/event-grid";
+import { FeaturedSessionCard } from "@/modules/events/components/featured-session-card";
+import { UpcomingEventsSection } from "@/modules/events/components/upcoming-events-section";
 import { HeroSection, HeroMediaCard } from "@/modules/shell/components/hero-section";
 import type { LandingEvent } from "@/shared/types";
 import { toLandingEvent } from "@/modules/events/lib/landing-event";
@@ -31,7 +32,14 @@ export default async function HomePage() {
     <>
       <PostLoginRedirect />
       <div className="flex flex-1 flex-col bg-bg text-fg">
-        <HeroSection media={<HeroMediaCard />}>
+        <HeroSection
+          media={
+            <HeroMediaCard>
+              <FeaturedSessionCard event={events[0] ?? null} />
+            </HeroMediaCard>
+          }
+        >
+          <p className="mb-3 text-sm font-semibold tracking-[0.16em] text-white/80 uppercase">Learn. Connect. Grow.</p>
           <h1 className="max-w-xl text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl sm:leading-[60px]">
             StartupLab Business Center
           </h1>
@@ -47,10 +55,7 @@ export default async function HomePage() {
           </Link>
         </HeroSection>
 
-        <div className="px-6 py-12">
-          <h2 className="mb-6 text-lg font-bold text-fg">Upcoming Events</h2>
-          <EventGrid events={events} backOrigin="landing" />
-        </div>
+        <UpcomingEventsSection events={events} backOrigin="landing" />
       </div>
     </>
   );

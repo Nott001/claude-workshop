@@ -16,8 +16,8 @@ export function HeroSection({ children, media }: { children: React.ReactNode; me
 }
 
 /**
- * The hero's media tile. `children` is overlay content — the attendee home page
- * puts its featured event here; the landing page shows the tile bare.
+ * The hero's media tile. `children` is overlay content — both the guest and
+ * attendee landings put their featured event here via FeaturedSessionCard.
  */
 export function HeroMediaCard({ children }: { children?: React.ReactNode }) {
   return (

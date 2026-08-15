@@ -1,10 +1,9 @@
 "use client";
 
 import { useSession } from "@/modules/auth/components/session-context";
-
-import { formatEventDate, formatTime, eventStatusLabel } from "@/shared/lib/date-utils";
+import { FeaturedSessionCard } from "@/modules/events/components/featured-session-card";
+import { UpcomingEventsSection } from "@/modules/events/components/upcoming-events-section";
 import { useUpcomingEvents } from "@/modules/events/lib/use-upcoming-events";
-import { EventGrid } from "@/modules/events/components/event-grid";
 import { HeroSection, HeroMediaCard } from "@/modules/shell/components/hero-section";
 
 export default function HomePage() {
@@ -20,24 +19,7 @@ export default function HomePage() {
         <HeroSection
           media={
             <HeroMediaCard>
-              <div className="relative w-full rounded-2xl border border-white/25 bg-slate-950/30 p-4 text-white backdrop-blur-md">
-                <div className="flex items-center justify-between text-xs font-medium text-white/80">
-                  <span>{featured?.title ?? "Workshop"}</span>
-                  <span>{featured ? eventStatusLabel(featured.status) : "Live session"}</span>
-                </div>
-                {featured && (
-                  <div className="mt-3 flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-full bg-surface text-brand">
-                      <span aria-hidden className="material-symbols-rounded ml-0.5 text-base">
-                        play_arrow
-                      </span>
-                    </span>
-                    <span className="text-sm font-semibold">
-                      {formatEventDate(featured.event_date)} at {formatTime(featured.start_time)}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <FeaturedSessionCard event={featured} />
             </HeroMediaCard>
           }
         >
@@ -51,9 +33,7 @@ export default function HomePage() {
           </p>
         </HeroSection>
 
-        <div className="px-6 py-12">
-          <EventGrid events={events} backOrigin="home" />
-        </div>
+        <UpcomingEventsSection events={events} backOrigin="home" />
       </div>
     </>
   );
