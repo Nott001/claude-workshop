@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { type AssignmentRow } from "@/modules/events/components/assignment-table";
 import { EventFormFields } from "@/modules/events/components/event-form-fields";
+import { BackLink } from "@/shared/components/back-link";
 import {
   EMPTY_EVENT_FORM,
   toEventPayload,
@@ -47,7 +47,6 @@ export function EventForm({
   initialValues = EMPTY_EVENT_FORM,
   onSubmit,
 }: EventFormProps) {
-  const router = useRouter();
   const [values, setValues] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,13 +139,9 @@ export function EventForm({
   return (
     <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
       <div className="mx-auto w-full max-w-[896px]">
-        <button
-          onClick={() => router.push(backHref)}
-          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+        <BackLink href={backHref} className="mb-6">
           {backLabel}
-        </button>
+        </BackLink>
 
         <h1 className="mb-8 text-[36px] leading-[40px] font-bold tracking-[-0.02em] text-fg">{heading}</h1>
 

@@ -51,20 +51,19 @@ afterEach(() => {
 // to relay the origin rather than resolve it — otherwise a reader who came from
 // the community page loses their place the moment they open and abandon it.
 describe("Event register page back link", () => {
+  /** A link, so the origin it relays is assertable as an href rather than as a push. */
+  const backLink = () => screen.getByRole("link", { name: /back to event/i });
+
   it("returns to the event without an origin when none was carried in", () => {
     renderRegister();
 
-    fireEvent.click(screen.getByRole("button", { name: /back to event/i }));
-
-    expect(push).toHaveBeenCalledWith("/events/7");
+    expect(backLink().getAttribute("href")).toBe("/events/7");
   });
 
   it("relays the origin back to the event so its own back link still works", () => {
     renderRegister("community");
 
-    fireEvent.click(screen.getByRole("button", { name: /back to event/i }));
-
-    expect(push).toHaveBeenCalledWith("/events/7?from=community");
+    expect(backLink().getAttribute("href")).toBe("/events/7?from=community");
   });
 
   it("relays the origin from the already-registered card too", () => {
@@ -78,8 +77,6 @@ describe("Event register page back link", () => {
   it("drops an unrecognised origin rather than putting it back in the URL", () => {
     renderRegister("https://evil.example.com");
 
-    fireEvent.click(screen.getByRole("button", { name: /back to event/i }));
-
-    expect(push).toHaveBeenCalledWith("/events/7");
+    expect(backLink().getAttribute("href")).toBe("/events/7");
   });
 });

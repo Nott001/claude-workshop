@@ -1,14 +1,14 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { SurveyForm } from "@/modules/surveys/components/survey-form";
 import type { Event } from "@/shared/types";
+import { BackLink } from "@/shared/components/back-link";
 
 export function SurveyPreviewPage() {
-  const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
@@ -37,13 +37,9 @@ export function SurveyPreviewPage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:px-8">
-        <button
-          onClick={() => router.push(`/staff/events/${eventId}`)}
-          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-[16px]">arrow_back</span>
+        <BackLink href={`/staff/events/${eventId}`} className="mb-6">
           Back to event
-        </button>
+        </BackLink>
 
         <div className="rounded-xl border border-border bg-surface p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
           <div className="mb-6 border-b border-border pb-4">
