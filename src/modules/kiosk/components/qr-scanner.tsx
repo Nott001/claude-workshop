@@ -12,6 +12,18 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<InstanceType<typeof import("html5-qrcode").Html5Qrcode> | null>(null);
   const scanningRef = useRef(false);
+  // The library refires the same decoded text ~10x/sec while a QR stays in
+  // frame, and the previous effect keyed on the bare callbacks so any parent
+  // render tore the camera down and restarted it. Mirrors keep the effect and
+  // the camera stable; identical-token dedupe stops the spam at its source.
+  const onScanRef = useRef(onScan);
+  const onErrorRef = useRef(onError);
+  const lastTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+    onErrorRef.current = onError;
+  });
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current && scanningRef.current) {
@@ -46,7 +58,10 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            if (!cancelled) onScan(decodedText);
+            if (cancelled) return;
+            if (decodedText === lastTokenRef.current) return;
+            lastTokenRef.current = decodedText;
+            onScanRef.current(decodedText);
           },
           () => {
             // No code detected this frame — expected, not an error
@@ -55,7 +70,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
         if (!cancelled) scanningRef.current = true;
       } catch (err) {
         if (!cancelled) {
-          onError?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
+          onErrorRef.current?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
         }
       }
     }
@@ -64,9 +79,10 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
 
     return () => {
       cancelled = true;
+      lastTokenRef.current = null;
       stopScanner();
     };
-  }, [active, onScan, onError, stopScanner]);
+  }, [active, stopScanner]);
 
   return (
     <div className="relative mb-6 overflow-hidden rounded-xl border border-border">
