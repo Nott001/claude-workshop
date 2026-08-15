@@ -1,67 +1,138 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { Event } from "@/shared/types";
+import { useState } from "react";
+import type { Event, TicketStatus } from "@/shared/types";
+import type { TicketPreview } from "@/modules/kiosk/lib/checkin";
 import { QrScanner } from "./qr-scanner";
+import { CheckinCard } from "./checkin-card";
 import { AttendeesPanel } from "./attendees-panel";
 
-interface CheckinResponse {
-  status: "success" | "duplicate" | "rejected";
-  attendee?: { full_name: string; email: string };
-  reason?: string;
-}
+type ScanState =
+  | { phase: "idle" }
+  | { phase: "looking_up"; token: string }
+  | { phase: "preview"; token: string; preview: TicketPreview }
+  | { phase: "checking"; token: string; preview: TicketPreview }
+  | { phase: "confirmed"; token: string; preview: TicketPreview; checkedInAt: string }
+  | { phase: "confirm_failed"; token: string; preview: TicketPreview; reason: string }
+  | { phase: "invalid"; token: string };
 
-type ResultKind = "success" | "duplicate" | "rejected" | null;
+function formatTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export function KioskScannerView({ event }: { event: Event }) {
   const [qrInput, setQrInput] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<ResultKind>(null);
-  const [resultData, setResultData] = useState<CheckinResponse | null>(null);
+  const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  async function lookupToken(token: string) {
+    const trimmed = token.trim();
+    if (!trimmed) return;
+    setScanState({ phase: "looking_up", token: trimmed });
+    setQrInput(trimmed);
 
-  useEffect(() => {
-    return () => {
-      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-    };
-  }, []);
-
-  async function handleCheckin(token: string) {
-    if (processing || !token.trim()) return;
-    setProcessing(true);
-    setQrInput(token);
-
-    let data: CheckinResponse;
     try {
-      const res = await fetch("/api/checkin", {
+      const res = await fetch(`/api/checkin/lookup?qr_token=${encodeURIComponent(trimmed)}`);
+      if (!res.ok) {
+        setScanState({ phase: "invalid", token: trimmed });
+        return;
+      }
+      const preview = (await res.json()) as TicketPreview;
+      setScanState({ phase: "preview", token: trimmed, preview });
+    } catch {
+      setScanState({ phase: "invalid", token: trimmed });
+    }
+  }
+
+  async function handleConfirm() {
+    if (scanState.phase !== "preview" && scanState.phase !== "confirm_failed") return;
+    const { token, preview } = scanState;
+    setScanState({ phase: "checking", token, preview });
+
+    let res: Response;
+    try {
+      res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qr_token: token.trim() }),
+        body: JSON.stringify({ qr_token: token }),
       });
-      data = res.ok ? await res.json() : { status: "rejected", reason: "invalid" };
     } catch {
-      data = { status: "rejected", reason: "invalid" };
+      setScanState({
+        phase: "confirm_failed",
+        token,
+        preview,
+        reason: "Could not reach the server. Check the network and try again.",
+      });
+      return;
     }
 
-    setResultData(data);
-    setResult(data.status === "success" ? "success" : data.status === "duplicate" ? "duplicate" : "rejected");
+    if (!res.ok) {
+      setScanState({
+        phase: "confirm_failed",
+        token,
+        preview,
+        reason: "The check-in could not be recorded. Try again.",
+      });
+      return;
+    }
 
-    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-    clearTimerRef.current = setTimeout(() => {
-      setResult(null);
-      setResultData(null);
-      setQrInput("");
-      setProcessing(false);
-    }, 3000);
+    const data = (await res.json()) as {
+      status: string;
+      reason?: string;
+      ticket?: { checked_in_at?: string | null };
+    };
+
+    if (data.status === "success") {
+      const checkedInAt = formatTime(new Date().toISOString());
+      setScanState({ phase: "confirmed", token, preview, checkedInAt });
+      return;
+    }
+
+    if (data.status === "duplicate") {
+      // Someone else checked this ticket in between lookup and confirm. The
+      // server row is the source of truth for when; synthesizing "now" would
+      // put the wrong time on an already-checked-in ticket.
+      const ticketTime = data.ticket?.checked_in_at ?? preview.checked_in_at;
+      const checkedInAt = formatTime(ticketTime ?? new Date().toISOString());
+      const updated: TicketPreview = {
+        ...preview,
+        status: "checked_in" as TicketStatus,
+        checked_in_at: ticketTime,
+      };
+      setScanState({ phase: "confirmed", token, preview: updated, checkedInAt });
+      return;
+    }
+
+    if (data.status === "rejected" && data.reason === "cancelled") {
+      // Ticket was revoked between lookup and confirm: reflect it on the card.
+      setScanState({ phase: "preview", token, preview: { ...preview, status: "cancelled" as TicketStatus } });
+      return;
+    }
+
+    setScanState({
+      phase: "confirm_failed",
+      token,
+      preview,
+      reason: "This ticket is not in a state that can be checked in.",
+    });
   }
 
-  async function handleManualSubmit(e: React.FormEvent) {
+  function handleClear() {
+    setScanState({ phase: "idle" });
+    setQrInput("");
+  }
+
+  function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await handleCheckin(qrInput);
+    if (scanState.phase === "idle") void lookupToken(qrInput);
   }
+
+  const cardActive = scanState.phase !== "idle";
+  const lookingUp = scanState.phase === "looking_up";
 
   return (
     <div className="flex flex-1 flex-col lg:flex-row">
@@ -69,9 +140,11 @@ export function KioskScannerView({ event }: { event: Event }) {
         <div className="flex w-full max-w-lg flex-col items-center">
           <span className="material-symbols-rounded mb-3 text-[40px] text-brand">qr_code_scanner</span>
           <p className="mb-1 text-sm font-semibold text-fg">Align the participant&apos;s QR code within the frame</p>
-          <p className="mb-6 text-center text-xs text-muted-fg">To automatically verify attendance and record check-in time.</p>
+          <p className="mb-6 text-center text-xs text-muted-fg">
+            Scan to preview the attendee, then confirm to record their check-in.
+          </p>
 
-          {!cameraActive && !cameraError && (
+          {!cameraActive && !cameraError && scanState.phase === "idle" && (
             <button
               onClick={() => {
                 setCameraActive(true);
@@ -84,7 +157,7 @@ export function KioskScannerView({ event }: { event: Event }) {
             </button>
           )}
 
-          {cameraError && (
+          {cameraError && scanState.phase === "idle" && (
             <div className="mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-error/30 bg-error/10 text-sm text-error">
               <span className="material-symbols-rounded text-[18px]">videocam_off</span>
               {cameraError}
@@ -92,9 +165,12 @@ export function KioskScannerView({ event }: { event: Event }) {
           )}
 
           {cameraActive && (
+            // The camera stays up while a card is shown — pausing drops decoded
+            // tokens instead of tearing down getUserMedia and reading it back in.
             <QrScanner
-              onScan={handleCheckin}
+              onScan={(token) => void lookupToken(token)}
               active={cameraActive}
+              paused={cardActive}
               onError={(msg) => {
                 setCameraError(msg);
                 setCameraActive(false);
@@ -113,60 +189,70 @@ export function KioskScannerView({ event }: { event: Event }) {
                 value={qrInput}
                 onChange={(e) => setQrInput(e.target.value)}
                 placeholder="Scan or type QR token..."
-                disabled={processing}
+                disabled={cardActive}
                 className="h-12 flex-1 rounded-xl border border-border bg-surface px-4 text-sm text-fg placeholder-muted-fg outline-none transition focus:border-brand focus:ring-2 focus:ring-ring/20 disabled:opacity-40"
               />
               <button
                 type="submit"
-                disabled={processing || !qrInput.trim()}
+                disabled={cardActive || !qrInput.trim()}
                 className="flex h-12 items-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {processing ? (
+                {lookingUp ? (
                   <span className="material-symbols-rounded animate-spin text-[18px]">progress_activity</span>
                 ) : (
-                  <span className="material-symbols-rounded text-[18px]">check_circle</span>
+                  <span className="material-symbols-rounded text-[18px]">person_search</span>
                 )}
-                {processing ? "Checking..." : "Check In"}
+                {lookingUp ? "Finding..." : "Find Attendee"}
               </button>
             </div>
           </form>
 
-          {result && resultData && (
-            <div
-              className={`mt-6 flex w-full items-start gap-3 rounded-xl border px-4 py-3 ${
-                result === "success"
-                  ? "border-success/20 bg-success/10"
-                  : result === "duplicate"
-                    ? "border-warning/20 bg-warning/10"
-                    : "border-error/20 bg-error/10"
-              }`}
-            >
-              <span
-                className={`material-symbols-rounded mt-0.5 text-[20px] ${
-                  result === "success" ? "text-success" : result === "duplicate" ? "text-warning" : "text-error"
-                }`}
-              >
-                {result === "success" ? "check_circle" : result === "duplicate" ? "warning" : "cancel"}
-              </span>
-              <div>
-                {result === "success" && (
-                  <>
-                    <p className="text-sm font-semibold text-fg">Checked in</p>
-                    <p className="text-sm text-muted-fg">{resultData.attendee?.full_name}</p>
-                    <p className="text-xs text-muted-fg">{resultData.attendee?.email}</p>
-                  </>
-                )}
-                {result === "duplicate" && <p className="text-sm font-semibold text-fg">Already checked in</p>}
-                {result === "rejected" && (
-                  <>
-                    <p className="text-sm font-semibold text-fg">
-                      {resultData.reason === "cancelled" ? "Ticket cancelled" : "Invalid ticket"}
-                    </p>
-                    <p className="text-xs text-muted-fg">This QR code could not be validated for this event.</p>
-                  </>
-                )}
-              </div>
+          {scanState.phase === "looking_up" && (
+            <div className="mt-6 flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+              <span className="material-symbols-rounded animate-spin text-[20px] text-brand">progress_activity</span>
+              <span className="truncate font-mono text-xs text-fg">{scanState.token}</span>
             </div>
+          )}
+
+          {scanState.phase === "invalid" && (
+            <div className="mt-6 flex w-full flex-col gap-3 rounded-xl border border-error/20 bg-error/10 px-4 py-3">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-rounded mt-0.5 text-[20px] text-error">cancel</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-fg">Invalid ticket</p>
+                  <p className="truncate font-mono text-xs text-muted-fg">{scanState.token}</p>
+                  <p className="text-xs text-muted-fg">This QR code could not be validated for this event.</p>
+                </div>
+              </div>
+              <button
+                onClick={handleClear}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-muted-fg transition hover:text-fg"
+              >
+                Done
+              </button>
+            </div>
+          )}
+
+          {(scanState.phase === "preview" ||
+            scanState.phase === "checking" ||
+            scanState.phase === "confirmed" ||
+            scanState.phase === "confirm_failed") && (
+            <CheckinCard
+              preview={scanState.preview}
+              phase={
+                scanState.phase === "checking"
+                  ? "checking"
+                  : scanState.phase === "confirmed"
+                    ? "confirmed"
+                    : scanState.phase === "confirm_failed"
+                      ? "failed"
+                      : "preview"
+              }
+              failureReason={scanState.phase === "confirm_failed" ? scanState.reason : undefined}
+              checkedInAt={scanState.phase === "confirmed" ? scanState.checkedInAt : undefined}
+              onConfirm={() => void handleConfirm()}
+              onClear={handleClear}
+            />
           )}
         </div>
       </div>

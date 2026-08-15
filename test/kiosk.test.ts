@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
+import { checkinSchema, formatCheckinResult, formatTicketPreview } from "@/modules/kiosk/lib/checkin";
 import type { TicketStatus } from "@/shared/types";
 
 describe("checkinSchema", () => {
@@ -25,6 +25,7 @@ describe("formatCheckinResult", () => {
     payment_id: 1,
     user_id: 5,
     event_id: 10,
+    checked_in_at: null,
   };
 
   it("returns success for issued ticket", () => {
@@ -63,5 +64,34 @@ describe("formatCheckinResult", () => {
     if (result.status === "success") {
       expect(result.attendee.full_name).toBe("Unknown");
     }
+  });
+});
+
+describe("formatTicketPreview", () => {
+  const ticket = {
+    USER: { full_name: "Jane Doe", email: "jane@example.com" },
+    qr_token: "tok-123",
+    status: "issued" as TicketStatus,
+    checked_in_at: null,
+  };
+
+  it("exposes the attendee, token and status without mutating anything", () => {
+    const preview = formatTicketPreview(ticket);
+    expect(preview).toEqual({
+      attendee: { full_name: "Jane Doe", email: "jane@example.com" },
+      qr_token: "tok-123",
+      status: "issued",
+      checked_in_at: null,
+    });
+  });
+
+  it("keeps the ticket's own status so the kiosk can gate the action", () => {
+    expect(formatTicketPreview({ ...ticket, status: "checked_in" }).status).toBe("checked_in");
+    expect(formatTicketPreview({ ...ticket, status: "cancelled" }).status).toBe("cancelled");
+  });
+
+  it("falls back to Unknown when the user embed is missing", () => {
+    const preview = formatTicketPreview({ ...ticket, USER: null });
+    expect(preview.attendee).toEqual({ full_name: "Unknown", email: "" });
   });
 });
