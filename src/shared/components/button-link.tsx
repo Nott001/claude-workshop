@@ -12,7 +12,7 @@ function ButtonLink({
   size = "sm",
   ...props
 }: ComponentProps<typeof Link> & { variant?: ButtonVariant; size?: ButtonSize }) {
-  return <Link className={buttonStyles(variant, size, className)} {...props} />;
+  return <Link className={buttonStyles({ variant, size, className })} {...props} />;
 }
 
 export { ButtonLink };
