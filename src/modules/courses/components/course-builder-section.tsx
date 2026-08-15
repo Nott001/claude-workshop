@@ -51,6 +51,8 @@ export function CourseBuilderSection({
         onAddLessonClick={builder.openLessonDialog}
         onReorderModules={builder.handleReorderModules}
         onMoveLesson={builder.handleMoveLesson}
+        onRenameLesson={builder.handleRenameLesson}
+        onUpdateLessonDescription={builder.handleUpdateLessonDescription}
       />
       <LessonDialog
         open={builder.lessonDialogModuleId !== null}

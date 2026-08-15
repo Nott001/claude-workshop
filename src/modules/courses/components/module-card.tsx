@@ -49,6 +49,8 @@ interface ModuleCardProps {
   onAddLessonClick: () => void;
   onMoveLesson: (lesson: Lesson, direction: MoveDirection) => void;
   onDeleteLesson: (lessonId: number) => void;
+  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
+  onUpdateLessonDescription: (lessonId: number, description: string | null) => Promise<void> | void;
 }
 
 export function ModuleCard({
@@ -82,6 +84,8 @@ export function ModuleCard({
   onAddLessonClick,
   onMoveLesson,
   onDeleteLesson,
+  onRenameLesson,
+  onUpdateLessonDescription,
 }: ModuleCardProps) {
   const upInfo = describeModuleMove(modules, mod.id, "up");
   const downInfo = describeModuleMove(modules, mod.id, "down");
@@ -181,6 +185,8 @@ export function ModuleCard({
                 onPreviewMoveEnd={onPreviewMoveEnd}
                 onMove={(direction) => onMoveLesson(lesson, direction)}
                 onDelete={() => onDeleteLesson(lesson.id)}
+                onRenameLesson={onRenameLesson}
+                onUpdateLessonDescription={onUpdateLessonDescription}
               />
             );
           })}

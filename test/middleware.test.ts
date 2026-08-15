@@ -48,12 +48,13 @@ describe("route protection", () => {
     ["/staff/community", undefined],
     ["/staff/organization", undefined],
     ["/staff/kiosk", undefined],
-    ["/speaker/dashboard", undefined],
-    ["/speaker/event/42/course", undefined],
+    ["/speaker/events", undefined],
+    ["/speaker/events/42/course", undefined],
     ["/api/events", { method: "POST" }],
     ["/api/community", { method: "POST" }],
     ["/api/tickets/1", undefined],
     ["/api/checkin", undefined],
+    ["/api/checkin/lookup", undefined],
   ];
 
   it.each(protectedPaths)("redirects signed-out users away from %s", async (path, init) => {

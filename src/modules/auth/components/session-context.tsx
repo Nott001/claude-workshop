@@ -3,6 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { shouldRefreshRouterForAuthEvent } from "../lib/refresh-policy";
 import type { AuthUser } from "../lib/types";
 
 interface SessionContextValue {
@@ -74,7 +75,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         fetch("/api/auth/me")
           .then((r) => (r.ok ? r.json() : null))
           .then(setUser);
-        router.refresh();
+        if (shouldRefreshRouterForAuthEvent(event)) router.refresh();
         return;
       }
 

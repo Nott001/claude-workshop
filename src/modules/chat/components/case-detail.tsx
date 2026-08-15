@@ -4,7 +4,7 @@ import type { CaseSummary } from "@/modules/chat/lib/use-support-cases";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 import { CaseDetailHeader } from "./case-detail-header";
 import { MessageList } from "./message-list";
-import { MessageComposer } from "./message-composer";
+import { MessageComposer } from "@/shared/components/message-composer";
 
 interface CaseDetailProps {
   caseRow: CaseSummary;

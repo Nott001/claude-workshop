@@ -39,7 +39,7 @@ const SPEAKER = { allowed: true, error: null, user: { id: 5, role: ROLES.SPEAKER
 const params = { params: Promise.resolve({ id: "11" }) };
 
 const MODULE_BODY = { module_name: "Week one", sequence_order: 1 };
-const LESSON_BODY = { description: "Intro", content_type: "pdf", sequence_order: 1 };
+const LESSON_BODY = { name: "Intro", content_type: "pdf", sequence_order: 1 };
 
 function body(url: string, payload: unknown) {
   return new Request(url, { method: "PATCH", body: JSON.stringify(payload) });

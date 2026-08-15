@@ -20,6 +20,7 @@ const { chatDao } = vi.hoisted(() => ({
     claimSession: vi.fn(),
     relinquishSession: vi.fn(),
     endSession: vi.fn(),
+    deleteSessionsExcept: vi.fn(),
   },
 }));
 
@@ -35,7 +36,8 @@ beforeEach(() => {
   chatDao.sendMessage.mockResolvedValue({ id: 100, message: "help" });
   chatDao.claimSession.mockResolvedValue({ id: 50, status: "active" });
   chatDao.relinquishSession.mockResolvedValue({ id: 50, status: "active" });
-  chatDao.endSession.mockResolvedValue({ id: 50, status: "ended" });
+  chatDao.endSession.mockResolvedValue({ id: 50, status: "ended_by_facilitator" });
+  chatDao.deleteSessionsExcept.mockResolvedValue(true);
 });
 
 describe("rateLimitCheck", () => {
@@ -64,13 +66,21 @@ describe("openOrReuseSession", () => {
     expect(chatDao.createSession).toHaveBeenCalledWith({}, 5, "general");
   });
 
-  it("reuses the caller's open session instead of opening another", async () => {
+  it("retires the previous ended session when a fresh one opens", async () => {
+    chatDao.createSession.mockResolvedValue({ id: 31, status: "active" });
+
+    await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE });
+
+    expect(chatDao.deleteSessionsExcept).toHaveBeenCalledWith({}, 5, "general", 31);
+  });
+
+  it("reuses an open session without touching the queue of endings", async () => {
     chatDao.findActiveSession.mockResolvedValue({ id: 12, status: "active" });
 
-    const session = await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE });
+    await openOrReuseSession(supabase, { userId: 5, role: ROLES.ATTENDEE });
 
-    expect(session.id).toBe(12);
     expect(chatDao.createSession).not.toHaveBeenCalled();
+    expect(chatDao.deleteSessionsExcept).not.toHaveBeenCalled();
   });
 
   it("surfaces a session that failed to open as a handled error", async () => {
@@ -153,11 +163,16 @@ describe("sendSupportMessage", () => {
 });
 
 describe("claimCase", () => {
-  it("claims an unclaimed case", async () => {
+  it("claims an unclaimed case and tells the asker", async () => {
     const session = await claimCase(supabase, 99, 1);
 
     expect(session).toEqual({ id: 50, status: "active" });
     expect(chatDao.claimSession).toHaveBeenCalledWith({}, 99, "general", 1);
+    expect(chatDao.sendMessage).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session_id: 50, user_id: 1, recipient_user_id: 99 }),
+    );
+    expect(String(chatDao.sendMessage.mock.calls[0][1].message)).toContain("[Case assigned]");
   });
 
   it("refuses to claim your own session", async () => {
@@ -172,11 +187,16 @@ describe("claimCase", () => {
 });
 
 describe("releaseCase", () => {
-  it("relinquishes a case the caller owns", async () => {
+  it("relinquishes a case the caller owns and tells the asker", async () => {
     const session = await releaseCase(supabase, 99, 1);
 
     expect(session).toEqual({ id: 50, status: "active" });
     expect(chatDao.relinquishSession).toHaveBeenCalledWith({}, 99, "general", 1);
+    expect(chatDao.sendMessage).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session_id: 50, user_id: 1, recipient_user_id: 99 }),
+    );
+    expect(String(chatDao.sendMessage.mock.calls[0][1].message)).toContain("[Case unassigned]");
   });
 
   it("refuses to relinquish a case the caller does not own", async () => {
@@ -190,7 +210,7 @@ describe("endCase", () => {
   it("ends your own session", async () => {
     const session = await endCase(supabase, 5, { id: 5, role: ROLES.ATTENDEE });
 
-    expect(session).toEqual({ id: 50, status: "ended" });
+    expect(session).toMatchObject({ id: 50 });
     expect(chatDao.endSession).toHaveBeenCalledWith({}, 5, "general");
   });
 
@@ -208,6 +228,18 @@ describe("endCase", () => {
     await endCase(supabase, 99, { id: 1, role: ROLES.ADMIN });
 
     expect(chatDao.endSession).toHaveBeenCalledWith({}, 99, "general", { ownerId: 1 });
+  });
+
+  it("writes the closing notice into the ended thread", async () => {
+    chatDao.findActiveSession.mockResolvedValue({ id: 7, assigned_to: 1 });
+
+    await endCase(supabase, 99, { id: 1, role: ROLES.ADMIN });
+
+    expect(chatDao.sendMessage).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session_id: 50, user_id: 1, recipient_user_id: 99 }),
+    );
+    expect(String(chatDao.sendMessage.mock.calls[0][1].message)).toContain("[Chat ended]");
   });
 
   it("stops an admin ending a case that belongs to another handler", async () => {

@@ -1,1 +1,0 @@
-ALTER TABLE "COURSE" DROP COLUMN created_by;

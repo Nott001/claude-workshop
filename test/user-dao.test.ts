@@ -63,7 +63,7 @@ describe("user.dao listStaff", () => {
   it("lists staff roles only, never attendees", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, 1, "");
+    await userDao.listStaff(client, { page: 1, search: "" });
 
     expect(argsOf(calls, "in")).toEqual(["role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN]]);
   });
@@ -71,7 +71,7 @@ describe("user.dao listStaff", () => {
   it("asks for the page the caller wanted", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, 3, "", 10);
+    await userDao.listStaff(client, { page: 3, search: "", pageSize: 10 });
 
     // Page 3 of 10 starts at row 20 and ends at 29, inclusive.
     expect(argsOf(calls, "range")).toEqual([20, 29]);
@@ -80,17 +80,27 @@ describe("user.dao listStaff", () => {
   it("searches the name and the address together", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, 1, "ana");
+    await userDao.listStaff(client, { page: 1, search: "ana" });
 
     // ilikePattern quotes and escapes the term so input cannot re-write the
     // or-filter; the quotes are part of the generated expression.
     expect(argsOf(calls, "or")).toEqual(['full_name.ilike."%ana%",email.ilike."%ana%"']);
   });
 
+  it("narrows to one role and keeps pagination when role is set", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listStaff(client, { page: 2, search: "", pageSize: 10, role: ROLES.SPEAKER });
+
+    const eqs = calls.filter(([m]) => m === "eq").map(([, args]) => args);
+    expect(eqs).toContainEqual(["role", ROLES.SPEAKER]);
+    expect(argsOf(calls, "range")).toEqual([10, 19]);
+  });
+
   it("reports an empty page rather than null when the query returns nothing", async () => {
     const { client } = stub({ data: null, count: null });
 
-    await expect(userDao.listStaff(client, 1, "")).resolves.toMatchObject({ data: [], total: 0 });
+    await expect(userDao.listStaff(client, { page: 1, search: "" })).resolves.toMatchObject({ data: [], total: 0 });
   });
 });
 

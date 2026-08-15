@@ -107,9 +107,25 @@ describe("runs", () => {
 describe("the user's own details", () => {
   const context = { email: "ada.lovelace@example.com", fullName: "Ada Lovelace" };
 
-  it("refuses a password built from the email or the name", () => {
+  it("refuses a password that is essentially the name itself", () => {
     expect(failures("adalovelace99", context)).toContain("not-personal");
+    expect(failures("ada.lovelace2026", context)).toContain("not-personal");
     expect(failures("my lovelace kettle", context)).toContain("not-personal");
+  });
+
+  // A surname inside a long passphrase is a coincidence, and refusing it only
+  // teaches people that the rules are arbitrary.
+  it("allows a name that merely appears inside a longer passphrase", () => {
+    expect(evaluatePassword("the bell tolls at dawn", { fullName: "Ada Bell" }).ok).toBe(true);
+    expect(evaluatePassword("lovelace kettle brew whistles", context).ok).toBe(true);
+  });
+
+  it("counts overlapping personal words once rather than against the same letters twice", () => {
+    // "ada", "lovelace" and "adalovelace" all describe the same person; the
+    // longest single match is what decides it.
+    expect(evaluatePassword("lovelace kettle brew whistles", context).rules.find((r) => r.id === "not-personal")?.passed).toBe(
+      true,
+    );
   });
 
   it("has nothing to say when there is no account context", () => {

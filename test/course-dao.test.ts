@@ -22,14 +22,14 @@ describe("course.dao module payload", () => {
     const { client } = courseQueryStub({
       id: 7,
       course_name: "Intro",
-      MODULE: [{ id: 1, module_name: "M", LESSON: [{ id: 2, description: "first lesson" }] }],
+      MODULE: [{ id: 1, module_name: "M", LESSON: [{ id: 2, name: "first lesson" }] }],
     });
 
     const course = await findCourseByEvent(client, 7);
 
     expect(course?.MODULE[0]).toHaveProperty("LESSONS");
     expect(course?.MODULE[0]).not.toHaveProperty("LESSON");
-    expect(course?.MODULE[0].LESSONS[0].description).toBe("first lesson");
+    expect(course?.MODULE[0].LESSONS[0].name).toBe("first lesson");
   });
 
   it("findCourseByEvent resolves null when the event has no course", async () => {

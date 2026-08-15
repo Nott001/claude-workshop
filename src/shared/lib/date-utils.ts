@@ -72,3 +72,24 @@ export function eventStatusLabel(status: string): string {
       return status;
   }
 }
+
+/**
+ * Local "today" in the same YYYY-MM-DD form EVENT.event_date is stored in.
+ * Unlike `toISOString().split("T")[0]` this stays on the local calendar, so a
+ * date bound derived here agrees with isEventFinished, which also reads local
+ * time.
+ */
+export function localDateString(now: Date = new Date()): string {
+  const [y, m, d] = [now.getFullYear(), now.getMonth() + 1, now.getDate()];
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * Local "now" in the HH:MM:SS form EVENT.end_time is stored in, for comparing
+ * against the end edge of today's events. Local again, matching
+ * isEventFinished rather than a UTC clock.
+ */
+export function localTimeString(now: Date = new Date()): string {
+  const [h, m, s] = [now.getHours(), now.getMinutes(), now.getSeconds()];
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}

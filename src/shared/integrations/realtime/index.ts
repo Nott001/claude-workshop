@@ -1,10 +1,9 @@
 import { getBrowserClient } from "@/shared/db/browser-client";
-import type { Ticket, SupportSession, QaMessage } from "@/shared/types";
+import type { Ticket, SupportSession } from "@/shared/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type TicketCallback = (ticket: Ticket) => void;
 type SupportSessionCallback = (session: SupportSession) => void;
-type QaMessageCallback = (message: QaMessage) => void;
 
 let counter = 0;
 
@@ -46,52 +45,6 @@ export function subscribeToSupportSessions(onChange: SupportSessionCallback): Re
         console.log("Realtime channel closed: support-sessions");
       }
     });
-
-  return sub;
-}
-
-export function subscribeToQaMessages(eventId: number, onChange?: QaMessageCallback): RealtimeChannel {
-  const channelName = `qa-messages-${eventId}-${++counter}`;
-  const sub = getBrowserClient()
-    .channel(channelName)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "QA_MESSAGE",
-        filter: `event_id=eq.${eventId}`,
-      },
-      (payload) => {
-        if (payload.eventType === "INSERT") {
-          onChange?.(payload.new as QaMessage);
-        }
-      },
-    )
-    .subscribe();
-
-  return sub;
-}
-
-export function subscribeToQaMessagesByModule(moduleId: number, onChange?: QaMessageCallback): RealtimeChannel {
-  const channelName = `qa-module-messages-${moduleId}-${++counter}`;
-  const sub = getBrowserClient()
-    .channel(channelName)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "QA_MESSAGE",
-        filter: `module_id=eq.${moduleId}`,
-      },
-      (payload) => {
-        if (payload.eventType === "INSERT") {
-          onChange?.(payload.new as QaMessage);
-        }
-      },
-    )
-    .subscribe();
 
   return sub;
 }

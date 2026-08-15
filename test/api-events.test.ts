@@ -97,7 +97,7 @@ describe("GET /api/events", () => {
   it("passes the caller's role to the query so listings can be filtered by it", async () => {
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: null, page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: null, search: null, page: 1, limit: 50 });
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
@@ -106,13 +106,25 @@ describe("GET /api/events", () => {
     const res = await GET(new Request("https://app.test/api/events"));
 
     expect(res.status).toBe(200);
-    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null, page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null, search: null, page: 1, limit: 50 });
   });
 
   it("forwards the filter query parameter", async () => {
     await GET(new Request("https://app.test/api/events?filter=upcoming"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming", page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith(
+      {},
+      { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming", search: null, page: 1, limit: 50 },
+    );
+  });
+
+  it("forwards the search query parameter", async () => {
+    await GET(new Request("https://app.test/api/events?search=COBOL"));
+
+    expect(list).toHaveBeenCalledWith(
+      {},
+      { role: ROLES.ATTENDEE, userId: 5, filter: null, search: "COBOL", page: 1, limit: 50 },
+    );
   });
 
   it("passes the caller's id so a facilitator is filtered to their own events", async () => {
@@ -126,7 +138,10 @@ describe("GET /api/events", () => {
 
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: ROLES.FACILITATOR, userId: 7, filter: null, page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith(
+      {},
+      { role: ROLES.FACILITATOR, userId: 7, filter: null, search: null, page: 1, limit: 50 },
+    );
   });
 
   it("attaches attendee counts to the rows a staff caller receives", async () => {

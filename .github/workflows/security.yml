@@ -121,7 +121,7 @@ jobs:
         run: pnpm audit --dev --audit-level=high
 
   # Catches credentials committed by mistake. This repo gitignores .env* and a
-  # local .env.local holds live Supabase and payment-gateway keys, so a stray
+  # local .env holds live Supabase and payment-gateway keys, so a stray
   # `git add -f` is a realistic path to leaking them.
   # Deliberately unfiltered. Documentation is one of the likeliest places to
   # leak a credential — a key pasted into a README example, a token in a setup
@@ -159,9 +159,20 @@ jobs:
           missing=0
           for file in supabase/migrations/*.sql; do
             [ -e "$file" ] || continue
-            tables=$(grep -oiP 'CREATE TABLE (IF NOT EXISTS )?"?\K[A-Za-z_][A-Za-z0-9_]*' "$file" | sort -u)
+            # Both halves accept an optional schema qualifier. A dump-generated
+            # baseline writes "public"."LESSON" where a hand-written migration
+            # writes LESSON; matching only the latter made every table parse as
+            # 'public' and reported the whole schema as missing RLS.
+            tables=$(grep -oiP 'CREATE TABLE (IF NOT EXISTS )?(?:"?[A-Za-z_][A-Za-z0-9_]*"?\s*\.\s*)?"?\K[A-Za-z_][A-Za-z0-9_]*' "$file" | sort -u)
+            # A file that declares tables the pattern cannot read would otherwise
+            # pass by inspecting nothing, which is the one failure this job must
+            # never have.
+            if grep -qiE 'CREATE TABLE' "$file" && [ -z "$tables" ]; then
+              echo "::error file=${file}::Found CREATE TABLE but could not parse any table name; the RLS check would pass without inspecting anything."
+              missing=1
+            fi
             for t in $tables; do
-              if ! grep -qiE "ALTER TABLE \"?${t}\"? ENABLE ROW LEVEL SECURITY" "$file"; then
+              if ! grep -qiE "ALTER TABLE (ONLY )?(\"?[A-Za-z_][A-Za-z0-9_]*\"?\.)?\"?${t}\"? ENABLE ROW LEVEL SECURITY" "$file"; then
                 echo "::error file=${file}::Table '${t}' is created without ENABLE ROW LEVEL SECURITY."
                 missing=1
               fi

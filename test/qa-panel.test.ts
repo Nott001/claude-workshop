@@ -1,7 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect } from "vitest";
-import { qaMessageSchema } from "@/modules/chat/lib/schemas";
-import { isChatStaff } from "@/modules/chat/lib/types";
+import { qaMessageSchema } from "@/modules/courses/qa/lib/schemas";
+import { isChatStaff } from "@/shared/lib/is-chat-staff";
 import type { QaMessage } from "@/shared/types";
 
 describe("QAPanel uses QA_MESSAGE", () => {

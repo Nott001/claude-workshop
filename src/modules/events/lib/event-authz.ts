@@ -11,7 +11,7 @@ export type EventActor = { id: number };
 
 export type EventGuardUser = { id: number; role: UserRole };
 
-export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "survey";
+export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "attendees_manage" | "survey";
 
 // Courses keeps its own copy: the module boundary forbids courses → events, so
 // the course-room guard (SPEC-05) cannot import this one.
@@ -26,11 +26,14 @@ export async function canManageEvent(supabase: DbClient, user: EventGuardUser, e
 // publish, delete) and surveys are admin-only: facilitators are foot soldiers
 // who run kiosk check-in but never touch event details. Only the attendee read
 // stays open to an assigned facilitator, since the kiosk flow depends on it.
+// The admin attendee table is a step further — it mutates registrations
+// (check-in, cancel, resend) — so facilitators are shut out of it entirely.
 const CAPABILITY_RULE: Record<EventCapability, { minRole: UserRole; assignment: boolean }> = {
   edit: { minRole: ROLES.ADMIN, assignment: false },
   delete: { minRole: ROLES.ADMIN, assignment: false },
   publish: { minRole: ROLES.ADMIN, assignment: false },
   attendees: { minRole: ROLES.FACILITATOR, assignment: true },
+  attendees_manage: { minRole: ROLES.ADMIN, assignment: false },
   survey: { minRole: ROLES.ADMIN, assignment: false },
 };
 

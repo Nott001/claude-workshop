@@ -15,7 +15,14 @@ export type EventListRow = Awaited<ReturnType<typeof eventDao.list>>["data"][num
 
 export async function listEvents(
   supabase: DbClient,
-  options: { role: string | null; userId: number | null; filter: string | null; page?: number; limit?: number },
+  options: {
+    role: string | null;
+    userId: number | null;
+    filter: string | null;
+    search?: string | null;
+    page?: number;
+    limit?: number;
+  },
 ): Promise<PaginatedResult<EventListRow>> {
   const result = await eventDao.list(supabase, options);
 

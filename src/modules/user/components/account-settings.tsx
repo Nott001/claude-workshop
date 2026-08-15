@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Toast } from "@/shared/components/toast";
 import { useAccountSettings } from "@/modules/user/lib/use-account-settings";
 import { useSpeakerProfile } from "@/modules/user/lib/use-speaker-profile";
@@ -9,6 +8,7 @@ import { ProfileNameSection } from "@/modules/user/components/profile-name-secti
 import { EmailSection } from "@/modules/user/components/email-section";
 import { PasswordSection } from "@/modules/user/components/password-section";
 import { SpeakerProfileSection } from "@/modules/user/components/speaker-profile-section";
+import { BackLink } from "@/shared/components/back-link";
 
 export function AccountSettings() {
   const settings = useAccountSettings();
@@ -17,13 +17,9 @@ export function AccountSettings() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="mx-auto w-full max-w-[896px] px-4 py-8 sm:px-6">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand"
-        >
-          <span className="material-symbols-rounded text-[18px]">arrow_back</span>
-          Back
-        </Link>
+        <BackLink href="/" className="mb-6">
+          Back to Home
+        </BackLink>
         <h1 className="text-[32px] font-bold tracking-[-0.32px] text-fg leading-[40px]">Account Settings</h1>
         <p className="mt-1 text-base text-muted-fg leading-6">Manage your account, security, and profile.</p>
 
@@ -53,8 +49,10 @@ export function AccountSettings() {
           <PasswordSection
             currentPassword={settings.currentPassword}
             onCurrentPasswordChange={settings.setCurrentPassword}
+            currentPasswordError={settings.currentPasswordError}
             newPassword={settings.newPassword}
             onNewPasswordChange={settings.setNewPassword}
+            newPasswordError={settings.newPasswordError}
             saving={settings.savingPassword}
             onSubmit={settings.changePassword}
             context={{ email: settings.currentUser?.email, fullName: settings.currentUser?.full_name }}
@@ -66,6 +64,14 @@ export function AccountSettings() {
               onDesignationChange={speaker.setDesignation}
               bio={speaker.bio}
               onBioChange={speaker.setBio}
+              linkedinUrl={speaker.linkedinUrl}
+              onLinkedinUrlChange={speaker.setLinkedinUrl}
+              twitterUrl={speaker.twitterUrl}
+              onTwitterUrlChange={speaker.setTwitterUrl}
+              githubUrl={speaker.githubUrl}
+              onGithubUrlChange={speaker.setGithubUrl}
+              websiteUrl={speaker.websiteUrl}
+              onWebsiteUrlChange={speaker.setWebsiteUrl}
               saving={speaker.savingSpeaker}
               onSubmit={speaker.saveSpeakerProfile}
             />
@@ -76,6 +82,7 @@ export function AccountSettings() {
       {settings.toast && (
         <div className="fixed bottom-4 right-8 z-50">
           <Toast
+            key={settings.toast.id}
             title={settings.toast.title}
             description={settings.toast.description}
             type={settings.toast.type}

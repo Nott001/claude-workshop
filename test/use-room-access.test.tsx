@@ -256,7 +256,10 @@ describe("useCourseRoomAccess", () => {
     const window = liveWindow();
     fetchCourseRoomAccess.mockResolvedValue(
       roomData({
-        event: { ...EVENT, event_date: window.date },
+        // The event has to span the module's window, and that window is built
+        // around the clock — EVENT's fixed 09:00–17:00 made this pass only when
+        // the suite happened to run inside office hours.
+        event: { ...EVENT, event_date: window.date, start_time: "00:00", end_time: "23:59" },
         course: {
           id: 4,
           course_name: "Intro",

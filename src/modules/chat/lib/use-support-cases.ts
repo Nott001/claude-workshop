@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { subscribeToSupportSessions, unsubscribe } from "@/shared/integrations/realtime";
 import { useSession } from "@/modules/auth/components/session-context";
-import { useRealtimeMessages, CHAT_TABLE } from "@/modules/chat/lib/use-realtime-messages";
+import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
 import type { ChatMessageWithUser } from "@/modules/chat/lib/types";
 
 export interface CaseSummary {
@@ -100,7 +100,6 @@ export function useSupportCases() {
 
   useRealtimeMessages<ChatMessageWithUser>({
     channelName: "support-inbox-general",
-    table: CHAT_TABLE,
     filter: "support_type=eq.general",
     relevant: (row) => row.session_id === selectedRef.current?.id,
     onInsert: (msg) =>
@@ -134,7 +133,7 @@ export function useSupportCases() {
       if (
         action === "end" &&
         !confirm(
-          `End case CASE-${selected.case_number}? This deletes the conversation history; ${selected.full_name} can start a new one later.`,
+          `End case CASE-${selected.case_number}? ${selected.full_name} is told the chat ended and can open a new case by messaging again.`,
         )
       ) {
         return;

@@ -57,7 +57,7 @@ const scheduleModule = {
   speaker: "John Doe",
 };
 
-function renderDetail(role: UserRole, overrides: Partial<ReturnType<typeof useEventDetail>> = {}) {
+function renderDetail(role: UserRole, overrides: Partial<ReturnType<typeof useEventDetail>> = {}, from?: string) {
   (useSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ user: { id: 1, role } });
   (useEventDetail as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     event: baseEvent,
@@ -69,7 +69,7 @@ function renderDetail(role: UserRole, overrides: Partial<ReturnType<typeof useEv
     handleRegister: vi.fn(),
     ...overrides,
   });
-  return render(<EventDetailPage />);
+  return render(<EventDetailPage from={from} />);
 }
 
 beforeEach(() => {
@@ -83,6 +83,23 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   cleanup();
+});
+
+// jsdom computes no grid geometry, so the invariant is asserted on the track
+// list itself. `gap` is added to the tracks rather than taken out of them, so a
+// pair of percentages summing to 100 overflows its container by exactly the
+// gap — which hung the sticky column 24px past the hero's right edge. `fr`
+// divides what remains after the gap, which is what this layout always meant.
+describe("Event detail two-column track sizing", () => {
+  it("sizes the content columns in fr so the gap cannot push the aside past the hero", () => {
+    const { container } = renderDetail(ROLES.ATTENDEE);
+
+    const grid = container.querySelector("aside")?.parentElement;
+    const tracks = [...(grid?.classList ?? [])].find((c) => c.startsWith("lg:grid-cols-"));
+
+    expect(tracks).toBe("lg:grid-cols-[65fr_35fr]");
+    expect(tracks).not.toMatch(/%/);
+  });
 });
 
 describe("Event detail page assembly", () => {
@@ -108,8 +125,29 @@ describe("Event detail page assembly", () => {
     expect(screen.getByText("Lead AI Solutions Architect")).toBeTruthy();
 
     expect(screen.getByRole("button", { name: "Register" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /view in google maps/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /view larger map/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /share on facebook/i })).toBeTruthy();
+  });
+
+  it("offers a way back to the events list when nothing says where the reader came from", () => {
+    renderDetail(ROLES.ATTENDEE);
+    const back = screen.getByRole("link", { name: /back to events/i });
+
+    expect(back.getAttribute("href")).toBe("/events");
+  });
+
+  it("sends the reader back to the page that linked here", () => {
+    renderDetail(ROLES.ATTENDEE, {}, "community");
+    const back = screen.getByRole("link", { name: /back to community/i });
+
+    expect(back.getAttribute("href")).toBe("/community");
+  });
+
+  it("falls back to the events list for an unrecognised origin rather than following it", () => {
+    renderDetail(ROLES.ATTENDEE, {}, "https://evil.example.com");
+    const back = screen.getByRole("link", { name: /back to events/i });
+
+    expect(back.getAttribute("href")).toBe("/events");
   });
 
   it("shows Enter Room instead of Register for a ticket holder with a linked course once the event has started", () => {

@@ -1,4 +1,4 @@
-import { ROLES } from "@/shared/lib/roles";
+import { ROLES, STAFF_ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "./types";
 import { ilikePattern, throwOnDbError } from "./helpers";
 import type { User } from "@/shared/types";
@@ -22,19 +22,23 @@ export async function findStaffByEmail(supabase: DbClient, email: string): Promi
 
 export async function listStaff(
   supabase: DbClient,
-  page: number,
-  search: string,
-  pageSize: number = 10,
+  options: { page: number; search: string; pageSize?: number; role?: string },
 ): Promise<PaginatedResult<Pick<User, "id" | "full_name" | "email" | "role">>> {
+  const { page, search, role } = options;
+  const pageSize = options.pageSize ?? 10;
   let query = supabase
     .from("USER")
     .select("id, full_name, email, role", { count: "exact" })
-    .in("role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN])
+    .in("role", [...STAFF_ROLES])
     .order("full_name", { ascending: true });
 
   if (search) {
     const pattern = ilikePattern(search);
     query = query.or(`full_name.ilike.${pattern},email.ilike.${pattern}`);
+  }
+  if (role) {
+    // Narrows the staff set; the route validates `role` before it gets here.
+    query = query.eq("role", role);
   }
 
   const from = (page - 1) * pageSize;

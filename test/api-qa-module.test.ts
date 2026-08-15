@@ -1,5 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QaServiceError } from "@/modules/courses/qa/lib/service";
 
 const {
   requireAuth,
@@ -7,8 +8,10 @@ const {
   courseDao,
   facilitatorIsAssigned,
   speakerIsAssignedByUserId,
-  listQuestionsByModule,
+  findQaModule,
+  listQuestions,
   sendQuestion,
+  setModuleLock,
 } = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireRole: vi.fn(),
@@ -20,8 +23,10 @@ const {
   },
   facilitatorIsAssigned: vi.fn(),
   speakerIsAssignedByUserId: vi.fn(),
-  listQuestionsByModule: vi.fn(),
+  findQaModule: vi.fn(),
+  listQuestions: vi.fn(),
   sendQuestion: vi.fn(),
+  setModuleLock: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
@@ -30,10 +35,12 @@ vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId: speakerIsAssignedByUserId }));
-vi.mock("@/shared/db/dao/chat.dao", () => ({ qaMessageDao: { listQuestionsByModule, sendQuestion } }));
+vi.mock("@/modules/courses/qa/lib/service", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/courses/qa/lib/service")>("@/modules/courses/qa/lib/service");
+  return { ...actual, findQaModule, listQuestions, sendQuestion, setModuleLock };
+});
 
 import { GET, POST, PATCH } from "@/app/api/qa/module/[moduleId]/route";
-import { RATE_LIMIT_MAX } from "@/modules/chat/lib/rate-limit";
 
 const params = { params: Promise.resolve({ moduleId: "4" }) };
 const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
@@ -54,13 +61,15 @@ beforeEach(() => {
   courseDao.setModuleLock.mockResolvedValue({ id: 4, is_locked: true });
   facilitatorIsAssigned.mockResolvedValue(false);
   speakerIsAssignedByUserId.mockResolvedValue(true);
-  listQuestionsByModule.mockResolvedValue({ messages: [] });
+  findQaModule.mockResolvedValue(QA_MODULE);
+  listQuestions.mockResolvedValue({ messages: [] });
   sendQuestion.mockResolvedValue({ id: 88, message: "How do I start?" });
+  setModuleLock.mockResolvedValue({ id: 4, is_locked: true });
 });
 
 describe("GET /api/qa/module/[moduleId]", () => {
   it("answers 404 for a module that does not exist", async () => {
-    courseDao.findModuleById.mockResolvedValue(null);
+    findQaModule.mockRejectedValue(new QaServiceError(404, "Module not found"));
 
     const res = await GET(new Request("https://app.test/api/qa/module/4"), params);
 
@@ -74,11 +83,11 @@ describe("GET /api/qa/module/[moduleId]", () => {
     const res = await GET(new Request("https://app.test/api/qa/module/4"), params);
 
     expect(res.status).toBe(401);
-    expect(listQuestionsByModule).not.toHaveBeenCalled();
+    expect(listQuestions).not.toHaveBeenCalled();
   });
 
   it("returns the module's questions", async () => {
-    listQuestionsByModule.mockResolvedValue({ messages: [{ id: 1, message: "Hi" }] });
+    listQuestions.mockResolvedValue({ messages: [{ id: 1, message: "Hi" }] });
 
     const res = await GET(new Request("https://app.test/api/qa/module/4"), params);
 
@@ -88,29 +97,27 @@ describe("GET /api/qa/module/[moduleId]", () => {
 });
 
 describe("POST /api/qa/module/[moduleId]", () => {
-  it("rejects an empty question before touching the database", async () => {
+  it("rejects an empty question before touching the service", async () => {
     const res = await POST(post({ message: "", module_id: 4 }), params);
-
-    expect(res.status).toBe(400);
-    expect(courseDao.findModuleById).not.toHaveBeenCalled();
-  });
-
-  it("refuses to take questions on a module that is not for Q&A", async () => {
-    courseDao.findModuleById.mockResolvedValue({ ...QA_MODULE, module_type: "lessons" });
-
-    const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(400);
     expect(sendQuestion).not.toHaveBeenCalled();
   });
 
+  it("refuses to take questions on a module that is not for Q&A", async () => {
+    sendQuestion.mockRejectedValue(new QaServiceError(400, "Module is not a Q&A module"));
+
+    const res = await POST(post(QUESTION), params);
+
+    expect(res.status).toBe(400);
+  });
+
   it("refuses a locked Q&A", async () => {
-    courseDao.findModuleById.mockResolvedValue({ ...QA_MODULE, is_locked: true });
+    sendQuestion.mockRejectedValue(new QaServiceError(403, "Q&A is locked"));
 
     const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(403);
-    expect(sendQuestion).not.toHaveBeenCalled();
   });
 
   it("refuses a caller with no session", async () => {
@@ -119,37 +126,34 @@ describe("POST /api/qa/module/[moduleId]", () => {
     const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(401);
+    expect(sendQuestion).not.toHaveBeenCalled();
   });
 
   it("slows down someone posting faster than the limit", async () => {
-    listQuestionsByModule.mockResolvedValue({ messages: Array.from({ length: RATE_LIMIT_MAX }, (_, i) => ({ id: i })) });
+    sendQuestion.mockRejectedValue(new QaServiceError(429, "Too many messages. Please slow down."));
 
     const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(429);
-    expect(sendQuestion).not.toHaveBeenCalled();
   });
 
-  it("files the question against the event that owns the course", async () => {
-    // The module knows its course; only the course knows the event, and the
-    // message row is keyed on the event.
+  it("passes the session user and the validated question to the service", async () => {
     const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(201);
-    expect(sendQuestion).toHaveBeenCalledWith({}, { event_id: 9, module_id: 4, user_id: 12, message: "How do I start?" });
+    expect(sendQuestion).toHaveBeenCalledWith({}, 4, ATTENDEE.id, QUESTION.message);
   });
 
   it("answers 404 when the module points at a course that is gone", async () => {
-    courseDao.findCourseEvent.mockResolvedValue(null);
+    sendQuestion.mockRejectedValue(new QaServiceError(404, "Course not found"));
 
     const res = await POST(post(QUESTION), params);
 
     expect(res.status).toBe(404);
-    expect(sendQuestion).not.toHaveBeenCalled();
   });
 
   it("reports a message that did not save", async () => {
-    sendQuestion.mockResolvedValue(null);
+    sendQuestion.mockRejectedValue(new QaServiceError(500, "Failed to send message"));
 
     const res = await POST(post(QUESTION), params);
 
@@ -164,14 +168,14 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
     const res = await PATCH(new Request("https://app.test/api/qa/module/4", { method: "PATCH", body: "{}" }), params);
 
     expect(res.status).toBe(403);
-    expect(courseDao.setModuleLock).not.toHaveBeenCalled();
+    expect(setModuleLock).not.toHaveBeenCalled();
   });
 
   it("demands the lock state it is being asked to set", async () => {
     const res = await PATCH(new Request("https://app.test/api/qa/module/4", { method: "PATCH", body: "{}" }), params);
 
     expect(res.status).toBe(400);
-    expect(courseDao.setModuleLock).not.toHaveBeenCalled();
+    expect(setModuleLock).not.toHaveBeenCalled();
   });
 
   it("locks the Q&A", async () => {
@@ -180,11 +184,11 @@ describe("PATCH /api/qa/module/[moduleId]", () => {
     const res = await PATCH(req, params);
 
     expect(res.status).toBe(200);
-    expect(courseDao.setModuleLock).toHaveBeenCalledWith({}, 4, true);
+    expect(setModuleLock).toHaveBeenCalledWith({}, 4, true);
   });
 
   it("reports a lock that did not take", async () => {
-    courseDao.setModuleLock.mockResolvedValue(null);
+    setModuleLock.mockRejectedValue(new QaServiceError(500, "Failed to update lock state"));
     const req = new Request("https://app.test/api/qa/module/4", {
       method: "PATCH",
       body: JSON.stringify({ is_locked: false }),

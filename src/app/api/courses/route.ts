@@ -8,22 +8,6 @@ import * as courseDao from "@/shared/db/dao/course.dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
-export async function GET(req: Request) {
-  const guard = await requireMinRole(ROLES.ADMIN);
-  if (!guard.allowed) {
-    return guardFailure(guard);
-  }
-
-  const supabase = getServiceClient();
-  const { searchParams } = new URL(req.url);
-  const courses = await courseDao.listCoursesWithEvents(supabase, {
-    page: Number(searchParams.get("page") ?? 1),
-    limit: Number(searchParams.get("limit") ?? 50),
-  });
-
-  return NextResponse.json(courses);
-}
-
 export async function POST(req: Request) {
   const guard = await requireMinRole(ROLES.SPEAKER);
   if (!guard.allowed) {

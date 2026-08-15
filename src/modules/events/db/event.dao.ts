@@ -2,7 +2,8 @@ import { ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { effectiveEventStatus, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
+import { effectiveEventStatus, ilikePattern, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
+import { localDateString, localTimeString } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
@@ -49,17 +50,15 @@ export async function list(
     role?: string | null;
     userId?: number | null;
     filter?: string | null;
+    search?: string | null;
     page?: number;
     limit?: number;
   },
 ): Promise<PaginatedResult<EventWithCourseName>> {
-  const { role, userId, filter } = options ?? {};
+  const { role, userId, filter, search } = options ?? {};
   const { from, to, page, limit } = pageBounds(options);
 
-  let query = supabase
-    .from("EVENT")
-    .select("*, COURSE!event_id(course_name)", { count: "exact" })
-    .order("event_date", { ascending: true });
+  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)", { count: "exact" });
 
   // A facilitator's dashboard shows only the events they are assigned to;
   // admins and every other role keep the full listing.
@@ -79,12 +78,36 @@ export async function list(
   }
 
   if (filter === "upcoming") {
-    query = query.gte("event_date", new Date().toISOString().split("T")[0]);
+    // An event is still upcoming while its end edge is in the future, not
+    // merely while its date has not passed — otherwise a session that ended
+    // an hour ago keeps a seat on the landing page until midnight. Same
+    // local-clock convention as isEventFinished.
+    const now = new Date();
+    query = query.or(
+      `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`,
+    );
   } else if (filter === "past") {
-    query = query.lt("event_date", new Date().toISOString().split("T")[0]);
+    // The exact complement of "upcoming", on the same local clock. Comparing
+    // `event_date` against a UTC day boundary disagreed with isEventFinished
+    // twice over: it kept a session that ended this morning out of the archive
+    // until midnight, and west of UTC it dropped in a day early.
+    const now = new Date();
+    query = query.or(
+      `event_date.lt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.lt.${localTimeString(now)})`,
+    );
   }
 
-  query = query.range(from, to);
+  // Title/venue search, only when a term is present. ilikePattern quotes and
+  // escapes the term so a comma, paren, percent or underscore in user input
+  // cannot rewrite the or() filter. Applies before the range bounds so staff
+  // search is correct against the whole event set, not just the fetched page.
+  if (search) {
+    query = query.or(`title.ilike.${ilikePattern(search)},venue_name.ilike.${ilikePattern(search)}`);
+  }
+
+  // An archive is read backwards from the most recent session; every other
+  // listing reads forwards from the next one.
+  query = query.order("event_date", { ascending: filter !== "past" }).range(from, to);
 
   const { data, count } = await query;
   return {
@@ -96,12 +119,12 @@ export async function list(
 }
 
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
   const { data, error } = await supabase
     .from("EVENT")
     .select("*")
     .eq("status", "active")
-    .gte("event_date", today)
+    .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
     .order("event_date", { ascending: true })
     .limit(2);
   // Without this the landing page renders "No upcoming events" identically

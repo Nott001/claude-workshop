@@ -13,16 +13,18 @@ export function LessonDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddLesson: (data: { description: string; file: File | null; url: string }) => Promise<string | null>;
+  onAddLesson: (data: { name: string; description: string; file: File | null; url: string }) => Promise<string | null>;
 }) {
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState("");
+  const [lessonDescription, setLessonDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
-    setDescription("");
+    setName("");
+    setLessonDescription("");
     setFile(null);
     setUrl("");
     setError(null);
@@ -31,13 +33,13 @@ export function LessonDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!description.trim()) return;
+    if (!name.trim()) return;
     if (!file && !url.trim()) return;
 
     setUploading(true);
     setError(null);
 
-    const err = await onAddLesson({ description: description.trim(), file, url: url.trim() });
+    const err = await onAddLesson({ name: name.trim(), description: lessonDescription.trim(), file, url: url.trim() });
     if (err) {
       setError(err);
       setUploading(false);
@@ -65,10 +67,20 @@ export function LessonDialog({
           <FormField>
             <FormLabel>Lesson name</FormLabel>
             <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Introduction to the topic"
               required
+            />
+          </FormField>
+
+          <FormField className="mt-3">
+            <FormLabel>Description (optional)</FormLabel>
+            <Input
+              value={lessonDescription}
+              onChange={(e) => setLessonDescription(e.target.value)}
+              maxLength={140}
+              placeholder="e.g. A short walkthrough of the platform"
             />
           </FormField>
 
@@ -101,7 +113,7 @@ export function LessonDialog({
           {error && <p className="mt-2 text-xs text-error">{error}</p>}
 
           <div className="mt-4 flex gap-2">
-            <Button type="submit" disabled={!description.trim() || uploading || (!file && !url.trim())}>
+            <Button type="submit" disabled={!name.trim() || uploading || (!file && !url.trim())}>
               {uploading ? (
                 <>Uploading...</>
               ) : (

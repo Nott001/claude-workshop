@@ -5,8 +5,10 @@ import { join } from "node:path";
 /**
  * Migration replay order was pinned by removing duplicate numbers (00009,
  * 00010 had two files each) and the user-deletion/sequence fixes, which a
- * scratch-DB dry-run would otherwise be the only place that caught. These
- * assertions cover the files and their key statements instead.
+ * scratch-DB dry-run would otherwise be the only place that caught. The 00001–
+ * 00021 chain was later squashed into a single baseline; these assertions keep
+ * pinning the replay of that file and the statements that survived into it.
+ * Additive migrations (e.g. 00002 for LESSON.name) extend it in order.
  */
 const migrations = readdirSync("supabase/migrations")
   .filter((f) => f.endsWith(".sql"))
@@ -16,7 +18,7 @@ const migrations = readdirSync("supabase/migrations")
 // so any multi-line `toContain` would otherwise never match a fragment.
 const content = (name: string): string => readFileSync(join("supabase/migrations", name), "utf8").replace(/\r\n/g, "\n");
 
-/** The six USER-owned FKs the deletion migration must set to null. */
+/** The six USER-owned FKs the deletion migration made SET NULL. */
 const userFks = [
   ["PAYMENT", "user_id"],
   ["TICKET", "user_id"],
@@ -32,91 +34,86 @@ describe("migration replay", () => {
     expect(new Set(prefixes).size).toBe(migrations.length);
   });
 
-  it("renumbers the duplicate files and adds the new ones", () => {
+  it("is exactly the squashed baseline plus additive migrations", () => {
     expect(migrations).toEqual([
       "00001_initial_schema.sql",
-      "00002_add_admin_super_admin.sql",
-      "00003_update_rls_for_new_roles.sql",
-      "00004_course_event_ownership.sql",
-      "00005_cascade_course_delete.sql",
-      "00006_support_chat_refactor.sql",
-      "00007_qa_course_module.sql",
-      "00008_fix_rls_correlated_policies.sql",
-      "00009_case_management.sql",
-      "00010_allow_realtime_chat_participants.sql",
-      "00011_grant_support_case_sequence.sql",
-      "00012_course_event_owned.sql",
-      "00013_module_schedule.sql",
-      "00014_live_session_state_course.sql",
-      "00015_user_deletion_set_null.sql",
-      "00016_remove_live_session_state_realtime.sql",
-      "00017_remove_event_support_chat.sql",
-      "00018_community_link_cards.sql",
-      "00019_event_survey.sql",
-      "00020_password_reset.sql",
-      "00021_password_reset_grants.sql",
+      "00002_lesson_name.sql",
+      "00003_qa_realtime.sql",
+      "00004_qa_message_policy_helper.sql",
+      "00005_qa_message_policy_staff.sql",
     ]);
   });
 
-  describe("00015_user_deletion_set_null.sql", () => {
-    const deletion = content("00015_user_deletion_set_null.sql");
+  describe("user-deletion final state (was 00015)", () => {
+    const baseline = content("00001_initial_schema.sql");
 
     it("sets each USER-owned FK to ON DELETE SET NULL", () => {
       for (const [table, column] of userFks) {
-        const fk = `FOREIGN KEY (${column}) REFERENCES "USER"(id) ON DELETE SET NULL`;
-        expect(deletion, `${table}.${column}`).toContain(`"${table}_${column}_fkey"`);
-        expect(deletion, `${table}.${column}`).toContain(fk);
-      }
-    });
-
-    it("frees every such column to hold a null", () => {
-      for (const [table, column] of userFks) {
-        expect(deletion, `${table}.${column}`).toContain(`ALTER COLUMN ${column} DROP NOT NULL`);
+        const fk = `REFERENCES "public"."USER"("id") ON DELETE SET NULL`;
+        expect(baseline, `${table}.${column}`).toContain(`"${table}_${column}_fkey"`);
+        expect(baseline, `${table}.${column}`).toContain(`FOREIGN KEY ("${column}")`);
+        expect(baseline, `${table}.${column}`).toContain(fk);
       }
     });
 
     it("owns the orphaned case sequence to its table's primary key", () => {
-      expect(deletion).toContain('ALTER SEQUENCE support_case_seq OWNED BY "SUPPORT_SESSION".id;');
+      expect(baseline).toContain('ALTER SEQUENCE "public"."support_case_seq" OWNED BY "public"."SUPPORT_SESSION"."id";');
+    });
+
+    it("makes the case_number column default from the owned sequence", () => {
+      expect(baseline).toContain(
+        'ALTER TABLE ONLY "public"."SUPPORT_SESSION" ALTER COLUMN "case_number" SET DEFAULT "nextval"',
+      );
     });
   });
 
-  it("00016 drops LIVE_SESSION_STATE from the realtime publication", () => {
-    expect(content("00016_remove_live_session_state_realtime.sql")).toContain(
-      'ALTER PUBLICATION supabase_realtime DROP TABLE "LIVE_SESSION_STATE";',
+  describe("live-session-state realtime drop final state (was 00016)", () => {
+    const baseline = content("00001_initial_schema.sql");
+
+    it("keeps LIVE_SESSION_STATE out of the realtime publication", () => {
+      const realtimeSection = baseline.slice(baseline.indexOf("ALTER PUBLICATION supabase_realtime"));
+      expect(realtimeSection).not.toContain("LIVE_SESSION_STATE");
+    });
+
+    it("adds only the five live-participant tables to the publication", () => {
+      const added = [...baseline.matchAll(/ALTER PUBLICATION supabase_realtime ADD TABLE "public"\."([A-Z_]+)";/g)].map(
+        (m) => m[1],
+      );
+      expect(added).toEqual(["MODULE", "TICKET", "SUPPORT_SESSION", "CHAT_MESSAGE", "QA_MESSAGE"]);
+    });
+  });
+
+  describe("event-support-chat removal final state (was 00017)", () => {
+    const baseline = content("00001_initial_schema.sql");
+    const chatDef = baseline.slice(
+      baseline.indexOf('CREATE TABLE IF NOT EXISTS "public"."CHAT_MESSAGE"'),
+      baseline.indexOf('CREATE TABLE IF NOT EXISTS "public"."COMMUNITY_LINK"'),
     );
-  });
+    const sessionDef = baseline.slice(
+      baseline.indexOf('CREATE TABLE IF NOT EXISTS "public"."SUPPORT_SESSION"'),
+      baseline.indexOf('CREATE TABLE IF NOT EXISTS "public"."SURVEY"'),
+    );
 
-  describe("00017_remove_event_support_chat.sql", () => {
-    const removal = content("00017_remove_event_support_chat.sql");
-
-    it("purges event rows before the enum loses the value", () => {
-      const delIdx = removal.indexOf("DELETE FROM \"CHAT_MESSAGE\" WHERE support_type = 'event';");
-      const enumIdx = removal.indexOf("ALTER TYPE support_type RENAME TO support_type_legacy;");
-      expect(delIdx).toBeGreaterThan(-1);
-      expect(enumIdx).toBeGreaterThan(delIdx);
+    it("narrows the enum to general", () => {
+      expect(baseline).toMatch(/CREATE TYPE "public"."support_type" AS ENUM \(\s*'general'\s*\);/);
     });
 
-    it("drops the event_id columns", () => {
-      expect(removal).toContain('ALTER TABLE "CHAT_MESSAGE" DROP COLUMN IF EXISTS event_id;');
-      expect(removal).toContain('ALTER TABLE "SUPPORT_SESSION" DROP COLUMN IF EXISTS event_id;');
-    });
-
-    it("narrows the enum to general and drops the legacy type", () => {
-      expect(removal).toContain("CREATE TYPE support_type AS ENUM ('general');");
-      expect(removal).toContain("DROP TYPE support_type_legacy;");
+    it("drops the event_id columns from CHAT_MESSAGE and SUPPORT_SESSION", () => {
+      expect(chatDef).not.toContain("event_id");
+      expect(sessionDef).not.toContain("event_id");
     });
 
     it("rebuilds the active-session uniqueness without the event scope", () => {
-      expect(removal).toContain(
-        'CREATE UNIQUE INDEX idx_support_session_active\n  ON "SUPPORT_SESSION"(user_id, support_type)',
-      );
+      expect(baseline).toContain('CREATE UNIQUE INDEX "idx_support_session_active" ON "public"."SUPPORT_SESSION"');
     });
 
     it("rewrites the policies and participant function without the event branch", () => {
-      expect(removal).not.toContain('"CHAT_MESSAGE".event_id');
-      expect(removal).not.toContain("m.event_id");
-      const policyStart = removal.lastIndexOf('CREATE POLICY "Users read support messages"');
-      expect(removal.slice(policyStart)).not.toContain("'event'");
+      const participant = baseline.slice(baseline.indexOf("conversation_participant"));
+      expect(participant).not.toContain('"CHAT_MESSAGE".event_id');
+      expect(participant).not.toContain("m.event_id");
+
+      const policy = baseline.slice(baseline.indexOf('CREATE POLICY "Users read support messages"'));
+      expect(policy.split(";")[0]).toContain("'general'");
     });
   });
 });

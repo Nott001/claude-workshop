@@ -38,44 +38,6 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-describe("course.dao listCoursesWithEvents", () => {
-  it("attaches each course's event", async () => {
-    const { client } = stub({
-      COURSE: { data: [{ id: 1, event_id: 9 }] },
-      EVENT: { data: [{ id: 9, title: "Demo Day", event_date: "2026-09-01" }] },
-    });
-
-    const {
-      data: [course],
-    } = await dao.listCoursesWithEvents(client);
-
-    expect(course).toMatchObject({ event_title: "Demo Day", event_date: "2026-09-01" });
-  });
-
-  it("renders a course whose event is missing rather than dropping it", async () => {
-    const { client } = stub({ COURSE: { data: [{ id: 1, event_id: 9 }] }, EVENT: { data: [] } });
-
-    const {
-      data: [course],
-    } = await dao.listCoursesWithEvents(client);
-
-    expect(course).toMatchObject({ event_title: null, event_date: null });
-  });
-
-  it("does not go looking for events when there are no courses", async () => {
-    const { client, from } = stub({ COURSE: { data: [] } });
-
-    await expect(dao.listCoursesWithEvents(client)).resolves.toEqual({ data: [], total: 0, page: 1, limit: 50 });
-    expect(from).toHaveBeenCalledTimes(1);
-  });
-
-  it("answers with an empty list when the query itself returned nothing", async () => {
-    const { client } = stub({ COURSE: { data: null } });
-
-    await expect(dao.listCoursesWithEvents(client)).resolves.toEqual({ data: [], total: 0, page: 1, limit: 50 });
-  });
-});
-
 describe("course.dao writes", () => {
   it("returns the created course", async () => {
     const { client } = stub({ COURSE: { data: { id: 4 }, error: null } });
@@ -228,21 +190,6 @@ describe("course.dao reads throw on a failed query", () => {
     const { client } = stub({ COURSE: { data: null, error: { message: "connection reset" } } });
 
     await expect(dao.findCourseIdByEventId(client, 9)).rejects.toThrow("course.dao.findCourseIdByEventId failed");
-  });
-
-  it("listCoursesWithEvents does not answer an empty page off a dead database", async () => {
-    const { client } = stub({ COURSE: { data: null, error: { message: "connection reset" } } });
-
-    await expect(dao.listCoursesWithEvents(client)).rejects.toThrow("course.dao.listCoursesWithEvents failed");
-  });
-
-  it("listCoursesWithEvents surfaces a failed event lookup rather than dropping courses", async () => {
-    const { client } = stub({
-      COURSE: { data: [{ id: 1, event_id: 9 }] },
-      EVENT: { data: null, error: { message: "denied" } },
-    });
-
-    await expect(dao.listCoursesWithEvents(client)).rejects.toThrow("course.dao.listCoursesWithEvents.events failed");
   });
 
   it("findModulesByCourse does not report no modules off a dead database", async () => {

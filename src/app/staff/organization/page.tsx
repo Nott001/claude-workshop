@@ -1,15 +1,30 @@
 "use client";
 
-import { INVITABLE_ROLES, ROLES } from "@/shared/lib/roles";
-import { useEffect, useState } from "react";
+import { INVITABLE_ROLES, ROLES, STAFF_ROLES } from "@/shared/lib/roles";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Button } from "@/shared/components/button";
 import { Badge } from "@/shared/components/badge";
 import { Input } from "@/shared/components/input";
+import { Toast } from "@/shared/components/toast";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import {
+  Table,
+  TableHead,
+  TableHeadCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableEmpty,
+  TableContainer,
+} from "@/shared/components/table";
+import { TableToolbar } from "@/shared/components/table-toolbar";
+import { Pagination } from "@/shared/components/table-pagination";
+import { Drawer } from "@/shared/components/drawer";
 import type { UserRole } from "@/shared/types";
 
 interface Member {
@@ -17,6 +32,18 @@ interface Member {
   full_name: string;
   email: string;
   role: UserRole;
+}
+
+// Every invitable role is a single word, so this is the whole of it. Shared by
+// the role picker and the confirmation so the two never drift apart.
+const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
+
+// `id` exists to re-key the Toast. Without it a second invitation reuses the
+// mounted instance, whose dismissal timer is still counting down for the first
+// message, and the new one disappears early.
+interface InviteToast {
+  id: number;
+  description: string;
 }
 
 const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "error" | "info"> = {
@@ -27,12 +54,21 @@ const roleBadgeVariant: Record<UserRole, "default" | "success" | "warning" | "er
   super_admin: "error",
 };
 
+type RoleFilter = "all" | UserRole;
+
+// The filter shows every staff role, not just the ones this user may hand out.
+const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
+  { value: "all", label: "All roles" },
+  ...STAFF_ROLES.map((role) => ({ value: role as RoleFilter, label: roleLabel(role) })),
+];
+
 export default function StaffOrganizationPage() {
   const { user } = useSession();
   const { role: userRole, allowed: isAdmin, pending } = useRoleGuard(ROLES.ADMIN);
   const isSuperAdmin = hasMinRole(userRole, ROLES.SUPER_ADMIN);
 
   const [members, setMembers] = useState<Member[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -40,19 +76,43 @@ export default function StaffOrganizationPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>(ROLES.SPEAKER);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteToast, setInviteToast] = useState<InviteToast | null>(null);
   const [inviting, setInviting] = useState(false);
 
+  // Stable, so an unrelated re-render of this page does not restart the Toast's
+  // dismissal effect and leave the message on screen indefinitely.
+  const dismissToast = useCallback(() => setInviteToast(null), []);
+
   const [refreshKey, setRefreshKey] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [selected, setSelected] = useState<Member | null>(null);
+
+  // The route's PAGE_SIZE is 10, so the client's page size must agree or the
+  // pagination math comes out wrong.
+  const pageSize = 10;
+
+  // Debounced server-side search: keystrokes update the input immediately but
+  // only settle into a fetch after the pause, so each term triggers one request.
+  const debouncedSearch = useDebouncedValue(search.trim());
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      const res = await fetch("/api/organization?pageSize=50");
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (roleFilter !== "all") params.set("role", roleFilter);
+
+      const res = await fetch(`/api/organization?${params}`);
       if (res.ok) {
         const data = await res.json();
-        if (!cancelled) setMembers(data.users ?? []);
+        if (!cancelled) {
+          setMembers(data.users ?? []);
+          setTotal(data.total ?? 0);
+        }
       }
       if (!cancelled) setLoading(false);
     }
@@ -61,7 +121,17 @@ export default function StaffOrganizationPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [page, debouncedSearch, roleFilter, refreshKey]);
+
+  function handleSearch(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+
+  function handleRoleFilter(filter: RoleFilter) {
+    setRoleFilter(filter);
+    setPage(1);
+  }
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +150,12 @@ export default function StaffOrganizationPage() {
       setInviting(false);
       return;
     }
+
+    // Read before the fields are cleared below — these still hold what was sent.
+    setInviteToast((prev) => ({
+      id: (prev?.id ?? 0) + 1,
+      description: `${inviteEmail} was invited as ${inviteRole}.`,
+    }));
 
     setInviteOpen(false);
     setInviteName("");
@@ -126,6 +202,21 @@ export default function StaffOrganizationPage() {
           </Button>
         </div>
 
+        <TableToolbar search={{ value: search, onChange: handleSearch, placeholder: "Search name or email..." }}>
+          <Select value={roleFilter} onValueChange={(v) => handleRoleFilter(v as RoleFilter)}>
+            <SelectTrigger>
+              <SelectValue>{ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label ?? "All roles"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ROLE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableToolbar>
+
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
           <DialogContent>
             <DialogHeader>
@@ -155,7 +246,7 @@ export default function StaffOrganizationPage() {
                   <SelectContent>
                     {allowedInviteRoles.map((r) => (
                       <SelectItem key={r} value={r}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                        {roleLabel(r)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -176,44 +267,82 @@ export default function StaffOrganizationPage() {
         {loading ? (
           <p className="text-sm text-muted-fg">Loading members...</p>
         ) : members.length === 0 ? (
-          <p className="text-sm text-muted-fg">No members found.</p>
+          <TableEmpty
+            icon="group"
+            title="No members found"
+            hint={debouncedSearch ? "Try a different search term." : "No members match the current filter."}
+          />
         ) : (
-          <div className="rounded-xl border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left font-medium">Name</th>
-                  <th className="px-4 py-3 text-left font-medium">Email</th>
-                  <th className="px-4 py-3 text-left font-medium">Role</th>
-                  {isAdmin && <th className="px-4 py-3 text-left font-medium">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3">{m.full_name}</td>
-                    <td className="px-4 py-3 text-muted-fg">{m.email}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={roleBadgeVariant[m.role] ?? "default"}>{m.role}</Badge>
-                    </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleRemove(m.id)}
-                          className="text-xs text-error hover:underline disabled:opacity-50"
-                          disabled={m.id === user?.id}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeadCell>Name</TableHeadCell>
+                    <TableHeadCell>Email</TableHeadCell>
+                    <TableHeadCell>Role</TableHeadCell>
+                    <TableHeadCell className="w-12" aria-label="Actions" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {members.map((m) => (
+                    <TableRow key={m.id} onClick={() => setSelected(m)} aria-label={`Manage ${m.full_name}`}>
+                      <TableCell className="font-medium">{m.full_name}</TableCell>
+                      <TableCell className="text-muted-fg">{m.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={roleBadgeVariant[m.role] ?? "default"}>{m.role}</Badge>
+                      </TableCell>
+                      <TableCell className="w-12">
+                        <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                          chevron_right
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+          </>
         )}
       </div>
+
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title={selected?.full_name ?? ""}
+        description={selected?.email}
+        footer={
+          selected && isAdmin && selected.id !== user?.id ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-error hover:bg-error/10"
+                onClick={() => handleRemove(selected.id)}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {selected && (
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-fg">Role</span>
+              <Badge variant={roleBadgeVariant[selected.role] ?? "default"}>{selected.role}</Badge>
+            </div>
+          </div>
+        )}
+      </Drawer>
+
+      {inviteToast && (
+        <div className="fixed bottom-4 right-8 z-50">
+          <Toast key={inviteToast.id} title="Invitation sent" description={inviteToast.description} onClose={dismissToast} />
+        </div>
+      )}
     </div>
   );
 }

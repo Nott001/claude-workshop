@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { EventTable, type EventTableRow } from "@/modules/events/components/event-table";
 
 const rows: EventTableRow[] = [
@@ -49,20 +49,50 @@ describe("EventTable", () => {
     expect(titleLink.getAttribute("href")).toBe("/staff/events/7");
   });
 
-  it("always offers Open, and adds Kiosk only when asked", () => {
-    render(<EventTable events={rows} showKiosk />);
+  it("opens the drawer on row click and shows the requested actions", () => {
+    render(<EventTable events={rows} showKiosk showEdit />);
 
-    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("/staff/events/7");
-    expect(hrefs).toContain("/staff/events/7/kiosk");
+    fireEvent.click(screen.getByRole("row", { name: /Open Launch/ }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeTruthy();
+    const drawerLinks = Array.from(dialog.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(drawerLinks).toContain("/staff/events/7");
+    expect(drawerLinks).toContain("/staff/events/7/kiosk");
   });
 
-  it("shows the Edit action pointing at the event detail page for admins", () => {
-    render(<EventTable events={rows} showEdit />);
+  it("renders the drawer actions as links, not buttons wearing a link", () => {
+    render(<EventTable events={rows} showKiosk showEdit />);
 
-    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("/staff/events/7");
-    expect(hrefs.some((href) => href?.includes("?tab="))).toBe(false);
+    fireEvent.click(screen.getByRole("row", { name: /Open Launch/ }));
+
+    const dialog = screen.getByRole("dialog");
+    for (const name of ["Open", "Kiosk", "Edit"]) {
+      const action = within(dialog).getByRole("link", { name });
+      // role="button" or type="button" here means it went back through the
+      // button primitive, which costs the anchor its link semantics.
+      expect(action.getAttribute("role")).toBeNull();
+      expect(action.getAttribute("type")).toBeNull();
+    }
+  });
+
+  it("keeps Kiosk and Edit out of the drawer unless asked", () => {
+    render(<EventTable events={rows} />);
+
+    fireEvent.click(screen.getByRole("row", { name: /Open Launch/ }));
+
+    const dialog = screen.getByRole("dialog");
+    const drawerLinks = Array.from(dialog.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(drawerLinks).toContain("/staff/events/7");
+    expect(drawerLinks).not.toContain("/staff/events/7/kiosk");
+  });
+
+  it("lets the title link navigate without opening the drawer", () => {
+    render(<EventTable events={rows} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Launch" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("renders the attendee count per row", () => {
@@ -74,6 +104,6 @@ describe("EventTable", () => {
   it("renders the empty message when there are no events", () => {
     render(<EventTable events={[]} />);
 
-    expect(screen.getByText("No events found.")).toBeTruthy();
+    expect(screen.getByText("No events found")).toBeTruthy();
   });
 });

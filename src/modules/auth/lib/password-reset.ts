@@ -73,7 +73,8 @@ export async function requestPasswordReset(
   }
 }
 
-export type ConfirmResult = { ok: true; authUserId: string } | { ok: false; reason: "invalid_token" | "weak_password" };
+export type ConfirmResult =
+  { ok: true; authUserId: string } | { ok: false; reason: "invalid_token" | "weak_password" | "personal_password" };
 
 /**
  * Spends the token and sets the new password.
@@ -82,10 +83,9 @@ export type ConfirmResult = { ok: true; authUserId: string } | { ok: false; reas
  * `updateUser` run without the caller ever holding the old password.
  */
 export async function confirmPasswordReset(supabase: DbClient, token: string, newPassword: string): Promise<ConfirmResult> {
-  // Judged before the token is spent, for the same reason the confirmation
-  // field is: a refused password costs a retry on the same link rather than a
-  // second reset email. That is also why no account context is passed — who the
-  // token belongs to is not known until it has been verified below.
+  // Every rule that can be judged without knowing whose token this is, judged
+  // first: verifying spends the link, so a password refused here costs a retry
+  // on the same one rather than a second reset email.
   if (!evaluatePassword(newPassword).ok) {
     return { ok: false, reason: "weak_password" };
   }
@@ -97,6 +97,18 @@ export async function confirmPasswordReset(supabase: DbClient, token: string, ne
 
   if (verifyError || !verified.user) {
     return { ok: false, reason: "invalid_token" };
+  }
+
+  // The account is only known once the token has been verified, so the one rule
+  // that needs an identity — that the password is not the user's own name or
+  // address — can only be applied here, past the point the link survives. Every
+  // other rule was applied above precisely so this one is rarely what fails.
+  const identified = evaluatePassword(newPassword, {
+    email: verified.user.email,
+    fullName: (verified.user.user_metadata as { full_name?: string } | undefined)?.full_name,
+  });
+  if (!identified.ok) {
+    return { ok: false, reason: "personal_password" };
   }
 
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });

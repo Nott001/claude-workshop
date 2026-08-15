@@ -9,3 +9,4 @@ coverage/**
 .open-next/**
 .wrangler/**
 cloudflare-env.d.ts
+supabase/.temp/**

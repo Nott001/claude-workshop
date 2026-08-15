@@ -3,7 +3,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import QAPanel from "@/modules/chat/components/qa-panel";
+import QAPanel from "@/modules/courses/qa/components/qa-panel";
 import { CurrentTopicCard } from "@/modules/courses/components/current-topic-card";
 import { ModuleScheduleBadge } from "@/modules/courses/components/module-schedule-badge";
 import { RoomLessonRow } from "@/modules/courses/components/room-lesson-row";
@@ -44,24 +44,20 @@ export default function CourseRoomPage() {
     handleClearHighlight,
   } = useCourseRoomAccess(courseId);
 
-  const handleToggleLock = useCallback(
-    async (moduleId: number, currentLocked: boolean) => {
-      await fetch(`/api/qa/module/${moduleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_locked: !currentLocked }),
-      });
-      if (isStaff) {
-        window.location.reload();
-      }
-    },
-    [isStaff],
-  );
+  const handleToggleLock = useCallback(async (moduleId: number, currentLocked: boolean) => {
+    await fetch(`/api/qa/module/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_locked: !currentLocked }),
+    });
+    // No reload: the panel's MODULE subscription broadcasts the new lock state
+    // to every viewer, the toggler included.
+  }, []);
 
   const handleExit = useCallback(() => {
     if (!eventId) return;
     if (userRole === ROLES.SPEAKER) {
-      router.push(`/speaker/event/${eventId}`);
+      router.push(`/speaker/events/${eventId}`);
     } else if (isStaff) {
       router.push(`/staff/events/${eventId}`);
     } else {
@@ -173,6 +169,7 @@ export default function CourseRoomPage() {
                   isStaff={isStaff}
                   settingHighlight={settingHighlight}
                   onClearHighlight={handleClearHighlight}
+                  showDescription
                 />
 
                 <div className="rounded-xl border border-border bg-surface p-6">

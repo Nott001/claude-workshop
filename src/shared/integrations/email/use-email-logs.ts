@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 // Same story as the audit logs: EMAIL_LOG's primary key is `id`, not `log_id`.
 import type { EmailLogWithUser } from "@/shared/db/dao/email.dao";
 import type { EmailType, EmailStatus } from "@/shared/types";
@@ -14,6 +15,8 @@ export function useEmailLogs() {
   const [hasMore, setHasMore] = useState(false);
   const [emailTypeFilter, setEmailTypeFilter] = useState<"" | EmailType>("");
   const [statusFilter, setStatusFilter] = useState<"" | EmailStatus>("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim());
   const pageRef = useRef(1);
 
   const load = useCallback(
@@ -24,6 +27,7 @@ export function useEmailLogs() {
         if (statusFilter) params.set("status", statusFilter);
         params.set("page", String(page));
         params.set("limit", String(PAGE_SIZE));
+        if (debouncedSearch) params.set("search", debouncedSearch);
 
         const res = await fetch(`/api/logs?${params}`);
         if (!res.ok) {
@@ -38,7 +42,7 @@ export function useEmailLogs() {
         return false;
       }
     },
-    [emailTypeFilter, statusFilter],
+    [emailTypeFilter, statusFilter, debouncedSearch],
   );
 
   useEffect(() => {
@@ -79,5 +83,7 @@ export function useEmailLogs() {
     statusFilter,
     setEmailTypeFilter,
     setStatusFilter,
+    search,
+    setSearch,
   };
 }

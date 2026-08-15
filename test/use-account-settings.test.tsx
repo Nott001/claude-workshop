@@ -15,6 +15,9 @@ const sessionUpdateUser = vi.fn();
 const { checkMailDomain } = vi.hoisted(() => ({ checkMailDomain: vi.fn() }));
 vi.mock("@/shared/integrations/dns/mail-domain", () => ({ checkMailDomain }));
 
+const { verifyPassword } = vi.hoisted(() => ({ verifyPassword: vi.fn() }));
+vi.mock("@/modules/auth/lib/verify-password", () => ({ verifyPassword }));
+
 const updateUser = vi.fn();
 vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser } }),
@@ -41,6 +44,7 @@ const submitEvent = { preventDefault: () => {} } as React.FormEvent;
 beforeEach(() => {
   vi.clearAllMocks();
   checkMailDomain.mockResolvedValue("deliverable");
+  verifyPassword.mockResolvedValue(true);
   sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
 });
 
@@ -62,7 +66,7 @@ describe("useAccountSettings", () => {
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "New Name" });
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Profile updated",
       description: "Your name has been saved.",
       type: "success",
@@ -115,10 +119,10 @@ describe("useAccountSettings", () => {
       await result.current.saveName(submitEvent);
     });
 
-    expect(result.current.toast).toEqual({ title: "Error", description: "Failed to update profile.", type: "error" });
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
   });
 
-  it("updates the email in supabase, mirrors it to /api/auth/me, and reports sent", async () => {
+  it("asks supabase to send the link and reports sent, without writing the address anywhere", async () => {
     updateUser.mockResolvedValue({ error: null });
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
@@ -129,9 +133,23 @@ describe("useAccountSettings", () => {
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
-    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "new@example.com" });
     expect(result.current.emailSent).toBe(true);
+    // The row is only caught up once the link is opened, by the callback route.
+    expect(fetch.mock.calls.find((c) => c[1]?.method === "PATCH")).toBeUndefined();
+  });
+
+  it("keeps showing the address the account actually owns while a change is pending", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("new@example.com"));
+    await act(async () => {
+      await result.current.changeEmail(submitEvent);
+    });
+
+    expect(result.current.currentUser?.email).toBe(speaker.email);
+    expect(sessionUpdateUser).not.toHaveBeenCalledWith(expect.objectContaining({ email: expect.anything() }));
   });
 
   it("refuses the address already on the account without calling supabase or the API", async () => {
@@ -146,7 +164,7 @@ describe("useAccountSettings", () => {
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Error",
       description: "That is already your email address.",
       type: "error",
@@ -168,7 +186,7 @@ describe("useAccountSettings", () => {
 
   it("sends a trimmed address so stray space cannot pass as a different one", async () => {
     updateUser.mockResolvedValue({ error: null });
-    const fetch = stubFetch();
+    stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewEmail("  grace@example.com  "));
@@ -177,8 +195,6 @@ describe("useAccountSettings", () => {
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
-    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ email: "grace@example.com" });
   });
 
   it("refuses a domain with no mail server and suggests the likely typo", async () => {
@@ -262,7 +278,7 @@ describe("useAccountSettings", () => {
       await result.current.changeEmail(submitEvent);
     });
 
-    expect(result.current.toast).toEqual({ title: "Error", description: "Email already in use", type: "error" });
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Email already in use", type: "error" });
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
   });
 
@@ -282,7 +298,7 @@ describe("useAccountSettings", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.currentPassword).toBe("");
     expect(result.current.newPassword).toBe("");
-    expect(result.current.toast).toEqual({
+    expect(result.current.toast).toMatchObject({
       title: "Password updated",
       description: "Your password has been changed.",
       type: "success",
@@ -442,11 +458,8 @@ describe("changing the password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast).toEqual({
-      title: "Choose a stronger password",
-      description: "At least 12 characters",
-      type: "error",
-    });
+    expect(result.current.newPasswordError).toBe("At least 12 characters");
+    expect(result.current.toast).toBeNull();
   });
 
   // Long enough to pass a length rule on its own, which is the point of screening.
@@ -459,7 +472,7 @@ describe("changing the password", () => {
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.description).toBe("Not built on a commonly used password");
+    expect(result.current.newPasswordError).toBe("Not built on a commonly used password");
   });
 
   it("refuses one built from the account's own name", async () => {
@@ -469,13 +482,13 @@ describe("changing the password", () => {
     });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewPassword("lovelace kettle brew"));
+    act(() => result.current.setNewPassword("adalovelace2026"));
     await act(async () => {
       await result.current.changePassword(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.description).toBe("Not your name or email address");
+    expect(result.current.newPasswordError).toBe("Not mostly your name or email address");
   });
 
   it("passes a strong one through and clears the fields", async () => {
@@ -493,5 +506,188 @@ describe("changing the password", () => {
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
     expect(result.current.newPassword).toBe("");
     expect(result.current.toast?.title).toBe("Password updated");
+  });
+});
+
+describe("proving the current password", () => {
+  const STRONG = "the quiet kettle sings";
+
+  it("refuses the change when the current password is wrong, and writes nothing", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+    expect(result.current.newPasswordError).toBeNull();
+    expect(result.current.toast).toBeNull();
+  });
+
+  it("leaves both fields filled after a refusal, so nothing has to be retyped", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.currentPassword).toBe("not-my-password");
+    expect(result.current.newPassword).toBe(STRONG);
+    expect(result.current.savingPassword).toBe(false);
+  });
+
+  it("checks the password against the signed-in account", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).toHaveBeenCalledWith(speaker.email, "old-pass");
+    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
+  });
+
+  // The local rules cost nothing; the proof costs a round trip.
+  it("does not spend a round trip proving identity for a password that fails the rules", async () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword("short");
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses rather than checking when there is no signed-in email to check against", async () => {
+    sessionValue.mockReturnValue({ user: { ...speaker, email: null }, updateUser: sessionUpdateUser });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+  });
+
+  it("clears the message as soon as the field is edited, so it never outlives the input it describes", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+
+    act(() => result.current.setCurrentPassword("not-my-passwordX"));
+
+    expect(result.current.currentPasswordError).toBeNull();
+  });
+
+  it("puts a provider rejection on the new password field rather than in a toast", async () => {
+    updateUser.mockResolvedValue({ error: { message: "New password should be different from the old password." } });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.newPasswordError).toBe("New password should be different from the old password.");
+    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.toast).toBeNull();
+  });
+
+  it("drops a stale message when the form is submitted again", async () => {
+    verifyPassword.mockResolvedValue(false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("not-my-password");
+      result.current.setNewPassword(STRONG);
+    });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+    expect(result.current.currentPasswordError).not.toBeNull();
+
+    verifyPassword.mockResolvedValue(true);
+    updateUser.mockResolvedValue({ error: null });
+    await act(async () => {
+      await result.current.changePassword(submitEvent);
+    });
+
+    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.toast?.title).toBe("Password updated");
+  });
+});
+
+describe("useAccountSettings toast lifecycle", () => {
+  it("gives each message its own id so the rendered Toast is re-keyed", () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.notify({ title: "First", description: "one", type: "success" }));
+    const first = result.current.toast!.id;
+
+    act(() => result.current.notify({ title: "Second", description: "two", type: "success" }));
+
+    expect(result.current.toast!.title).toBe("Second");
+    // A shared id would let the second message inherit the first's dismissal
+    // countdown, because Toast keeps that timer in state keyed on its identity.
+    expect(result.current.toast!.id).not.toBe(first);
+  });
+
+  it("keeps dismissToast stable across renders", () => {
+    const { result, rerender } = renderHook(() => useAccountSettings());
+    const first = result.current.dismissToast;
+
+    rerender();
+    act(() => result.current.notify({ title: "Saved", description: "ok", type: "success" }));
+
+    // Toast restarts its dismissal effect whenever onClose changes identity, so
+    // a handler rebuilt each render leaves the message on screen indefinitely.
+    expect(result.current.dismissToast).toBe(first);
+  });
+
+  it("clears the message on dismiss", () => {
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.notify({ title: "Saved", description: "ok", type: "success" }));
+    expect(result.current.toast).not.toBeNull();
+
+    act(() => result.current.dismissToast());
+    expect(result.current.toast).toBeNull();
   });
 });

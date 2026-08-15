@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 function fillAndSubmit() {
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jane@example.com" } });
+  fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "jane@example.com" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
   fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 }
@@ -52,14 +52,36 @@ describe("SignInForm redirect_url plumbing", () => {
   it("threads redirect_url into the sign-up cross link", () => {
     render(<SignInForm redirectUrl="/events/5" />);
 
-    const link = screen.getByRole("link", { name: /sign up/i });
+    const link = screen.getByRole("link", { name: "Create an account" });
     expect(link.getAttribute("href")).toBe("/sign-up?redirect_url=%2Fevents%2F5");
+  });
+
+  it("leaves the sign-up cross link bare without a redirect_url", () => {
+    render(<SignInForm />);
+
+    expect(screen.getByRole("link", { name: "Create an account" }).getAttribute("href")).toBe("/sign-up");
+  });
+
+  it("offers the password reset route to a locked-out user", () => {
+    render(<SignInForm />);
+
+    expect(screen.getByRole("link", { name: "Forgot Password?" }).getAttribute("href")).toBe("/forgot-password");
+  });
+
+  it("lets the password be revealed before it is submitted", () => {
+    render(<SignInForm />);
+
+    const password = screen.getByLabelText("Password");
+    expect(password.getAttribute("type")).toBe("password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password.getAttribute("type")).toBe("text");
   });
 });
 
 describe("SignInForm role-based destination", () => {
   it.each([
-    [ROLES.SPEAKER, "/speaker/dashboard"],
+    [ROLES.SPEAKER, "/speaker/events"],
     [ROLES.ATTENDEE, "/home"],
     [ROLES.ADMIN, "/staff/events"],
     [ROLES.SUPER_ADMIN, "/staff/events"],

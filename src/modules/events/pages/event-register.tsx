@@ -3,13 +3,18 @@
 import { useParams, useRouter } from "next/navigation";
 
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { toBackLinkOrigin, withBackLink } from "@/shared/lib/back-link";
 import { useEventRegistration } from "@/modules/events/lib/use-event-registration";
+import { BackLink } from "@/shared/components/back-link";
 
-export function EventRegisterPage() {
+export function EventRegisterPage({ from }: { from?: string }) {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
   const { data, loading, agreed, setAgreed, submitting, error, handleRegister } = useEventRegistration(eventId);
+  // Relayed, not resolved: this page always returns to the event, and the event
+  // is what needs to know where the reader came in from two hops ago.
+  const eventHref = withBackLink(`/events/${eventId}`, toBackLinkOrigin(from));
 
   if (loading) {
     return (
@@ -53,7 +58,7 @@ export function EventRegisterPage() {
               View my tickets
             </button>
             <button
-              onClick={() => router.push(`/events/${eventId}`)}
+              onClick={() => router.push(eventHref)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-hover"
             >
               Back to event
@@ -68,13 +73,9 @@ export function EventRegisterPage() {
     <>
       <div className="flex flex-1 flex-col p-6 sm:p-8">
         <div className="mx-auto w-full max-w-lg">
-          <button
-            onClick={() => router.push(`/events/${eventId}`)}
-            className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <span className="material-symbols-rounded text-sm">arrow_back</span>
+          <BackLink href={eventHref} className="mb-6">
             Back to event
-          </button>
+          </BackLink>
 
           <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">
             <div className="relative bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300 p-6 text-white">

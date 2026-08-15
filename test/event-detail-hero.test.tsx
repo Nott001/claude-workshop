@@ -27,6 +27,19 @@ describe("EventDetailHero", () => {
     expect(img.getAttribute("alt")).toBe("Launch Day");
   });
 
+  // The card clips its overflow, so percentage tracks did not visibly hang here
+  // — they cost the text panel most of its right padding instead, leaving the
+  // title against the card edge. Same root cause as the page grid, hidden.
+  it("sizes its columns in fr so the gap cannot eat the text panel's padding", () => {
+    const { container } = renderHero();
+
+    const grid = container.querySelector(".grid");
+    const tracks = [...(grid?.classList ?? [])].find((c) => c.startsWith("lg:grid-cols-"));
+
+    expect(tracks).toBe("lg:grid-cols-[65fr_35fr]");
+    expect(tracks).not.toMatch(/%/);
+  });
+
   it("renders the gradient fallback when there is no cover image", () => {
     const { container } = renderHero();
 

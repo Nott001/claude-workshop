@@ -29,7 +29,7 @@ test("bad credentials are refused and the user stays on the sign-in page", async
 
   await page.locator("#signin-email").fill("nobody-e2e@example.test");
   await page.locator("#signin-password").fill("definitely-not-the-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: /^sign in$/i }).click();
 
   await expect(page.getByText(/invalid|credential/i)).toBeVisible({ timeout: 15_000 });
   await expect(page).toHaveURL(/\/sign-in/);
@@ -46,7 +46,7 @@ test("an attendee can sign in and land on their role's home", async ({ page }) =
   await page.goto("/sign-in");
   await page.locator("#signin-email").fill(user.email);
   await page.locator("#signin-password").fill(user.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: /^sign in$/i }).click();
 
   await expect(page).toHaveURL(/\/home(?:[?#]|$)/, { timeout: 20_000 });
 });

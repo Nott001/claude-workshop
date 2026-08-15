@@ -49,7 +49,7 @@ describe("PATCH /api/lessons/[id]", () => {
   it("forwards a module_id when a lesson moves to another module", async () => {
     const res = await PATCH(
       jsonRequest({
-        description: "Moved lesson",
+        name: "Moved lesson",
         content_type: "pdf",
         sequence_order: 3,
         module_id: 5,
@@ -59,7 +59,7 @@ describe("PATCH /api/lessons/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(updateLesson).toHaveBeenCalledWith(expect.anything(), 3, {
-      description: "Moved lesson",
+      name: "Moved lesson",
       content_type: "pdf",
       sequence_order: 3,
       module_id: 5,
@@ -69,7 +69,7 @@ describe("PATCH /api/lessons/[id]", () => {
   it("omits module_id from the update when it is absent", async () => {
     const res = await PATCH(
       jsonRequest({
-        description: "Renamed",
+        name: "Renamed",
         content_type: "video",
         content_url: "https://example.com/v.mp4",
         sequence_order: 2,
@@ -79,7 +79,7 @@ describe("PATCH /api/lessons/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(updateLesson).toHaveBeenCalledWith(expect.anything(), 3, {
-      description: "Renamed",
+      name: "Renamed",
       content_type: "video",
       content_url: "https://example.com/v.mp4",
       sequence_order: 2,
@@ -88,7 +88,7 @@ describe("PATCH /api/lessons/[id]", () => {
   });
 
   it("400s on an invalid body before touching the DAO", async () => {
-    const res = await PATCH(jsonRequest({ description: "", content_type: "audio", sequence_order: 0 }), {
+    const res = await PATCH(jsonRequest({ name: "", content_type: "audio", sequence_order: 0 }), {
       params: Promise.resolve({ id: "3" }),
     });
 
@@ -99,7 +99,7 @@ describe("PATCH /api/lessons/[id]", () => {
   it("403s when the caller lacks access to the lesson", async () => {
     requireLessonAccess.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
 
-    const res = await PATCH(jsonRequest({ description: "X", content_type: "link", sequence_order: 1 }), {
+    const res = await PATCH(jsonRequest({ name: "X", content_type: "link", sequence_order: 1 }), {
       params: Promise.resolve({ id: "3" }),
     });
 
@@ -109,12 +109,12 @@ describe("PATCH /api/lessons/[id]", () => {
   });
 
   it("audits the change with the keys actually sent", async () => {
-    await PATCH(jsonRequest({ description: "Renamed", content_type: "pdf", sequence_order: 2, module_id: 5 }), {
+    await PATCH(jsonRequest({ name: "Renamed", content_type: "pdf", sequence_order: 2, module_id: 5 }), {
       params: Promise.resolve({ id: "3" }),
     });
 
     expect(logAuditEvent).toHaveBeenCalledWith(expect.anything(), 8, "lesson.updated", "lesson", 3, {
-      changes: ["description", "content_type", "module_id", "sequence_order"],
+      changes: ["name", "content_type", "module_id", "sequence_order"],
     });
   });
 });

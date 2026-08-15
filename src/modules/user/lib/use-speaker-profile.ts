@@ -14,6 +14,10 @@ export function useSpeakerProfile(notify: (toast: ToastData) => void) {
   const [speakerProfileId, setSpeakerProfileId] = useState<number | null | undefined>(undefined);
   const [designation, setDesignation] = useState("");
   const [bio, setBio] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [savingSpeaker, setSavingSpeaker] = useState(false);
 
   useEffect(() => {
@@ -26,6 +30,10 @@ export function useSpeakerProfile(notify: (toast: ToastData) => void) {
         setSpeakerProfileId(data.speaker_profile_id ?? null);
         setDesignation(data.designation ?? "");
         setBio(data.bio ?? "");
+        setLinkedinUrl(data.linkedin_url ?? "");
+        setTwitterUrl(data.twitter_url ?? "");
+        setGithubUrl(data.github_url ?? "");
+        setWebsiteUrl(data.website_url ?? "");
       })
       .catch(() => {});
     return () => {
@@ -40,7 +48,14 @@ export function useSpeakerProfile(notify: (toast: ToastData) => void) {
     const res = await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ designation: designation.trim() || null, bio: bio.trim() || null }),
+      body: JSON.stringify({
+        designation: designation.trim() || null,
+        bio: bio.trim() || null,
+        linkedin_url: linkedinUrl.trim() || null,
+        twitter_url: twitterUrl.trim() || null,
+        github_url: githubUrl.trim() || null,
+        website_url: websiteUrl.trim() || null,
+      }),
     });
 
     if (!res.ok) {
@@ -54,5 +69,22 @@ export function useSpeakerProfile(notify: (toast: ToastData) => void) {
     setSavingSpeaker(false);
   }
 
-  return { isSpeaker, speakerProfileId, designation, setDesignation, bio, setBio, savingSpeaker, saveSpeakerProfile };
+  return {
+    isSpeaker,
+    speakerProfileId,
+    designation,
+    setDesignation,
+    bio,
+    setBio,
+    linkedinUrl,
+    setLinkedinUrl,
+    twitterUrl,
+    setTwitterUrl,
+    githubUrl,
+    setGithubUrl,
+    websiteUrl,
+    setWebsiteUrl,
+    savingSpeaker,
+    saveSpeakerProfile,
+  };
 }

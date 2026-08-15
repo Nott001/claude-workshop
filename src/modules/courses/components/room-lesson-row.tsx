@@ -31,12 +31,12 @@ export function RoomLessonRow({ lesson, isHighlighted, isStaff, settingHighlight
             className="flex min-w-0 items-center gap-2 text-muted-fg transition-colors hover:text-brand"
           >
             <span className="material-symbols-rounded shrink-0 text-[14px]">{icon}</span>
-            <span className="truncate">{lesson.description}</span>
+            <span className="truncate">{lesson.name}</span>
           </a>
         ) : (
           <span className="flex min-w-0 items-center gap-2 text-muted-fg/60">
             <span className="material-symbols-rounded shrink-0 text-[14px]">{icon}</span>
-            <span className="truncate">{lesson.description}</span>
+            <span className="truncate">{lesson.name}</span>
           </span>
         )}
         {isHighlighted && <span className="shrink-0 text-[10px] font-bold uppercase text-brand">Current</span>}

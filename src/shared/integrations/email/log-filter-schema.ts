@@ -7,4 +7,5 @@ export const emailLogFilterSchema = z.object({
   user_id: z.string().optional(),
   date_from: z.string().optional(),
   date_to: z.string().optional(),
+  search: z.string().optional(),
 });

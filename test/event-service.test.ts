@@ -1,4 +1,5 @@
 import { ROLES } from "@/shared/lib/roles";
+import type { Event } from "@/shared/types";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
@@ -12,6 +13,7 @@ const {
   deleteFromStorage,
   logAuditEvent,
   requireAuditEvent,
+  getAttendeeSurveyFlags,
 } = vi.hoisted(() => ({
   eventDao: {
     create: vi.fn(),
@@ -35,6 +37,7 @@ const {
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
+  getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, hasSurvey: true, byUser: new Map() })),
 }));
 
 vi.mock("@/modules/events/db/event.dao", () => eventDao);
@@ -45,6 +48,7 @@ vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/payment.dao", () => paymentDao);
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent, requireAuditEvent }));
+vi.mock("@/modules/surveys/lib/survey-service", () => ({ getAttendeeSurveyFlags }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 
 import { getServiceClient } from "@/shared/db/client";
@@ -55,6 +59,7 @@ import {
   EventServiceError,
   getEvent,
   getEventRegistrationState,
+  listAdminEventAttendees,
   listEventAttendees,
   loadEventOr403,
   publishEvent,
@@ -151,7 +156,7 @@ describe("loadEventOr403", () => {
   });
 
   it("admits an admin for every capability without checking assignments", async () => {
-    for (const capability of ["edit", "delete", "publish", "attendees", "survey"] as const) {
+    for (const capability of ["edit", "delete", "publish", "attendees", "attendees_manage", "survey"] as const) {
       await expect(loadEventOr403(supabase, 1, { id: 1, role: ROLES.ADMIN }, capability)).resolves.toMatchObject({ id: 1 });
     }
     expect(facilitatorDao.isAssigned).not.toHaveBeenCalled();
@@ -162,7 +167,7 @@ describe("loadEventOr403", () => {
   });
 
   it("admits an assigned facilitator only for the attendee read", async () => {
-    for (const capability of ["edit", "publish", "survey"] as const) {
+    for (const capability of ["edit", "publish", "attendees_manage", "survey"] as const) {
       await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, capability)).rejects.toMatchObject({
         status: 403,
         message: "Forbidden",
@@ -451,5 +456,165 @@ describe("listEventAttendees", () => {
         checked_in_at: "b",
       },
     ]);
+  });
+});
+
+describe("listAdminEventAttendees", () => {
+  const pastEvent: Event = {
+    id: 1,
+    title: "Launch Day",
+    event_date: "2020-01-01",
+    start_time: "09:00",
+    end_time: "10:00",
+    venue_name: "Main Hall",
+    venue_address: null,
+    description: null,
+    price: 0,
+    currency: "PHP",
+    cover_image_url: null,
+    status: "complete",
+    survey_enabled: true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  beforeEach(() => {
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
+  });
+
+  it("maps action flags from the ticket and survey state", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [
+        { USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" },
+        { USER: { id: 6, full_name: "Bob", email: "b@example.com" }, status: "checked_in", issued_at: "b", updated_at: "b" },
+        { USER: { id: 7, full_name: "Sam", email: "s@example.com" }, status: "cancelled", issued_at: "c", updated_at: "c" },
+      ],
+      total: 3,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({
+      usable: true,
+      hasSurvey: true,
+      byUser: new Map([
+        [5, { sent: true, responded: false }],
+        [6, { sent: true, responded: true }],
+      ]),
+    });
+
+    const result = await listAdminEventAttendees(supabase, pastEvent, {
+      search: "",
+      status: "all",
+      page: 1,
+      limit: 15,
+    });
+
+    const [issued, checkedIn, cancelled] = result.attendees;
+    expect(issued).toMatchObject({
+      user_id: 5,
+      survey: { sent: true, responded: false },
+      can_check_in: true,
+      can_cancel: true,
+      can_resend_ticket: true,
+      can_send_survey: true,
+      can_show_survey_send: true,
+    });
+    expect(checkedIn).toMatchObject({
+      user_id: 6,
+      survey: { sent: true, responded: true },
+      can_check_in: false,
+      can_cancel: false,
+      can_resend_ticket: true,
+      can_send_survey: false,
+      can_show_survey_send: false,
+    });
+    expect(cancelled).toMatchObject({
+      user_id: 7,
+      survey: null,
+      can_check_in: false,
+      can_cancel: false,
+      can_resend_ticket: false,
+      can_send_survey: false,
+      can_show_survey_send: false,
+    });
+    expect(result.survey).toEqual({
+      opt_in: true,
+      finished: true,
+      sendable: true,
+      status: "open",
+    });
+    expect(getAttendeeSurveyFlags).toHaveBeenCalledWith(supabase, pastEvent, [5, 6, 7]);
+  });
+
+  it("turns off every survey send when the survey is closed", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: false, hasSurvey: true, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(supabase, pastEvent, {
+      search: "",
+      status: "all",
+      page: 1,
+      limit: 15,
+    });
+
+    expect(result.attendees[0].can_send_survey).toBe(false);
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.survey).toEqual({ opt_in: true, finished: true, sendable: false, status: "closed" });
+  });
+
+  it("allows a standalone send before any survey exists", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: false, hasSurvey: false, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(supabase, pastEvent, {
+      search: "",
+      status: "all",
+      page: 1,
+      limit: 15,
+    });
+
+    expect(result.attendees[0].can_send_survey).toBe(true);
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.survey).toEqual({ opt_in: true, finished: true, sendable: true, status: "open" });
+  });
+
+  it("locks survey sends until the event ends", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(
+      supabase,
+      { ...pastEvent, event_date: "2050-01-01" },
+      { search: "", status: "all", page: 1, limit: 15 },
+    );
+
+    expect(result.attendees[0].can_show_survey_send).toBe(true);
+    expect(result.attendees[0].can_send_survey).toBe(false);
+    expect(result.survey).toEqual({ opt_in: true, finished: false, sendable: false, status: "locked" });
+  });
+
+  it("reports the survey status as disabled when surveys are off", async () => {
+    ticketDao.getAttendees.mockResolvedValue({
+      data: [{ USER: { id: 5, full_name: "Jane", email: "j@example.com" }, status: "issued", issued_at: "a", updated_at: "a" }],
+      total: 1,
+    });
+    getAttendeeSurveyFlags.mockResolvedValue({ usable: true, hasSurvey: true, byUser: new Map() });
+
+    const result = await listAdminEventAttendees(
+      supabase,
+      { ...pastEvent, survey_enabled: false },
+      { search: "", status: "all", page: 1, limit: 15 },
+    );
+
+    expect(result.attendees[0].can_show_survey_send).toBe(false);
+    expect(result.attendees[0].can_send_survey).toBe(false);
+    expect(result.survey).toEqual({ opt_in: false, finished: true, sendable: false, status: "disabled" });
   });
 });

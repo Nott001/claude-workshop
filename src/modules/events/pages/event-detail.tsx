@@ -4,6 +4,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
+import { resolveBackLink, toBackLinkOrigin } from "@/shared/lib/back-link";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { EventSchedule } from "@/modules/events/components/event-schedule";
@@ -11,13 +12,16 @@ import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card
 import { EventRegisterCard } from "@/modules/events/components/event-register-card";
 import { EventMapCard } from "@/modules/events/components/event-map-card";
 import { EventShare } from "@/modules/events/components/event-share";
+import { BackLink } from "@/shared/components/back-link";
 
-export function EventDetailPage() {
+export function EventDetailPage({ from }: { from?: string }) {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
   const { user } = useSession();
-  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId);
+  const backOrigin = toBackLinkOrigin(from);
+  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
+  const backLink = resolveBackLink(backOrigin);
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
@@ -47,9 +51,19 @@ export function EventDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8">
+      {/* Gutters stay at sm:px-8. Widening them at lg would take width back off
+          the content on any viewport narrower than the cap, where the cap is
+          not what is limiting the layout in the first place. */}
+      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
+        <BackLink href={backLink.href} className="mb-6">
+          {backLink.label}
+        </BackLink>
+
         <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
-        <div className="mt-8 grid gap-6 lg:grid-cols-[65%_35%]">
+        {/* fr, not %: gap is added to the tracks rather than taken out of them,
+            so 65%+35% plus a 24px gap overflowed the container by exactly the
+            gap and hung the sticky column past the hero's right edge. */}
+        <div className="mt-8 grid gap-6 lg:grid-cols-[65fr_35fr]">
           <div className="min-w-0 space-y-6">
             {event.description && (
               <div className="rounded-xl border border-border bg-surface p-6 sm:p-7">

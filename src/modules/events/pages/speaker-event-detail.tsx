@@ -7,6 +7,7 @@ import { StatusBadge } from "@/modules/events/components/status-badge";
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
+import { BackLink } from "@/shared/components/back-link";
 
 export function SpeakerEventDetailPage() {
   const params = useParams();
@@ -28,10 +29,10 @@ export function SpeakerEventDetailPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-bg">
         <div className="text-sm text-error">{error ?? "Event not found"}</div>
         <button
-          onClick={() => router.push("/speaker/dashboard")}
+          onClick={() => router.push("/speaker/events")}
           className="mt-4 text-sm font-semibold text-brand hover:underline"
         >
-          Back to Dashboard
+          Back to My Events
         </button>
       </div>
     );
@@ -40,13 +41,9 @@ export function SpeakerEventDetailPage() {
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <button
-          onClick={() => router.push("/speaker/dashboard")}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-fg transition-colors hover:text-fg"
-        >
-          <span className="material-symbols-rounded text-base">arrow_back</span>
-          Back to Dashboard
-        </button>
+        <BackLink href="/speaker/events" className="mb-8">
+          Back to My Events
+        </BackLink>
 
         <div className="grid grid-cols-12 gap-6">
           {/* Hero Card */}
@@ -129,7 +126,7 @@ export function SpeakerEventDetailPage() {
               <div className="mt-6 space-y-3">
                 {event.course_id ? (
                   <Link
-                    href={`/speaker/event/${eventId}/course`}
+                    href={`/speaker/events/${eventId}/course`}
                     className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
                   >
                     <span className="material-symbols-rounded text-[19px]">school</span>
@@ -137,7 +134,7 @@ export function SpeakerEventDetailPage() {
                   </Link>
                 ) : (
                   <Link
-                    href={`/speaker/event/${eventId}/course`}
+                    href={`/speaker/events/${eventId}/course`}
                     className="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-dashed border-brand py-4 text-[16px] font-bold text-brand shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/10"
                   >
                     <span className="material-symbols-rounded text-[19px]">add_circle</span>

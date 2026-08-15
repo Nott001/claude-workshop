@@ -55,7 +55,7 @@ test.beforeAll(async () => {
 
   const { data: lesson, error: lErr } = await db
     .from("LESSON")
-    .insert({ module_id: moduleId, description: "e2e-lesson", content_type: "pdf", sequence_order: 1 })
+    .insert({ module_id: moduleId, name: "e2e-lesson", description: null, content_type: "pdf", sequence_order: 1 })
     .select("id")
     .single();
   if (lErr || !lesson) throw new Error(`LESSON insert failed: ${lErr?.message}`);
