@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
+
+// The sign-up shell renders the app's own navbar, which reads the route and the
+// session. Neither exists in jsdom, and usePathname returns null without them.
+const { usePathname, useSession } = vi.hoisted(() => ({
+  usePathname: vi.fn(() => "/sign-up"),
+  useSession: vi.fn(() => ({ user: null, isSignedIn: false, signOut: vi.fn() })),
+}));
+vi.mock("next/navigation", () => ({ usePathname }));
+vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 import { AuthCardLayout } from "@/modules/auth/components/auth-card-layout";
 import { SignUpLayout } from "@/modules/auth/components/sign-up-layout";
