@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getRouteClient } from "@/shared/db/route-client";
+import { appBaseUrl } from "@/shared/lib/app-url";
 import { isSameEmail, RESEND_COOLDOWN_SECONDS } from "@/shared/lib/email";
 
 // The browser used to call GoTrue directly, so the only thing keeping a reload
@@ -48,7 +49,11 @@ export async function POST(request: Request) {
     }
   }
 
-  const { error } = await rb.auth.updateUser({ email: target });
+  // GoTrue folds `emailRedirectTo` into the confirmation links it mails, so the
+  // browser's click ends on the app callback, which exchanges the code and
+  // mirrors the confirmed address onto the USER row. Without it the links
+  // redirect to bare GOTRUE_SITE_URL and the app row goes stale.
+  const { error } = await rb.auth.updateUser({ email: target }, { emailRedirectTo: `${appBaseUrl()}/api/auth/callback` });
   if (error) {
     const status = error.status ?? 400;
     return NextResponse.json({ ok: false, error: { status, message: error.message } }, { status });

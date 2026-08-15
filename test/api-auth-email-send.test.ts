@@ -1,5 +1,5 @@
 import { ROLES } from "@/shared/lib/roles";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { requireAuth, getRouteClient, routeAuth } = vi.hoisted(() => {
   const routeAuth = { getUser: vi.fn(), updateUser: vi.fn() };
@@ -40,6 +40,10 @@ beforeEach(() => {
   requireAuth.mockResolvedValue(USER);
   routeAuth.getUser.mockResolvedValue({ data: { user: goTrueUser() }, error: null });
   routeAuth.updateUser.mockResolvedValue({ error: null, data: { user: goTrueUser() } });
+});
+
+afterEach(() => {
+  delete process.env.NEXT_PUBLIC_APP_URL;
 });
 
 describe("POST /api/auth/email/send", () => {
@@ -120,7 +124,10 @@ describe("POST /api/auth/email/send", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(routeAuth.updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
+    expect(routeAuth.updateUser).toHaveBeenCalledWith(
+      { email: "new@example.com" },
+      { emailRedirectTo: "http://localhost:3000/api/auth/callback" },
+    );
   });
 
   it("passes a provider rejection through verbatim for the client helper to map", async () => {
@@ -140,6 +147,22 @@ describe("POST /api/auth/email/send", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(routeAuth.updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
+    expect(routeAuth.updateUser).toHaveBeenCalledWith(
+      { email: "new@example.com" },
+      { emailRedirectTo: "http://localhost:3000/api/auth/callback" },
+    );
+  });
+
+  it("normalises a trailing slash off the configured app URL in the redirect target", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.test/";
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(routeAuth.updateUser).toHaveBeenCalledWith(
+      { email: "new@example.com" },
+      { emailRedirectTo: "https://app.test/api/auth/callback" },
+    );
   });
 });
