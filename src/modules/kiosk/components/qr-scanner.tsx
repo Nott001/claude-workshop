@@ -13,6 +13,18 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
   const scannerRef = useRef<InstanceType<typeof import("html5-qrcode").Html5Qrcode> | null>(null);
   const scanningRef = useRef(false);
 
+  // The camera outlives the caller's renders, so the handlers are held in refs
+  // rather than listed as effect dependencies. KioskScannerView passes a fresh
+  // pair every render, and with them in the deps the effect stopped and
+  // restarted the camera on each one — once per keystroke in the manual field,
+  // once per scan result, and again when the result cleared three seconds on.
+  const onScanRef = useRef(onScan);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onScanRef.current = onScan;
+    onErrorRef.current = onError;
+  });
+
   const stopScanner = useCallback(async () => {
     if (scannerRef.current && scanningRef.current) {
       try {
@@ -46,7 +58,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            if (!cancelled) onScan(decodedText);
+            if (!cancelled) onScanRef.current(decodedText);
           },
           () => {
             // No code detected this frame — expected, not an error
@@ -55,7 +67,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
         if (!cancelled) scanningRef.current = true;
       } catch (err) {
         if (!cancelled) {
-          onError?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
+          onErrorRef.current?.(err instanceof Error ? err.message : "Camera unavailable. Use manual input below.");
         }
       }
     }
@@ -66,7 +78,7 @@ export function QrScanner({ onScan, active, onError }: QrScannerProps) {
       cancelled = true;
       stopScanner();
     };
-  }, [active, onScan, onError, stopScanner]);
+  }, [active, stopScanner]);
 
   return (
     <div className="relative mb-6 overflow-hidden rounded-xl border border-border">

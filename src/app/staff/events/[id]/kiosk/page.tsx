@@ -4,7 +4,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
 import { KioskScannerView } from "@/modules/kiosk/components/kiosk-scanner-view";
 import { KioskBar } from "@/modules/kiosk/components/kiosk-bar";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import type { Event } from "@/shared/types";
 
@@ -28,7 +28,9 @@ export default function StaffEventKioskPage() {
       .finally(() => setLoading(false));
   }, [allowed, eventId]);
 
-  const handleExit = useCallback(() => router.push(`/staff/events/${eventId}`), [router, eventId]);
+  function handleExit() {
+    router.push(`/staff/events/${eventId}`);
+  }
 
   if (pending) return <KioskSpinner />;
   // The guard is already redirecting; rendering nothing beats a spinner that
@@ -37,7 +39,10 @@ export default function StaffEventKioskPage() {
   if (loading) return <KioskSpinner />;
 
   return (
-    <div className="flex h-screen flex-col bg-bg">
+    // dvh, not vh: the kiosk is a propped-up tablet, and a mobile browser's
+    // toolbar makes 100vh taller than what is on screen — enough to push the
+    // attendee table's own scroll under the chrome.
+    <div className="flex h-dvh flex-col bg-bg">
       <KioskBar eventTitle={event?.title} onExit={handleExit} />
 
       <div className="flex min-h-0 flex-1">
@@ -55,7 +60,7 @@ export default function StaffEventKioskPage() {
 
 function KioskSpinner() {
   return (
-    <div className="flex h-screen items-center justify-center bg-bg">
+    <div className="flex h-dvh items-center justify-center bg-bg">
       <span className="material-symbols-rounded animate-spin text-4xl text-brand">progress_activity</span>
     </div>
   );

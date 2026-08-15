@@ -82,13 +82,15 @@ describe("kiosk chrome", () => {
     expect(push).toHaveBeenCalledWith("/staff/events/7");
   });
 
-  it("locks to the viewport instead of scrolling as a page", async () => {
+  it("locks to the visible viewport, not to 100vh under a tablet toolbar", async () => {
     mockFetch({ ok: true, body: EVENT });
 
     const { container } = render(<StaffEventKioskPage />);
 
     await waitFor(() => expect(screen.getByTestId("scanner")).toBeTruthy());
-    expect(container.firstElementChild?.className).toContain("h-screen");
+    const className = container.firstElementChild?.className;
+    expect(className).toContain("h-dvh");
+    expect(className).not.toContain("h-screen");
   });
 });
 
