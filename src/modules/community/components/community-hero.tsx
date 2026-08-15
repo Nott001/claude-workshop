@@ -1,5 +1,10 @@
 /**
- * The community hero. The photograph is a local asset rather than a hotlink:
+ * The community hero. It is cut with the same `--radius-hero` foot as the
+ * landing and attendee heroes, so the three read as one shape wearing three
+ * different fills — brand panel there, photograph here. The scrim, the height
+ * and the centred copy are this page's own; only the silhouette is shared.
+ *
+ * The photograph is a local asset rather than a hotlink:
  * the deployed target is a Cloudflare Worker serving `public/` as static
  * assets, so a remote host would be one more thing that can fail the page.
  * Swap `public/community-hero.webp` to change it.
@@ -24,7 +29,7 @@ export function CommunityHero() {
   // carried a row of count pills, and matching its padding alone would leave
   // this one a good 60px shorter than the design it is copying.
   return (
-    <section className="relative overflow-hidden px-4 py-20 text-center sm:px-6 sm:py-28">
+    <section className="relative overflow-hidden rounded-b-hero px-6 py-20 text-center sm:py-28">
       <div className="absolute inset-0 bg-gradient-to-br from-sky-700 via-cyan-600 to-teal-500" />
       <img
         src="/community-hero.webp"
