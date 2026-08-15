@@ -5,6 +5,7 @@ import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
+import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { uploadToStorage, listStorageFolder, deleteFromStorage } from "@/shared/integrations/storage/service";
 import {
   buildProfileImagePath,
@@ -57,6 +58,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: result.url, path: result.path });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
+  }
+
+  const authUserId = await getCurrentUserId();
+  if (!authUserId) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  const supabase = getServiceClient();
+
+  try {
+    const oldPaths = await listStorageFolder("profile_images", `users/${guard.user.id}`);
+    await deleteFromStorage("profile_images", oldPaths);
+
+    await userDao.updateUser(supabase, authUserId, { profile_image_url: null });
+
+    // The speaker profile can carry a photo_url fallback that the avatar shows
+    // when the user row has no image; clearing only the user row would let the
+    // old picture survive the delete through that fallback.
+    if (guard.user.role === ROLES.SPEAKER) {
+      const profile = await speakerDao.findByUserId(supabase, guard.user.id);
+      if (profile) {
+        await speakerDao.update(supabase, profile.id, { photo_url: null });
+      }
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Delete failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
