@@ -59,3 +59,24 @@ export function withBackLink(href: string, origin: BackLinkOrigin | undefined): 
 export function resolveBackLink(value: string | string[] | undefined): BackLink {
   return BACK_LINKS[toBackLinkOrigin(value) ?? "events"];
 }
+
+/** Longest prefix first, so `/events/5` is not claimed by a shorter entry. */
+const ORIGIN_BY_PREFIX: ReadonlyArray<readonly [string, BackLinkOrigin]> = [
+  ["/events", "events"],
+  ["/community", "community"],
+  ["/tickets", "tickets"],
+  ["/home", "home"],
+];
+
+/**
+ * The origin a link *leaving* the current page should carry, so the page it
+ * opens can offer the way back.
+ *
+ * Named from the route the reader is on rather than from browser history: a
+ * page reached by a guard's redirect has history pointing at the page that
+ * bounced them, and sending them back there only bounces them again.
+ */
+export function originFromPathname(pathname: string): BackLinkOrigin | undefined {
+  if (pathname === "/") return "landing";
+  return ORIGIN_BY_PREFIX.find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.[1];
+}

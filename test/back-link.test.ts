@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BACK_LINK_PARAM, resolveBackLink, toBackLinkOrigin, withBackLink } from "@/shared/lib/back-link";
+import { BACK_LINK_PARAM, originFromPathname, resolveBackLink, toBackLinkOrigin, withBackLink } from "@/shared/lib/back-link";
 
 describe("withBackLink", () => {
   it("tags a plain detail path with the origin", () => {
@@ -66,5 +66,38 @@ describe("resolveBackLink", () => {
   it("ignores inherited Object properties that are not origins", () => {
     expect(resolveBackLink("toString").href).toBe("/events");
     expect(resolveBackLink("constructor").href).toBe("/events");
+  });
+});
+
+describe("originFromPathname", () => {
+  it.each([
+    ["/", "landing"],
+    ["/events", "events"],
+    ["/events/7", "events"],
+    ["/community", "community"],
+    ["/community/3", "community"],
+    ["/tickets", "tickets"],
+    ["/home", "home"],
+  ])("names %s as %s", (pathname, origin) => {
+    expect(originFromPathname(pathname)).toBe(origin);
+  });
+
+  // A prefix match on a bare string would claim these for the shorter route.
+  it("does not claim a route that merely starts with an origin's name", () => {
+    expect(originFromPathname("/eventsomething")).toBeUndefined();
+    expect(originFromPathname("/homeowners")).toBeUndefined();
+  });
+
+  it("names no origin for a route with no way back to offer", () => {
+    expect(originFromPathname("/staff/events")).toBeUndefined();
+    expect(originFromPathname("/sign-in")).toBeUndefined();
+  });
+
+  it("round-trips through the tag and back to a link", () => {
+    const href = withBackLink("/sign-in", originFromPathname("/community/3"));
+    expect(href).toBe("/sign-in?from=community");
+
+    const value = new URL(href, "https://example.test").searchParams.get(BACK_LINK_PARAM);
+    expect(resolveBackLink(value ?? undefined)).toEqual({ href: "/community", label: "Back to Community" });
   });
 });
