@@ -1,7 +1,6 @@
 "use client";
 
 import { buildGoogleMapsUrl } from "@/shared/lib/google-maps";
-import { formatVenue } from "@/shared/lib/event-format";
 
 interface EventMapCardProps {
   event: { venue_name: string | null | undefined; venue_address: string | null | undefined };
@@ -16,7 +15,6 @@ export function EventMapCard({ event }: EventMapCardProps) {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <p className="text-sm text-muted-fg">{formatVenue(event.venue_name, event.venue_address)}</p>
       {/* A real <a>: the Base UI Button forces button semantics on its render
           target, so a link would be mislabelled to screen readers. */}
       <a href={url} target="_blank" rel="noopener" className={`mt-4 ${LINK_STYLES}`}>
