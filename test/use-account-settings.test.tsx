@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, cleanup, act } from "@testing-library/react";
+import { renderHook, cleanup, act, waitFor } from "@testing-library/react";
 
 const sessionValue = vi.fn();
 vi.mock("@/modules/auth/components/session-context", () => ({
@@ -25,7 +25,10 @@ vi.mock("@/shared/db/browser-client", () => ({
 
 import { useAccountSettings } from "@/modules/user/lib/use-account-settings";
 
-const speaker = { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+// The default session is an attendee, so the speaker profile fetch does not
+// fire in the general cases; speaker-only cases opt in with speakerUser.
+const user = { id: 1, role: ROLES.ATTENDEE, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
+const speakerUser = { ...user, role: ROLES.SPEAKER };
 
 type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -45,7 +48,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   checkMailDomain.mockResolvedValue("deliverable");
   verifyPassword.mockResolvedValue(true);
-  sessionValue.mockReturnValue({ user: speaker, updateUser: sessionUpdateUser });
+  sessionValue.mockReturnValue({ user, updateUser: sessionUpdateUser });
 });
 
 afterEach(() => {
@@ -54,32 +57,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("useAccountSettings", () => {
+describe("saving the profile name", () => {
   it("saves the name via PATCH /api/auth/me and toasts success", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setName("New Name"));
     await act(async () => {
-      await result.current.saveName(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "New Name" });
     expect(result.current.toast).toMatchObject({
       title: "Profile updated",
-      description: "Your name has been saved.",
+      description: "Your profile has been saved.",
       type: "success",
     });
   });
 
   it("pushes the saved name into the session so the navbar follows", async () => {
-    stubFetch().mockImplementation(() => response({ ...speaker, full_name: "Grace Hopper" }));
+    stubFetch().mockImplementation(() => response({ ...user, full_name: "Grace Hopper" }));
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveName(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(sessionUpdateUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
@@ -91,7 +94,7 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setName("  Grace Hopper  "));
     await act(async () => {
-      await result.current.saveName(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
@@ -105,7 +108,7 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveName(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(sessionUpdateUser).not.toHaveBeenCalled();
@@ -115,13 +118,16 @@ describe("useAccountSettings", () => {
     stubFetch().mockImplementation(() => response({ error: "boom" }, false));
     const { result } = renderHook(() => useAccountSettings());
 
+    act(() => result.current.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveName(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
   });
+});
 
+describe("changing the email", () => {
   it("asks supabase to send the link and reports sent, without writing the address anywhere", async () => {
     updateUser.mockResolvedValue({ error: null });
     const fetch = stubFetch();
@@ -129,7 +135,7 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("new@example.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "new@example.com" });
@@ -145,10 +151,10 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("new@example.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.currentUser?.email).toBe(speaker.email);
+    expect(result.current.currentUser?.email).toBe(user.email);
     expect(sessionUpdateUser).not.toHaveBeenCalledWith(expect.objectContaining({ email: expect.anything() }));
   });
 
@@ -156,19 +162,15 @@ describe("useAccountSettings", () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(speaker.email));
+    act(() => result.current.setNewEmail(user.email));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.toast).toMatchObject({
-      title: "Error",
-      description: "That is already your email address.",
-      type: "error",
-    });
+    expect(result.current.emailError).toBe("This is already your email address.");
   });
 
   it("refuses it however it is capitalised or padded", async () => {
@@ -177,7 +179,7 @@ describe("useAccountSettings", () => {
     for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
       act(() => result.current.setNewEmail(typed));
       await act(async () => {
-        await result.current.changeEmail(submitEvent);
+        await result.current.saveChanges(submitEvent);
       });
 
       expect(updateUser).not.toHaveBeenCalled();
@@ -191,7 +193,7 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("  grace@example.com  "));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "grace@example.com" });
@@ -204,15 +206,13 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("ada@gmial.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(result.current.emailSent).toBe(false);
-    expect(result.current.toast?.description).toBe(
-      "We could not find a mail server for gmial.com. Did you mean ada@gmail.com?",
-    );
+    expect(result.current.emailError).toBe("We could not find a mail server for gmial.com. Did you mean ada@gmail.com?");
   });
 
   it("refuses an unrecognisable dead domain without inventing a suggestion", async () => {
@@ -221,12 +221,10 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("ada@nowhere-at-all.test"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.toast?.description).toBe(
-      "We could not find a mail server for nowhere-at-all.test. Check the spelling.",
-    );
+    expect(result.current.emailError).toBe("We could not find a mail server for nowhere-at-all.test. Check the spelling.");
   });
 
   // A resolver that is down or blocked must not be able to lock someone out of
@@ -239,7 +237,7 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("ada@obscure.test"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).toHaveBeenCalledWith({ email: "ada@obscure.test" });
@@ -249,9 +247,9 @@ describe("useAccountSettings", () => {
   it("checks the domain only after the address is known to be a real change", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(speaker.email));
+    act(() => result.current.setNewEmail(user.email));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(checkMailDomain).not.toHaveBeenCalled();
@@ -263,10 +261,10 @@ describe("useAccountSettings", () => {
 
     act(() => result.current.setNewEmail("ada@gmial.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
-    expect(result.current.savingEmail).toBe(false);
+    expect(result.current.saving).toBe(false);
   });
 
   it("toasts the supabase error and skips the PATCH when the email update fails", async () => {
@@ -274,142 +272,77 @@ describe("useAccountSettings", () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
+    act(() => result.current.setNewEmail("new@example.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Email already in use", type: "error" });
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
   });
+});
 
-  it("updates the password and clears the fields on success", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    stubFetch();
-    const { result } = renderHook(() => useAccountSettings());
+describe("the speaker profile inside the unified hook", () => {
+  const speakerData = {
+    speaker_profile_id: 5,
+    designation: "CTO",
+    bio: "Leads the team.",
+    linkedin_url: "https://linkedin.com/in/ada",
+    twitter_url: null,
+    github_url: "https://github.com/ada",
+    website_url: "https://ada.dev",
+  };
 
-    act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("the quiet kettle sings");
-    });
-    await act(async () => {
-      await result.current.changePassword(submitEvent);
-    });
+  function useAsSpeaker() {
+    sessionValue.mockReturnValue({ user: speakerUser, updateUser: sessionUpdateUser });
+  }
 
-    expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
-    expect(result.current.currentPassword).toBe("");
-    expect(result.current.newPassword).toBe("");
-    expect(result.current.toast).toMatchObject({
-      title: "Password updated",
-      description: "Your password has been changed.",
-      type: "success",
-    });
-  });
-
-  it("uploads the photo and updates the session user's profile_image_url", async () => {
+  it("loads the speaker fields from /api/auth/me when the user is a speaker", async () => {
+    useAsSpeaker();
     const fetch = stubFetch();
-    fetch.mockImplementation((url: string | URL | Request) =>
-      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
-    );
+    fetch.mockImplementation(() => response(speakerData));
     const { result } = renderHook(() => useAccountSettings());
 
-    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
-    await act(async () => {
-      await result.current.changeProfilePhoto({
-        target: { files: [file] },
-      } as unknown as React.ChangeEvent<HTMLInputElement>);
-    });
-
-    const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
-    expect(post).toBeTruthy();
-    expect(post![1]!.body).toBeInstanceOf(FormData);
-    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+    expect(fetch).toHaveBeenCalledWith("/api/auth/me");
+    expect(result.current.isSpeaker).toBe(true);
+    expect(result.current.designation).toBe("CTO");
+    expect(result.current.bio).toBe("Leads the team.");
+    expect(result.current.linkedinUrl).toBe("https://linkedin.com/in/ada");
+    expect(result.current.twitterUrl).toBe("");
+    expect(result.current.githubUrl).toBe("https://github.com/ada");
+    expect(result.current.websiteUrl).toBe("https://ada.dev");
   });
 
-  it("hands the uploaded URL back through the session so the settings preview updates", async () => {
-    let user = speaker;
-    sessionUpdateUser.mockImplementation((patch) => {
-      user = { ...user, ...patch };
-    });
-    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
+  it("does nothing for any non-speaker role", () => {
     const fetch = stubFetch();
-    fetch.mockImplementation((url: string | URL | Request) =>
-      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
-    );
-    const { result, rerender } = renderHook(() => useAccountSettings());
 
-    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
-    await act(async () => {
-      await result.current.changeProfilePhoto({
-        target: { files: [file] },
-      } as unknown as React.ChangeEvent<HTMLInputElement>);
-    });
+    // Facilitators and admins outrank speakers, but the speaker profile section
+    // belongs to the speaker row alone, so min-role must not admit them.
+    for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
+      sessionValue.mockReturnValue({ user: { ...user, role }, updateUser: sessionUpdateUser });
+      const { result } = renderHook(() => useAccountSettings());
 
-    rerender();
-    expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
+      expect(result.current.isSpeaker).toBe(false);
+      expect(result.current.speakerProfileId).toBeUndefined();
+
+      cleanup();
+    }
+
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("leaves the session photo alone when the upload fails", async () => {
-    stubFetch().mockImplementation(() => response({ error: "too large" }, false));
-    const { result } = renderHook(() => useAccountSettings());
-
-    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
-    await act(async () => {
-      await result.current.changeProfilePhoto({
-        target: { files: [file] },
-      } as unknown as React.ChangeEvent<HTMLInputElement>);
-    });
-
-    expect(sessionUpdateUser).not.toHaveBeenCalled();
-    expect(result.current.toast?.type).toBe("error");
-  });
-
-  it("deletes the photo and nulls the session photo on success", async () => {
+  it("waits for the speaker fetch before the seeded values count as clean", async () => {
+    useAsSpeaker();
     const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
     const { result } = renderHook(() => useAccountSettings());
 
-    await act(async () => {
-      await result.current.deleteProfilePhoto();
-    });
-
-    const del = fetch.mock.calls.find((c) => c[1]?.method === "DELETE");
-    expect(del).toBeTruthy();
-    expect(String(del![0])).toContain("/api/upload/profile-image");
-    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: null });
-    expect(result.current.toast?.type).toBe("success");
-  });
-
-  it("nulls the session photo so the preview and navbar avatar clear together", async () => {
-    let user = { ...speaker, profile_image_url: "https://cdn.example/old.jpg" };
-    sessionUpdateUser.mockImplementation((patch) => {
-      user = { ...user, ...patch };
-    });
-    sessionValue.mockImplementation(() => ({ user, updateUser: sessionUpdateUser }));
-    stubFetch();
-    const { result, rerender } = renderHook(() => useAccountSettings());
-
-    await act(async () => {
-      await result.current.deleteProfilePhoto();
-    });
-
-    rerender();
-    expect(result.current.currentUser?.profile_image_url).toBeNull();
-  });
-
-  it("leaves the session photo alone and toasts an error when the delete fails", async () => {
-    stubFetch().mockImplementation(() => response({ error: "delete failed" }, false));
-    const { result } = renderHook(() => useAccountSettings());
-
-    await act(async () => {
-      await result.current.deleteProfilePhoto();
-    });
-
-    expect(sessionUpdateUser).not.toHaveBeenCalled();
-    expect(result.current.toast).toEqual({
-      id: expect.any(Number),
-      title: "Delete failed",
-      description: "Could not remove your profile photo.",
-      type: "error",
-    });
+    // Before the fetch answers, the empty seeds would look dirty against empty
+    // saved originals; only after both land together is the group clean.
+    expect(result.current.dirty).toBe(false);
+    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+    expect(result.current.dirty).toBe(false);
   });
 });
 
@@ -425,7 +358,8 @@ describe("saveChanges dirty-only submission", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ full_name: "Ada Lovelace" });
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Ada Lovelace" });
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
     expect(updateUser).not.toHaveBeenCalled();
     expect(verifyPassword).not.toHaveBeenCalled();
@@ -462,7 +396,7 @@ describe("saveChanges dirty-only submission", () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(speaker.email));
+    act(() => result.current.setNewEmail(user.email));
     await act(async () => {
       await result.current.saveChanges(submitEvent);
     });
@@ -518,7 +452,8 @@ describe("saveChanges dirty-only submission", () => {
       await result.current.saveChanges(submitEvent);
     });
 
-    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
     expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
     expect(checkMailDomain).not.toHaveBeenCalled();
@@ -526,7 +461,7 @@ describe("saveChanges dirty-only submission", () => {
 
   it("flips dirty back to false once the dirty groups have been saved", async () => {
     const fetch = stubFetch();
-    fetch.mockImplementation(() => response({ ...speaker, full_name: "Ada Lovelace" }));
+    fetch.mockImplementation(() => response({ ...user, full_name: "Ada Lovelace" }));
     const { result, rerender } = renderHook(() => useAccountSettings());
     expect(result.current.dirty).toBe(false);
 
@@ -551,6 +486,158 @@ describe("saveChanges dirty-only submission", () => {
   });
 });
 
+describe("speaker PATCH through saveChanges", () => {
+  const speakerData = {
+    speaker_profile_id: 5,
+    designation: "CTO",
+    bio: "Leads.",
+    linkedin_url: "https://linkedin.com/in/ada",
+    twitter_url: null,
+    github_url: "https://github.com/ada",
+    website_url: "https://ada.dev",
+  };
+
+  function useAsSpeaker() {
+    sessionValue.mockReturnValue({ user: speakerUser, updateUser: sessionUpdateUser });
+  }
+
+  async function loadSpeaker(result: { current: ReturnType<typeof useAccountSettings> }) {
+    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+  }
+
+  it("sends only the dirty speaker fields in the shared PATCH", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setDesignation("CTO Emeritus"));
+    act(() => result.current.setGithubUrl("https://github.com/ada-lovelace"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({
+      designation: "CTO Emeritus",
+      bio: "Leads.",
+      linkedin_url: "https://linkedin.com/in/ada",
+      twitter_url: null,
+      github_url: "https://github.com/ada-lovelace",
+      website_url: "https://ada.dev",
+    });
+  });
+
+  it("coerces emptied speaker links to null", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setLinkedinUrl(""));
+    act(() => result.current.setWebsiteUrl(""));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({
+      designation: "CTO",
+      bio: "Leads.",
+      linkedin_url: null,
+      twitter_url: null,
+      github_url: "https://github.com/ada",
+      website_url: null,
+    });
+  });
+
+  it("flags an invalid URL on the owning field and aborts the whole batch", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setGithubUrl("not a url"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(result.current.speakerFieldErrors).toEqual({ github: "Enter a valid full URL (https://…)." });
+    expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("lets a name change through when a speaker URL is fine", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response({ ...speakerData, full_name: "Grace Hopper" }));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setName("Grace Hopper"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+  });
+
+  it("sends no PATCH when a speaker has nothing to save", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("clears the field error when the offending link is edited again", async () => {
+    useAsSpeaker();
+    stubFetch().mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    act(() => result.current.setGithubUrl("not a url"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.speakerFieldErrors?.github).toBeTruthy();
+
+    act(() => result.current.setGithubUrl("https://github.com/ada"));
+
+    expect(result.current.speakerFieldErrors?.github).toBeUndefined();
+  });
+
+  it("flips speakerDirty back to clean once saved", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result, rerender } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+    expect(result.current.speakerDirty).toBe(false);
+
+    act(() => result.current.setBio("Fresh bio."));
+    rerender();
+    expect(result.current.speakerDirty).toBe(true);
+
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    rerender();
+    expect(result.current.speakerDirty).toBe(false);
+  });
+});
+
 describe("the sent state", () => {
   it("starts a cooldown so a second link cannot be asked for immediately", async () => {
     updateUser.mockResolvedValue({ error: null });
@@ -559,7 +646,7 @@ describe("the sent state", () => {
 
     act(() => result.current.setNewEmail("grace@example.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.emailSent).toBe(true);
@@ -573,7 +660,7 @@ describe("the sent state", () => {
 
     act(() => result.current.setNewEmail("grace@example.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
     updateUser.mockClear();
 
@@ -593,7 +680,7 @@ describe("the sent state", () => {
 
       act(() => result.current.setNewEmail("grace@example.com"));
       await act(async () => {
-        await result.current.changeEmail(submitEvent);
+        await result.current.saveChanges(submitEvent);
       });
 
       // Each second is scheduled by the render the previous one caused, so the
@@ -624,7 +711,7 @@ describe("the sent state", () => {
 
     act(() => result.current.setNewEmail("grace@gmial.com"));
     await act(async () => {
-      await result.current.changeEmail(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     act(() => result.current.useDifferentEmail());
@@ -641,7 +728,7 @@ describe("changing the password", () => {
 
     act(() => result.current.setNewPassword("short"));
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
@@ -655,7 +742,7 @@ describe("changing the password", () => {
 
     act(() => result.current.setNewPassword("password1234"));
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
@@ -664,14 +751,14 @@ describe("changing the password", () => {
 
   it("refuses one built from the account's own name", async () => {
     sessionValue.mockReturnValue({
-      user: { ...speaker, full_name: "Ada Lovelace", email: "ada.lovelace@example.com" },
+      user: { ...user, full_name: "Ada Lovelace", email: "ada.lovelace@example.com" },
       updateUser: sessionUpdateUser,
     });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => result.current.setNewPassword("adalovelace2026"));
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
@@ -687,7 +774,7 @@ describe("changing the password", () => {
       result.current.setNewPassword("the quiet kettle sings");
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
@@ -708,7 +795,7 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(updateUser).not.toHaveBeenCalled();
@@ -726,12 +813,12 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.currentPassword).toBe("not-my-password");
     expect(result.current.newPassword).toBe(STRONG);
-    expect(result.current.savingPassword).toBe(false);
+    expect(result.current.saving).toBe(false);
   });
 
   it("checks the password against the signed-in account", async () => {
@@ -742,10 +829,10 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
-    expect(verifyPassword).toHaveBeenCalledWith(speaker.email, "old-pass");
+    expect(verifyPassword).toHaveBeenCalledWith(user.email, "old-pass");
     expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
   });
 
@@ -758,7 +845,7 @@ describe("proving the current password", () => {
       result.current.setNewPassword("short");
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(verifyPassword).not.toHaveBeenCalled();
@@ -766,7 +853,7 @@ describe("proving the current password", () => {
   });
 
   it("refuses rather than checking when there is no signed-in email to check against", async () => {
-    sessionValue.mockReturnValue({ user: { ...speaker, email: null }, updateUser: sessionUpdateUser });
+    sessionValue.mockReturnValue({ user: { ...user, email: null }, updateUser: sessionUpdateUser });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
@@ -774,7 +861,7 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(verifyPassword).not.toHaveBeenCalled();
@@ -791,7 +878,7 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
     expect(result.current.currentPasswordError).toBe("That is not your current password.");
 
@@ -809,7 +896,7 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.newPasswordError).toBe("New password should be different from the old password.");
@@ -826,18 +913,127 @@ describe("proving the current password", () => {
       result.current.setNewPassword(STRONG);
     });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
     expect(result.current.currentPasswordError).not.toBeNull();
 
     verifyPassword.mockResolvedValue(true);
     updateUser.mockResolvedValue({ error: null });
     await act(async () => {
-      await result.current.changePassword(submitEvent);
+      await result.current.saveChanges(submitEvent);
     });
 
     expect(result.current.currentPasswordError).toBeNull();
     expect(result.current.toast?.title).toBe("Password updated");
+  });
+});
+
+describe("profile photo", () => {
+  it("uploads the photo and updates the session user's profile_image_url", async () => {
+    const fetch = stubFetch();
+    fetch.mockImplementation((url: string | URL | Request) =>
+      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
+    );
+    const { result } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    const post = fetch.mock.calls.find((c) => String(c[0]).includes("/api/upload/profile-image"));
+    expect(post).toBeTruthy();
+    expect(post![1]!.body).toBeInstanceOf(FormData);
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: "https://cdn.example/x.jpg" });
+  });
+
+  it("hands the uploaded URL back through the session so the settings preview updates", async () => {
+    let current = user;
+    sessionUpdateUser.mockImplementation((patch) => {
+      current = { ...current, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user: current, updateUser: sessionUpdateUser }));
+    const fetch = stubFetch();
+    fetch.mockImplementation((url: string | URL | Request) =>
+      response(String(url).includes("/api/upload/profile-image") ? { url: "https://cdn.example/x.jpg" } : {}),
+    );
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBe("https://cdn.example/x.jpg");
+  });
+
+  it("leaves the session photo alone when the upload fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "too large" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      await result.current.changeProfilePhoto({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast?.type).toBe("error");
+  });
+
+  it("deletes the photo and nulls the session photo on success", async () => {
+    const fetch = stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    const del = fetch.mock.calls.find((c) => c[1]?.method === "DELETE");
+    expect(del).toBeTruthy();
+    expect(String(del![0])).toContain("/api/upload/profile-image");
+    expect(sessionUpdateUser).toHaveBeenCalledWith({ profile_image_url: null });
+    expect(result.current.toast?.type).toBe("success");
+  });
+
+  it("nulls the session photo so the preview and navbar avatar clear together", async () => {
+    let current = { ...user, profile_image_url: "https://cdn.example/old.jpg" };
+    sessionUpdateUser.mockImplementation((patch) => {
+      current = { ...current, ...patch };
+    });
+    sessionValue.mockImplementation(() => ({ user: current, updateUser: sessionUpdateUser }));
+    stubFetch();
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    rerender();
+    expect(result.current.currentUser?.profile_image_url).toBeNull();
+  });
+
+  it("leaves the session photo alone and toasts an error when the delete fails", async () => {
+    stubFetch().mockImplementation(() => response({ error: "delete failed" }, false));
+    const { result } = renderHook(() => useAccountSettings());
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    expect(sessionUpdateUser).not.toHaveBeenCalled();
+    expect(result.current.toast).toEqual({
+      id: expect.any(Number),
+      title: "Delete failed",
+      description: "Could not remove your profile photo.",
+      type: "error",
+    });
   });
 });
 

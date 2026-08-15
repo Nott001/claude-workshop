@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
+import { ROLES } from "@/shared/lib/roles";
 import { getBrowserClient } from "@/shared/db/browser-client";
 import { emailDomain, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 import { checkMailDomain } from "@/shared/integrations/dns/mail-domain";
@@ -41,7 +42,6 @@ export function useAccountSettings() {
   const [name, setName] = useState(sessionName);
   const [lastSessionName, setLastSessionName] = useState(sessionName);
   const [savedName, setSavedName] = useState(sessionName);
-  const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
 
   if (sessionName !== lastSessionName) {
@@ -80,7 +80,6 @@ export function useAccountSettings() {
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [savingPassword, setSavingPassword] = useState(false);
 
   // A rejected password belongs to the field that was rejected, not to a corner
   // of the screen that times out after three seconds. Held per field so each
@@ -107,18 +106,110 @@ export function useAccountSettings() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // The speaker block lives in the same form and saves with the same button, so
+  // its state stays in this hook rather than a sibling one (the old
+  // useSpeakerProfile is gone). `speakerProfileId` doubles as the loading seam:
+  // it stays undefined until the profile fetch has answered.
+  const isSpeaker = currentUser?.role === ROLES.SPEAKER;
+  const [speakerProfileId, setSpeakerProfileId] = useState<number | null | undefined>(undefined);
+  const [designation, setDesignation] = useState("");
+  const [bio, setBio] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [savedDesignation, setSavedDesignation] = useState("");
+  const [savedBio, setSavedBio] = useState("");
+  const [savedLinkedinUrl, setSavedLinkedinUrl] = useState("");
+  const [savedTwitterUrl, setSavedTwitterUrl] = useState("");
+  const [savedGithubUrl, setSavedGithubUrl] = useState("");
+  const [savedWebsiteUrl, setSavedWebsiteUrl] = useState("");
+  const [speakerFieldErrors, setSpeakerFieldErrors] = useState<
+    Partial<Record<"linkedin" | "twitter" | "github" | "website", string>>
+  >({});
+
+  useEffect(() => {
+    if (!isSpeaker) return;
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setSpeakerProfileId(data.speaker_profile_id ?? null);
+        // Seed the live fields and the saved originals together, so the first
+        // render of the merged form shows what is stored _and_ treats it as
+        // clean — the "save" button must not light up for nothing.
+        const designation = data.designation ?? "";
+        const bio = data.bio ?? "";
+        const linkedin = data.linkedin_url ?? "";
+        const twitter = data.twitter_url ?? "";
+        const github = data.github_url ?? "";
+        const website = data.website_url ?? "";
+        setDesignation(designation);
+        setBio(bio);
+        setLinkedinUrl(linkedin);
+        setTwitterUrl(twitter);
+        setGithubUrl(github);
+        setWebsiteUrl(website);
+        setSavedDesignation(designation);
+        setSavedBio(bio);
+        setSavedLinkedinUrl(linkedin);
+        setSavedTwitterUrl(twitter);
+        setSavedGithubUrl(github);
+        setSavedWebsiteUrl(website);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isSpeaker]);
+
+  const editSpeakerDesignation = useCallback((value: string) => setDesignation(value), []);
+  const editSpeakerBio = useCallback((value: string) => setBio(value), []);
+  // Editing a field is the retry for its own rejection, so the message clears
+  // with the keystroke rather than lingering under input it no longer describes.
+  const editSpeakerLinkedin = useCallback((value: string) => {
+    setLinkedinUrl(value);
+    setSpeakerFieldErrors((prev) => ({ ...prev, linkedin: undefined }));
+  }, []);
+  const editSpeakerTwitter = useCallback((value: string) => {
+    setTwitterUrl(value);
+    setSpeakerFieldErrors((prev) => ({ ...prev, twitter: undefined }));
+  }, []);
+  const editSpeakerGithub = useCallback((value: string) => {
+    setGithubUrl(value);
+    setSpeakerFieldErrors((prev) => ({ ...prev, github: undefined }));
+  }, []);
+  const editSpeakerWebsite = useCallback((value: string) => {
+    setWebsiteUrl(value);
+    setSpeakerFieldErrors((prev) => ({ ...prev, website: undefined }));
+  }, []);
+
   function validateFullName(fullName: string): string | null {
     if (fullName.trim() === "") return "Name is required.";
     return null;
   }
 
-  async function persistFullName(fullName: string) {
-    setSavingName(true);
+  async function persistProfileChange() {
     try {
+      // One PATCH for the whole profile — name and speaker fields together, so
+      // the merged form's Save Changes writes everything it owns in a single
+      // round trip instead of one call per section.
+      const body: Record<string, unknown> = {};
+      if (nameDirty) body.full_name = name.trim();
+      if (speakerDirty) {
+        body.designation = designation.trim() || null;
+        body.bio = bio.trim() || null;
+        body.linkedin_url = linkedinUrl.trim() || null;
+        body.twitter_url = twitterUrl.trim() || null;
+        body.github_url = githubUrl.trim() || null;
+        body.website_url = websiteUrl.trim() || null;
+      }
+
       const res = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: fullName }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("PATCH /api/auth/me failed");
 
@@ -126,22 +217,27 @@ export function useAccountSettings() {
       // was actually written rather than from what we hoped to write. This is
       // what repaints the navbar, which renders the name off the session.
       const saved: Partial<AuthUser> = await res.json();
-      const persisted = saved.full_name ?? fullName;
-      updateUser({ full_name: persisted });
-      setName(persisted);
-      setSavedName(persisted);
+      if (nameDirty) {
+        const persisted = saved.full_name ?? name.trim();
+        updateUser({ full_name: persisted });
+        setName(persisted);
+        setSavedName(persisted);
+      }
+      if (speakerDirty) {
+        // The values actually sent become the new clean baseline, so the
+        // form stops counting the speaker group as dirty once it lands.
+        setSavedDesignation(designation.trim());
+        setSavedBio(bio.trim());
+        setSavedLinkedinUrl(linkedinUrl.trim());
+        setSavedTwitterUrl(twitterUrl.trim());
+        setSavedGithubUrl(githubUrl.trim());
+        setSavedWebsiteUrl(websiteUrl.trim());
+      }
 
-      notify({ title: "Profile updated", description: "Your name has been saved.", type: "success" });
+      notify({ title: "Profile updated", description: "Your profile has been saved.", type: "success" });
     } catch {
       notify({ title: "Error", description: "Failed to update profile.", type: "error" });
-    } finally {
-      setSavingName(false);
     }
-  }
-
-  async function saveName(e: React.FormEvent) {
-    e.preventDefault();
-    await persistFullName(name.trim());
   }
 
   /** Asks Supabase to mail the confirmation link, and starts the resend clock. */
@@ -222,26 +318,6 @@ export function useAccountSettings() {
     }
   }
 
-  async function changeEmail(e: React.FormEvent) {
-    e.preventDefault();
-    const email = newEmail.trim();
-
-    const verdict = await validateEmailAddress(email);
-    if (!verdict.ok) {
-      // The toast keeps the copy the email card has always shown, while the
-      // inline form error uses the field-level wording ("This is already your
-      // email address.") that matches the input it sits under.
-      notify({
-        title: verdict.title,
-        description: verdict.title === "Error" ? "That is already your email address." : verdict.message,
-        type: "error",
-      });
-      return;
-    }
-
-    await persistEmailChange(email);
-  }
-
   async function validatePassword(
     current: string,
     next: string,
@@ -285,32 +361,18 @@ export function useAccountSettings() {
     notify({ title: "Password updated", description: "Your password has been changed.", type: "success" });
   }
 
-  async function changePassword(e: React.FormEvent) {
-    e.preventDefault();
-    setCurrentPasswordError(null);
-    setNewPasswordError(null);
-
-    setSavingPassword(true);
-    try {
-      const verdict = await validatePassword(currentPassword, newPassword);
-      if (!verdict.ok) {
-        // A rejected password belongs to the field the user can fix, not to the
-        // whole-form error surface.
-        if (verdict.field === "current") setCurrentPasswordError(verdict.message);
-        else setNewPasswordError(verdict.message);
-        return;
-      }
-
-      await persistPasswordChange(newPassword);
-    } finally {
-      setSavingPassword(false);
-    }
-  }
-
   const nameDirty = name.trim() !== savedName.trim();
   const emailDirty = !emailSent && newEmail.trim() !== "";
   const passwordDirty = currentPassword.trim() !== "" || newPassword.trim() !== "";
-  const dirty = nameDirty || emailDirty || passwordDirty;
+  const speakerDirty =
+    isSpeaker &&
+    (designation.trim() !== savedDesignation.trim() ||
+      bio.trim() !== savedBio.trim() ||
+      linkedinUrl.trim() !== savedLinkedinUrl.trim() ||
+      twitterUrl.trim() !== savedTwitterUrl.trim() ||
+      githubUrl.trim() !== savedGithubUrl.trim() ||
+      websiteUrl.trim() !== savedWebsiteUrl.trim());
+  const dirty = nameDirty || emailDirty || passwordDirty || speakerDirty;
 
   async function saveChanges(e: React.FormEvent) {
     e.preventDefault();
@@ -318,6 +380,7 @@ export function useAccountSettings() {
     setEmailError(null);
     setCurrentPasswordError(null);
     setNewPasswordError(null);
+    setSpeakerFieldErrors({});
 
     // Validate only the groups that changed; an untouched field's stale value
     // must not block saving something else, and any failure aborts the whole
@@ -349,14 +412,39 @@ export function useAccountSettings() {
       }
     }
 
+    if (speakerDirty) {
+      // Name and bio are free text; only the four links can be malformed. One
+      // field's bad value must not block the rest of the save, but anything
+      // malformed still aborts the whole batch — a half-written profile would
+      // leave the links pointing nowhere and vanish on the next render.
+      const linkFields: Array<{ field: "linkedin" | "twitter" | "github" | "website"; value: string; saved: string }> = [
+        { field: "linkedin", value: linkedinUrl, saved: savedLinkedinUrl },
+        { field: "twitter", value: twitterUrl, saved: savedTwitterUrl },
+        { field: "github", value: githubUrl, saved: savedGithubUrl },
+        { field: "website", value: websiteUrl, saved: savedWebsiteUrl },
+      ];
+      for (const { field, value, saved } of linkFields) {
+        const trimmed = value.trim();
+        if (trimmed === saved.trim()) continue;
+        if (trimmed === "") continue;
+        try {
+          new URL(trimmed);
+        } catch {
+          setSpeakerFieldErrors((prev) => ({ ...prev, [field]: "Enter a valid full URL (https://…)." }));
+          failed = true;
+        }
+      }
+    }
+
     if (failed) return;
 
     setSaving(true);
     try {
-      if (nameDirty) {
-        // persistFullName writes savedName from what was stored, which is what
-        // flips the name group from dirty once the write lands.
-        await persistFullName(name.trim());
+      if (nameDirty || speakerDirty) {
+        // persistProfileChange writes the dirty profile groups and resets their
+        // saved originals to what was stored, which is what flips them clean
+        // once the write lands.
+        await persistProfileChange();
       }
 
       if (emailDirty) {
@@ -424,14 +512,11 @@ export function useAccountSettings() {
     name,
     setName: editName,
     nameError,
-    savingName,
-    saveName,
     newEmail,
     setNewEmail: editEmail,
     emailError,
     emailSent,
     savingEmail,
-    changeEmail,
     resendIn,
     resendVerification,
     useDifferentEmail,
@@ -441,8 +526,6 @@ export function useAccountSettings() {
     newPassword,
     setNewPassword: editNewPassword,
     newPasswordError,
-    savingPassword,
-    changePassword,
     dirty,
     saving,
     saveChanges,
@@ -450,5 +533,21 @@ export function useAccountSettings() {
     changeProfilePhoto,
     deleting,
     deleteProfilePhoto,
+    isSpeaker,
+    speakerProfileId,
+    designation,
+    setDesignation: editSpeakerDesignation,
+    bio,
+    setBio: editSpeakerBio,
+    linkedinUrl,
+    setLinkedinUrl: editSpeakerLinkedin,
+    twitterUrl,
+    setTwitterUrl: editSpeakerTwitter,
+    githubUrl,
+    setGithubUrl: editSpeakerGithub,
+    websiteUrl,
+    setWebsiteUrl: editSpeakerWebsite,
+    speakerFieldErrors,
+    speakerDirty,
   };
 }

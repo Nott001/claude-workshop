@@ -115,7 +115,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(navbarName()).toContain("Grace Hopper");
@@ -134,7 +134,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(screen.getByText("GH")).toBeTruthy();
@@ -152,7 +152,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(navbarName()).toContain("Ada Lovelace");

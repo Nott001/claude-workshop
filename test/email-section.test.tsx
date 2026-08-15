@@ -10,9 +10,9 @@ function renderSection(newEmail: string, emailSent = false, overrides: Partial<P
     currentEmail: "ada@example.com",
     newEmail,
     onChange: vi.fn(),
+    emailError: null,
     emailSent,
     saving: false,
-    onSubmit: vi.fn(),
     resendIn: 0,
     onResend: vi.fn(),
     onUseDifferent: vi.fn(),
@@ -22,42 +22,37 @@ function renderSection(newEmail: string, emailSent = false, overrides: Partial<P
   return props;
 }
 
-function submitButton(): HTMLButtonElement {
-  return screen.getByRole("button", { name: "Change email" }) as HTMLButtonElement;
-}
-
 afterEach(cleanup);
 
 describe("EmailSection", () => {
-  it("blocks submitting the address the account already has, and says why", () => {
-    renderSection("ada@example.com");
+  it("shows why the account's own address was refused", () => {
+    renderSection("ada@example.com", false, { emailError: "This is already your email address." });
 
-    expect(submitButton().disabled).toBe(true);
     expect(screen.getByText("This is already your email address.")).toBeTruthy();
   });
 
-  it("blocks it however it is capitalised or padded", () => {
+  it("shows it however it is capitalised or padded", () => {
     for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
-      renderSection(typed);
-      expect(submitButton().disabled).toBe(true);
+      renderSection(typed, false, { emailError: "This is already your email address." });
+      expect(screen.getByText("This is already your email address.")).toBeTruthy();
       cleanup();
     }
   });
 
   it("points a screen reader at the reason rather than only colouring it", () => {
-    renderSection("ada@example.com");
+    renderSection("ada@example.com", false, { emailError: "This is already your email address." });
 
     const input = screen.getByPlaceholderText("new@example.com");
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(input.getAttribute("aria-describedby")).toBe("email-unchanged");
-    expect(document.getElementById("email-unchanged")).toBeTruthy();
+    expect(input.getAttribute("aria-describedby")).toBe("email-error");
+    expect(document.getElementById("email-error")).toBeTruthy();
   });
 
-  it("allows a genuinely different address and shows no complaint", () => {
+  it("shows no complaint for a genuinely different address", () => {
     renderSection("grace@example.com");
 
-    expect(submitButton().disabled).toBe(false);
     expect(screen.queryByText("This is already your email address.")).toBeNull();
+    expect(screen.getByPlaceholderText("new@example.com").getAttribute("aria-invalid")).toBe("false");
   });
 
   // The case that slipped through: gmoil.com is registered, answers DNS and
@@ -77,10 +72,11 @@ describe("EmailSection", () => {
     expect(onChange).toHaveBeenCalledWith("ada@gmail.com");
   });
 
-  it("leaves submitting available, since an odd domain may still be real", () => {
+  it("keeps the suggestion visible when the field carries no rejection", () => {
     renderSection("ada@gmoil.com");
 
-    expect(submitButton().disabled).toBe(false);
+    expect(screen.getByRole("button", { name: "ada@gmail.com" })).toBeTruthy();
+    expect(screen.queryByText("This is already your email address.")).toBeNull();
   });
 
   it("says nothing about a domain that is not a near-miss", () => {
@@ -89,17 +85,15 @@ describe("EmailSection", () => {
     expect(screen.queryByText(/Did you mean/)).toBeNull();
   });
 
-  it("still blocks an empty field", () => {
+  it("leaves an empty field free of complaints, since Save Changes is gated on dirty", () => {
     renderSection("");
 
-    expect(submitButton().disabled).toBe(true);
     expect(screen.queryByText("This is already your email address.")).toBeNull();
   });
 
   it("shows the verification notice instead of the form once sent", () => {
     renderSection("grace@example.com", true);
 
-    expect(screen.queryByRole("button", { name: "Change email" })).toBeNull();
     expect(screen.getByText(/Check your inbox/)).toBeTruthy();
   });
 });

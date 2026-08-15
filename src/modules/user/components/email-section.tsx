@@ -1,17 +1,16 @@
 "use client";
 
-import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
-import { Form } from "@/shared/components/form";
+import { FormField, FormMessage } from "@/shared/components/form";
 import { isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 
 interface EmailSectionProps {
   currentEmail?: string | null;
   newEmail: string;
   onChange: (email: string) => void;
+  emailError?: string | null;
   emailSent: boolean;
   saving: boolean;
-  onSubmit: (e: React.FormEvent) => void;
   /** Seconds until another link may be sent; 0 when one may be sent now. */
   resendIn: number;
   onResend: () => void;
@@ -22,9 +21,9 @@ export function EmailSection({
   currentEmail,
   newEmail,
   onChange,
+  emailError,
   emailSent,
   saving,
-  onSubmit,
   resendIn,
   onResend,
   onUseDifferent,
@@ -38,7 +37,7 @@ export function EmailSection({
   const suggestion = unchanged ? null : suggestEmailCorrection(newEmail);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-6">
+    <>
       <h2 className="text-sm font-bold text-fg">Email</h2>
       <p className="mt-1 text-xs text-muted-fg">{currentEmail ?? ""}</p>
       {emailSent ? (
@@ -69,28 +68,22 @@ export function EmailSection({
           </div>
         </>
       ) : (
-        <>
-          <Form onSubmit={onSubmit} className="mt-4 flex gap-3">
-            <Input
-              type="email"
-              placeholder="new@example.com"
-              value={newEmail}
-              onChange={(e) => onChange(e.target.value)}
-              required
-              aria-invalid={unchanged}
-              aria-describedby={unchanged ? "email-unchanged" : undefined}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={saving || !newEmail || unchanged}>
-              {saving ? "Sending\u2026" : "Change email"}
-            </Button>
-          </Form>
-          {unchanged && (
-            <p id="email-unchanged" className="mt-2 text-xs text-error">
-              This is already your email address.
-            </p>
+        <FormField className="mt-4">
+          <Input
+            id="email"
+            type="email"
+            placeholder="new@example.com"
+            value={newEmail}
+            onChange={(e) => onChange(e.target.value)}
+            aria-invalid={!!emailError}
+            aria-describedby={emailError ? "email-error" : undefined}
+          />
+          {emailError && (
+            <FormMessage id="email-error" role="alert">
+              {emailError}
+            </FormMessage>
           )}
-          {suggestion && (
+          {suggestion && !emailError && (
             <p className="mt-2 text-xs text-muted-fg">
               Did you mean{" "}
               <button
@@ -103,8 +96,8 @@ export function EmailSection({
               ?
             </p>
           )}
-        </>
+        </FormField>
       )}
-    </div>
+    </>
   );
 }
