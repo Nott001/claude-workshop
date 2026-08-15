@@ -74,8 +74,28 @@ describe("TopNavbar role nav items", () => {
 
   it("marks the link matching the current pathname as active", () => {
     renderAs(ROLES.ATTENDEE, "/events");
-    expect(navLink("Events").getAttribute("class")).toContain("bg-brand/10");
-    expect(navLink("Home").getAttribute("class")).not.toContain("bg-brand/10");
+    expect(navLink("Events").getAttribute("aria-current")).toBe("page");
+    expect(navLink("Home").getAttribute("aria-current")).toBeNull();
+  });
+
+  // The active item used to be a brand-tinted pill. Now that it is text on the
+  // bar's own background, colour is the only thing separating it from its
+  // neighbours — so it carries weight too, and says so out loud above.
+  it("distinguishes the active link by more than its colour", () => {
+    renderAs(ROLES.ATTENDEE, "/events");
+
+    expect(navLink("Events").className).toContain("font-semibold");
+    expect(navLink("Home").className).toContain("font-medium");
+  });
+
+  it("gives the nav links no box of their own", () => {
+    renderAs(ROLES.ATTENDEE, "/events");
+
+    for (const label of ["Events", "Home"]) {
+      const className = navLink(label).className;
+      expect(className).not.toMatch(/(^|\s|:)bg-/);
+      expect(className).not.toContain("border");
+    }
   });
 });
 
@@ -99,6 +119,19 @@ describe("TopNavbar guest view", () => {
     expect(signIn.getAttribute("href")).toBe("/sign-in?from=landing");
     expect(signIn.className).not.toContain("border");
     expect(screen.queryByText("Ada Lovelace")).toBeNull();
+  });
+
+  // It sat at text-xs beside text-sm links, which read as a demotion rather
+  // than as the distinction it wanted. The caps and tracking carry that now.
+  it("sets SIGN IN at the same size as the nav links", () => {
+    renderAs(null);
+
+    const signIn = screen.getByRole("link", { name: "SIGN IN" });
+
+    expect(signIn.className).toContain("text-sm");
+    expect(signIn.className).not.toContain("text-xs");
+    expect(signIn.className).toContain("tracking-[0.04em]");
+    expect(navLink("Home").className).toContain("text-sm");
   });
 
   // Signing up moved to the landing hero's "Join Now"; a second bar button
