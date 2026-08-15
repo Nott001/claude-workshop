@@ -30,6 +30,7 @@ vi.mock("next/link", () => ({
 }));
 
 import { Navbar } from "@/modules/shell/components/navbar";
+import { TopNavbar } from "@/modules/shell/components/top-navbar";
 
 function renderAs(role: string | null) {
   useSession.mockReturnValue({
@@ -93,5 +94,44 @@ describe("Navbar prefetching", () => {
       "/staff/support",
       "/staff/audit-logs",
     ]);
+  });
+});
+
+/**
+ * The rail only renders for staff; everyone else — every signed-out visitor and
+ * every attendee — gets the top bar instead, carrying the same nav set. It is
+ * therefore the bar, not the rail, behind the killed `/events`, `/community`
+ * and `/sign-in` prefetches in that same capture.
+ */
+describe("TopNavbar prefetching", () => {
+  function renderBarAs(role: string | null) {
+    useSession.mockReturnValue({
+      user: role ? { id: 1, role, full_name: "Ada Lovelace", email: "ada@example.com", profile_image_url: null } : null,
+      isSignedIn: role !== null,
+      signOut: vi.fn(),
+    });
+    return render(<TopNavbar />);
+  }
+
+  it("does not prefetch the guest bar's destinations", () => {
+    renderBarAs(null);
+    const links = navLinks();
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.dataset.prefetch).toBe("false");
+    }
+  });
+
+  it("does not prefetch the sign-in link a signed-out visitor is offered", () => {
+    const { container } = renderBarAs(null);
+    const signIn = within(container).getByRole("link", { name: "SIGN IN" });
+    expect(signIn.dataset.prefetch).toBe("false");
+  });
+
+  it("does not prefetch the bar an attendee sees", () => {
+    renderBarAs(ROLES.ATTENDEE);
+    for (const link of navLinks()) {
+      expect(link.dataset.prefetch).toBe("false");
+    }
   });
 });
