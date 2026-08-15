@@ -175,6 +175,16 @@ describe("SignUpForm password confirmation", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Confirm Password"));
   });
 
+  // jsdom has no layout, so the height itself cannot be asserted here — the e2e
+  // case covers that. This pins the slot being rendered whether or not it has a
+  // message, which is what stops the consent checkbox moving as it appears.
+  it("keeps the message's line reserved while the fields still agree", () => {
+    const { container } = render(<SignUpForm />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector(".min-h-5")).not.toBeNull();
+  });
+
   it("creates the account once the two agree", async () => {
     signUp.mockResolvedValue({ error: null });
 

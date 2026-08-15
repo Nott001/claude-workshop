@@ -172,12 +172,21 @@ export function SignUpForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
               aria-invalid={showMismatch || undefined}
               aria-describedby={showMismatch ? CONFIRM_ERROR_ID : undefined}
             />
-            {showMismatch && (
-              <FormMessage id={CONFIRM_ERROR_ID} role="alert">
-                Those passwords do not match.
-              </FormMessage>
-            )}
           </FormField>
+        </div>
+
+        {/* Full width and always occupying its line, because this message
+            arrives on the same click that reaches for whatever is under it:
+            the field blurs, the message appears, and anything below jumps by
+            its height. Inside the half-width cell it wrapped to two lines and
+            moved the consent checkbox 46px mid-click, so the click that
+            summoned it landed on nothing. */}
+        <div className="min-h-5">
+          {showMismatch && (
+            <FormMessage id={CONFIRM_ERROR_ID} role="alert">
+              Those passwords do not match.
+            </FormMessage>
+          )}
         </div>
 
         <PasswordRequirements password={password} context={{ email, fullName }} />
