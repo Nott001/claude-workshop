@@ -65,7 +65,10 @@ function FooterLinkItem({ link }: { link: FooterLink }) {
   }
 
   return (
-    <Link href={link.href} className={linkClass}>
+    // Every current footer link is external, so this branch renders nothing
+    // today; the prop is here so the first internal one added does not
+    // reintroduce a prefetch on every page in the app.
+    <Link href={link.href} prefetch={false} className={linkClass}>
       {link.label}
     </Link>
   );

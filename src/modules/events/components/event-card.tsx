@@ -46,6 +46,10 @@ export function EventCard({
   return (
     <Link
       href={detailHref ?? `/events/${eventId}`}
+      // One card is one prefetch, and a grid scrolls several into view at once
+      // — each a full render of a detail page nobody has opened. This was the
+      // largest single source of speculative load in the app.
+      prefetch={false}
       className="group block overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)] transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-[0_8px_30px_rgba(0,0,0,.12)]"
     >
       <article>

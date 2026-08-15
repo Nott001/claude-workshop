@@ -10,7 +10,7 @@ vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 // `next/link` consumes `prefetch` instead of forwarding it to the anchor, so
 // the prop is invisible in the rendered DOM. Standing in for the component is
-// the only way to observe what the rail actually asks for.
+// the only way to observe what each of these actually asks for.
 vi.mock("next/link", () => ({
   default: ({
     href,
@@ -31,6 +31,10 @@ vi.mock("next/link", () => ({
 
 import { Navbar } from "@/modules/shell/components/navbar";
 import { TopNavbar } from "@/modules/shell/components/top-navbar";
+import { Brand } from "@/modules/shell/components/brand";
+import { BackLink } from "@/shared/components/back-link";
+import { EventCard } from "@/modules/events/components/event-card";
+import { EventMemoryCard } from "@/modules/community/components/event-memory-card";
 
 function renderAs(role: string | null) {
   useSession.mockReturnValue({
@@ -133,5 +137,61 @@ describe("TopNavbar prefetching", () => {
     for (const link of navLinks()) {
       expect(link.dataset.prefetch).toBe("false");
     }
+  });
+});
+
+/**
+ * The chrome and the cards, which between them account for the rest of what a
+ * page load used to fetch speculatively. Measured against the production bundle
+ * in the real runtime, three guest page loads went from 26 prefetch requests to
+ * none once these were included.
+ */
+describe("Chrome and card prefetching", () => {
+  it("does not prefetch the brand mark's link to the landing page", () => {
+    const { container } = render(<Brand />);
+    expect(within(container).getByRole("link").dataset.prefetch).toBe("false");
+  });
+
+  it("does not prefetch wherever a back link points", () => {
+    const { container } = render(<BackLink href="/events">Back to Events</BackLink>);
+    expect(within(container).getByRole("link").dataset.prefetch).toBe("false");
+  });
+
+  // One card is one server render of a detail page nobody opened, and a grid
+  // brings several into view at once — the largest source of the burst.
+  it("does not prefetch an event card's detail page", () => {
+    const { container } = render(
+      <EventCard
+        eventId={615}
+        title="Simple Event"
+        status="published"
+        date="2026-09-01"
+        startTime="09:00"
+        endTime="17:00"
+        venueName="Startup Lab"
+      />,
+    );
+    const link = within(container).getByRole("link");
+    expect(link.getAttribute("href")).toBe("/events/615");
+    expect(link.dataset.prefetch).toBe("false");
+  });
+
+  it("does not prefetch a community memory card's detail page", () => {
+    const { container } = render(
+      <EventMemoryCard
+        event={{
+          event_id: 7,
+          title: "Live QA Workshop",
+          event_date: "2026-05-01",
+          start_time: "09:00",
+          end_time: "12:00",
+          venue_name: "Startup Lab",
+          status: "published",
+          course_name: null,
+          cover_image_url: null,
+        }}
+      />,
+    );
+    expect(within(container).getByRole("link").dataset.prefetch).toBe("false");
   });
 });

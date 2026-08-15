@@ -41,6 +41,9 @@ export default async function HomePage() {
           </p>
           <Link
             href="/sign-up"
+            // Above the fold on the app's most-visited page, so its prefetch
+            // fired for every visitor including the ones already signed in.
+            prefetch={false}
             className="mt-8 inline-flex rounded-xl bg-white px-8 py-4 text-base leading-6 font-bold text-brand transition hover:bg-white/90"
           >
             Join Now
