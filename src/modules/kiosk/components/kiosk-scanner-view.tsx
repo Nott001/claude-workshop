@@ -13,6 +13,7 @@ type ScanState =
   | { phase: "preview"; token: string; preview: TicketPreview }
   | { phase: "checking"; token: string; preview: TicketPreview }
   | { phase: "confirmed"; token: string; preview: TicketPreview; checkedInAt: string }
+  | { phase: "confirm_failed"; token: string; preview: TicketPreview; reason: string }
   | { phase: "invalid"; token: string };
 
 function formatTime(isoDate: string): string {
@@ -48,39 +49,76 @@ export function KioskScannerView({ event }: { event: Event }) {
   }
 
   async function handleConfirm() {
-    if (scanState.phase !== "preview") return;
+    if (scanState.phase !== "preview" && scanState.phase !== "confirm_failed") return;
     const { token, preview } = scanState;
     setScanState({ phase: "checking", token, preview });
 
+    let res: Response;
     try {
-      const res = await fetch("/api/checkin", {
+      res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ qr_token: token }),
       });
-      let data: { status: string; reason?: string };
-      if (res.ok) {
-        data = await res.json();
-      } else {
-        data = { status: "rejected", reason: "invalid" };
-      }
-
-      if (data.status === "success") {
-        const checkedInAt = formatTime(new Date().toISOString());
-        setScanState({ phase: "confirmed", token, preview, checkedInAt });
-      } else if (data.status === "duplicate") {
-        const updated: TicketPreview = { ...preview, status: "checked_in" as TicketStatus };
-        const checkedInAt = updated.checked_in_at ? formatTime(updated.checked_in_at) : formatTime(new Date().toISOString());
-        setScanState({ phase: "confirmed", token, preview: updated, checkedInAt });
-      } else {
-        // Rejected (cancelled) or anything unexpected: reflect the ticket's
-        // non-checkinable state on the card so the operator sees why.
-        const updated = data.reason === "cancelled" ? { ...preview, status: "cancelled" as TicketStatus } : preview;
-        setScanState({ phase: "preview", token, preview: updated });
-      }
     } catch {
-      setScanState({ phase: "preview", token, preview });
+      setScanState({
+        phase: "confirm_failed",
+        token,
+        preview,
+        reason: "Could not reach the server. Check the network and try again.",
+      });
+      return;
     }
+
+    if (!res.ok) {
+      setScanState({
+        phase: "confirm_failed",
+        token,
+        preview,
+        reason: "The check-in could not be recorded. Try again.",
+      });
+      return;
+    }
+
+    const data = (await res.json()) as {
+      status: string;
+      reason?: string;
+      ticket?: { checked_in_at?: string | null };
+    };
+
+    if (data.status === "success") {
+      const checkedInAt = formatTime(new Date().toISOString());
+      setScanState({ phase: "confirmed", token, preview, checkedInAt });
+      return;
+    }
+
+    if (data.status === "duplicate") {
+      // Someone else checked this ticket in between lookup and confirm. The
+      // server row is the source of truth for when; synthesizing "now" would
+      // put the wrong time on an already-checked-in ticket.
+      const ticketTime = data.ticket?.checked_in_at ?? preview.checked_in_at;
+      const checkedInAt = formatTime(ticketTime ?? new Date().toISOString());
+      const updated: TicketPreview = {
+        ...preview,
+        status: "checked_in" as TicketStatus,
+        checked_in_at: ticketTime,
+      };
+      setScanState({ phase: "confirmed", token, preview: updated, checkedInAt });
+      return;
+    }
+
+    if (data.status === "rejected" && data.reason === "cancelled") {
+      // Ticket was revoked between lookup and confirm: reflect it on the card.
+      setScanState({ phase: "preview", token, preview: { ...preview, status: "cancelled" as TicketStatus } });
+      return;
+    }
+
+    setScanState({
+      phase: "confirm_failed",
+      token,
+      preview,
+      reason: "This ticket is not in a state that can be checked in.",
+    });
   }
 
   function handleClear() {
@@ -127,13 +165,12 @@ export function KioskScannerView({ event }: { event: Event }) {
           )}
 
           {cameraActive && (
-            // Camera pauses while a card is shown so a held QR cannot re-trigger
-            // lookups or check-ins; it resumes when the operator clears the card.
+            // The camera stays up while a card is shown — pausing drops decoded
+            // tokens instead of tearing down getUserMedia and reading it back in.
             <QrScanner
-              onScan={(token) => {
-                if (scanState.phase === "idle") void lookupToken(token);
-              }}
-              active={cameraActive && scanState.phase === "idle"}
+              onScan={(token) => void lookupToken(token)}
+              active={cameraActive}
+              paused={cardActive}
               onError={(msg) => {
                 setCameraError(msg);
                 setCameraActive(false);
@@ -196,10 +233,22 @@ export function KioskScannerView({ event }: { event: Event }) {
             </div>
           )}
 
-          {(scanState.phase === "preview" || scanState.phase === "checking" || scanState.phase === "confirmed") && (
+          {(scanState.phase === "preview" ||
+            scanState.phase === "checking" ||
+            scanState.phase === "confirmed" ||
+            scanState.phase === "confirm_failed") && (
             <CheckinCard
               preview={scanState.preview}
-              phase={scanState.phase === "checking" ? "checking" : scanState.phase === "confirmed" ? "confirmed" : "preview"}
+              phase={
+                scanState.phase === "checking"
+                  ? "checking"
+                  : scanState.phase === "confirmed"
+                    ? "confirmed"
+                    : scanState.phase === "confirm_failed"
+                      ? "failed"
+                      : "preview"
+              }
+              failureReason={scanState.phase === "confirm_failed" ? scanState.reason : undefined}
               checkedInAt={scanState.phase === "confirmed" ? scanState.checkedInAt : undefined}
               onConfirm={() => void handleConfirm()}
               onClear={handleClear}

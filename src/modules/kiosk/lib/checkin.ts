@@ -37,6 +37,7 @@ interface TicketData {
   user_id: number;
   event_id: number;
   status: TicketStatus;
+  checked_in_at: string | null;
 }
 
 interface CheckinSuccess {

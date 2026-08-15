@@ -97,4 +97,87 @@ describe("QrScanner dedupe", () => {
     expect(startMock).toHaveBeenCalledTimes(1);
     expect(stopMock).not.toHaveBeenCalled();
   });
+
+  it("pauses without tearing the camera down, and resume accepts a new token", async () => {
+    const onScan = vi.fn();
+    const { rerender } = render(<QrScanner onScan={onScan} active />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await fireDecoded("tok-a");
+    expect(onScan).toHaveBeenCalledTimes(1);
+
+    rerender(<QrScanner onScan={onScan} active paused />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // While a card is shown the same QR stays in frame; nothing may fire.
+    await fireDecoded("tok-a");
+    await fireDecoded("tok-b");
+    expect(onScan).toHaveBeenCalledTimes(1);
+
+    // Pausing touched neither the camera lifecycle nor the session.
+    expect(startMock).toHaveBeenCalledTimes(1);
+    expect(stopMock).not.toHaveBeenCalled();
+
+    rerender(<QrScanner onScan={onScan} active paused={false} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // A held QR must not re-trigger; a genuinely new one may.
+    await fireDecoded("tok-a");
+    await fireDecoded("tok-c");
+    expect(onScan).toHaveBeenCalledTimes(2);
+    expect(onScan).toHaveBeenNthCalledWith(2, "tok-c");
+  });
+
+  it("accepts the same token again after the camera lifecycle restarts", async () => {
+    const onScan = vi.fn();
+    const { rerender } = render(<QrScanner onScan={onScan} active />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await fireDecoded("tok-a");
+
+    rerender(<QrScanner onScan={onScan} active={false} />);
+    rerender(<QrScanner onScan={onScan} active />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await fireDecoded("tok-a");
+
+    expect(onScan).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops the new camera even when the previous stop is still resolving", async () => {
+    const onScan = vi.fn();
+    const slowStop = new Promise<void>(() => {});
+    stopMock.mockReturnValueOnce(slowStop);
+
+    const { rerender, unmount } = render(<QrScanner onScan={onScan} active />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The stop starts but stays pending while a restart begins.
+    rerender(<QrScanner onScan={onScan} active={false} />);
+    rerender(<QrScanner onScan={onScan} active />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(startMock).toHaveBeenCalledTimes(2);
+
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The new camera was stopped even though the first stop never settled.
+    expect(stopMock).toHaveBeenCalledTimes(2);
+  });
 });

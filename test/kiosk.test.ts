@@ -25,6 +25,7 @@ describe("formatCheckinResult", () => {
     payment_id: 1,
     user_id: 5,
     event_id: 10,
+    checked_in_at: null,
   };
 
   it("returns success for issued ticket", () => {

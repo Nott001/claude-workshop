@@ -3,12 +3,13 @@
 import { Badge } from "@/shared/components/badge";
 import type { TicketPreview } from "@/modules/kiosk/lib/checkin";
 
-export type CheckinCardPhase = "preview" | "checking" | "confirmed";
+export type CheckinCardPhase = "preview" | "checking" | "confirmed" | "failed";
 
 interface CheckinCardProps {
   preview: TicketPreview;
   phase: CheckinCardPhase;
   checkedInAt?: string;
+  failureReason?: string;
   onConfirm: () => void;
   onClear: () => void;
 }
@@ -28,8 +29,8 @@ function StatusBadge({ preview, confirmed }: { preview: TicketPreview; confirmed
   return <Badge>Registered</Badge>;
 }
 
-export function CheckinCard({ preview, phase, checkedInAt, onConfirm, onClear }: CheckinCardProps) {
-  const canCheckIn = preview.status === "issued" && phase === "preview";
+export function CheckinCard({ preview, phase, checkedInAt, failureReason, onConfirm, onClear }: CheckinCardProps) {
+  const canCheckIn = preview.status === "issued" && phase !== "checking" && phase !== "confirmed";
   const disabledLabel =
     preview.status === "checked_in" ? "Already checked in" : preview.status === "cancelled" ? "Ticket cancelled" : "Check In";
 
@@ -59,10 +60,17 @@ export function CheckinCard({ preview, phase, checkedInAt, onConfirm, onClear }:
         )}
       </div>
 
+      {phase === "failed" && failureReason && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-error/20 bg-error/10 px-3 py-2 text-xs text-error">
+          <span className="material-symbols-rounded mt-0.5 text-[16px]">error</span>
+          <span>{failureReason}</span>
+        </div>
+      )}
+
       <div className="mt-4 flex gap-3">
         <button
           onClick={onConfirm}
-          disabled={phase !== "preview" || !canCheckIn}
+          disabled={!canCheckIn}
           className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-100 ${
             phase === "confirmed"
               ? "bg-success/10 text-success"

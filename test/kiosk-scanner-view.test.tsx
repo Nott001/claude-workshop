@@ -50,11 +50,13 @@ function stubFetch({
   lookupOk = true,
   confirm,
   confirmOk = true,
+  confirmError,
 }: {
   lookup: unknown;
   lookupOk?: boolean;
   confirm?: unknown;
   confirmOk?: boolean;
+  confirmError?: unknown;
 }) {
   const impl = async (input: string | URL | Request) => {
     const url = String(input);
@@ -62,6 +64,7 @@ function stubFetch({
       return { ok: lookupOk, json: async () => lookup };
     }
     if (url.startsWith("/api/checkin")) {
+      if (confirmError) throw confirmError;
       return { ok: confirmOk, json: async () => confirm };
     }
     return { ok: true, json: async () => ({ attendees: [], total: 0 }) };
@@ -150,6 +153,72 @@ describe("KioskScannerView lookup-then-confirm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Done$/ }));
     expect(screen.queryByText("Jane Doe")).toBeNull();
+  });
+
+  it("shows why the check-in failed on the card and lets the operator retry", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "internal server error" }, confirmOk: false });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("The check-in could not be recorded. Try again.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("surfaces a network failure on the card as an operator error, not a silent reset", async () => {
+    stubFetch({ lookup: issuedPreview, confirmError: new TypeError("Failed to fetch") });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("Could not reach the server. Check the network and try again.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("keeps the preview when confirm is rejected for an unexpected reason", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "rejected", reason: "session_mismatch" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("This ticket is not in a state that can be checked in.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Check In/ })).toBeTruthy();
+  });
+
+  it("marks a cancelled ticket on the card when it was revoked mid-scan", async () => {
+    stubFetch({ lookup: issuedPreview, confirm: { status: "rejected", reason: "cancelled" } });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    expect(await screen.findByText("Ticket cancelled")).toBeTruthy();
+  });
+
+  it("uses the server check-in time on a duplicate instead of synthesizing now", async () => {
+    const serverCheckedInAt = "2026-08-14T10:00:00.000Z";
+    stubFetch({
+      lookup: issuedPreview,
+      confirm: { status: "duplicate", ticket: { checked_in_at: serverCheckedInAt } },
+    });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("tok-123");
+    await screen.findByRole("button", { name: /Check In/ });
+    fireEvent.click(screen.getByRole("button", { name: /Check In/ }));
+
+    const expectedTime = new Date(serverCheckedInAt).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    expect(await screen.findByText(expectedTime)).toBeTruthy();
   });
 
   it("shows an already-checked-in ticket without offering to write again", async () => {
