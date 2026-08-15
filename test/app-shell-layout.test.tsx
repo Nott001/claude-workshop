@@ -102,3 +102,27 @@ describe("AppShell credential screens", () => {
     expect(TopNavbar).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("AppShell full-screen surfaces", () => {
+  it.each([
+    ["/courses/9/room", "course room"],
+    ["/staff/events/7/kiosk", "kiosk"],
+  ])("renders %s bare so the %s bar is the only bar", (path) => {
+    usePathname.mockReturnValue(path);
+
+    const { container } = renderShell(ROLES.FACILITATOR);
+
+    expect(TopNavbar).not.toHaveBeenCalled();
+    expect(StaffNavbar).not.toHaveBeenCalled();
+    expect(container.querySelector("main")).toBeNull();
+    expect(container.textContent).toContain("page content");
+  });
+
+  it("keeps the chrome on the event page the kiosk opens from", () => {
+    usePathname.mockReturnValue("/staff/events/7");
+
+    renderShell(ROLES.FACILITATOR);
+
+    expect(StaffNavbar).toHaveBeenCalledTimes(1);
+  });
+});

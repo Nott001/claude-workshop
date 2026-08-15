@@ -19,7 +19,10 @@ const HIDE_NAVBAR_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-pass
 const HIDE_ASSIST_PATHS = ["/sign-in", "/sign-up", "/staff-login", "/forgot-password", "/reset-password"];
 const HIDE_ASSIST_PATTERNS = [/^\/courses\/[^/]+\/room/];
 
-const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/];
+// Surfaces that own the whole screen and carry a bar of their own. The chrome
+// is not merely redundant here: the kiosk is a tablet propped at a door, and
+// the staff rail would hand the next attendee in the queue the admin console.
+const HIDE_NAVBAR_PATTERNS: RegExp[] = [/^\/courses\/[^/]+\/room/, /^\/staff\/events\/[^/]+\/kiosk/];
 
 function shouldHideNavbar(pathname: string) {
   if (HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path))) return true;
