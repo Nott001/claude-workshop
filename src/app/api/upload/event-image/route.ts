@@ -9,6 +9,7 @@ import {
   buildEventImagePath,
   validateFileType,
   validateFileSize,
+  oversizeMessage,
   getExtensionFromMimeType,
 } from "@/shared/integrations/storage/policy";
 
@@ -30,8 +31,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Only JPEG and PNG images are allowed" }, { status: 400 });
   }
 
+  // Measured after the browser's resize, so this is the bound on what the
+  // isolate holds -- not the size the reader was offered.
   if (!validateFileSize("event_images", file.size)) {
-    return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
+    return NextResponse.json({ error: oversizeMessage("event_images") }, { status: 400 });
   }
 
   const ext = getExtensionFromMimeType(file.type);
