@@ -106,6 +106,11 @@ export async function remove(supabase: DbClient, id: number): Promise<boolean> {
   return !error;
 }
 
+export async function removeByUserId(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("SPEAKER_PROFILE").delete().eq("user_id", userId);
+  return !error;
+}
+
 export async function listEventAssignments(supabase: DbClient, eventId: number): Promise<EventSpeakerAssignment[]> {
   // The nested USER embed gives the assignment roster names, which is what the
   // builder's speaker select and the host wiring display.

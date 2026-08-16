@@ -69,3 +69,8 @@ export async function softDelete(supabase: DbClient, ids: number[]): Promise<boo
   const { error } = await supabase.from("QA_MESSAGE").update({ deleted_at: now, updated_at: now }).in("id", ids);
   return !error;
 }
+
+export async function deleteByUser(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("QA_MESSAGE").delete().eq("user_id", userId);
+  return !error;
+}

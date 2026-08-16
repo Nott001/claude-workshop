@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
 }));
 
-const browserAuth = { updateUser: vi.fn() };
+const browserAuth = { updateUser: vi.fn(), getUser: vi.fn() };
 vi.mock("@/shared/db/browser-client", () => ({ getBrowserClient: () => ({ auth: browserAuth }) }));
 
 vi.mock("@supabase/ssr", () => ({
@@ -57,7 +57,9 @@ function harness() {
       <ProfilePhotoSection
         previewUrl={settings.currentUser?.profile_image_url}
         uploading={settings.uploading}
+        deleting={settings.deleting}
         onChange={settings.changeProfilePhoto}
+        onDelete={settings.deleteProfilePhoto}
       />
     );
   }
@@ -80,6 +82,7 @@ function navbarName(): string {
 beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ data: { session: { user: { id: "auth_1" } } as unknown as Session } });
+  browserAuth.getUser.mockResolvedValue({ data: { user: null } });
   vi.stubGlobal(
     "fetch",
     vi.fn((_url: string, init?: RequestInit) => {
@@ -113,7 +116,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(navbarName()).toContain("Grace Hopper");
@@ -132,7 +135,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(screen.getByText("GH")).toBeTruthy();
@@ -150,7 +153,7 @@ describe("saving a profile name", () => {
       settings.current!.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveName(submitEvent);
+      await settings.current!.saveChanges(submitEvent);
     });
 
     expect(navbarName()).toContain("Ada Lovelace");

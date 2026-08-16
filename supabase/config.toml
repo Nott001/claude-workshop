@@ -197,7 +197,8 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+# 2 exhausted in a single change: double confirmations mail both addresses (see sheet 11).
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -222,7 +223,7 @@ web3 = 30
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
-double_confirm_changes = true
+double_confirm_changes = false
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
@@ -232,15 +233,16 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+otp_expiry = 86400
 
-# Route auth mail (signup confirmations, password recovery) to the local inbucket
-# server so it is inspectable in Studio without a real mailbox. The inbucket SMTP
-# inbound port is 54325 (54324 is only its web UI); see [local_smtp] above.
+# Route auth mail (signup confirmations, password recovery, email change) to the
+# local inbucket server so it is inspectable without a real mailbox. GoTrue runs
+# in its own container, so the target must be the docker-network alias and
+# container port, not the host-published 54325.
 [auth.email.smtp]
 enabled = true
-host = "127.0.0.1"
-port = 54325
+host = "inbucket"
+port = 1025
 # inbucket does not authenticate; the CLI still rejects empty strings, so any
 # non-empty placeholder satisfies its validation.
 user = "inbucket"
@@ -252,6 +254,10 @@ sender_name = "Supabase Auth"
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your email change"
+content_path = "./supabase/templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

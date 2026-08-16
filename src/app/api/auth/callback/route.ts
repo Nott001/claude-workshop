@@ -8,6 +8,16 @@ export async function GET(req: Request) {
   const code = searchParams.get("code");
   const authFailed = () => NextResponse.redirect(`${origin}/sign-in?error=auth_failed`);
 
+  // GoTrue's /verify failure reach: a consumed, expired or invalidated confirm
+  // link bounces the browser here with error_code/error_description in the query
+  // (PKCE links carry them in the query, not the fragment). Land those on a page
+  // that can explain a dead link instead of a sign-in screen claiming auth
+  // failure. The codeless, errorless reach — the double-confirm message hop —
+  // still falls through to the sign-in outcome below.
+  if (searchParams.has("error_code") || searchParams.has("error_description") || searchParams.has("error")) {
+    return NextResponse.redirect(`${origin}/email-link-expired`);
+  }
+
   const supabase = await getRouteClient();
 
   // A callback carrying no code has nothing to redeem, so it is never sent to

@@ -15,6 +15,25 @@ export function isSameEmail(a?: string | null, b?: string | null): boolean {
   return normalizeEmail(a) === normalizeEmail(b);
 }
 
+/**
+ * How long a confirmation link may be re-asked for after one was sent. The
+ * client countdown and the server-side rate gate read the same constant, so
+ * the window can never drift between the copy on screen and what the route
+ * enforces.
+ */
+export const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * How long an email-change confirmation link stays valid, mirroring
+ * `otp_expiry` in `supabase/config.toml`. Kept separate from the smaller
+ * cooldown above so the copy can name the link's lifetime without falling into
+ * the "60s IS the lifetime" misread.
+ */
+export const EMAIL_CHANGE_LINK_TTL_SECONDS = 86400;
+
+/** The TTL spelled out for UI copy, derived so the words follow the number. */
+export const EMAIL_CHANGE_LINK_TTL_LABEL = `${EMAIL_CHANGE_LINK_TTL_SECONDS / 3600} hours`;
+
 /** The part after the last `@`, or null if there is nothing usable there. */
 export function emailDomain(email: string): string | null {
   const at = normalizeEmail(email).lastIndexOf("@");
