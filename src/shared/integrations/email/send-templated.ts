@@ -4,8 +4,6 @@ export interface EmailTemplate<P> {
   subject: string;
   buildHtml: (params: P) => string;
   buildText: (params: P) => string;
-  /** See `SendEmailParams.unsubscribable`. Absent means no, which is the safe default. */
-  unsubscribable?: boolean;
 }
 
 /**
@@ -25,6 +23,5 @@ export async function sendTemplatedEmail<P>(
     subject: template.subject,
     htmlContent: template.buildHtml(params),
     textContent: template.buildText(params),
-    unsubscribable: template.unsubscribable,
   });
 }

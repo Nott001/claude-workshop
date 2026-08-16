@@ -159,38 +159,3 @@ describe("SmtpEmailProvider", () => {
     expect(stalled.filter((server) => !server.wasClosed())).toHaveLength(0);
   });
 });
-
-describe("SmtpEmailProvider unsubscribe header", () => {
-  const withUnsub: SmtpConfig = { ...CONFIG, listUnsubscribe: "mailto:unsub@startuplab.center" };
-
-  function provider(config: SmtpConfig) {
-    const server = fakeSmtpServer(acceptingScript());
-    return { provider: new SmtpEmailProvider(config, async () => server.duplex), server };
-  }
-
-  it("offers an unsubscribe on a message that asked for one", async () => {
-    const { provider: p, server } = provider(withUnsub);
-
-    await p.send({ ...MESSAGE, unsubscribable: true });
-
-    expect(server.written()).toContain("List-Unsubscribe: <mailto:unsub@startuplab.center>");
-  });
-
-  // The reason the flag lives on the template: a ticket the reader paid for
-  // must not carry an offer to stop sending it.
-  it("withholds it from a message that did not", async () => {
-    const { provider: p, server } = provider(withUnsub);
-
-    await p.send(MESSAGE);
-
-    expect(server.written()).not.toContain("List-Unsubscribe");
-  });
-
-  it("withholds it when the deployment has nowhere to send one", async () => {
-    const { provider: p, server } = provider(CONFIG);
-
-    await p.send({ ...MESSAGE, unsubscribable: true });
-
-    expect(server.written()).not.toContain("List-Unsubscribe");
-  });
-});

@@ -126,7 +126,7 @@ describe("POST /api/organization", () => {
     await POST(post(INVITE));
     const sent = send.mock.calls[0][0];
 
-    expect(sent.textContent).toContain("StartupLab");
+    expect(sent.textContent).toContain("Startup Lab");
     expect(sent.textContent).not.toContain("<");
   });
 

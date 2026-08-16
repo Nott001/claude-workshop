@@ -27,18 +27,12 @@ SMTP_HOST=
 SMTP_USER=
 SMTP_PASSWORD=
 
-# Optional. Defaults: 465, the SMTP_USER mailbox, "StartupLab Business Center",
-# 30000, 2.
+# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 30000, 2.
 # SMTP_REPLY_TO is omitted unless set — a reply address nobody reads is worse
 # than none, so point it at a monitored mailbox or leave it blank.
-# SMTP_LIST_UNSUBSCRIBE takes a mailto: or https: target and is offered only on
-# the invitation and survey messages, which are the two nobody asked for. Leave
-# it blank unless somebody actually acts on what arrives there: an ignored
-# unsubscribe is worse for deliverability than none being offered.
 # SMTP_PORT=
 # SMTP_FROM_EMAIL=
 # SMTP_FROM_NAME=
 # SMTP_REPLY_TO=
-# SMTP_LIST_UNSUBSCRIBE=
 # SMTP_TIMEOUT_MS=
 # SMTP_ATTEMPTS=

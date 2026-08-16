@@ -38,9 +38,6 @@ export class SmtpEmailProvider implements EmailProvider {
       html: params.htmlContent,
       text: params.textContent,
       replyTo: this.config.replyTo,
-      // Both halves have to agree: a template that should not offer one, and a
-      // deployment that has nowhere to send it, each veto the header alone.
-      listUnsubscribe: params.unsubscribable ? this.config.listUnsubscribe : undefined,
     });
 
     let lastError = "";

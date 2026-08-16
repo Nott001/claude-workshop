@@ -43,7 +43,7 @@ describe("readSmtpConfig", () => {
   });
 
   it("carries a default display name that overrides cleanly", () => {
-    expect(readSmtpConfig(COMPLETE)?.fromName).toBe("StartupLab");
+    expect(readSmtpConfig(COMPLETE)?.fromName).toBe("Startup Lab");
     expect(readSmtpConfig({ ...COMPLETE, SMTP_FROM_NAME: "SL Events" })?.fromName).toBe("SL Events");
   });
 
