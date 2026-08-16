@@ -574,7 +574,7 @@ describe("when the pending email change is confirmed", () => {
 
     // The confirmation link was opened in another tab, so auth-js re-broadcast
     // puts the new address on the session — the pending banner must not survive
-    // it.
+    // it, and the section records the address so it can say "verified".
     sessionValue.mockReturnValue({ user: { ...user, email: "grace@example.com" }, updateUser: sessionUpdateUser });
     await act(async () => {
       rerender();
@@ -583,6 +583,7 @@ describe("when the pending email change is confirmed", () => {
     expect(result.current.emailSent).toBe(false);
     expect(result.current.resendIn).toBe(0);
     expect(result.current.newEmail).toBe("grace@example.com");
+    expect(result.current.emailVerified).toBe("grace@example.com");
   });
 
   it("leaves the banner alone for a session repaint that is not the confirmation", async () => {
@@ -597,7 +598,7 @@ describe("when the pending email change is confirmed", () => {
 
     // A profile save re-emits the session under the old address; the change is
     // still in flight, so the banner stays until the session actually reaches
-    // the pending address.
+    // the pending address, and nothing has been verified.
     sessionValue.mockReturnValue({ user: { ...user, full_name: "Grace Hopper" }, updateUser: sessionUpdateUser });
     await act(async () => {
       rerender();
@@ -605,6 +606,26 @@ describe("when the pending email change is confirmed", () => {
 
     expect(result.current.emailSent).toBe(true);
     expect(result.current.newEmail).toBe("grace@example.com");
+    expect(result.current.emailVerified).toBeNull();
+  });
+
+  it("clears the verified notice when dismissed", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    sessionValue.mockReturnValue({ user: { ...user, email: "grace@example.com" }, updateUser: sessionUpdateUser });
+    await act(async () => {
+      rerender();
+    });
+    expect(result.current.emailVerified).toBe("grace@example.com");
+
+    act(() => result.current.dismissEmailVerified());
+
+    expect(result.current.emailVerified).toBeNull();
   });
 });
 
@@ -1251,7 +1272,7 @@ describe("dismissing an email change", () => {
     return result;
   }
 
-  it("cancels through the route, keeping the typed address", async () => {
+  it("cancels through the route, returning the field to the account email", async () => {
     const fetch = stubRoutes({ ok: true });
     const result = await getSentState();
     expect(result.current.emailSent).toBe(true);
@@ -1263,8 +1284,10 @@ describe("dismissing an email change", () => {
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(CANCEL_ROUTE))).toBe(true);
     expect(result.current.emailSent).toBe(false);
     expect(result.current.resendIn).toBe(0);
-    // A dismissal, not a correction: the typed address stays in the field.
-    expect(result.current.newEmail).toBe("grace@example.com");
+    // The field is bound to the stored address, not the attempted one: cancel
+    // snaps it back, so what is on screen is plainly the original email.
+    expect(result.current.newEmail).toBe("ada@example.com");
+    expect(result.current.emailVerified).toBeNull();
     expect(result.current.toast).toBeNull();
   });
 

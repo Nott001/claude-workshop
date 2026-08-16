@@ -55,6 +55,8 @@ export function AccountSettings() {
                 resendIn={settings.resendIn}
                 onResend={settings.resendVerification}
                 onCancel={settings.cancelEmailChange}
+                emailVerified={settings.emailVerified}
+                onDismissVerified={settings.dismissEmailVerified}
               />
             </div>
             <div className="p-6">

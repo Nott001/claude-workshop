@@ -107,6 +107,35 @@ describe("EmailSection", () => {
 
     expect(screen.getByText("Email change pending")).toBeTruthy();
   });
+
+  it("announces a just-verified address above the box", () => {
+    renderSection("grace@example.com", false, { emailVerified: "grace@example.com" });
+
+    expect(screen.getByText("Email verified — grace@example.com")).toBeTruthy();
+  });
+
+  it("does not announce a verification that has not happened", () => {
+    renderSection("grace@example.com");
+
+    expect(screen.queryByText(/Email verified/)).toBeNull();
+  });
+
+  it("dismisses the verification notice when asked", () => {
+    const { onDismissVerified } = renderSection("grace@example.com", false, {
+      emailVerified: "grace@example.com",
+      onDismissVerified: vi.fn(),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismissVerified).toHaveBeenCalled();
+  });
+
+  it("keeps the verification notice out of the pending view", () => {
+    renderSection("grace@example.com", true, { emailVerified: "grace@example.com" });
+
+    expect(screen.queryByText(/Email verified/)).toBeNull();
+    expect(screen.getByText("Email change pending")).toBeTruthy();
+  });
 });
 
 describe("EmailSection after the link is sent", () => {

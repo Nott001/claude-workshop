@@ -15,6 +15,9 @@ interface EmailSectionProps {
   resendIn: number;
   onResend: () => void;
   onCancel: () => void;
+  /** The address just confirmed by opening the mailed link; shown once, above the box. */
+  emailVerified?: string | null;
+  onDismissVerified?: () => void;
 }
 
 export function EmailSection({
@@ -27,6 +30,8 @@ export function EmailSection({
   resendIn,
   onResend,
   onCancel,
+  emailVerified,
+  onDismissVerified,
 }: EmailSectionProps) {
   const unchanged = isSameEmail(newEmail, currentEmail);
 
@@ -68,35 +73,53 @@ export function EmailSection({
           </div>
         </>
       ) : (
-        <FormField className="mt-4">
-          <Input
-            id="email"
-            type="email"
-            placeholder="you@example.com"
-            value={newEmail}
-            onChange={(e) => onChange(e.target.value)}
-            aria-invalid={!!emailError}
-            aria-describedby={emailError ? "email-error" : undefined}
-          />
-          {emailError && (
-            <FormMessage id="email-error" role="alert">
-              {emailError}
-            </FormMessage>
+        <>
+          {emailVerified && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg bg-success/10 p-3">
+              <span className="material-symbols-rounded mt-0.5 text-sm text-success">verified</span>
+              <p className="flex-1 text-xs text-muted-fg">Email verified — {emailVerified}</p>
+              {onDismissVerified && (
+                <button
+                  type="button"
+                  onClick={onDismissVerified}
+                  aria-label="Dismiss"
+                  className="material-symbols-rounded text-sm text-muted-fg hover:text-fg"
+                >
+                  close
+                </button>
+              )}
+            </div>
           )}
-          {suggestion && !emailError && (
-            <p className="mt-2 text-xs text-muted-fg">
-              Did you mean{" "}
-              <button
-                type="button"
-                onClick={() => onChange(suggestion)}
-                className="font-medium text-brand underline underline-offset-2"
-              >
-                {suggestion}
-              </button>
-              ?
-            </p>
-          )}
-        </FormField>
+          <FormField className="mt-4">
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={newEmail}
+              onChange={(e) => onChange(e.target.value)}
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? "email-error" : undefined}
+            />
+            {emailError && (
+              <FormMessage id="email-error" role="alert">
+                {emailError}
+              </FormMessage>
+            )}
+            {suggestion && !emailError && (
+              <p className="mt-2 text-xs text-muted-fg">
+                Did you mean{" "}
+                <button
+                  type="button"
+                  onClick={() => onChange(suggestion)}
+                  className="font-medium text-brand underline underline-offset-2"
+                >
+                  {suggestion}
+                </button>
+                ?
+              </p>
+            )}
+          </FormField>
+        </>
       )}
     </>
   );

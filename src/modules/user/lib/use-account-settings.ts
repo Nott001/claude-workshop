@@ -67,6 +67,12 @@ export function useAccountSettings() {
   // the pending banner exactly when the session reaches it, and only then. Any
   // other session repaint must leave the pending state alone.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  // The address the session just reached by opening the mailed link, kept long
+  // enough for the section to say the change went through instead of silently
+  // accepting the new value. Transient: cleared again on the next email action
+  // and gone with the page on reload.
+  const [emailVerified, setEmailVerified] = useState<string | null>(null);
+  const dismissEmailVerified = useCallback(() => setEmailVerified(null), []);
 
   if (sessionEmail !== lastSessionEmail) {
     setLastSessionEmail(sessionEmail);
@@ -76,6 +82,7 @@ export function useAccountSettings() {
       setEmailSent(false);
       setResendIn(0);
       setEmailError(null);
+      setEmailVerified(sessionEmail);
     }
   }
 
@@ -94,6 +101,7 @@ export function useAccountSettings() {
     setNewEmail(value);
     setEmailError(null);
     setSavedNotice(null);
+    setEmailVerified(null);
   }, []);
 
   // One timeout per remaining second rather than a repeating interval: it
@@ -343,6 +351,7 @@ export function useAccountSettings() {
     }
     setPendingEmail(email.trim());
     setResendIn(RESEND_COOLDOWN_SECONDS);
+    setEmailVerified(null);
     return true;
   }
 
@@ -385,6 +394,11 @@ export function useAccountSettings() {
     setEmailSent(false);
     setResendIn(0);
     setPendingEmail(null);
+    setEmailVerified(null);
+    // The field is bound to the stored address, not the attempted one: cancel
+    // snaps it back to the account's email so what remains on screen is plainly
+    // the original, not an address that never landed.
+    setNewEmail(currentUser?.email ?? "");
   }
 
   type EmailVerdict = { ok: true } | { ok: false; message: string };
@@ -639,6 +653,8 @@ export function useAccountSettings() {
     setNewEmail: editEmail,
     emailError,
     emailSent,
+    emailVerified,
+    dismissEmailVerified,
     savingEmail,
     resendIn,
     resendVerification,
