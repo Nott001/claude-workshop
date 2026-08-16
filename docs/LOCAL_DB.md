@@ -50,7 +50,7 @@ The project's own transactional mail — password-reset links, organization
 invites, tickets, check-in receipts — is delivered by the app's SMTP seam, not
 by GoTrue, so it reaches inbucket only when the seam points at it. Add this to
 `.env` (the file `pnpm dev` reads; `pnpm db:env` rewrites only the Supabase
-lines, so it survives toggling):
+block, so it survives toggling):
 
 ```env
 SMTP_HOST=127.0.0.1
@@ -128,18 +128,24 @@ What a fresh reset leaves:
 ## Env toggling
 
 The app reads Supabase settings from `.env`, the single gitignored runtime env
-file. Its sidecar snapshot `.env.remote` is gitignored too; a fresh clone has
-neither, so create them via:
+file. Two named targets exist, and `pnpm db:env` points `.env` at one without
+touching anything else in it:
 
 ```bash
-pnpm db:env local   # read local stack values (requires `pnpm db:start`), snapshot current file to .env.remote, rewrite .env
-pnpm db:env remote  # restore the pre-local .env from the snapshot
+pnpm db:env local   # point .env at the local stack (requires `pnpm db:start`)
+pnpm db:env remote  # point .env at the hosted project, from the .env.remote overlay
 ```
 
-`pnpm db:env` never prints secrets — it redacts the three key lines in its diff.
-`.env.example` (committed) documents the keys and placeholders. `SUPABASE_DB_PASSWORD`
+`.env.remote` is an overlay you create by copying `.env.remote.example` and
+filling in the hosted project's keys — `db:env` never generates it. A fresh
+clone has neither `.env` nor `.env.remote`, so boot the stack, run
+`pnpm db:env local`, and `dev` works; point at the hosted project later by
+writing the overlay and running `pnpm db:env remote`.
+
+`pnpm db:env` never prints secrets — it redacts the key lines in its diff.
+`.env.example` documents the keys and placeholders. `SUPABASE_DB_PASSWORD`
 (picked up by the Supabase CLI on a fresh `supabase start`) lives in this same
-`.env`; `db:env` rewrites only the Supabase key lines, so it survives toggling.
+`.env`; `db:env` rewrites only the Supabase block, so it survives toggling.
 
 Switching modes changes only the URL and the two keys; `pnpm dev` does not need
 a restart, but a running dev server holds whatever `.env` was there at

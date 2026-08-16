@@ -46,6 +46,24 @@ The anon key is public by design, but it is stored as a secret so it is not
 printed in logs; the project URL and app URL are variables so they can be read
 back and shown in the run summary.
 
+### Env files, and which host reads them
+
+| File                                   | Who reads it                                                 | What's in it                                               | Git       | Prod counterpart                     |
+| -------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------- | --------- | ------------------------------------ |
+| `.env`                                 | `next dev`, `next build` (i.e. the local `cf:preview` build) | App env for local runs; Supabase target owned by `db:env`  | ignored   | GitHub `production` env (build-time) |
+| `.env.remote`                          | `db:env remote` (merged into `.env`)                         | Hosted-project Supabase block, for local work on real data | ignored   | none (a local dev tool)              |
+| `.env.local`                           | Next, ahead of `.env`                                        | Per-developer overrides                                    | ignored   | none                                 |
+| `.dev.vars`                            | `wrangler dev` / `cf:preview`                                | Runtime secrets for the local isolate (SMTP, service key)  | ignored   | Cloudflare Worker secrets            |
+| `.env.example` / `.env.remote.example` | humans (templates)                                           | Placeholders only                                          | committed | —                                    |
+
+Nothing deployed is ever read from a local file: prod build-time values come
+from the GitHub `production` environment at deploy, and prod runtime secrets
+are Worker secrets in Cloudflare. The files above only shape local `dev` and
+`cf:preview`. Two of them carry the same runtime secrets
+(`SUPABASE_SERVICE_ROLE_KEY`, `SMTP_PASSWORD`): `.env` for `next dev` and
+`.dev.vars` for the workerd preview — keep them in step, since a change to one
+is invisible to the other.
+
 ## One-time setup
 
 1. **Authenticate locally.**
