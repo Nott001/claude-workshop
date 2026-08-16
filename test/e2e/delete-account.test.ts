@@ -17,17 +17,17 @@ import {
 /**
  * End-to-end account deletion.
  *
- * Sheet 06's manual checklist turned into a spec: seed an account that holds
- * every kind of record the teardown claims to remove (open support case, chat
- * messages to and from the user, a ticket, a Q&A post, a survey response, an
- * email log, a password-reset attempt, a profile photo, a speaker profile),
- * delete the account through the real modal, then prove each column of the
- * sheet's table against the database: the rows are gone, the USER row is a
- * tombstone, payments still point at it, the auth identity is deleted.
+ * Seeds an account that holds every kind of record the teardown claims to
+ * remove — an open support case, chat messages to and from the user, a ticket,
+ * a Q&A post, a survey response, an email log, a password-reset attempt, a
+ * profile photo and a speaker profile — deletes the account through the real
+ * modal, then proves the teardown against the database: the rows are gone, the
+ * USER row is a tombstone, payments still point at it and the auth identity is
+ * deleted.
  *
- * The recovery leg cannot be checked directly: the recover endpoint answers
- * identically for known and unknown addresses by design, precisely so it cannot
- * be used to enumerate accounts. Its automated proxy is proving the old
+ * The password-recovery check cannot be done directly: the recover endpoint
+ * answers identically for known and unknown addresses by design, precisely so
+ * it cannot be used to enumerate accounts. Its proxy here is proving the old
  * credentials no longer sign in and the address is free to register again.
  */
 
@@ -245,8 +245,8 @@ test("the address is free again after deletion", async ({ page }) => {
   const { data: identity } = await db.auth.admin.getUserById(user.authId);
   expect(identity.user).toBeNull();
 
-  // …so the old credentials no longer sign in — the automated stand-in for the
-  // password-recovery leg, which answers identically for any address by design.
+  // …so the old credentials no longer sign in — the stand-in for the
+  // password-recovery check, which answers identically for any address by design.
   const { data: signInData, error } = await db.auth.signInWithPassword({ email: user.email, password: user.password });
   expect(signInData.user).toBeNull();
   expect(error).toBeTruthy();
