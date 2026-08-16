@@ -86,3 +86,8 @@ export async function insert(
   }
   return true;
 }
+
+export async function deleteByUser(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("EMAIL_LOG").delete().eq("user_id", userId);
+  return !error;
+}
