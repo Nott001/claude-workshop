@@ -146,10 +146,19 @@ export async function assignSpeaker(db: SupabaseClient, userId: number, eventId:
 /**
  * Puts a real object in a real bucket. Without this the entitlement tests prove
  * nothing: a missing object and a forbidden one both return 404, by design.
+ *
+ * Buckets restrict the MIME types they accept, so the caller names what it is
+ * uploading: course assets allow PDFs, image buckets only images.
  */
-export async function uploadObject(db: SupabaseClient, bucket: string, key: string, body: string): Promise<void> {
-  const { error } = await db.storage.from(bucket).upload(key, new Blob([body], { type: "application/pdf" }), {
-    contentType: "application/pdf",
+export async function uploadObject(
+  db: SupabaseClient,
+  bucket: string,
+  key: string,
+  body: string | Uint8Array,
+  contentType = "application/pdf",
+): Promise<void> {
+  const { error } = await db.storage.from(bucket).upload(key, new Blob([body as BlobPart], { type: contentType }), {
+    contentType,
     upsert: true,
   });
   if (error) throw new Error(`storage upload failed: ${error.message}`);

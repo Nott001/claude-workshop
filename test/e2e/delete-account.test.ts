@@ -129,7 +129,14 @@ async function provisionAccount(user: SeededUser, event: SeededEvent, course: Se
   if (prErr) throw new Error(`PASSWORD_RESET_ATTEMPT insert failed: ${prErr.message}`);
 
   const photoKey = `users/${user.userId}/avatar.png`;
-  await uploadObject(db, "profile_images", photoKey, "e2e profile photo");
+  // A real 1x1 PNG: profile_images only accepts image MIME types, and some
+  // environments sniff the bytes, so a text blob with an image content-type is
+  // not enough.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await uploadObject(db, "profile_images", photoKey, png, "image/png");
   objects.push({ bucket: "profile_images", key: photoKey });
 
   return { sessionId, moduleId, profileId, paymentIds };
