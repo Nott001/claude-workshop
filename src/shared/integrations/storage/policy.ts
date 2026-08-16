@@ -88,11 +88,17 @@ const BUCKET_CONFIG: Record<
   },
 };
 
+/** The one place a size limit is turned into a sentence, so the two limits
+ * cannot end up described in two different shapes. */
+function underLimitMessage(bucket: StorageBucket, bytes: number): string {
+  return `${BUCKET_CONFIG[bucket].noun} must be under ${Math.floor(bytes / MB)} MB.`;
+}
+
 /** Why this bucket refuses the file the reader picked, or null if it does not.
  * Measures the original, before any resize, so it must use the source limit. */
 export function describeRejection(bucket: StorageBucket, file: File): string | null {
   if (!validateFileType(bucket, file.type)) return BUCKET_CONFIG[bucket].refusal;
-  if (!validateSourceSize(bucket, file.size)) return `${BUCKET_CONFIG[bucket].noun} must be under ${maxSizeMb(bucket)} MB.`;
+  if (!validateSourceSize(bucket, file.size)) return underLimitMessage(bucket, BUCKET_CONFIG[bucket].maxSourceBytes);
   return null;
 }
 
@@ -122,7 +128,7 @@ export function validateFileSize(bucket: StorageBucket, size: number): boolean {
  */
 export function oversizeMessage(bucket: StorageBucket): string {
   const { noun, maxSourceBytes, maxUploadBytes } = BUCKET_CONFIG[bucket];
-  if (maxSourceBytes === maxUploadBytes) return `${noun} must be under ${Math.floor(maxUploadBytes / MB)} MB.`;
+  if (maxSourceBytes === maxUploadBytes) return underLimitMessage(bucket, maxUploadBytes);
   return `${noun} could not be processed in your browser. Try a smaller one.`;
 }
 

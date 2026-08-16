@@ -35,7 +35,7 @@ export type SendSurveyResult =
  * zero, which is free to do because the retry path already existed: a response
  * is picked up only while its `sent_at` is null.
  */
-export const SURVEY_SEND_BATCH = 5;
+const SURVEY_SEND_BATCH = 5;
 
 /** Staff-triggered send. Creates the survey and its response rows, then emails
  * one batch of recipients, reporting how many are still queued. Re-running

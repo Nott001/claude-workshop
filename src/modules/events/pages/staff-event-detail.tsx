@@ -482,6 +482,19 @@ function SurveysSection({
       failed += result.failed;
 
       if (result.remaining === 0) break;
+
+      // A batch that delivered nothing has not moved the queue: a response is
+      // only taken off it once its mail is away, so the next call would be
+      // handed the same recipients and `remaining` would never fall. That is
+      // the mail path being down rather than one address being bad, and
+      // looping on it would reopen connections until the tab is closed.
+      if (result.delivered === 0) {
+        setSendMessage(`Delivered ${delivered}; the rest could not be sent. Try again once mail is working.`);
+        setSending(false);
+        mutate();
+        return;
+      }
+
       setSendMessage(`Sending… ${delivered} delivered, ${result.remaining} to go.`);
     }
 
