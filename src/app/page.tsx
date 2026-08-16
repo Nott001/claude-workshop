@@ -3,7 +3,7 @@ import { supabase } from "@/shared/db/client";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import { EventGrid } from "@/modules/events/components/event-grid";
-import { HeroSection, HeroMediaCard } from "@/modules/shell/components/hero-section";
+import { HeroSection } from "@/modules/shell/components/hero-section";
 import type { LandingEvent } from "@/shared/types";
 import { toLandingEvent } from "@/modules/events/lib/landing-event";
 
@@ -31,8 +31,8 @@ export default async function HomePage() {
     <>
       <PostLoginRedirect />
       <div className="flex flex-1 flex-col bg-bg text-fg">
-        <HeroSection media={<HeroMediaCard />}>
-          <h1 className="max-w-xl text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl sm:leading-[60px]">
+        <HeroSection>
+          <h1 className="text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl sm:leading-[1.1]">
             StartupLab Business Center
           </h1>
           <p className="mt-4 max-w-[576px] text-base leading-7 text-white/90 sm:text-lg">
@@ -41,6 +41,9 @@ export default async function HomePage() {
           </p>
           <Link
             href="/sign-up"
+            // Above the fold on the app's most-visited page, so its prefetch
+            // fired for every visitor including the ones already signed in.
+            prefetch={false}
             className="mt-8 inline-flex rounded-xl bg-white px-8 py-4 text-base leading-6 font-bold text-brand transition hover:bg-white/90"
           >
             Join Now

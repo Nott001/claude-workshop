@@ -1,11 +1,11 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { download, from, requireAuth, userHasCourseAccess, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
-  const download = vi.fn();
+const { createSignedUrl, from, requireAuth, userHasCourseAccess, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
+  const createSignedUrl = vi.fn();
   return {
-    download,
-    from: vi.fn(() => ({ download })),
+    createSignedUrl,
+    from: vi.fn(() => ({ createSignedUrl })),
     requireAuth: vi.fn(),
     userHasCourseAccess: vi.fn(),
     isPublished: vi.fn(),
@@ -26,6 +26,12 @@ import { GET } from "@/app/api/storage/[bucket]/[...path]/route";
 const req = () => new Request("https://app.test/api/storage/x/y");
 const params = (bucket: string, path: string[]) => ({ params: Promise.resolve({ bucket, path }) });
 
+// The route redirects to a signed URL rather than proxying the bytes, so these
+// mirror the lifetimes it asks Supabase for.
+const SIGNED_URL = "https://storage.test/signed/object?token=abc";
+const PUBLIC_TTL = 3600;
+const PRIVATE_TTL = 60;
+
 const attendee = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
 const facilitator = { id: 9, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com" };
 const speaker = { id: 7, role: ROLES.SPEAKER, full_name: "Sam", email: "sam@example.com" };
@@ -44,14 +50,14 @@ beforeEach(() => {
   userHasCourseAccess.mockResolvedValue(true);
   isPublished.mockResolvedValue(true);
   isSpeakerOnPublishedEvent.mockResolvedValue(true);
-  download.mockResolvedValue({ data: new Blob(["bytes"], { type: "application/pdf" }), error: null });
+  createSignedUrl.mockResolvedValue({ data: { signedUrl: SIGNED_URL }, error: null });
 });
 
 describe("bucket allowlist", () => {
   it.each(["event_images", "profile_images", "course_assets", "course_videos"])("serves the known bucket %s", async (b) => {
     const res = await GET(req(), params(b, keyFor(b)));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(from).toHaveBeenCalledWith(b);
   });
 
@@ -76,13 +82,13 @@ describe("path safety", () => {
     const res = await GET(req(), params("course_assets", segments));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("passes a well-formed key through unchanged", async () => {
     await GET(req(), params("course_assets", lesson));
 
-    expect(download).toHaveBeenCalledWith("courses/12/modules/3/lessons/8/slides.pdf");
+    expect(createSignedUrl).toHaveBeenCalledWith("courses/12/modules/3/lessons/8/slides.pdf", PRIVATE_TTL);
   });
 });
 
@@ -93,13 +99,13 @@ describe("authentication", () => {
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("does not require an entitlement check for non-course buckets", async () => {
     const res = await GET(req(), params("event_images", cover));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(userHasCourseAccess).not.toHaveBeenCalled();
   });
 });
@@ -117,7 +123,7 @@ describe("public event covers", () => {
 
     const res = await GET(req(), params("event_images", cover));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(isPublished).toHaveBeenCalledWith(expect.anything(), 1);
   });
 
@@ -129,7 +135,7 @@ describe("public event covers", () => {
     // Every card on `/` and `/events` is one of these requests, and each
     // `requireAuth` is an auth round trip plus a user lookup whose answer this
     // branch never reads. Without this assertion the ordering silently regresses.
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(requireAuth).not.toHaveBeenCalled();
   });
 
@@ -146,7 +152,7 @@ describe("public event covers", () => {
 
     const res = await GET(req(), params("event_images", cover));
 
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600");
+    expect(res.headers.get("Cache-Control")).toBe(`public, max-age=${PUBLIC_TTL - 300}`);
   });
 
   it("refuses a draft cover, so a guessed path cannot preview an unpublished event", async () => {
@@ -155,7 +161,7 @@ describe("public event covers", () => {
     const res = await GET(req(), params("event_images", cover));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("still shows a draft cover to staff", async () => {
@@ -164,9 +170,9 @@ describe("public event covers", () => {
 
     const res = await GET(req(), params("event_images", cover));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     // Per-user verdict, so it must not be replayed out of a shared cache.
-    expect(res.headers.get("Cache-Control")).toBe("private, max-age=0, must-revalidate");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it("refuses a draft cover to a signed-in attendee", async () => {
@@ -176,7 +182,7 @@ describe("public event covers", () => {
     const res = await GET(req(), params("event_images", cover));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -190,7 +196,7 @@ describe("public event covers", () => {
     const res = await GET(req(), params("event_images", segments));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("leaves the course buckets closed to an anonymous caller", async () => {
@@ -198,7 +204,7 @@ describe("public event covers", () => {
       const res = await GET(req(), params(bucket, lesson));
       expect(res.status).toBe(404);
     }
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 });
 
@@ -215,7 +221,7 @@ describe("public speaker avatars", () => {
 
     const res = await GET(req(), params("profile_images", avatar));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(isSpeakerOnPublishedEvent).toHaveBeenCalledWith(expect.anything(), 5);
     expect(from).toHaveBeenCalledWith("profile_images");
   });
@@ -225,7 +231,7 @@ describe("public speaker avatars", () => {
 
     const res = await GET(req(), params("profile_images", avatar));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(requireAuth).not.toHaveBeenCalled();
   });
 
@@ -234,7 +240,7 @@ describe("public speaker avatars", () => {
 
     const res = await GET(req(), params("profile_images", avatar));
 
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600");
+    expect(res.headers.get("Cache-Control")).toBe(`public, max-age=${PUBLIC_TTL - 300}`);
   });
 
   it("refuses a non-speaker's avatar to a caller with no session", async () => {
@@ -243,7 +249,7 @@ describe("public speaker avatars", () => {
     const res = await GET(req(), params("profile_images", avatar));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("still serves a non-speaker's avatar to any signed-in user", async () => {
@@ -252,9 +258,9 @@ describe("public speaker avatars", () => {
 
     const res = await GET(req(), params("profile_images", avatar));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     // Per-user verdict, so it must not be replayed out of a shared cache.
-    expect(res.headers.get("Cache-Control")).toBe("private, max-age=0, must-revalidate");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it.each([
@@ -269,7 +275,7 @@ describe("public speaker avatars", () => {
     const res = await GET(req(), params("profile_images", segments));
 
     expect(res.status).toBe(404);
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 });
 
@@ -279,7 +285,7 @@ describe("course entitlement", () => {
 
     const res = await GET(req(), params("course_videos", lesson));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(userHasCourseAccess).toHaveBeenCalledWith(expect.anything(), 5, 12);
   });
 
@@ -290,7 +296,7 @@ describe("course entitlement", () => {
 
     expect(res.status).toBe(404);
     // The regression this guards: paid course video readable by any signed-in user.
-    expect(download).not.toHaveBeenCalled();
+    expect(createSignedUrl).not.toHaveBeenCalled();
   });
 
   it("gives facilitators access without consulting entitlements", async () => {
@@ -298,7 +304,7 @@ describe("course entitlement", () => {
 
     const res = await GET(req(), params("course_assets", lesson));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(userHasCourseAccess).not.toHaveBeenCalled();
   });
 
@@ -309,7 +315,7 @@ describe("course entitlement", () => {
 
     const res = await GET(req(), params("course_assets", lesson));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(302);
     expect(userHasCourseAccess).not.toHaveBeenCalled();
   });
 
@@ -329,35 +335,47 @@ describe("course entitlement", () => {
       const res = await GET(req(), params("course_assets", segments));
 
       expect(res.status).toBe(404);
-      expect(download).not.toHaveBeenCalled();
+      expect(createSignedUrl).not.toHaveBeenCalled();
     },
   );
 });
 
 describe("responses", () => {
-  it("serves the object with its own content type", async () => {
+  // The bytes no longer pass through the isolate: `download()` resolved a Blob,
+  // which held the whole object in the 128 MB an isolate shares across every
+  // request on it, and `course_videos` accepts 50 MB. Content type and range
+  // support now come from Supabase, which is also what lets a video seek.
+  it("redirects to the signed URL instead of proxying the object", async () => {
     const res = await GET(req(), params("course_assets", lesson));
 
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(SIGNED_URL);
   });
 
-  it("falls back to octet-stream when the object has no type", async () => {
-    download.mockResolvedValue({ data: new Blob(["bytes"]), error: null });
+  it("gives entitled material only a short-lived link", async () => {
+    await GET(req(), params("course_assets", lesson));
 
-    const res = await GET(req(), params("course_assets", lesson));
+    expect(createSignedUrl).toHaveBeenCalledWith(expect.any(String), PRIVATE_TTL);
+  });
 
-    expect(res.headers.get("content-type")).toBe("application/octet-stream");
+  it("gives a published cover a link that outlives the redirect caching it", async () => {
+    isPublished.mockResolvedValue(true);
+
+    const res = await GET(req(), params("event_images", cover));
+
+    expect(createSignedUrl).toHaveBeenCalledWith(expect.any(String), PUBLIC_TTL);
+    const maxAge = Number(/max-age=(\d+)/.exec(res.headers.get("cache-control") ?? "")?.[1]);
+    expect(maxAge).toBeLessThan(PUBLIC_TTL);
   });
 
   it("marks the response private so a shared cache cannot serve it onward", async () => {
     const res = await GET(req(), params("course_assets", lesson));
 
-    expect(res.headers.get("cache-control")).toBe("private, max-age=0, must-revalidate");
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("returns the same 404 for a missing object as for a forbidden one", async () => {
-    download.mockResolvedValue({ data: null, error: { message: "not found" } });
+    createSignedUrl.mockResolvedValue({ data: null, error: { message: "not found" } });
     const missing = await GET(req(), params("course_assets", lesson));
 
     userHasCourseAccess.mockResolvedValue(false);
@@ -368,7 +386,7 @@ describe("responses", () => {
   });
 
   it("does not leak the underlying storage error", async () => {
-    download.mockResolvedValue({ data: null, error: { message: "bucket 'x' does not exist" } });
+    createSignedUrl.mockResolvedValue({ data: null, error: { message: "bucket 'x' does not exist" } });
 
     const res = await GET(req(), params("course_assets", lesson));
 

@@ -67,6 +67,10 @@ export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
             </FormLabel>
             <Link
               href={withBackLink("/forgot-password", backOrigin)}
+              // Reaching for it means the sign-in attempt already failed, so
+              // rendering it in advance for everyone spends the many to save
+              // the few. It was one of the killed requests in the capture.
+              prefetch={false}
               className="text-sm font-medium tracking-wider text-brand transition-colors hover:text-brand/80"
             >
               Forgot Password?
@@ -102,6 +106,10 @@ export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
         Don&apos;t have an account?{" "}
         <Link
           href={withBackLink(`/sign-up${redirectUrlParam(redirectUrl)}`, backOrigin)}
+          // Both the origin and the redirect ride in the query string, so this
+          // prefetches a URL unique to wherever the visitor came from — a
+          // render that can never be reused. It was killed in the capture.
+          prefetch={false}
           className="font-bold text-brand transition-colors hover:text-brand/80"
         >
           Create an account

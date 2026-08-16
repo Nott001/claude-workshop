@@ -125,7 +125,7 @@ describe("Event detail page assembly", () => {
     expect(screen.getByText("Lead AI Solutions Architect")).toBeTruthy();
 
     expect(screen.getByRole("button", { name: "Register" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /view in google maps/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /view larger map/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /share on facebook/i })).toBeTruthy();
   });
 

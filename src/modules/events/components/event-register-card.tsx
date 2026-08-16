@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AddToCalendar } from "@/modules/events/components/event-add-to-calendar";
 import { Button } from "@/shared/components/button";
-import { formatEventPrice, formatVenue } from "@/shared/lib/event-format";
+import { formatEventPrice } from "@/shared/lib/event-format";
 import { isEventStarted } from "@/shared/lib/date-utils";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
@@ -42,24 +42,22 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      <ul className="mb-5 space-y-3 text-sm">
-        <li className={ROW}>
-          <span className="flex items-center gap-2 text-muted-fg">
-            <span className="material-symbols-rounded text-base text-brand">location_on</span>
-            Venue
-          </span>
-          <span className={VALUE}>{formatVenue(event.venue_name, event.venue_address)}</span>
-        </li>
-        {!hasTicket && price && (
+      {/* Price is the only row left — the venue moved to the address card, which
+          now carries the map. A ticket holder is shown no price, so the list is
+          dropped rather than rendered empty with its margin still there. */}
+      {!hasTicket && price && (
+        <ul className="mb-5 space-y-3 text-sm">
           <li className={ROW}>
             <span className="flex items-center gap-2 text-muted-fg">
-              <span className="material-symbols-rounded text-base text-brand">sell</span>
+              <span aria-hidden className="material-symbols-rounded text-base text-brand">
+                sell
+              </span>
               Price
             </span>
             <span className={VALUE}>{price}</span>
           </li>
-        )}
-      </ul>
+        </ul>
+      )}
 
       <Button className="w-full" onClick={onAction} disabled={locked}>
         {label}

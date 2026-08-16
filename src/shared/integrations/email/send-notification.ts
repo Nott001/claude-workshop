@@ -65,7 +65,9 @@ export async function sendEmailNotification(params: SendEmailNotificationParams)
   } catch (err) {
     // A failed send used to vanish here. The caller decides whether a mail
     // failure should fail its own operation, so the error is logged and
-    // rethrown — both send sites run inside afterResponse, which records it.
+    // rethrown. Ticket issuing throws this into `afterResponse`, which records
+    // it; the survey send catches it per recipient and leaves `sent_at` null so
+    // the next batch retries that one. Neither wants it swallowed here.
     console.error("Email notification failed:", err);
     throw err;
   }

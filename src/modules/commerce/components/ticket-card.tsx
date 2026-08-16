@@ -111,6 +111,11 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           <div className="mt-4 flex items-center gap-3">
             <Link
               href={withBackLink(`/events/${ticket.event_id}`, "tickets")}
+              // One per ticket in the list. `/tickets` was already the page
+              // that exhausted a cold isolate once before (see the changelog
+              // entry about ten requests for one navigation); this is what was
+              // left of that shape.
+              prefetch={false}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand/80"
             >
               Go to event

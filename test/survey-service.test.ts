@@ -163,7 +163,84 @@ describe("sendEventSurvey", () => {
     );
     expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 101);
     expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 102);
-    expect(result).toEqual({ ok: true, survey_created: true, recipients: 2, delivered: 2, failed: 0 });
+    expect(result).toEqual({ ok: true, survey_created: true, recipients: 2, delivered: 2, failed: 0, remaining: 0 });
+  });
+
+  // Each delivery is its own TLS handshake and SMTP session, so a whole list
+  // does not fit in one request. The caller drains the queue across calls.
+  it("emails only one batch and reports the rest as remaining", async () => {
+    const recipients = Array.from({ length: 12 }, (_, i) => ({
+      user_id: i + 1,
+      full_name: `Person ${i + 1}`,
+      email: `person${i + 1}@example.com`,
+    }));
+    dao.findSurveyByEventId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue(recipients);
+    dao.createSurvey.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date().toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+    dao.createResponses.mockResolvedValue(
+      recipients.map((r, i) => response({ id: 100 + i, survey_id: 11, user_id: r.user_id, token: `t-${r.user_id}` })),
+    );
+
+    const result = await sendEventSurvey(supabase, finishedEvent(), new Date(), 5);
+
+    expect(email.sendEmailNotification).toHaveBeenCalledTimes(5);
+    expect(result).toEqual({ ok: true, survey_created: true, recipients: 5, delivered: 5, failed: 0, remaining: 7 });
+  });
+
+  // The caller loops while `remaining` is above zero, so this is the invariant
+  // that keeps it terminating: a batch that delivers nothing leaves every
+  // response on the queue, and reports it, rather than silently asking to be
+  // called again with the identical set.
+  it("still reports the queue as unmoved when a whole batch fails to send", async () => {
+    email.sendEmailNotification.mockResolvedValue(false);
+    const recipients = Array.from({ length: 8 }, (_, i) => ({
+      user_id: i + 1,
+      full_name: `Person ${i + 1}`,
+      email: `person${i + 1}@example.com`,
+    }));
+    dao.findSurveyByEventId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue(recipients);
+    dao.createSurvey.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date().toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+    dao.createResponses.mockResolvedValue(
+      recipients.map((r, i) => response({ id: 100 + i, survey_id: 11, user_id: r.user_id, token: `t-${r.user_id}` })),
+    );
+
+    const result = await sendEventSurvey(supabase, finishedEvent(), new Date(), 5);
+
+    // Nothing delivered, so nothing was marked sent and the next call would be
+    // handed the same eight -- which is why the caller stops on `delivered: 0`
+    // rather than on `remaining`.
+    expect(dao.markResponseSent).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ delivered: 0, failed: 5, remaining: 3 });
+  });
+
+  it("reports nothing remaining once the queue fits inside one batch", async () => {
+    dao.findSurveyByEventId.mockResolvedValue(null);
+    dao.findRecipients.mockResolvedValue([{ user_id: 2, full_name: "Ada Lovelace", email: "ada@example.com" }]);
+    dao.createSurvey.mockResolvedValue({
+      id: 11,
+      event_id: 1,
+      sent_at: new Date().toISOString(),
+      created_at: "",
+      updated_at: "",
+    });
+    dao.createResponses.mockResolvedValue([response({ id: 101, survey_id: 11, user_id: 2, token: "t-ada" })]);
+
+    const result = await sendEventSurvey(supabase, finishedEvent(), new Date(), 5);
+
+    expect(result).toMatchObject({ delivered: 1, remaining: 0 });
   });
 
   it("re-runs after a partial failure and emails only the responses never delivered", async () => {
@@ -196,7 +273,7 @@ describe("sendEventSurvey", () => {
     expect(email.sendEmailNotification).toHaveBeenCalledWith(
       expect.objectContaining({ surveyUrl: expect.stringContaining("t-grace") }),
     );
-    expect(result).toEqual({ ok: true, survey_created: false, recipients: 1, delivered: 1, failed: 0 });
+    expect(result).toEqual({ ok: true, survey_created: false, recipients: 1, delivered: 1, failed: 0, remaining: 0 });
   });
 
   it("counts undelivered responses as failed and leaves them for the next retry", async () => {
@@ -215,7 +292,7 @@ describe("sendEventSurvey", () => {
     const result = await sendEventSurvey(supabase, finishedEvent());
 
     expect(dao.markResponseSent).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: true, survey_created: true, recipients: 1, delivered: 0, failed: 1 });
+    expect(result).toEqual({ ok: true, survey_created: true, recipients: 1, delivered: 0, failed: 1, remaining: 0 });
   });
 
   it("keeps sending the remaining recipients when one email throws", async () => {
@@ -243,7 +320,7 @@ describe("sendEventSurvey", () => {
     expect(consoleError).toHaveBeenCalled();
     expect(email.sendEmailNotification).toHaveBeenCalledTimes(2);
     expect(dao.markResponseSent).toHaveBeenCalledWith(supabase, 102);
-    expect(result).toEqual({ ok: true, survey_created: true, recipients: 2, delivered: 1, failed: 1 });
+    expect(result).toEqual({ ok: true, survey_created: true, recipients: 2, delivered: 1, failed: 1, remaining: 0 });
     consoleError.mockRestore();
   });
 });

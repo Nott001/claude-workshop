@@ -453,22 +453,55 @@ function SurveysSection({
     setSaving(false);
   }
 
+  // The send runs a batch per request, because each recipient costs a full SMTP
+  // session and a whole list does not fit in one. Looping here keeps the
+  // progress in front of whoever pressed the button, and every batch is
+  // independently durable: a response is only taken off the queue once its mail
+  // is actually away, so closing the tab halfway loses nothing but the rest of
+  // the run, which the next press resumes.
   async function handleSend() {
     setSending(true);
     setSendMessage(null);
     setSettingError(null);
-    const res = await fetch(`/api/events/${eventId}/survey/send`, { method: "POST" });
-    if (!res.ok) {
-      const body = await res.json();
-      setSettingError(body.error ?? "Failed to send survey");
-      setSending(false);
-      return;
+
+    let delivered = 0;
+    let failed = 0;
+
+    for (;;) {
+      const res = await fetch(`/api/events/${eventId}/survey/send`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json();
+        setSettingError(body.error ?? "Failed to send survey");
+        setSending(false);
+        mutate();
+        return;
+      }
+
+      const result = await res.json();
+      delivered += result.delivered;
+      failed += result.failed;
+
+      if (result.remaining === 0) break;
+
+      // A batch that delivered nothing has not moved the queue: a response is
+      // only taken off it once its mail is away, so the next call would be
+      // handed the same recipients and `remaining` would never fall. That is
+      // the mail path being down rather than one address being bad, and
+      // looping on it would reopen connections until the tab is closed.
+      if (result.delivered === 0) {
+        setSendMessage(`Delivered ${delivered}; the rest could not be sent. Try again once mail is working.`);
+        setSending(false);
+        mutate();
+        return;
+      }
+
+      setSendMessage(`Sending… ${delivered} delivered, ${result.remaining} to go.`);
     }
-    const result = await res.json();
-    if (result.failed > 0) {
-      setSendMessage(`Delivered ${result.delivered} of ${result.recipients}; the rest will be retried on the next send.`);
+
+    if (failed > 0) {
+      setSendMessage(`Delivered ${delivered} of ${delivered + failed}; the rest will be retried on the next send.`);
     } else {
-      setSendMessage(`Survey emailed to ${result.delivered} attendee${result.delivered === 1 ? "" : "s"}.`);
+      setSendMessage(`Survey emailed to ${delivered} attendee${delivered === 1 ? "" : "s"}.`);
     }
     setSending(false);
     mutate();

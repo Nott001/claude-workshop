@@ -5,6 +5,9 @@ export interface PasswordResetParams {
   resetUrl: string;
 }
 
+/** Both halves of this message state the same reason, so they cannot drift. */
+const RESET_REQUESTED = "You received this because a password reset was requested for this address.";
+
 function passwordResetHtml(params: PasswordResetParams): string {
   return layout(
     "Reset your Startup Lab password",
@@ -15,6 +18,7 @@ function passwordResetHtml(params: PasswordResetParams): string {
       <p style="margin:0 0 8px;font-size:13px;color:#6b7280">If the button does not work, copy this address into your browser:</p>
       <p style="margin:0 0 24px;font-size:13px;word-break:break-all;color:#6b7280">${escapeHtml(params.resetUrl)}</p>
       <p style="margin:0;font-size:13px;color:#6b7280">This link can only be used once and expires shortly. If you did not ask for it, you can ignore this message — your password will not change.</p>`,
+    RESET_REQUESTED,
   );
 }
 
@@ -33,7 +37,7 @@ function passwordResetText(params: PasswordResetParams): string {
     "",
     "--",
     "Startup Lab · startuplab.center",
-    "You received this because a password reset was requested for this address. This mailbox is unattended.",
+    `${RESET_REQUESTED} This mailbox is unattended.`,
   ].join("\n");
 }
 

@@ -51,9 +51,23 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    // Text alone, like SIGN IN beside it: no hover fill, no
+                    // tinted pill on the active item. Weight carries the active
+                    // state alongside the brand colour so it does not rest on
+                    // hue alone, and `aria-current` states it outright — with
+                    // the pill gone there is nothing else left to imply it.
+                    // `rounded-md` stays: it shapes the focus ring, which is
+                    // the one box here that still earns its place.
+                    aria-current={isActive ? "page" : undefined}
+                    // Same reason as the staff rail: these are dynamic routes,
+                    // and the default prefetch renders every one of them on
+                    // arrival. This bar is on every page a visitor or attendee
+                    // sees, so it was the burst behind the killed `/events` and
+                    // `/community` requests.
+                    prefetch={false}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition hover:bg-muted hover:text-fg",
-                      isActive ? "bg-brand/10 text-brand" : "text-muted-fg",
+                      "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition hover:text-brand",
+                      isActive ? "font-semibold text-brand" : "font-medium text-muted-fg",
                     )}
                   >
                     <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
@@ -69,9 +83,19 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
               ) : (
                 // Signing up is the hero's "Join Now" now, so the bar carries sign-in
                 // alone — in the slot sign-up used to hold.
+                //
+                // Set at the nav links' own `text-sm`, not smaller. This is the
+                // only thing in the bar that is not navigation, and the caps and
+                // tracking are what say so; size is the wrong axis for it, since
+                // smaller reads as less important rather than as different.
                 <Link
                   href={withBackLink("/sign-in", origin)}
-                  className="rounded-lg px-5 py-2.5 text-xs font-semibold tracking-[0.04em] transition hover:text-brand"
+                  // The origin rides in the query string, so every page this bar
+                  // renders on prefetches a *different* /sign-in URL — one more
+                  // render per arrival, and one that shares no cache entry with
+                  // the last. It was among the killed requests.
+                  prefetch={false}
+                  className="rounded-lg px-5 py-2.5 text-sm font-semibold tracking-[0.04em] transition hover:text-brand"
                 >
                   SIGN IN
                 </Link>
