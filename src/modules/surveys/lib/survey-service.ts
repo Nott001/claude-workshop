@@ -22,13 +22,31 @@ function newToken(): string {
 }
 
 export type SendSurveyResult =
-  | { ok: true; survey_created: boolean; recipients: number; delivered: number; failed: number }
+  | { ok: true; survey_created: boolean; recipients: number; delivered: number; failed: number; remaining: number }
   | { ok: false; reason: "not_enabled" | "not_finished" | "no_recipients" | "expired" };
 
+/**
+ * How many recipients one call will email.
+ *
+ * Each delivery opens its own TLS connection and runs a full SMTP session, up
+ * to twice, against a 30s timeout — so the cost of a send is the recipient
+ * count times a round trip, all inside one request. An event with fifty
+ * attendees could not finish. The caller re-invokes while `remaining` is above
+ * zero, which is free to do because the retry path already existed: a response
+ * is picked up only while its `sent_at` is null.
+ */
+export const SURVEY_SEND_BATCH = 5;
+
 /** Staff-triggered send. Creates the survey and its response rows, then emails
- * every recipient. Re-running after a partial failure retries only the
- * responses never delivered, so the same call covers both first send and retry. */
-export async function sendEventSurvey(supabase: DbClient, event: Event, now = new Date()): Promise<SendSurveyResult> {
+ * one batch of recipients, reporting how many are still queued. Re-running
+ * after a partial failure retries only the responses never delivered, so the
+ * same call covers the first send, the next batch, and a retry. */
+export async function sendEventSurvey(
+  supabase: DbClient,
+  event: Event,
+  now = new Date(),
+  batchSize = SURVEY_SEND_BATCH,
+): Promise<SendSurveyResult> {
   if (!event.survey_enabled) return { ok: false, reason: "not_enabled" };
   if (!isEventFinished(event.event_date, event.end_time)) return { ok: false, reason: "not_finished" };
 
@@ -49,8 +67,10 @@ export async function sendEventSurvey(supabase: DbClient, event: Event, now = ne
         recipients.map((recipient) => ({ user_id: recipient.user_id, token: newToken() })),
       )) as SurveyResponseWithAttendee[]);
 
+  const batch = responses.slice(0, batchSize);
+
   let delivered = 0;
-  for (const response of responses) {
+  for (const response of batch) {
     const recipient = byUserId.get(response.user_id) ?? {
       full_name: response.USER?.full_name ?? "",
       email: response.USER?.email ?? "",
@@ -61,9 +81,14 @@ export async function sendEventSurvey(supabase: DbClient, event: Event, now = ne
   return {
     ok: true,
     survey_created: !existing,
-    recipients: responses.length,
+    recipients: batch.length,
     delivered,
-    failed: responses.length - delivered,
+    failed: batch.length - delivered,
+    // Only what this call left untried. A delivery that failed keeps its null
+    // `sent_at`, so it is queued again by the next call rather than counted
+    // here — which is what stops a permanently failing address from ending the
+    // run early while still letting the caller finish.
+    remaining: responses.length - batch.length,
   };
 }
 
