@@ -47,6 +47,7 @@ export function VerifyEmailCard({ email, redirectUrl }: { email: string; redirec
         <p className="text-sm text-muted-fg">
           <Link
             href={`/sign-in${redirectUrlParam(redirectUrl)}`}
+            prefetch={false}
             className="font-medium text-brand hover:text-brand/80 transition-colors"
           >
             Back to sign in

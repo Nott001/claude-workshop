@@ -60,12 +60,20 @@ test("an attendee holding a ticket can read the course material", async ({ page 
 
   await signIn(page, attendee);
 
-  const res = await page.request.get(`/api/storage/course_assets/${key}`);
+  // The route answers with a redirect to a short-lived signed URL rather than
+  // the bytes, so the entitlement decision is checked here and the delivery is
+  // followed separately. `maxRedirects: 0` keeps this assertion on our own
+  // response; following it would report the storage host's headers instead.
+  const res = await page.request.get(`/api/storage/course_assets/${key}`, { maxRedirects: 0 });
 
-  expect(res.status()).toBe(200);
-  expect(res.headers()["content-type"]).toContain("pdf");
-  // Entitlement is per user, so the response must not be shareable by a cache.
+  expect(res.status()).toBe(302);
+  // Entitlement is per user, so the redirect must not be shareable by a cache.
   expect(res.headers()["cache-control"]).toContain("private");
+
+  // Following it still yields the object, which is what the reader experiences.
+  const followed = await page.request.get(`/api/storage/course_assets/${key}`);
+  expect(followed.status()).toBe(200);
+  expect(followed.headers()["content-type"]).toContain("pdf");
 });
 
 test("an attendee without a ticket is refused the same object", async ({ page }) => {
@@ -99,9 +107,9 @@ test("a facilitator reads course material without holding a ticket", async ({ pa
 
   await signIn(page, facilitator);
 
-  const res = await page.request.get(`/api/storage/course_assets/${key}`);
+  const res = await page.request.get(`/api/storage/course_assets/${key}`, { maxRedirects: 0 });
 
-  expect(res.status()).toBe(200);
+  expect(res.status()).toBe(302);
 });
 
 test("an unknown bucket is refused", async ({ page }) => {

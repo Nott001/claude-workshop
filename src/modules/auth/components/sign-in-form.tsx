@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/button";
 import { Form, FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
+import { authErrorMessage } from "@/shared/lib/auth-error-message";
 import { resolvePostSignInDestination } from "@/modules/auth/lib/post-sign-in-destination";
 import { IconInput } from "./icon-input";
 import { PasswordInput } from "./password-input";
@@ -31,7 +32,7 @@ export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(authErrorMessage(authError, "We could not sign you in. Please try again."));
       setLoading(false);
       return;
     }
@@ -66,6 +67,10 @@ export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
             </FormLabel>
             <Link
               href={withBackLink("/forgot-password", backOrigin)}
+              // Reaching for it means the sign-in attempt already failed, so
+              // rendering it in advance for everyone spends the many to save
+              // the few. It was one of the killed requests in the capture.
+              prefetch={false}
               className="text-sm font-medium tracking-wider text-brand transition-colors hover:text-brand/80"
             >
               Forgot Password?
@@ -101,6 +106,10 @@ export function SignInForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
         Don&apos;t have an account?{" "}
         <Link
           href={withBackLink(`/sign-up${redirectUrlParam(redirectUrl)}`, backOrigin)}
+          // Both the origin and the redirect ride in the query string, so this
+          // prefetches a URL unique to wherever the visitor came from — a
+          // render that can never be reused. It was killed in the capture.
+          prefetch={false}
           className="font-bold text-brand transition-colors hover:text-brand/80"
         >
           Create an account

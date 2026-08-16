@@ -71,6 +71,11 @@ export function EventTable({ events, basePath = "/staff/events", showKiosk = fal
                   <Link
                     href={`${basePath}/${event.id}`}
                     onClick={(e) => e.stopPropagation()}
+                    // One per row, so a full page of events renders a page of
+                    // detail views nobody opened. The drawer's own actions
+                    // below keep their prefetch: they exist only once a row has
+                    // been clicked, which is intent rather than arrival.
+                    prefetch={false}
                     className="font-medium text-fg hover:text-brand hover:underline"
                   >
                     {event.title}

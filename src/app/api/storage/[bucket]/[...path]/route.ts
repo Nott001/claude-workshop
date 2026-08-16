@@ -55,6 +55,18 @@ interface Access {
 
 const DENY: Access = { allowed: false, cacheable: false };
 
+/** A published cover is the same object for every visitor, so its link may live
+ * as long as the cache entry pointing at it. */
+const PUBLIC_URL_TTL_SECONDS = 3600;
+
+/** Entitled material gets only enough time for the browser to follow the
+ * redirect. The link works without a session once issued, so its lifetime is
+ * the window in which a leaked one is useful. */
+const PRIVATE_URL_TTL_SECONDS = 60;
+
+/** Keeps a cached redirect from outliving the URL inside it. */
+const CACHE_SAFETY_MARGIN_SECONDS = 300;
+
 /**
  * A published event's cover is public: it is rendered on `/` and `/events`,
  * which anonymous visitors can read. `uploadToStorage` stores those covers as
@@ -125,18 +137,34 @@ export async function GET(_req: Request, { params }: { params: Promise<{ bucket:
   const access = await resolveAccess(bucket, path, supabase);
   if (!access.allowed) return refuse();
 
-  const { data, error } = await supabase.storage.from(bucket).download(path.join("/"));
+  // A signed URL rather than the bytes. `download()` resolves a Blob, which
+  // materialises the whole object in an isolate that has 128 MB shared across
+  // every concurrent request on it — and `course_videos` accepts 50 MB, so a
+  // few simultaneous plays were enough to exceed it. Redirecting holds a
+  // string instead, and hands Range support to Supabase, which is what lets a
+  // lesson video seek at all: this route served no `Accept-Ranges`, so
+  // scrubbing re-fetched the file from the start.
+  //
+  // The entitlement checks above are unchanged; only the delivery moved. The
+  // URL that results is a bearer credential for its lifetime, so it expires in
+  // minutes for anything private and is never granted longer than the
+  // cacheability of the object it points at.
+  const ttlSeconds = access.cacheable ? PUBLIC_URL_TTL_SECONDS : PRIVATE_URL_TTL_SECONDS;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path.join("/"), ttlSeconds);
 
-  if (error || !data) return refuse();
+  if (error || !data?.signedUrl) return refuse();
 
-  return new NextResponse(data, {
-    status: 200,
+  return NextResponse.redirect(data.signedUrl, {
+    status: 302,
     headers: {
-      // Anything gated on who is asking must never reach a shared cache, or it
-      // gets replayed to whoever asks next. A published cover is the same bytes
-      // for everyone, so that one can be cached.
-      "Cache-Control": access.cacheable ? "public, max-age=3600" : "private, max-age=0, must-revalidate",
-      "Content-Type": data.type || "application/octet-stream",
+      // Anything gated on who is asking must never reach a shared cache, or the
+      // redirect gets replayed to whoever asks next. A published cover is the
+      // same object for everyone, so that one may be cached — but only for less
+      // than the signed URL's own lifetime, or the cache outlives the link it
+      // is holding and serves an expired one.
+      "Cache-Control": access.cacheable
+        ? `public, max-age=${PUBLIC_URL_TTL_SECONDS - CACHE_SAFETY_MARGIN_SECONDS}`
+        : "private, no-store",
     },
   });
 }

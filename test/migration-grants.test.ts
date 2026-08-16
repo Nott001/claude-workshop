@@ -39,6 +39,7 @@ describe("migration grants", () => {
       "00003_qa_realtime.sql",
       "00004_qa_message_policy_helper.sql",
       "00005_qa_message_policy_staff.sql",
+      "00006_cancel_pending_email_change.sql",
     ]);
   });
 
@@ -103,5 +104,20 @@ describe("migration grants", () => {
     expect(staff!.sql).toMatch(/CREATE OR REPLACE FUNCTION "public"\."qa_message_visible"/);
     expect(staff!.sql).toMatch(/SECURITY DEFINER/s);
     expect(staff!.sql).toMatch(/me\.role IN \('facilitator', 'admin', 'super_admin'\)/);
+  });
+
+  // The email-change cancel helper is the same SECURITY DEFINER seam. It is
+  // scoped by auth.uid() (a caller can only void their own pending change) and
+  // must not be callable by anon or from a service key, which carries no sub
+  // claim and so could never name a user to cancel for.
+  it("scopes the email-change cancel helper to the caller's own change", () => {
+    const cancel = migrations().find((f) => f.name === "00006_cancel_pending_email_change.sql");
+    expect(cancel, "00006 must exist to hold the helper").toBeDefined();
+    expect(cancel!.sql).toMatch(/cancel_pending_email_change/);
+    expect(cancel!.sql).toMatch(/SECURITY DEFINER/s);
+    expect(cancel!.sql).toMatch(/auth\.uid\(\)/);
+    expect(cancel!.sql).toMatch(/GRANT EXECUTE ON FUNCTION "public"\."cancel_pending_email_change"\(\) TO "authenticated"/);
+    expect(cancel!.sql).not.toMatch(/TO "anon"/);
+    expect(cancel!.sql).not.toMatch(/TO "service_role"/);
   });
 });

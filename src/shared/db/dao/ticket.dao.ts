@@ -247,3 +247,8 @@ export async function deleteByPaymentIds(supabase: DbClient, paymentIds: number[
   const { error } = await supabase.from("TICKET").delete().in("payment_id", paymentIds);
   return !error;
 }
+
+export async function deleteByUser(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("TICKET").delete().eq("user_id", userId);
+  return !error;
+}

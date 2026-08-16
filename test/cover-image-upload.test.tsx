@@ -2,7 +2,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
-import { acceptAttribute, maxSizeMb, validateFileSize, validateFileType } from "@/shared/integrations/storage/policy";
+import {
+  acceptAttribute,
+  maxSizeMb,
+  validateFileSize,
+  validateSourceSize,
+  validateFileType,
+} from "@/shared/integrations/storage/policy";
 import { resizeImage } from "@/shared/integrations/storage/resize-image";
 
 // Passthrough by default so every assertion below still sees the file it picked.
@@ -135,7 +141,10 @@ describe("storage policy shared with the upload route", () => {
   it("agrees with the route on what event_images allows", () => {
     expect(validateFileType("event_images", "image/png")).toBe(true);
     expect(validateFileType("event_images", "application/pdf")).toBe(false);
-    expect(validateFileSize("event_images", 50 * 1024 * 1024)).toBe(true);
-    expect(validateFileSize("event_images", 50 * 1024 * 1024 + 1)).toBe(false);
+    // The picker and the route measure different things: the reader may choose
+    // up to the source limit, and the route bounds what survives the resize.
+    expect(validateSourceSize("event_images", 50 * 1024 * 1024)).toBe(true);
+    expect(validateSourceSize("event_images", 50 * 1024 * 1024 + 1)).toBe(false);
+    expect(validateFileSize("event_images", 1024 * 1024)).toBe(true);
   });
 });

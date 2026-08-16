@@ -183,3 +183,8 @@ export async function countResponses(supabase: DbClient, surveyId: number): Prom
     .eq("survey_id", surveyId);
   return count ?? 0;
 }
+
+export async function deleteResponsesByUser(supabase: DbClient, userId: number): Promise<boolean> {
+  const { error } = await supabase.from("SURVEY_RESPONSE").delete().eq("user_id", userId);
+  return !error;
+}

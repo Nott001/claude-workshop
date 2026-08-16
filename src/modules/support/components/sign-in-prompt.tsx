@@ -24,10 +24,10 @@ export function SignInPrompt() {
     <div className="flex flex-col items-center gap-3 text-center">
       <p className="text-sm text-muted-fg">Sign in or create an account to message a support staff.</p>
       <div className="flex gap-2">
-        <Link href={`/sign-in${redirectUrl}`} className={linkStyles.primary}>
+        <Link href={`/sign-in${redirectUrl}`} prefetch={false} className={linkStyles.primary}>
           Sign in
         </Link>
-        <Link href={`/sign-up${redirectUrl}`} className={linkStyles.secondary}>
+        <Link href={`/sign-up${redirectUrl}`} prefetch={false} className={linkStyles.secondary}>
           Create account
         </Link>
       </div>

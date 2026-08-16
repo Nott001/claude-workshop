@@ -11,8 +11,6 @@ function renderSection(overrides: Record<string, unknown> = {}) {
       onCurrentPasswordChange={vi.fn()}
       newPassword="the quiet kettle sings"
       onNewPasswordChange={vi.fn()}
-      saving={false}
-      onSubmit={vi.fn()}
       {...overrides}
     />,
   );

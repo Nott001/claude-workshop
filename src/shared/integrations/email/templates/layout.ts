@@ -23,11 +23,22 @@ export function escapeHtml(value: string): string {
 }
 
 /**
+ * Why the message arrived, for a recipient who did register for something.
+ *
+ * The default rather than the only option: an invitation reaches somebody who
+ * has never registered for anything, and a password reset is answering a
+ * request, so both would be telling the reader something untrue. Each template
+ * owns one of these and hands the same sentence to both of its halves, which is
+ * what stops the HTML and the text disagreeing about why the mail was sent.
+ */
+export const REGISTERED_FOR_EVENT = "You received this because you registered for an event at Startup Lab.";
+
+/**
  * A bare fragment of `<h1>`/`<p>` scores worse with spam filters than a
  * complete document, so every message is wrapped in one: doctype, charset,
  * a title, and a footer saying who sent it and why it arrived.
  */
-export function layout(title: string, body: string): string {
+export function layout(title: string, body: string, reason: string = REGISTERED_FOR_EVENT): string {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -41,10 +52,7 @@ ${body}
     </div>
     <div style="max-width:560px;margin:16px auto 0;font-size:12px;line-height:1.6;color:#6b7280;text-align:center">
       <p style="margin:0">Startup Lab &middot; startuplab.center</p>
-      <p style="margin:4px 0 0">
-        You received this because you registered for an event at Startup Lab.
-        This mailbox is unattended.
-      </p>
+      <p style="margin:4px 0 0">${escapeHtml(reason)} This mailbox is unattended.</p>
     </div>
   </body>
 </html>`;

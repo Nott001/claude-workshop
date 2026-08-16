@@ -6,6 +6,9 @@ export interface MemberInvitedParams {
   acceptUrl: string;
 }
 
+/** Both halves of this message state the same reason, so they cannot drift. */
+const ADMIN_INVITED = "You received this because an administrator invited you to the Startup Lab team.";
+
 function memberInvitedHtml(params: MemberInvitedParams): string {
   return layout(
     "You have been invited to Startup Lab",
@@ -17,6 +20,7 @@ function memberInvitedHtml(params: MemberInvitedParams): string {
       <p style="margin:0 0 8px;font-size:13px;color:#6b7280">If the button does not work, copy this address into your browser:</p>
       <p style="margin:0 0 24px;font-size:13px;word-break:break-all;color:#6b7280">${escapeHtml(params.acceptUrl)}</p>
       <p style="margin:0;font-size:13px;color:#6b7280">This invitation can only be used once. If you were not expecting it, you can ignore this message.</p>`,
+    ADMIN_INVITED,
   );
 }
 
@@ -35,7 +39,7 @@ function memberInvitedText(params: MemberInvitedParams): string {
     "",
     "--",
     "Startup Lab · startuplab.center",
-    "You received this because an administrator invited you to the Startup Lab team. This mailbox is unattended.",
+    `${ADMIN_INVITED} This mailbox is unattended.`,
   ].join("\n");
 }
 

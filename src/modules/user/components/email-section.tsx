@@ -1,54 +1,58 @@
 "use client";
 
-import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
-import { Form } from "@/shared/components/form";
-import { isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
+import { FormField, FormMessage } from "@/shared/components/form";
+import { EMAIL_CHANGE_LINK_TTL_LABEL, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 
 interface EmailSectionProps {
   currentEmail?: string | null;
   newEmail: string;
   onChange: (email: string) => void;
+  emailError?: string | null;
   emailSent: boolean;
   saving: boolean;
-  onSubmit: (e: React.FormEvent) => void;
   /** Seconds until another link may be sent; 0 when one may be sent now. */
   resendIn: number;
   onResend: () => void;
-  onUseDifferent: () => void;
+  onCancel: () => void;
+  /** The address just confirmed by opening the mailed link; shown once, above the box. */
+  emailVerified?: string | null;
+  onDismissVerified?: () => void;
 }
 
 export function EmailSection({
   currentEmail,
   newEmail,
   onChange,
+  emailError,
   emailSent,
   saving,
-  onSubmit,
   resendIn,
   onResend,
-  onUseDifferent,
+  onCancel,
+  emailVerified,
+  onDismissVerified,
 }: EmailSectionProps) {
   const unchanged = isSameEmail(newEmail, currentEmail);
 
-  // Offered on how the address looks, never on whether it resolves. A lookalike
-  // of a common domain is usually registered by someone banking on the typo, so
-  // it answers DNS perfectly well and mail sent to it arrives — at them. The
-  // resolving case is the one worth warning about, not the one to stay quiet on.
+  // How the address looks is the only signal worth using: a near-miss of a
+  // common domain is usually a typo, and the confirming link is what proves a
+  // mailbox works — never a DNS lookup.
   const suggestion = unchanged ? null : suggestEmailCorrection(newEmail);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-6">
+    <>
       <h2 className="text-sm font-bold text-fg">Email</h2>
-      <p className="mt-1 text-xs text-muted-fg">{currentEmail ?? ""}</p>
       {emailSent ? (
         <>
           <div className="mt-4 flex items-start gap-2 rounded-lg bg-success/10 p-3">
             <span className="material-symbols-rounded mt-0.5 text-sm text-success">mark_email_unread</span>
-            <p className="text-xs text-muted-fg">
-              Verification link sent to <span className="font-medium text-fg">{newEmail}</span>. Check your inbox, and your spam
-              folder. The change takes effect once you open the link.
-            </p>
+            <div>
+              <p className="text-xs font-bold text-fg">Email change pending</p>
+              <p className="text-xs text-muted-fg">
+                The link is valid for {EMAIL_CHANGE_LINK_TTL_LABEL} — to send to a new address, type it below.
+              </p>
+            </div>
           </div>
           {/* Without these the screen is a dead end: an address that cannot
               receive mail says so by staying silent, and the only way back to
@@ -61,50 +65,62 @@ export function EmailSection({
               disabled={saving || resendIn > 0}
               className="font-medium text-brand underline underline-offset-2 disabled:text-muted-fg disabled:no-underline"
             >
-              {resendIn > 0 ? `Send again in ${resendIn}s` : "Send it again"}
+              {resendIn > 0 ? `Resend available in ${resendIn}s` : "Send it again"}
             </button>
-            <button type="button" onClick={onUseDifferent} className="font-medium text-brand underline underline-offset-2">
-              Use a different address
+            <button type="button" onClick={onCancel} className="font-medium text-brand underline underline-offset-2">
+              Cancel
             </button>
           </div>
         </>
       ) : (
         <>
-          <Form onSubmit={onSubmit} className="mt-4 flex gap-3">
+          {emailVerified && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg bg-success/10 p-3">
+              <span className="material-symbols-rounded mt-0.5 text-sm text-success">verified</span>
+              <p className="flex-1 text-xs text-muted-fg">Email verified — {emailVerified}</p>
+              {onDismissVerified && (
+                <button
+                  type="button"
+                  onClick={onDismissVerified}
+                  aria-label="Dismiss"
+                  className="material-symbols-rounded text-sm text-muted-fg hover:text-fg"
+                >
+                  close
+                </button>
+              )}
+            </div>
+          )}
+          <FormField className="mt-4">
             <Input
+              id="email"
               type="email"
-              placeholder="new@example.com"
+              placeholder="you@example.com"
               value={newEmail}
               onChange={(e) => onChange(e.target.value)}
-              required
-              aria-invalid={unchanged}
-              aria-describedby={unchanged ? "email-unchanged" : undefined}
-              className="flex-1"
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? "email-error" : undefined}
             />
-            <Button type="submit" disabled={saving || !newEmail || unchanged}>
-              {saving ? "Sending\u2026" : "Change email"}
-            </Button>
-          </Form>
-          {unchanged && (
-            <p id="email-unchanged" className="mt-2 text-xs text-error">
-              This is already your email address.
-            </p>
-          )}
-          {suggestion && (
-            <p className="mt-2 text-xs text-muted-fg">
-              Did you mean{" "}
-              <button
-                type="button"
-                onClick={() => onChange(suggestion)}
-                className="font-medium text-brand underline underline-offset-2"
-              >
-                {suggestion}
-              </button>
-              ?
-            </p>
-          )}
+            {emailError && (
+              <FormMessage id="email-error" role="alert">
+                {emailError}
+              </FormMessage>
+            )}
+            {suggestion && !emailError && (
+              <p className="mt-2 text-xs text-muted-fg">
+                Did you mean{" "}
+                <button
+                  type="button"
+                  onClick={() => onChange(suggestion)}
+                  className="font-medium text-brand underline underline-offset-2"
+                >
+                  {suggestion}
+                </button>
+                ?
+              </p>
+            )}
+          </FormField>
         </>
       )}
-    </div>
+    </>
   );
 }

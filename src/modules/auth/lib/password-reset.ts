@@ -24,20 +24,52 @@ export function normalizeEmail(value: string): string {
 }
 
 /**
- * Requests a reset.
+ * What a reset request resolved to.
  *
- * Returns nothing in every case. Whether the address owns an account, whether
- * the mail went out, and whether the caller is rate limited are all invisible
- * to the caller by design: a route that answers differently for a known and an
- * unknown address is an enumeration oracle, and this is reachable without a
- * session.
+ * `unknown_email` is reported to the caller on purpose: this screen tells a
+ * visitor when the address they typed has no account, rather than accepting
+ * every address alike. That is a deliberate trade — it makes this route able to
+ * answer "does this person have an account?", so the per-IP limit above is the
+ * only thing standing between one prober and a mailbox list, and it is applied
+ * before the lookup for exactly that reason.
  */
-export async function requestPasswordReset(
+export type ResetOutcome =
+  | { status: "ready"; deliver: () => Promise<void> }
+  | { status: "unknown_email" }
+  | { status: "rate_limited" }
+  | { status: "failed" };
+
+/**
+ * What the browser is told. Declared beside the outcome it is derived from and
+ * imported by both the route and the form, so the wire contract has one
+ * definition rather than a copy at each end that can drift.
+ *
+ * `ready` becomes `sent` — the route reports what happened to the request, not
+ * what the service decided internally. `invalid_request` has no outcome behind
+ * it: the route rejects those before the service is reached.
+ */
+export type RecoverStatus = Exclude<ResetOutcome["status"], "ready"> | "sent" | "invalid_request";
+
+/** Supabase answers a recovery link for an address it does not know with a 404. */
+function isUnknownUser(error: { status?: number; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.status === 404 || /user not found/i.test(error.message ?? "");
+}
+
+/**
+ * Looks the address up and, when it owns an account, mints its reset link.
+ *
+ * Delivery is handed back as `deliver` rather than awaited here: the SMTP
+ * session takes seconds, and the caller wants to answer the browser as soon as
+ * the lookup is settled. Splitting them keeps the slow half off the response
+ * path without making the fast half wait on it.
+ */
+export async function preparePasswordReset(
   supabase: DbClient,
   rawEmail: string,
   ip: string | null,
   now = new Date(),
-): Promise<void> {
+): Promise<ResetOutcome> {
   const email = normalizeEmail(rawEmail);
   const windowStart = new Date(now.getTime() - RESET_WINDOW_MS).toISOString();
 
@@ -50,27 +82,39 @@ export async function requestPasswordReset(
     ip ? passwordResetDao.countByIp(supabase, ip, windowStart) : Promise.resolve(0),
   ]);
 
-  if (perEmail > RESET_MAX_PER_EMAIL || perIp > RESET_MAX_PER_IP) return;
+  // Counted and refused before the lookup runs, so a prober is throttled on the
+  // question itself rather than on how often it happens to be answered "yes".
+  if (perEmail > RESET_MAX_PER_EMAIL || perIp > RESET_MAX_PER_IP) return { status: "rate_limited" };
 
   // Supabase mints the link but sends nothing, which leaves the message to this
   // project — the same template and mail server as the invitation, rather than
   // one that can only be edited in a dashboard.
   const { data: link, error } = await supabase.auth.admin.generateLink({ type: "recovery", email });
 
-  // An unknown address lands here. Swallowed rather than surfaced, for the same
-  // reason the function returns void.
-  if (error || !link?.properties?.hashed_token) return;
+  if (isUnknownUser(error)) return { status: "unknown_email" };
+
+  // Anything else — Supabase unreachable, credentials rejected, a token that
+  // came back malformed — must not be reported as "no such account", or an
+  // outage would tell every visitor they are not registered.
+  if (error || !link?.properties?.hashed_token) {
+    console.error("Password reset link generation failed:", error?.message ?? "no token returned");
+    return { status: "failed" };
+  }
 
   const resetUrl = `${appBaseUrl()}/reset-password?token=${link.properties.hashed_token}`;
   const name = (link.user?.user_metadata?.full_name as string | undefined)?.trim() || "there";
 
-  try {
-    await sendTemplatedEmail(passwordResetTemplate, { name, resetUrl }, { email, name });
-  } catch (err) {
-    // The caller is told nothing either way, so a send failure must not become
-    // a 500 that distinguishes this address from one that was never mailed.
-    console.error("Password reset email failed:", err);
-  }
+  return {
+    status: "ready",
+    deliver: async () => {
+      try {
+        await sendTemplatedEmail(passwordResetTemplate, { name, resetUrl }, { email, name });
+      } catch (err) {
+        // Runs after the response has gone out, so there is nobody left to tell.
+        console.error("Password reset email failed:", err);
+      }
+    },
+  };
 }
 
 export type ConfirmResult =

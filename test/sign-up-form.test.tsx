@@ -244,6 +244,37 @@ describe("SignUpForm terms consent", () => {
   });
 });
 
+describe("SignUpForm auth error copy", () => {
+  it("names the wait instead of the raw {} when a 429 rate-limits the attempt", async () => {
+    signUp.mockResolvedValue({ error: { status: 429, message: "{}" } });
+
+    render(<SignUpForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Too many attempts. Please wait, then try again."));
+  });
+
+  it("falls back to sign-up copy for a {} error that is not a rate limit", async () => {
+    signUp.mockResolvedValue({ error: { message: "{}" } });
+
+    render(<SignUpForm />);
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toBe("We could not create your account. Please try again."),
+    );
+  });
+
+  it("keeps a usable provider message", async () => {
+    signUp.mockResolvedValue({ error: { message: "User already registered" } });
+
+    render(<SignUpForm />);
+    fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("User already registered"));
+  });
+});
+
 describe("SignUpForm password reveal", () => {
   it("shows and re-hides each password independently", () => {
     render(<SignUpForm />);
