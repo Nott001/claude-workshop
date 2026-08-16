@@ -91,6 +91,7 @@ export function AccountSettings() {
                 />
               </div>
             )}
+            <DeleteAccountSection />
           </div>
           {settings.savedNotice && (
             <div className="mt-6 flex items-start gap-2 rounded-lg bg-success/10 p-3">
@@ -112,7 +113,6 @@ export function AccountSettings() {
             </Button>
           </div>
         </Form>
-        <DeleteAccountSection />
       </div>
 
       {settings.toast && (

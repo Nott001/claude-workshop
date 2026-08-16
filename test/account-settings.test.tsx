@@ -348,13 +348,13 @@ describe("AccountSettings", () => {
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeTruthy();
   });
 
-  it("renders the delete-account section outside the settings form", () => {
+  it("renders the delete-account section inside the settings form, as its own bottom section", () => {
     hooks.useAccountSettings.mockReturnValue(settings());
 
     const { container } = render(<AccountSettings />);
 
     const heading = screen.getByRole("heading", { name: "Delete Account" });
-    expect(heading.closest("form")).toBeNull();
+    expect(heading.closest("form")).not.toBeNull();
     expect(container.querySelectorAll("form")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeTruthy();
   });

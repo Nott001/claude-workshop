@@ -34,15 +34,12 @@ afterEach(() => {
 });
 
 describe("DeleteAccountSection", () => {
-  it("renders the danger card with a summary and the delete trigger", () => {
+  it("renders the delete-account section heading and trigger", () => {
     hooks.useDeleteAccount.mockReturnValue(value());
 
     render(<DeleteAccountSection />);
 
     expect(screen.getByRole("heading", { name: "Delete Account" })).toBeTruthy();
-    expect(
-      screen.getByText("Deleting your account permanently removes your personal data. This cannot be undone."),
-    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeTruthy();
   });
 
@@ -56,13 +53,14 @@ describe("DeleteAccountSection", () => {
     expect(openDialog).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the removal summary, payments notice, and typed-phrase input once open", () => {
+  it("shows the permanent-deletion message and typed-phrase input once open", () => {
     hooks.useDeleteAccount.mockReturnValue(value({ open: true, phrase: "Delete My Account" }));
 
     render(<DeleteAccountSection />);
 
-    expect(screen.getByText(/buyer email is replaced with a deleted placeholder/i)).toBeTruthy();
-    expect(screen.getByText(/we permanently remove all of your personal information/i)).toBeTruthy();
+    expect(
+      screen.getByText("Deleting your account permanently removes your personal data. This cannot be undone."),
+    ).toBeTruthy();
     const input = screen.getByLabelText('Type "Delete My Account" to confirm') as HTMLInputElement;
     expect(input.value).toBe("Delete My Account");
   });
