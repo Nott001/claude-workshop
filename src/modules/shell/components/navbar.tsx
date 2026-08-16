@@ -28,6 +28,14 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href}
+              // Every item here is a dynamic route, so the default `auto` makes
+              // the rail issue one server render per link the moment it mounts
+              // — six at once for an admin. On the Free plan that burst is what
+              // Cloudflare kills: a 15-minute capture caught 12 of 14
+              // `exceededCpu` invocations inside one second, five of them these
+              // links. Prefetching is production-only, which is why `next dev`
+              // never shows it.
+              prefetch={false}
               className={cn(
                 "flex w-full items-center overflow-hidden rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition hover:bg-muted hover:text-fg",
                 isActive ? "bg-brand/10 text-brand" : "text-muted-fg",

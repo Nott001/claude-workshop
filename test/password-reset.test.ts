@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DbClient } from "@/shared/db/dao/types";
 import {
-  requestPasswordReset,
+  preparePasswordReset,
   confirmPasswordReset,
   normalizeEmail,
   RESET_MAX_PER_EMAIL,
@@ -46,9 +46,16 @@ describe("normalizeEmail", () => {
   });
 });
 
-describe("requestPasswordReset", () => {
+/** Runs the deferred half too, for the assertions that are about the mail. */
+async function prepareAndDeliver(...args: Parameters<typeof preparePasswordReset>) {
+  const outcome = await preparePasswordReset(...args);
+  if (outcome.status === "ready") await outcome.deliver();
+  return outcome;
+}
+
+describe("preparePasswordReset", () => {
   it("mails a link built from the minted token", async () => {
-    await requestPasswordReset(supabase, EMAIL, "1.2.3.4");
+    await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
 
     expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
     const [, params, to] = sendTemplatedEmail.mock.calls[0];
@@ -57,64 +64,96 @@ describe("requestPasswordReset", () => {
     expect(to.email).toBe(EMAIL);
   });
 
+  // The lookup is what the caller waits on; the SMTP session is not. Resolving
+  // before anything is sent is what keeps the reply off the mail server's clock.
+  it("resolves ready without having sent anything yet", async () => {
+    const outcome = await preparePasswordReset(supabase, EMAIL, "1.2.3.4");
+
+    expect(outcome.status).toBe("ready");
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
+  });
+
   it("records the attempt before deciding, so a race cannot slip two through", async () => {
-    await requestPasswordReset(supabase, EMAIL, "1.2.3.4");
+    await preparePasswordReset(supabase, EMAIL, "1.2.3.4");
 
     expect(recordAttempt).toHaveBeenCalledWith(supabase, EMAIL, "1.2.3.4");
     expect(recordAttempt.mock.invocationCallOrder[0]).toBeLessThan(countByEmail.mock.invocationCallOrder[0]);
   });
 
   it("normalizes the address before it is counted or mailed", async () => {
-    await requestPasswordReset(supabase, "  ADA@Example.com ", null);
+    await prepareAndDeliver(supabase, "  ADA@Example.com ", null);
 
     expect(recordAttempt).toHaveBeenCalledWith(supabase, EMAIL, null);
     expect(generateLink).toHaveBeenCalledWith({ type: "recovery", email: EMAIL });
   });
 
-  // The whole point of the endpoint returning void: an unknown address must be
-  // indistinguishable from a known one.
-  it("stays silent and sends nothing for an address with no account", async () => {
-    generateLink.mockResolvedValue({ data: null, error: { message: "User not found" } });
+  it("reports an address with no account, and sends nothing", async () => {
+    generateLink.mockResolvedValue({ data: null, error: { status: 404, message: "User not found" } });
 
-    await expect(requestPasswordReset(supabase, EMAIL, "1.2.3.4")).resolves.toBeUndefined();
+    const outcome = await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
+
+    expect(outcome.status).toBe("unknown_email");
     expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
-  it("swallows a send failure rather than turning it into a distinguishing error", async () => {
+  // An outage must not be reported as "no such account", or Supabase going down
+  // would tell every visitor in turn that they are not registered.
+  it("separates a backend failure from an unknown address", async () => {
+    generateLink.mockResolvedValue({ data: null, error: { status: 503, message: "service unavailable" } });
+
+    const outcome = await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
+
+    expect(outcome.status).toBe("failed");
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
+  });
+
+  it("treats a link that came back without a token as a failure, not a missing account", async () => {
+    generateLink.mockResolvedValue({ data: { user: {}, properties: {} }, error: null });
+
+    const outcome = await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
+
+    expect(outcome.status).toBe("failed");
+  });
+
+  it("swallows a send failure, which happens after the caller has been answered", async () => {
     sendTemplatedEmail.mockRejectedValue(new Error("smtp down"));
 
-    await expect(requestPasswordReset(supabase, EMAIL, "1.2.3.4")).resolves.toBeUndefined();
+    await expect(prepareAndDeliver(supabase, EMAIL, "1.2.3.4")).resolves.toEqual(expect.objectContaining({ status: "ready" }));
   });
 
-  it("stops mailing once the per-email limit is passed", async () => {
+  // Refused before the lookup runs: the limit has to throttle the question, not
+  // just the mail, now that the answer is visible to whoever asks.
+  it("refuses past the per-email limit without looking the address up", async () => {
     countByEmail.mockResolvedValue(RESET_MAX_PER_EMAIL + 1);
 
-    await requestPasswordReset(supabase, EMAIL, "1.2.3.4");
+    const outcome = await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
 
-    expect(sendTemplatedEmail).not.toHaveBeenCalled();
+    expect(outcome.status).toBe("rate_limited");
     expect(generateLink).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
   it("still mails on the last attempt inside the limit", async () => {
     countByEmail.mockResolvedValue(RESET_MAX_PER_EMAIL);
 
-    await requestPasswordReset(supabase, EMAIL, "1.2.3.4");
+    await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
 
     expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("stops mailing once one origin passes the per-IP limit", async () => {
+  it("refuses past the per-IP limit without looking the address up", async () => {
     countByIp.mockResolvedValue(RESET_MAX_PER_IP + 1);
 
-    await requestPasswordReset(supabase, EMAIL, "1.2.3.4");
+    const outcome = await prepareAndDeliver(supabase, EMAIL, "1.2.3.4");
 
-    expect(sendTemplatedEmail).not.toHaveBeenCalled();
+    expect(outcome.status).toBe("rate_limited");
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   // `next dev` has no CF-Connecting-IP, and the per-email limit has to hold
   // there on its own rather than the request going uncounted.
   it("applies the email limit when there is no IP to key on", async () => {
-    await requestPasswordReset(supabase, EMAIL, null);
+    await prepareAndDeliver(supabase, EMAIL, null);
 
     expect(countByIp).not.toHaveBeenCalled();
     expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
@@ -123,7 +162,7 @@ describe("requestPasswordReset", () => {
   it("falls back to a neutral greeting when the account has no name", async () => {
     generateLink.mockResolvedValue({ data: { user: { user_metadata: {} }, properties: { hashed_token: TOKEN } }, error: null });
 
-    await requestPasswordReset(supabase, EMAIL, null);
+    await prepareAndDeliver(supabase, EMAIL, null);
 
     expect(sendTemplatedEmail.mock.calls[0][1].name).toBe("there");
   });

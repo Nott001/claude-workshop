@@ -83,23 +83,32 @@
   }
 }
 
-.msr,
-.material-symbols-rounded {
-  font-family: "Material Symbols Rounded";
-  font-weight: normal;
-  font-style: normal;
-  font-size: 20px;
-  line-height: 1;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  vertical-align: middle;
-  font-variation-settings:
-    "FILL" 0,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 20;
+/* Layered, and that is the point. Unlayered rules outrank every cascade layer
+   regardless of specificity, so while this block sat outside one it beat the
+   utilities on its own elements: `display` swallowed `inline-flex`, taking
+   `items-center` with it, and `font-size` pinned every icon in the app to 20px
+   however the call site sized it. Inside `base`, utilities win as written. */
+@layer base {
+  .msr,
+  .material-symbols-rounded {
+    font-family: "Material Symbols Rounded";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    vertical-align: middle;
+    /* `opsz` tracks the rendered size rather than pinning to 20, now that call
+       sites actually reach sizes from 8px to 48px. */
+    font-variation-settings:
+      "FILL" 0,
+      "wght" 400,
+      "GRAD" 0;
+    font-optical-sizing: auto;
+  }
 }
 
 /* Briefly glows the row or module that just moved in the curriculum builder so

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requestPasswordReset, confirmPasswordReset, getServiceClient, getRouteClient, findByAuthId, logAuditEvent } =
+const { preparePasswordReset, confirmPasswordReset, getServiceClient, getRouteClient, findByAuthId, logAuditEvent } =
   vi.hoisted(() => ({
-    requestPasswordReset: vi.fn(),
+    preparePasswordReset: vi.fn(),
     confirmPasswordReset: vi.fn(),
     getServiceClient: vi.fn(() => ({})),
     getRouteClient: vi.fn(async () => ({})),
@@ -12,13 +12,12 @@ const { requestPasswordReset, confirmPasswordReset, getServiceClient, getRouteCl
 
 vi.mock("@/modules/auth/lib/password-reset", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/auth/lib/password-reset")>()),
-  requestPasswordReset,
+  preparePasswordReset,
   confirmPasswordReset,
 }));
-// Run the deferred work inline so its effects are observable here.
-vi.mock("@/shared/lib/after-response", () => ({
-  afterResponse: (work: () => Promise<unknown>) => work(),
-}));
+const { afterResponse } = vi.hoisted(() => ({ afterResponse: vi.fn() }));
+// Run the deferred work inline by default so its effects are observable here.
+vi.mock("@/shared/lib/after-response", () => ({ afterResponse }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ findByAuthId }));
@@ -29,6 +28,7 @@ import { POST as confirm } from "@/app/api/auth/recover/confirm/route";
 
 const TOKEN = "aaaabbbbccccddddeeeeffff";
 const PASSWORD = "a-long-enough-password";
+const deliver = vi.fn();
 
 function jsonReq(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request("https://startuplab.center/api/auth/recover", {
@@ -50,7 +50,9 @@ function formReq(fields: Record<string, string>, headers: Record<string, string>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requestPasswordReset.mockResolvedValue(undefined);
+  deliver.mockResolvedValue(undefined);
+  preparePasswordReset.mockResolvedValue({ status: "ready", deliver });
+  afterResponse.mockImplementation((work: () => Promise<unknown>) => work());
   confirmPasswordReset.mockResolvedValue({ ok: true, authUserId: "auth-1" });
   findByAuthId.mockResolvedValue({ id: 7 });
   logAuditEvent.mockResolvedValue(true);
@@ -61,63 +63,82 @@ describe("POST /api/auth/recover", () => {
     const res = await recover(jsonReq({ email: "ada@example.com" }, { "cf-connecting-ip": "1.2.3.4" }));
 
     expect(res.status).toBe(200);
-    expect(requestPasswordReset).toHaveBeenCalledWith({}, "ada@example.com", "1.2.3.4");
+    expect(await res.json()).toEqual({ status: "sent" });
+    expect(preparePasswordReset).toHaveBeenCalledWith({}, "ada@example.com", "1.2.3.4");
   });
 
-  // Every rejected path has to look like every accepted one, or the route
-  // becomes the enumeration oracle the service was written to avoid.
-  it("answers identically for a malformed body, a bad address and a cross-site origin", async () => {
+  // This route reports whether an address is registered, by choice. What it must
+  // still not do is let the *shape* of a refusal say more than the status does.
+  it("reports an unregistered address as such", async () => {
+    preparePasswordReset.mockResolvedValue({ status: "unknown_email" });
+
+    const res = await recover(jsonReq({ email: "stranger@example.com" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "unknown_email" });
+  });
+
+  it("does not mail anything for an unregistered address", async () => {
+    preparePasswordReset.mockResolvedValue({ status: "unknown_email" });
+
+    await recover(jsonReq({ email: "stranger@example.com" }));
+
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it("passes the rate-limited and failed outcomes straight through", async () => {
+    for (const status of ["rate_limited", "failed"]) {
+      preparePasswordReset.mockResolvedValue({ status });
+
+      const res = await recover(jsonReq({ email: "ada@example.com" }));
+
+      expect(await res.json()).toEqual({ status });
+      expect(deliver).not.toHaveBeenCalled();
+    }
+  });
+
+  it("answers a malformed body, a bad address and a cross-site origin the same way", async () => {
     const bodies = [
       await recover(jsonReq({ email: "not-an-email" })),
       await recover(jsonReq({})),
       await recover(jsonReq({ email: "ada@example.com" }, { origin: "https://evil.example" })),
     ];
 
-    const ok = await recover(jsonReq({ email: "ada@example.com" }));
-
     for (const res of bodies) {
-      expect(res.status).toBe(ok.status);
-      expect(await res.clone().json()).toEqual(await ok.clone().json());
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ status: "invalid_request" });
     }
   });
 
   it("does not run a reset for a cross-site origin", async () => {
     await recover(jsonReq({ email: "ada@example.com" }, { origin: "https://evil.example" }));
 
-    expect(requestPasswordReset).not.toHaveBeenCalled();
+    expect(preparePasswordReset).not.toHaveBeenCalled();
   });
 
   it("allows a same-origin request", async () => {
     await recover(jsonReq({ email: "ada@example.com" }, { origin: "https://startuplab.center" }));
 
-    expect(requestPasswordReset).toHaveBeenCalledTimes(1);
+    expect(preparePasswordReset).toHaveBeenCalledTimes(1);
   });
 
   it("passes a null IP through when the edge header is absent", async () => {
     await recover(jsonReq({ email: "ada@example.com" }));
 
-    expect(requestPasswordReset).toHaveBeenCalledWith({}, "ada@example.com", null);
+    expect(preparePasswordReset).toHaveBeenCalledWith({}, "ada@example.com", null);
   });
 
-  // The body is identical for every address; the clock must be too. A reset for
-  // a real account runs an SMTP session of several seconds that a reset for an
-  // unknown one never reaches, so the reply has to be sent before any of it.
-  it("answers before the reset work runs, so delivery cannot be timed", async () => {
-    let resolveReset: () => void = () => {};
-    requestPasswordReset.mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveReset = resolve;
-      }),
-    );
+  // The lookup now has to settle before the reply, but the SMTP session still
+  // must not: it takes seconds, and nothing the browser is told depends on it.
+  it("hands the mail to afterResponse rather than awaiting it", async () => {
+    // Held rather than run, so the reply is produced with delivery still pending.
+    afterResponse.mockImplementation(() => {});
 
     const res = await recover(jsonReq({ email: "ada@example.com" }));
 
-    // Returned while the reset is still pending.
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-    expect(requestPasswordReset).toHaveBeenCalledTimes(1);
-
-    resolveReset();
+    expect(await res.json()).toEqual({ status: "sent" });
+    expect(afterResponse).toHaveBeenCalledWith(deliver);
+    expect(deliver).not.toHaveBeenCalled();
   });
 });
 

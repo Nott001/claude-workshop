@@ -24,6 +24,10 @@ export function BackLink({ href, children, className }: BackLinkProps) {
   return (
     <Link
       href={href}
+      // Nine pages carry this, always above the fold, and it points back at a
+      // page the reader has just come from — so the prefetch re-renders on the
+      // server something their client cache already holds.
+      prefetch={false}
       className={cn(
         "flex w-fit items-center gap-1.5 text-sm font-medium text-muted-fg transition-colors hover:text-fg",
         className,

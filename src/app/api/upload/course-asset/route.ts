@@ -11,6 +11,7 @@ import {
   sanitizeObjectName,
   validateFileType,
   validateFileSize,
+  oversizeMessage,
 } from "@/shared/integrations/storage/policy";
 
 export async function POST(req: Request) {
@@ -31,8 +32,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File type not allowed for course assets" }, { status: 400 });
   }
 
+  // Measured after the browser's resize, so this is the bound on what the
+  // isolate holds -- not the size the reader was offered.
   if (!validateFileSize("course_assets", file.size)) {
-    return NextResponse.json({ error: "File size must be under 50 MB" }, { status: 400 });
+    return NextResponse.json({ error: oversizeMessage("course_assets") }, { status: 400 });
   }
 
   // The stored path is derived from the lesson's own module and course ids, and

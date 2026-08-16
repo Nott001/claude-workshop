@@ -13,6 +13,9 @@ export function EventMemoryCard({ event }: { event: LandingEvent }) {
   return (
     <Link
       href={withBackLink(`/events/${event.event_id}`, "community")}
+      // The memories strip is a grid of these, so it prefetches a detail render
+      // per finished event the same way the upcoming grid did.
+      prefetch={false}
       className="group flex h-full flex-col rounded-xl border border-border bg-surface p-5 transition-colors hover:border-brand"
     >
       <div className="flex items-center gap-2 text-xs font-semibold text-muted-fg">

@@ -59,6 +59,12 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                     // `rounded-md` stays: it shapes the focus ring, which is
                     // the one box here that still earns its place.
                     aria-current={isActive ? "page" : undefined}
+                    // Same reason as the staff rail: these are dynamic routes,
+                    // and the default prefetch renders every one of them on
+                    // arrival. This bar is on every page a visitor or attendee
+                    // sees, so it was the burst behind the killed `/events` and
+                    // `/community` requests.
+                    prefetch={false}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition hover:text-brand",
                       isActive ? "font-semibold text-brand" : "font-medium text-muted-fg",
@@ -84,6 +90,11 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                 // smaller reads as less important rather than as different.
                 <Link
                   href={withBackLink("/sign-in", origin)}
+                  // The origin rides in the query string, so every page this bar
+                  // renders on prefetches a *different* /sign-in URL — one more
+                  // render per arrival, and one that shares no cache entry with
+                  // the last. It was among the killed requests.
+                  prefetch={false}
                   className="rounded-lg px-5 py-2.5 text-sm font-semibold tracking-[0.04em] transition hover:text-brand"
                 >
                   SIGN IN

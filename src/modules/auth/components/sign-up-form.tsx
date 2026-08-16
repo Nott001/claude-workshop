@@ -208,11 +208,13 @@ export function SignUpForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
             />
             <label htmlFor="signup-terms" className="text-sm leading-5 font-medium tracking-wider text-muted-fg">
               I agree to the{" "}
-              <Link href="/terms" className="text-brand transition-colors hover:text-brand/80">
+              {/* Neither page exists yet, so the default prefetch spent two
+                  server renders per visit rendering the not-found page. */}
+              <Link href="/terms" prefetch={false} className="text-brand transition-colors hover:text-brand/80">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-brand transition-colors hover:text-brand/80">
+              <Link href="/privacy" prefetch={false} className="text-brand transition-colors hover:text-brand/80">
                 Privacy Policy
               </Link>
             </label>
@@ -245,6 +247,9 @@ export function SignUpForm({ redirectUrl = null, backOrigin }: { redirectUrl?: s
             as the link it is. */}
         <Link
           href={withBackLink(`/sign-in${redirectUrlParam(redirectUrl)}`, backOrigin)}
+          // Same query-string uniqueness as its counterpart on the sign-in
+          // form: the prefetched URL is one only this visitor will ask for.
+          prefetch={false}
           className="inline-flex h-12 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-medium tracking-wider text-fg shadow-lg shadow-brand/20 transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           Sign In

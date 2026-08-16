@@ -55,6 +55,7 @@ export function StaffEventListPage() {
             </div>
             <Link
               href="/staff/events/new"
+              prefetch={false}
               className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand/90"
             >
               <span className="material-symbols-rounded text-[18px]">add</span>

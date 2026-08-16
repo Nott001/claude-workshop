@@ -15,6 +15,7 @@ export default async function EmailVerifiedPage({ searchParams }: { searchParams
         <p className="mt-2 text-sm leading-relaxed text-muted-fg">Your email has been verified.</p>
         <Link
           href={redirectUrl ?? "/home"}
+          prefetch={false}
           className="mt-6 inline-flex h-9 w-full items-center justify-center rounded-lg bg-brand px-3 text-sm font-medium text-brand-fg shadow-sm transition-colors hover:bg-brand/90"
         >
           {redirectUrl ? "Continue to event" : "Go to home"}

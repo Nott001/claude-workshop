@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   validateFileType,
   validateFileSize,
+  validateSourceSize,
+  oversizeMessage,
   getExtensionFromMimeType,
   buildEventImagePath,
   buildProfileImagePath,
@@ -92,17 +94,47 @@ describe("Storage bucket validation", () => {
     });
   });
 
+  // Two limits: what may be chosen, measured before the browser resizes, and
+  // what may arrive, measured after. An image shrinks between them, so the
+  // second is far tighter; a video does not, so they are equal.
+  describe("validateSourceSize", () => {
+    it("lets an image be chosen at the full source limit, since it will be resized", () => {
+      expect(validateSourceSize("event_images", 50 * 1024 * 1024)).toBe(true);
+    });
+
+    it("rejects a source over the limit", () => {
+      expect(validateSourceSize("event_images", 51 * 1024 * 1024)).toBe(false);
+    });
+
+    it("accepts a phone-sized photo that the old server limit would now refuse", () => {
+      expect(validateSourceSize("event_images", 12 * 1024 * 1024)).toBe(true);
+      expect(validateFileSize("event_images", 12 * 1024 * 1024)).toBe(false);
+    });
+  });
+
   describe("validateFileSize", () => {
-    it("accepts files under 50MB", () => {
+    it("accepts a resized image", () => {
       expect(validateFileSize("event_images", 1024 * 1024)).toBe(true);
     });
 
-    it("accepts files exactly 50MB", () => {
-      expect(validateFileSize("event_images", 50 * 1024 * 1024)).toBe(true);
+    it("rejects an image that reached the server unresized", () => {
+      expect(validateFileSize("event_images", 50 * 1024 * 1024)).toBe(false);
     });
 
-    it("rejects files over 50MB", () => {
-      expect(validateFileSize("event_images", 51 * 1024 * 1024)).toBe(false);
+    it("leaves buckets that resize nothing at their full limit", () => {
+      expect(validateFileSize("course_videos", 50 * 1024 * 1024)).toBe(true);
+      expect(validateFileSize("course_videos", 51 * 1024 * 1024)).toBe(false);
+      expect(validateFileSize("course_assets", 50 * 1024 * 1024)).toBe(true);
+    });
+  });
+
+  describe("oversizeMessage", () => {
+    it("names the cause for a bucket whose files are resized", () => {
+      expect(oversizeMessage("event_images")).toMatch(/could not be processed in your browser/);
+    });
+
+    it("names the limit for a bucket whose files are not", () => {
+      expect(oversizeMessage("course_videos")).toBe("Video must be under 50 MB.");
     });
   });
 

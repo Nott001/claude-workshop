@@ -122,7 +122,29 @@ finish on that commit, then builds and uploads. Nothing else triggers it: there
 is no `push` trigger, because a push-triggered deploy outruns the checks.
 
 Manual dispatch is available for rollbacks, with a `skip_gate` input that
-bypasses verification and logs a warning when used.
+bypasses verification and logs a warning when used. Dispatching it against a
+branch deploys that branch's HEAD, built with the `production` environment, so
+it is also the way to ship a branch without merging — the gate is skipped, the
+configuration is not.
+
+### Never run `pnpm cf:deploy` against production
+
+It builds from whatever the shell can see, which on a workstation is
+`.env.local`. Every `NEXT_PUBLIC_*` in that file is inlined into the bundle by
+the compiler — including `NEXT_PUBLIC_SUPABASE_URL`, which points at the local
+Supabase on `127.0.0.1:54321`.
+
+The upload succeeds and the Worker starts. What fails is every query: the
+isolate resolves a loopback address, `global_fetch_strictly_public` sends it out
+to the public internet, and Cloudflare answers `1003 — direct IP access not
+allowed`. Pages still return `200`, because the DAOs log the error and return
+`[]`, so the landing page renders "No upcoming events" and the community list
+renders empty. Nothing about the response says the database was never reached;
+only `wrangler tail` shows `getUpcomingForLanding failed: error code: 1003`.
+
+This has happened. Recovery is `wrangler rollback <last-good-version-id>`.
+Deploy through the workflow instead, which is the only place the production
+`NEXT_PUBLIC_*` values exist.
 
 ## Local preview
 
@@ -147,12 +169,12 @@ boundary — sockets, WebAssembly, timers, streams.
 
 ## Scripts
 
-| Script            | What it does                                                  |
-| ----------------- | ------------------------------------------------------------- |
-| `pnpm cf:build`   | Next build, adapted into `.open-next/`.                       |
-| `pnpm cf:preview` | Build, then serve on the real runtime.                        |
-| `pnpm cf:deploy`  | Build and upload. CI does this; run it locally only to debug. |
-| `pnpm cf:typegen` | Regenerate `cloudflare-env.d.ts` from `wrangler.jsonc`.       |
+| Script            | What it does                                            |
+| ----------------- | ------------------------------------------------------- |
+| `pnpm cf:build`   | Next build, adapted into `.open-next/`.                 |
+| `pnpm cf:preview` | Build, then serve on the real runtime.                  |
+| `pnpm cf:deploy`  | Build and upload. CI only — see "Deploying" above.      |
+| `pnpm cf:typegen` | Regenerate `cloudflare-env.d.ts` from `wrangler.jsonc`. |
 
 `cloudflare-env.d.ts` is gitignored **and excluded from `tsconfig.json`**, for
 two separate reasons:

@@ -127,6 +127,7 @@ export function SpeakerEventDetailPage() {
                 {event.course_id ? (
                   <Link
                     href={`/speaker/events/${eventId}/course`}
+                    prefetch={false}
                     className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
                   >
                     <span className="material-symbols-rounded text-[19px]">school</span>
@@ -135,6 +136,7 @@ export function SpeakerEventDetailPage() {
                 ) : (
                   <Link
                     href={`/speaker/events/${eventId}/course`}
+                    prefetch={false}
                     className="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-dashed border-brand py-4 text-[16px] font-bold text-brand shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/10"
                   >
                     <span className="material-symbols-rounded text-[19px]">add_circle</span>
@@ -144,6 +146,7 @@ export function SpeakerEventDetailPage() {
                 {event.course_id && (
                   <Link
                     href={`/courses/${event.course_id}/room`}
+                    prefetch={false}
                     className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
                   >
                     <span className="material-symbols-rounded text-[19px]">play_arrow</span>
