@@ -2,60 +2,42 @@
 
 ## Goal
 
-Work off a clean, short-lived branch and confirm the app runs — and that the reset-email flaw reproduces — before touching any code.
+Stand up the working branch this effort ships on and pin the baseline facts the
+reset-email work is measured against, so later sheets start from one shared
+"before".
+
+## Where
+
+- `git checkout -b feat/dev-mail-capture-box` (base `77ff37f`).
+- `supabase/config.toml` — `auth.email.smtp` → local `127.0.0.1:1025` (GoTrue →
+  inbucket), `otp_expiry = 86400`, resend `max_frequency = "1s"`.
+- Failure I set out to fix: the recover route reported `sent` even when no mail
+  had actually left the app — the delivery path was unawaited, so a dead relay
+  looked successful.
 
 ## Why
 
-The email seam (`src/shared/integrations/email/index.ts`) returns the console provider under `next dev`, so a password-reset request answers `"sent"` and the link only reaches the dev-server terminal. The route cannot know delivery succeeded because it never awaited it (`src/app/api/auth/recover/route.ts:45`). These sheets fix the transport so dev mail really lands in inbucket, then make the reset route report that truthfully.
+Two independent truths drive the whole effort:
+
+1. **The app must not claim delivery it never attempted.** The landing route
+   reported a reset link as sent while the send had never resolved. A loopback
+   guard, a host-specific socket seam, and an awaited verdict each remove one
+   way that lie can happen.
+2. **Dev mail belongs in a local capture box, never a real relay.** `next dev`
+   has no `cloudflare:sockets`; its only legal SMTP destination is the loopback
+   capture box (`127.0.0.1:54325`) that GoTrue's own auth mail already lands
+   in. A random dev never configures SMTP to reach a real mailbox by accident.
 
 ## Steps
 
-1. Create the branch for the whole effort:
-
-   ```sh
-   git checkout -b fix/reset-password-email
-   ```
-
-2. Confirm the working tree is clean:
-
-   ```sh
-   git status
-   ```
-
-3. Confirm the local capture box is up. With Docker running:
-
-   ```sh
-   pnpm db:status
-   ```
-
-   inbucket's SMTP inbound is the host-published port **54325**; its web UI is **54324** (`docs/LOCAL_DB.md`).
-
-4. Start the dev server and leave it running for the following sheets:
-
-   ```sh
-   pnpm dev
-   ```
-
-5. Reproduce the flaw. Visit `/sign-in` → **Forgot Password?** → submit a seeded account's email (e.g. `attendee@example.com`, per `docs/LOCAL_DB.md`). The form answers **Check your inbox**; inbucket (54324) shows nothing. The reset link is only printed to the dev-server terminal by `ConsoleEmailProvider`.
-
-6. Read the files on the chopping block so the edits later stay small and single-purpose:
-
-   - `src/shared/integrations/email/index.ts`
-   - `src/shared/integrations/email/providers/smtp/{session,config,socket}.ts`
-   - `src/modules/auth/lib/password-reset.ts`
-   - `src/app/api/auth/recover/route.ts`
-   - `src/modules/auth/components/forgot-password-form.tsx`
-   - `src/modules/user/components/password-section.tsx`
-
-## Definition of done
-
-- On branch `fix/reset-password-email`.
-- `pnpm dev` is up and inbucket is reachable; a reset request reproduces the missing-mail symptom.
-- No product code changed in this sheet.
+1. Verify baseline: local stack containers running (studio, pg_meta, auth, etc.),
+   `pnpm db:env local` pointing `NEXT_PUBLIC_SUPABASE_URL` at
+   `http://127.0.0.1:54321`, and GoTrue mail already arriving in inbucket.
+2. Confirm the lie: reset a real account and observe the route answering
+   `sent` while the SMTP session errors were swallowed.
+3. Commit the branch base untouched.
 
 ## Verify
 
-```sh
-git status          # clean, on the new branch
-curl -s http://127.0.0.1:54324 > /dev/null && echo "inbucket up"
-```
+- `git branch --show-current` = `feat/dev-mail-capture-box`.
+- `supabase status` shows the auth container up.

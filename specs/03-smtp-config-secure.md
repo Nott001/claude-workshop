@@ -1,87 +1,49 @@
-# 03 — SMTP config: security mode with a loopback plaintext default
+# 03 — SMTP config: safe-by-default security mode
 
 ## Goal
 
-Let the SMTP config say _how_ the connection is secured — implicit TLS as before, or plaintext for a local capture box — and default to plaintext whenever the host is loopback, so inbucket needs no extra environment.
+Make `secure` follow the host unless explicitly overridden. A loopback host is
+**plaintext** by default (inbucket speaks no TLS and localhost interception is
+moot); any remote host defaults to **implicit TLS** so a password can never be
+sent unencrypted to a real relay by accident. `SMTP_SECURE=off|on` wins over
+both.
 
 ## Where
 
-- `src/shared/integrations/email/providers/smtp/config.ts`
-- `test/smtp-config.test.ts`
+- `src/shared/integrations/email/providers/smtp/config.ts` — `isLoopbackHost()`,
+  `parseSecure()`, `readSmtpConfig()`.
+- `.env`, `.dev.vars` — the `SMTP_*` block.
+- `.env.example`, `docs/DEPLOYMENT.md` env-files table.
 
 ## Why
 
-The connection layer (`socket.ts`) hard-codes implicit TLS (`secureTransport: "on"`), which is right for the real mailbox on 465 but wrong for inbucket on 54325, which speaks plaintext. The provider must know which to request. Because a loopback address can only be a local capture box — nobody relays production mail through `127.0.0.1` — the safe default is derived from the host: plaintext on loopback, implicit TLS everywhere else. That keeps the local setup to `SMTP_HOST`/`SMTP_PORT` alone and still refuses to send a password unencrypted to a real remote host by default.
+- The old default was implicit-TLS-always; pointing `.env` at inbucket then
+  failed because nothing local speaks TLS, and the failure surfaced only at
+  send time far from the cause.
+- Security follows the _risk_: to localhost there is no one to eavesdrop on;
+  to anything else the password is credentials in transit and must be TLS.
+- Explicit `SMTP_SECURE` must still be able to force either direction — a
+  dev running a reverse-terminated TLS listener on 127.0.0.1, or a remote
+  relay fronted without TLS, are both legitimate.
+- Do **not** name any of these `NEXT_PUBLIC_*` — the Next compiler inlines
+  those into the client bundle and would publish the password.
 
 ## Steps
 
-1. In `config.ts`:
-
-   a) Add `secure: boolean` to `SmtpConfig`.
-
-   b) Add a loopback helper and the security-mode parser:
-
-   ```ts
-   /** A loopback host can only be a local capture box (inbucket); nothing real is relayed there. */
-   export function isLoopbackHost(host: string): boolean {
-     return host === "127.0.0.1" || host === "localhost" || host === "::1";
-   }
-
-   function parseSecure(raw: string | undefined, host: string): boolean {
-     if (raw === "off" || raw === "false" || raw === "0") return false;
-     if (raw === "on" || raw === "true" || raw === "1") return true;
-     return !isLoopbackHost(host);
-   }
-   ```
-
-   c) In `readSmtpConfig`, carry `secure` on the result:
-
-   ```ts
-   return {
-     host,
-     port: positiveInt(env.SMTP_PORT, DEFAULT_PORT),
-     secure: parseSecure(env.SMTP_SECURE, host),
-     ...
-   };
-   ```
-
-   d) Extend the header comment accordingly — the existing list of `SMTP_*` env vars (`SMTP_PORT`, `SMTP_FROM_EMAIL`, …) gains `SMTP_SECURE`, named without a `NEXT_PUBLIC_` prefix for the same reason as the password.
-
-2. In `test/smtp-config.test.ts`:
-
-   a) Update "defaults to implicit-TLS SMTP with a bounded timeout" (line 32-36) to also expect `secure: true`.
-
-   b) Add a loopback test:
-
-   ```ts
-   // The local capture box speaks plaintext; pointing dev at it must not force
-   // a second env var to say so.
-   it("defaults to plaintext for a loopback capture host", () => {
-     expect(readSmtpConfig({ ...COMPLETE, SMTP_HOST: "127.0.0.1", SMTP_PORT: "54325" })).toMatchObject({
-       port: 54325,
-       secure: false,
-     });
-   });
-   ```
-
-   c) Add an explicit-override test:
-
-   ```ts
-   it("honours an explicit SMTP_SECURE override either way", () => {
-     expect(readSmtpConfig({ ...COMPLETE, SMTP_SECURE: "off" })).toMatchObject({ secure: false });
-     expect(readSmtpConfig({ ...COMPLETE, SMTP_HOST: "127.0.0.1", SMTP_SECURE: "on" })).toMatchObject({ secure: true });
-   });
-   ```
-
-## Definition of done
-
-- `SmtpConfig` carries a `secure` flag.
-- Loopback hosts default to plaintext; remote hosts default to implicit TLS; `SMTP_SECURE` overrides both.
-- `pnpm test smtp-config` is green.
-- Nothing else consumes `SmtpConfig` yet in a way the new field breaks — the provider's test fixture gains it in sheet 04.
+1. `isLoopbackHost(host)` treats only `127.0.0.1`, `localhost`, `::1` as
+   loopback; everything else is remote and TLS.
+2. `parseSecure(raw, host)`: `"off"/"false"/"0"` → false, `"on"/"true"/"1"` →
+   true, otherwise `!isLoopbackHost(host)`.
+3. `readSmtpConfig(env)` returns `null` (never throws) when host/user/password
+   are missing so callers degrade to the console provider instead of failing
+   every registration.
+4. Default `fromEmail` to the authenticated mailbox, because cPanel rejects a
+   `MAIL FROM` the account does not own (see spec 06 for the dev override).
+5. `replyTo` stays unset unless `SMTP_REPLY_TO` is provided — a Reply-To
+   nobody reads is worse than none.
 
 ## Verify
 
-```sh
-pnpm test smtp-config
-```
+- `pnpm test` asserts `readSmtpConfig({ …127.0.0.1, no SMTP_SECURE })` → secure
+  false, and `readSmtpConfig({ …example.com })` → secure true.
+- Setting `SMTP_SECURE=off` flips any host to plaintext.

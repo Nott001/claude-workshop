@@ -1,83 +1,44 @@
-# 02 — SMTP session: skip AUTH when none is advertised
+# 02 — SMTP session: no-AUTH fall-through
 
 ## Goal
 
-Make the SMTP session able to talk to a relay that advertises no AUTH mechanism — inbucket (the local capture box, port 54325) is exactly that. Today the session throws, so there was never a way to deliver project mail into inbucket.
+Let the SMTP client connect to the local inbucket capture box, which
+advertises **no** AUTH mechanism. A server that announces no mechanism must not
+fail; it proceeds unauthenticated and the MTA decides.
 
 ## Where
 
-- `src/shared/integrations/email/providers/smtp/session.ts` — `authenticate` (lines 158-177)
-- `test/smtp-session.test.ts`
+- `src/shared/integrations/email/providers/smtp/session.ts` — `authenticate()`.
+- Test: in-memory duplex pairs drive the protocol with no network
+  (`test/.../smtp` mocks, vitest).
 
 ## Why
 
-`runSmtpSession` calls `authenticate` unconditionally (`session.ts:119`) and that function throws when the server advertises neither PLAIN nor LOGIN (`session.ts:177`). inbucket advertises no AUTH at all, so no mail could reach it even with the right host and port. AUTH must be _offered when advertised_, not _demanded after the fact_: the live Exim host advertises `AUTH PLAIN LOGIN` and still authenticates exactly as before, while an open relay or a capture box proceeds without a login.
+- inbucket is an open relay on localhost — nothing to prove, so a login step is
+  a non-sequitur that would drop every piece of dev mail.
+- GoTrue reaches the same capture box by docker-network alias (`1025`); the app
+  must succeed against exactly the pickiness inbucket has (none).
+- Preserve the preference order: PLAIN (one round trip) → LOGIN (older servers)
+  → silently unauthenticated. Never RCPT/DATA a server that _did_ advertise an
+  unsupported method like CRAM-MD5 — that is a real relay, not a capture box,
+  and pushing mail without creds there is exactly the accident we are avoiding.
+- Reason to select none rather than error: the absence of an `AUTH` capability
+  line is inbucket's identity signal. Treating it as fatal would make every
+  local reset fail for no reason.
 
 ## Steps
 
-1. In `session.ts`, make `authenticate` fall through silently when no mechanism is advertised:
-
-   ```ts
-   async function authenticate(write: Write, expect: Expect, capabilities: string[], params: SmtpSessionParams): Promise<void> {
-     const mechanisms = (capabilities.find((line) => line.toUpperCase().startsWith("AUTH")) ?? "").toUpperCase();
-
-     if (mechanisms.includes("PLAIN")) {
-       await write(`AUTH PLAIN ${utf8ToBase64(`\0${params.username}\0${params.password}`)}`);
-       await expect("AUTH PLAIN", 235);
-       return;
-     }
-
-     if (mechanisms.includes("LOGIN")) {
-       await write("AUTH LOGIN");
-       await expect("AUTH LOGIN", 334);
-       await write(utf8ToBase64(params.username));
-       await expect("AUTH LOGIN username", 334);
-       await write(utf8ToBase64(params.password));
-       await expect("AUTH LOGIN password", 235);
-       return;
-     }
-
-     // No mechanism advertised — an open relay, or a local capture box like
-     // inbucket. Nothing to prove and nobody to prove it to.
-   }
-   ```
-
-   The doc comment on the function ("Prefers PLAIN …") stays accurate.
-
-2. In `test/smtp-session.test.ts`, replace the test "rejects a server offering no usable AUTH mechanism" (currently lines 129-133) with one that holds the new behaviour:
-
-   ```ts
-   // inbucket advertises no AUTH; the session must speak the envelope anyway,
-   // or nothing this project mails could ever land in the local capture box.
-   it("sends without AUTH when the server advertises none", async () => {
-     const server = fakeSmtpServer([
-       "220 ready\r\n",
-       "250-server2 Hello\r\n250 SIZE 100\r\n",
-       "250 OK\r\n",
-       "250 Accepted\r\n",
-       "354 Send data\r\n",
-       "250 Queued\r\n",
-     ]);
-
-     await expect(runSmtpSession(server.duplex, PARAMS)).resolves.toBeUndefined();
-     const sent = server.written();
-
-     expect(sent).not.toContain("AUTH");
-     expect(sent).toContain("MAIL FROM:<no-reply@startuplab.center>");
-     expect(sent).toContain("QUIT\r\n");
-   });
-   ```
-
-   The existing AUTH tests ("authenticates with AUTH PLAIN…", "uses AUTH LOGIN…", "reports the stage and code when authentication is rejected") are untouched: their fake servers still advertise the mechanism, so the session still authenticates.
-
-## Definition of done
-
-- A session against a capabilities list with no `AUTH` line completes the full envelope and never sends an AUTH command.
-- A session against a server advertising `AUTH PLAIN`/`AUTH LOGIN` still authenticates.
-- `pnpm test smtp-session` is green.
+1. Parse the `AUTH` capability line from the EHLO reply.
+2. If it contains `PLAIN`: send `AUTH PLAIN <base64(\0user\0pass)>`, expect `235`.
+3. Else if it contains `LOGIN`: do the two-step `AUTH LOGIN` dance (`334` →
+   username base64 → `334` → password base64 → `235`).
+4. Else: return without writing anything; continue straight to `MAIL FROM`.
+5. Keep `dotStuff` transparent on the message body (a leading `.` on a DATA
+   line would end the transfer early; base64 bodies never produce one, headers
+   can).
 
 ## Verify
 
-```sh
-pnpm test smtp-session
-```
+- `pnpm test` green; session specs assert a server with no AUTH finishes the
+  session and delivers.
+- `curl`/inbucket: local reset mail has a `Received` from the app process.
