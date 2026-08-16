@@ -2,6 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
+import { deleteAccount } from "@/modules/user/lib/delete-account";
 import * as userDao from "@/shared/db/dao/user.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import type { SpeakerProfile } from "@/shared/types";
@@ -113,4 +114,28 @@ export async function PATCH(req: Request) {
     email: updated.email,
     profile_image_url: updated.profile_image_url,
   });
+}
+
+export async function DELETE() {
+  const user = await requireAuth();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  const authUserId = await getCurrentUserId();
+  if (!authUserId) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+
+  try {
+    await deleteAccount({
+      userId: user.id,
+      authUserId,
+      email: user.email,
+      role: user.role,
+    });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Could not delete your account. Please try again." }, { status: 500 });
+  }
 }
