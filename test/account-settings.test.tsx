@@ -84,6 +84,15 @@ describe("AccountSettings", () => {
     expect(screen.queryByText("Professional Info")).toBeNull();
   });
 
+  it("links the password section to the reset flow", () => {
+    hooks.useAccountSettings.mockReturnValue(settings({ isSpeaker: false }));
+
+    render(<AccountSettings />);
+
+    const link = screen.getByRole("link", { name: "Forgot Password?" });
+    expect(link.getAttribute("href")).toBe("/forgot-password");
+  });
+
   it("owns a single Save Changes button and submits the one form through saveChanges", () => {
     const saveChanges = vi.fn((e: React.FormEvent) => e.preventDefault());
     hooks.useAccountSettings.mockReturnValue(settings({ saveChanges, dirty: true }));

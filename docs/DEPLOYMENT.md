@@ -69,19 +69,25 @@ back and shown in the run summary.
    pretending to: `EMAIL_LOG` records `failed` and an invite answers `502`.
    That is deliberate. Reporting success for mail that never left the isolate
    is how these three secrets stayed unset here for weeks while every invitation
-   read as delivered. `next dev` still logs to the console instead — it has no
-   socket either way, so there the fallback means nothing is wrong.
+   read as delivered. `next dev` only dials a loopback capture box, so a remote
+   host there still means logging to the console — dev credentials can never
+   accidentally mail a real relay.
    `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
-   `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional overrides. None of these
+   `SMTP_TIMEOUT_MS`, `SMTP_ATTEMPTS` and `SMTP_SECURE` are optional overrides.
+   `SMTP_SECURE` defaults to plaintext when `SMTP_HOST` is loopback and to
+   implicit TLS otherwise, so a local capture box needs no extra setting and a
+   remote relay is never sent a password unencrypted by accident. None of these
    may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
    bundle, publishing the password.
 
    Two senders exist, and which one is responsible decides where a fix goes:
 
-   - **The worker** sends ticket, check-in and organization-invite mail through
-     the `SMTP_*` mailbox above. Those templates live in
-     `src/shared/integrations/email/templates.ts` and are edited here.
-   - **Supabase** sends sign-up confirmation and password recovery from its own
+   - **The worker** sends ticket, check-in, organization-invite **and
+     password-recovery** mail through the `SMTP_*` mailbox above. Recovery mints
+     its link through GoTrue's admin API but emails it from here with the same
+     branded template as the invitation — which is why its template lives with
+     the others in `src/shared/integrations/email/`.
+   - **Supabase** sends sign-up confirmation and email-change mail from its own
      servers, configured under **Authentication → SMTP Settings** (port 587).
      Those templates exist only in the dashboard.
 
@@ -90,8 +96,10 @@ back and shown in the run summary.
    with its path stripped, which strands anyone following an emailed link.
 
    Ticket and check-in delivery runs after the response, so a slow send costs no
-   request latency. Invites are awaited instead: an administrator has to be told
-   the invitation did not go out.
+   request latency. Invites and password recovery are awaited instead: the
+   requester has to be told the mail did not go out. A set of `SMTP_*` values
+   that still reach no server (e.g. the loopback capture box is down in dev)
+   shows up as a `delivery_failed` reply from the recovery route.
    Deliverability depends on DNS the repository does not own — SPF, DKIM and
    DMARC must all pass for `startuplab.center`, or mail lands in spam however
    well-formed it is.

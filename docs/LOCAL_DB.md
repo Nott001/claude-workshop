@@ -43,10 +43,30 @@ true`), so a sign-up you perform locally is not usable until its email is
 confirmed. There is no mail client — inbucket catches it.
 
 Seeded users are **already confirmed**, so those logins work immediately (see
-the table). For any other sign-up or a password-recovery flow, the confirm /
-reset link lands in inbucket → **Studio → inbucket** (or http://127.0.0.1:54324).
-Open the message, click the link (it carries `http://localhost:3000`), and the
-app route completes the flow.
+the table). GoTrue's own mail — sign-up confirmations and email-change links —
+always lands in inbucket → **Studio → inbucket** (or http://127.0.0.1:54324).
+
+The project's own transactional mail — password-reset links, organization
+invites, tickets, check-in receipts — is delivered by the app's SMTP seam, not
+by GoTrue, so it reaches inbucket only when the seam points at it. Add this to
+`.env` (the file `pnpm dev` reads; `pnpm db:env` rewrites only the Supabase
+lines, so it survives toggling):
+
+```env
+SMTP_HOST=127.0.0.1
+SMTP_PORT=54325
+SMTP_USER=inbucket
+SMTP_PASSWORD=inbucket
+```
+
+inbucket does not authenticate, so any non-empty `SMTP_USER`/`SMTP_PASSWORD`
+satisfies the config reader. A loopback host defaults to plaintext, so no
+`SMTP_SECURE` is needed; leave the host unset (or at a remote address) and
+`next dev` falls back to logging to the terminal — in which case a reset still
+hands the link back on its own success screen. Note the reverse: with the
+capture box configured but inbucket down, a reset answers `delivery_failed`
+rather than falling back to the console, because the seam is genuinely trying
+to mail.
 
 ### Seeded logins
 

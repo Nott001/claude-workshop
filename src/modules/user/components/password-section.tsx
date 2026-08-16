@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Input } from "@/shared/components/input";
 import { FormField, FormLabel, FormMessage } from "@/shared/components/form";
 import { PasswordRequirements } from "@/modules/auth/components/password-requirements";
@@ -29,7 +30,18 @@ export function PasswordSection({
 }: PasswordSectionProps) {
   return (
     <>
-      <h2 className="text-sm font-bold text-fg">Password</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold text-fg">Password</h2>
+        {/* A forgotten password cannot be typed into the field below, so the
+            reset flow is offered here rather than only on the sign-in screen. */}
+        <Link
+          href="/forgot-password"
+          prefetch={false}
+          className="text-sm font-medium tracking-wider text-brand transition-colors hover:text-brand/80"
+        >
+          Forgot Password?
+        </Link>
+      </div>
       <FormField className="mt-4">
         <FormLabel htmlFor="current-password">Current password</FormLabel>
         <Input
