@@ -5,7 +5,7 @@ import { render, cleanup } from "@testing-library/react";
 
 const { useSession, usePathname, TopNavbar, StaffNavbar, FloatingAssistButton } = vi.hoisted(() => ({
   useSession: vi.fn(),
-  usePathname: vi.fn(() => "/home"),
+  usePathname: vi.fn(() => "/"),
   TopNavbar: vi.fn(() => null),
   StaffNavbar: vi.fn(() => null),
   FloatingAssistButton: vi.fn(() => null),
@@ -97,7 +97,7 @@ describe("AppShell credential screens", () => {
   );
 
   it("keeps the navbar on a page that merely links to one", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
 
     renderShell(null);
 
@@ -139,7 +139,7 @@ describe("AppShell assist button", () => {
   });
 
   it("offers assistance to an attendee", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
 
     renderShell(ROLES.ATTENDEE);
 

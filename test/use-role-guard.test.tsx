@@ -34,7 +34,7 @@ describe("useRoleGuard", () => {
 
     const { result } = renderHook(() => useRoleGuard(ROLES.ADMIN));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/home"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
     expect(result.current.allowed).toBe(false);
     expect(result.current.pending).toBe(false);
   });

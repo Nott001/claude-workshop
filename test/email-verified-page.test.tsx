@@ -53,8 +53,9 @@ describe("/email-verified", () => {
   });
 
   it("does not crash for an unattended visit without a session", async () => {
-    // roleHome(null) falls back to "/", which is no worse than the previous
-    // hard-coded /home for a link-checker that never had a session.
+    // roleHome(null) falls back to "/", which is now the merged landing page — no
+    // worse than the previous hard-coded /home for a link-checker that never had
+    // a session.
     await renderPage();
 
     expect(screen.getByRole("link", { name: "Go to home" }).getAttribute("href")).toBe("/");
