@@ -59,11 +59,14 @@ SMTP_HOST=127.0.0.1
 SMTP_PORT=54325
 SMTP_USER=inbucket
 SMTP_PASSWORD=inbucket
+SMTP_FROM_EMAIL=no-reply@startuplab.center
 ```
 
 inbucket does not authenticate, so any non-empty `SMTP_USER`/`SMTP_PASSWORD`
 satisfies the config reader, and a loopback host defaults to plaintext, so no
-`SMTP_SECURE` is needed. Against the hosted project (`pnpm db:env remote`) the
+`SMTP_SECURE` is needed. `SMTP_FROM_EMAIL` must be a real-shaped address: the
+capture box rejects an envelope sender that is not — the default (inheriting
+the username) sends `MAIL FROM:<inbucket>`, which answers `553`. Against the hosted project (`pnpm db:env remote`) the
 seam must not mail a real relay from `next dev`, so it logs to the terminal
 instead — and a reset still hands the link back on its own success screen.
 Note the reverse: with the capture-box routing active but inbucket down, a

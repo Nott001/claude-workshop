@@ -6,6 +6,7 @@ import {
   getEmailService,
   configureEmailService,
   createDefaultProvider,
+  devCaptureBoxConfig,
   emailDeliveryIsLocal,
   resetEmailService,
 } from "@/shared/integrations/email";
@@ -142,6 +143,18 @@ describe("createDefaultProvider", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aiyernsxamtgjebheekp.supabase.co";
 
     expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
+  // Mailpit rejects a MAIL FROM it cannot address: the username-derived
+  // default "inbucket" is not a valid sender, which answered the capture box
+  // with 553 5.1.3 for every dev reset.
+  it("gives the dev capture box a real-shaped envelope sender", () => {
+    const config = devCaptureBoxConfig();
+
+    expect(config.host).toBe("127.0.0.1");
+    expect(config.port).toBe(54325);
+    expect(config.secure).toBe(false);
+    expect(config.fromEmail).toMatch(/^[^@\s]+@[^@\s]+$/);
   });
 
   it("speaks SMTP in dev when the config points at a local capture box", () => {

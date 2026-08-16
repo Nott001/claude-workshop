@@ -47,16 +47,19 @@ function pointsAtLocalStack(): boolean {
 }
 
 /**
- * The cap: 54325 is inbucket's host-published SMTP port (GoTrue reaches it by
- * its docker-network alias on 1025). Parsed through `readSmtpConfig` so a
- * loopback host gets plaintext without having to restate the rule.
+ * The cap: 54325 is the capture box's host-published SMTP port (GoTrue reaches
+ * it by its docker-network alias on 1025). Parsed through `readSmtpConfig` so a
+ * loopback host gets plaintext without having to restate the rule. The from
+ * address is set explicitly: the default would inherit the username, and
+ * "inbucket" is not a valid envelope sender.
  */
-function devCaptureBoxConfig() {
+export function devCaptureBoxConfig() {
   return readSmtpConfig({
     SMTP_HOST: "127.0.0.1",
     SMTP_PORT: "54325",
     SMTP_USER: "inbucket",
     SMTP_PASSWORD: "inbucket",
+    SMTP_FROM_EMAIL: "no-reply@startuplab.center",
   })!;
 }
 
