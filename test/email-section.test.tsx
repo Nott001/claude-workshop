@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { EmailSection } from "@/modules/user/components/email-section";
+import { EMAIL_CHANGE_LINK_TTL_LABEL } from "@/shared/lib/email";
 
 type Props = React.ComponentProps<typeof EmailSection>;
 
@@ -119,7 +120,7 @@ describe("EmailSection after the link is sent", () => {
   it("names the wait instead of letting a press fail against the rate limit", () => {
     renderSection("grace@example.com", true, { resendIn: 42 });
 
-    const again = screen.getByRole("button", { name: "Send again in 42s" }) as HTMLButtonElement;
+    const again = screen.getByRole("button", { name: `Resend available in 42s` }) as HTMLButtonElement;
     expect(again.disabled).toBe(true);
   });
 
@@ -142,11 +143,11 @@ describe("EmailSection after the link is sent", () => {
   // A pending change outlives the dismiss — the sheet-12 gate FAILed, so there
   // is no server-side cancel to void it. The copy has to say the change lasts
   // until the link expires rather than pretending a dismiss removed it.
-  it("says the change expires on its own rather than that it was undone", () => {
+  it("says the link is valid for its full lifetime rather than that it was undone", () => {
     renderSection("grace@example.com", true);
 
     expect(screen.getByText("Email change pending")).toBeTruthy();
-    expect(screen.getByText(/expires on its own/)).toBeTruthy();
+    expect(screen.getByText(new RegExp(`The link is valid for ${EMAIL_CHANGE_LINK_TTL_LABEL}`))).toBeTruthy();
     expect(screen.queryByText("Use a different address")).toBeNull();
   });
 });

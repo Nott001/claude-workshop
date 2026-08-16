@@ -63,10 +63,20 @@ export function useAccountSettings() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [emailError, setEmailError] = useState<string | null>(null);
+  // The address the open pending change belongs to: the adoption effect clears
+  // the pending banner exactly when the session reaches it, and only then. Any
+  // other session repaint must leave the pending state alone.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   if (sessionEmail !== lastSessionEmail) {
     setLastSessionEmail(sessionEmail);
     setNewEmail(sessionEmail);
+    if (pendingEmail && isSameEmail(sessionEmail, pendingEmail)) {
+      setPendingEmail(null);
+      setEmailSent(false);
+      setResendIn(0);
+      setEmailError(null);
+    }
   }
 
   // Editing the field is the retry, so the message clears with the keystroke
@@ -113,6 +123,7 @@ export function useAccountSettings() {
         if (!pending || isSameEmail(pending, currentUser?.email)) return;
         if (restoredPendingRef.current === pending) return;
         restoredPendingRef.current = pending;
+        setPendingEmail(pending);
         setNewEmail(pending);
         setEmailSent(true);
         const sentAt = data.user?.email_change_sent_at ?? null;
@@ -330,6 +341,7 @@ export function useAccountSettings() {
       });
       return false;
     }
+    setPendingEmail(email.trim());
     setResendIn(RESEND_COOLDOWN_SECONDS);
     return true;
   }
@@ -358,6 +370,7 @@ export function useAccountSettings() {
   function cancelEmailChange() {
     setEmailSent(false);
     setResendIn(0);
+    setPendingEmail(null);
   }
 
   type EmailVerdict = { ok: true } | { ok: false; message: string };

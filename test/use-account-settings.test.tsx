@@ -561,6 +561,53 @@ describe("restoring an in-flight email change", () => {
   });
 });
 
+describe("when the pending email change is confirmed", () => {
+  it("clears the banner the moment the session reaches the address that was asked for", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.emailSent).toBe(true);
+
+    // The confirmation link was opened in another tab, so auth-js re-broadcast
+    // puts the new address on the session — the pending banner must not survive
+    // it.
+    sessionValue.mockReturnValue({ user: { ...user, email: "grace@example.com" }, updateUser: sessionUpdateUser });
+    await act(async () => {
+      rerender();
+    });
+
+    expect(result.current.emailSent).toBe(false);
+    expect(result.current.resendIn).toBe(0);
+    expect(result.current.newEmail).toBe("grace@example.com");
+  });
+
+  it("leaves the banner alone for a session repaint that is not the confirmation", async () => {
+    respondTo(SEND_ROUTE, { ok: true });
+    const { result, rerender } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.setNewEmail("grace@example.com"));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(result.current.emailSent).toBe(true);
+
+    // A profile save re-emits the session under the old address; the change is
+    // still in flight, so the banner stays until the session actually reaches
+    // the pending address.
+    sessionValue.mockReturnValue({ user: { ...user, full_name: "Grace Hopper" }, updateUser: sessionUpdateUser });
+    await act(async () => {
+      rerender();
+    });
+
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.newEmail).toBe("grace@example.com");
+  });
+});
+
 describe("the speaker profile inside the unified hook", () => {
   const speakerData = {
     speaker_profile_id: 5,

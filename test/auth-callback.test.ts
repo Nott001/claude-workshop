@@ -67,6 +67,17 @@ describe("GET /api/auth/callback", () => {
     expect(location.searchParams.get("error")).toBe("auth_failed");
   });
 
+  it("routes a GoTrue /verify failure reach to the expired-link page", async () => {
+    const req = new Request(
+      "https://app.test/api/auth/callback?error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired&error=access_denied",
+    );
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/email-link-expired");
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
   it("redirects to /sign-in with error for a reach with no code at all", async () => {
     const req = new Request("https://app.test/api/auth/callback");
     const res = await GET(req);

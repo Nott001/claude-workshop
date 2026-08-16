@@ -2,7 +2,7 @@
 
 import { Input } from "@/shared/components/input";
 import { FormField, FormMessage } from "@/shared/components/form";
-import { isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
+import { EMAIL_CHANGE_LINK_TTL_LABEL, isSameEmail, suggestEmailCorrection } from "@/shared/lib/email";
 
 interface EmailSectionProps {
   currentEmail?: string | null;
@@ -44,7 +44,9 @@ export function EmailSection({
             <span className="material-symbols-rounded mt-0.5 text-sm text-success">mark_email_unread</span>
             <div>
               <p className="text-xs font-bold text-fg">Email change pending</p>
-              <p className="text-xs text-muted-fg">The link expires on its own — to send to a new address, type it below.</p>
+              <p className="text-xs text-muted-fg">
+                The link is valid for {EMAIL_CHANGE_LINK_TTL_LABEL} — to send to a new address, type it below.
+              </p>
             </div>
           </div>
           {/* Without these the screen is a dead end: an address that cannot
@@ -58,7 +60,7 @@ export function EmailSection({
               disabled={saving || resendIn > 0}
               className="font-medium text-brand underline underline-offset-2 disabled:text-muted-fg disabled:no-underline"
             >
-              {resendIn > 0 ? `Send again in ${resendIn}s` : "Send it again"}
+              {resendIn > 0 ? `Resend available in ${resendIn}s` : "Send it again"}
             </button>
             <button type="button" onClick={onCancel} className="font-medium text-brand underline underline-offset-2">
               Cancel

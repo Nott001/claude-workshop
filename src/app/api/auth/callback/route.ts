@@ -25,5 +25,15 @@ export async function GET(req: Request) {
     }
   }
 
+  // GoTrue's /verify failure reach: a consumed, expired or invalidated confirm
+  // link bounces the browser here with error_code/error_description in the query
+  // (PKCE links carry them in the query, not the fragment). Land those on a page
+  // that can explain a dead link instead of a sign-in screen claiming auth
+  // failure. The codeless, errorless reach — the double-confirm message hop —
+  // still falls through to /sign-in below.
+  if (searchParams.has("error_code") || searchParams.has("error_description") || searchParams.has("error")) {
+    return NextResponse.redirect(`${origin}/email-link-expired`);
+  }
+
   return NextResponse.redirect(`${origin}/sign-in?error=auth_failed`);
 }
