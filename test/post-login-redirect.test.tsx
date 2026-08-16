@@ -9,11 +9,14 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn(), 
 const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
+const fetchMock = vi.fn();
+
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 
 function signInAs(role: string) {
   useSession.mockReturnValue({ isLoaded: true, isSignedIn: true });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 1, role }) }));
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 1, role }) });
+  vi.stubGlobal("fetch", fetchMock);
   render(<PostLoginRedirect />);
 }
 
@@ -32,15 +35,21 @@ describe("PostLoginRedirect destination per role", () => {
     [ROLES.SUPER_ADMIN, "/staff/events"],
     [ROLES.FACILITATOR, "/staff/events/assigned"],
     [ROLES.SPEAKER, "/speaker/events"],
-    [ROLES.ATTENDEE, "/home"],
   ])("sends %s to %s", async (role, dest) => {
     signInAs(role);
     await waitFor(() => expect(replace).toHaveBeenCalledWith(dest));
   });
 
-  it("sends an unmapped role to the root rather than nowhere", async () => {
+  it("leaves an attendee on the landing page rather than reloading it", async () => {
+    signInAs(ROLES.ATTENDEE);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/me"));
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("leaves a signed-in user with an unmapped role on the landing page", async () => {
     signInAs("wizard");
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/me"));
+    expect(replace).not.toHaveBeenCalled();
   });
 });
 

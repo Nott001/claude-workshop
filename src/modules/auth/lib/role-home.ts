@@ -2,7 +2,7 @@ import type { UserRole } from "@/shared/types";
 
 /** The landing page a user with each role is routed to after sign-in. */
 export const ROLE_HOME: Record<UserRole, string> = {
-  attendee: "/home",
+  attendee: "/",
   speaker: "/speaker/events",
   facilitator: "/staff/events/assigned",
   admin: "/staff/events",

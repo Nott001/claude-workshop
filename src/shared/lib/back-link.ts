@@ -18,7 +18,6 @@ export type BackLinkSearchParams = Partial<Record<typeof BACK_LINK_PARAM, string
 const BACK_LINKS = {
   events: { href: "/events", label: "Back to Events" },
   community: { href: "/community", label: "Back to Community" },
-  home: { href: "/home", label: "Back to Home" },
   landing: { href: "/", label: "Back to Home" },
   tickets: { href: "/tickets", label: "Back to My Tickets" },
 } as const;
@@ -65,7 +64,6 @@ const ORIGIN_BY_PREFIX: ReadonlyArray<readonly [string, BackLinkOrigin]> = [
   ["/events", "events"],
   ["/community", "community"],
   ["/tickets", "tickets"],
-  ["/home", "home"],
 ];
 
 /**

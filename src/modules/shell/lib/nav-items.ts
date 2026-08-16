@@ -8,7 +8,7 @@ export interface NavItem {
 
 export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   attendee: [
-    { label: "Home", href: "/home", icon: "home" },
+    { label: "Home", href: "/", icon: "home" },
     { label: "Events", href: "/events", icon: "event" },
     { label: "Community", href: "/community", icon: "forum" },
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },

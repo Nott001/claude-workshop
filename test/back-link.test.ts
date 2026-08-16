@@ -16,10 +16,10 @@ describe("withBackLink", () => {
   });
 
   it("uses the same parameter name the reader is resolved from", () => {
-    const href = withBackLink("/events/7", "home");
+    const href = withBackLink("/events/7", "landing");
     const value = new URLSearchParams(href.split("?")[1]).get(BACK_LINK_PARAM);
 
-    expect(resolveBackLink(value ?? undefined).href).toBe("/home");
+    expect(resolveBackLink(value ?? undefined).href).toBe("/");
   });
 });
 
@@ -77,7 +77,6 @@ describe("originFromPathname", () => {
     ["/community", "community"],
     ["/community/3", "community"],
     ["/tickets", "tickets"],
-    ["/home", "home"],
   ])("names %s as %s", (pathname, origin) => {
     expect(originFromPathname(pathname)).toBe(origin);
   });

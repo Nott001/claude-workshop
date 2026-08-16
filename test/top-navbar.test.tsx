@@ -57,9 +57,9 @@ describe("TopNavbar role nav items", () => {
     }
   });
 
-  it("points the attendee Home item at /home", () => {
+  it("points the attendee Home item at the merged landing page", () => {
     renderAs(ROLES.ATTENDEE);
-    expect(navLink("Home").getAttribute("href")).toBe("/home");
+    expect(navLink("Home").getAttribute("href")).toBe("/");
   });
 
   it("falls back to the attendee set for an unrecognised role", () => {
@@ -197,7 +197,7 @@ describe("TopNavbar minimal", () => {
   });
 
   it("still pins on an ordinary page", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
     useSession.mockReturnValue({ user: null, isSignedIn: false, signOut: vi.fn() });
 
     const { container } = render(<TopNavbar />);
