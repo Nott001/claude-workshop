@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/shared/db/client";
-import { requestPasswordReset } from "@/modules/auth/lib/password-reset";
+import { preparePasswordReset, type RecoverStatus } from "@/modules/auth/lib/password-reset";
 import { afterResponse } from "@/shared/lib/after-response";
 
 /**
@@ -9,45 +9,44 @@ import { afterResponse } from "@/shared/lib/after-response";
  * Under /api/auth because that prefix is the one the middleware leaves open: a
  * locked-out user has no session, which is the entire point of the request.
  *
- * Always answers 200. The service reports nothing about whether the address
- * exists, was rate limited, or was mailed, and this route must not reintroduce
- * the distinction the service was careful to remove.
+ * This route reports whether the address owns an account, which makes it an
+ * enumeration oracle by design — a caller can ask it who is registered. The
+ * per-IP limit in `preparePasswordReset` is what keeps that from scaling to a
+ * mailbox list, so it is applied before the lookup rather than after.
  */
 export async function POST(req: Request): Promise<NextResponse> {
   const origin = req.headers.get("origin");
   if (origin && new URL(origin).host !== req.headers.get("host")) {
-    return accepted();
+    return answer("invalid_request");
   }
 
   let email: unknown;
   try {
     ({ email } = await req.json());
   } catch {
-    return accepted();
+    return answer("invalid_request");
   }
 
   if (typeof email !== "string" || !email.includes("@")) {
-    return accepted();
+    return answer("invalid_request");
   }
 
   // Cloudflare sets this at the edge and it cannot be spoofed by the client;
   // it is absent under `next dev`, where the per-email limit still applies.
   const ip = req.headers.get("cf-connecting-ip");
 
-  // Deferred, and this is load-bearing rather than a latency nicety. The SMTP
-  // round trip takes seconds for an address that owns an account and does not
-  // happen at all for one that does not, so awaiting it here would answer
-  // "is this person registered" on the clock no matter what the body says.
-  afterResponse(() => requestPasswordReset(getServiceClient(), email, ip));
+  const outcome = await preparePasswordReset(getServiceClient(), email, ip);
 
-  return accepted();
+  if (outcome.status !== "ready") return answer(outcome.status);
+
+  // Deferred so the several-second SMTP session does not hold up the reply. The
+  // address has already been confirmed to exist by this point, so nothing the
+  // browser is told depends on how long this takes.
+  afterResponse(outcome.deliver);
+
+  return answer("sent");
 }
 
-/**
- * One response for every path. Nothing that depends on whether the address
- * exists runs before it, so the reply is the same shape and the same speed
- * whoever asks.
- */
-function accepted(): NextResponse {
-  return NextResponse.json({ ok: true });
+function answer(status: RecoverStatus): NextResponse {
+  return NextResponse.json({ status });
 }
