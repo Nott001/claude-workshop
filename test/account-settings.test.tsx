@@ -347,4 +347,15 @@ describe("AccountSettings", () => {
     expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeTruthy();
   });
+
+  it("renders the delete-account section outside the settings form", () => {
+    hooks.useAccountSettings.mockReturnValue(settings());
+
+    const { container } = render(<AccountSettings />);
+
+    const heading = screen.getByRole("heading", { name: "Delete Account" });
+    expect(heading.closest("form")).toBeNull();
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Delete my account" })).toBeTruthy();
+  });
 });

@@ -9,6 +9,7 @@ import { ProfileNameSection } from "@/modules/user/components/profile-name-secti
 import { EmailSection } from "@/modules/user/components/email-section";
 import { PasswordSection } from "@/modules/user/components/password-section";
 import { SpeakerProfileSection } from "@/modules/user/components/speaker-profile-section";
+import { DeleteAccountSection } from "@/modules/user/components/delete-account-section";
 import { BackLink } from "@/shared/components/back-link";
 
 export function AccountSettings() {
@@ -111,6 +112,7 @@ export function AccountSettings() {
             </Button>
           </div>
         </Form>
+        <DeleteAccountSection />
       </div>
 
       {settings.toast && (
