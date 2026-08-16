@@ -140,9 +140,9 @@ describe("EmailSection after the link is sent", () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  // A pending change outlives the dismiss — the sheet-12 gate FAILed, so there
-  // is no server-side cancel to void it. The copy has to say the change lasts
-  // until the link expires rather than pretending a dismiss removed it.
+  // The banner text is about a pending link's lifetime, not about a dismiss
+  // undoing it: while a change is pending its link is valid for the full 24h,
+  // and cancel voids it server-side (sheets 01/02).
   it("says the link is valid for its full lifetime rather than that it was undone", () => {
     renderSection("grace@example.com", true);
 

@@ -362,12 +362,26 @@ export function useAccountSettings() {
   }
 
   /**
-   * Returns to the form. The change is not undone — GoTrue keeps it pending
-   * until it expires (sheet 12 gate FAIL: no admin write clears new_email) — so
-   * this only dismisses the sent state, and a reload before the token expires
-   * shows the pending banner again. The typed address stays in the field.
+   * Voids the pending change server-side: GoTrue's email_change_token_new row
+   * is deleted and the pending fields cleared, so the mailed link expires and a
+   * reload finds nothing to resurrect. The typed address stays in the field —
+   * a dismissal, not a correction.
    */
-  function cancelEmailChange() {
+  async function cancelEmailChange() {
+    const res = await fetch("/api/auth/email/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: unknown };
+
+    if (!data.ok) {
+      notify({
+        title: "Error",
+        description: authErrorMessage(routeError(data), "We could not cancel the pending change. Please try again."),
+        type: "error",
+      });
+      return;
+    }
     setEmailSent(false);
     setResendIn(0);
     setPendingEmail(null);

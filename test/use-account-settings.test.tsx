@@ -1224,11 +1224,18 @@ describe("the sent state", () => {
 });
 
 describe("dismissing an email change", () => {
-  function stubSendOk() {
+  // respondTo cannot drive these tests on its own: its default answer is a
+  // bare `{}`, and a send that does not answer `ok` never reaches the pending
+  // state. So the send route is answered ok here and the cancel route is
+  // answered with whatever the test needs.
+  function stubRoutes(cancel: { ok: boolean; error?: { status: number; message: string } }) {
     const fetch = stubFetch();
     fetch.mockImplementation((input: string | URL | Request) => {
       if (String(input).includes(SEND_ROUTE)) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true }) } as Response);
+      }
+      if (String(input).includes(CANCEL_ROUTE)) {
+        return Promise.resolve({ ok: cancel.ok, json: async () => cancel } as Response);
       }
       return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
     });
@@ -1244,8 +1251,8 @@ describe("dismissing an email change", () => {
     return result;
   }
 
-  it("returns to the form, keeping the typed address, without any server call", async () => {
-    const fetch = stubSendOk();
+  it("cancels through the route, keeping the typed address", async () => {
+    const fetch = stubRoutes({ ok: true });
     const result = await getSentState();
     expect(result.current.emailSent).toBe(true);
 
@@ -1253,19 +1260,20 @@ describe("dismissing an email change", () => {
       await result.current.cancelEmailChange();
     });
 
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(CANCEL_ROUTE))).toBe(true);
     expect(result.current.emailSent).toBe(false);
     expect(result.current.resendIn).toBe(0);
-    // The pending change survives server-side until it expires (sheet 12 gate
-    // FAIL), so the typed address stays in the field — the form just reopens.
+    // A dismissal, not a correction: the typed address stays in the field.
     expect(result.current.newEmail).toBe("grace@example.com");
-    expect(fetch.mock.calls.some((c) => String(c[0]).includes(CANCEL_ROUTE))).toBe(false);
+    expect(result.current.toast).toBeNull();
   });
 
-  // The honest counterpart to a server cancel: since the change is not voided,
-  // a reload finds GoTrue still holding new_email and the restore effect puts
-  // the banner back. The dismiss resets only the transient UI state.
-  it("re-shows the pending banner after a reload while GoTrue still holds the change", async () => {
-    stubSendOk();
+  // The route voided the change, so a reload finds GoTrue holding nothing and
+  // the restore effect leaves the banner down. The field re-seeds from the
+  // session — a genuine reload has no record of the typed address once the
+  // pending change is gone.
+  it("keeps the banner down after a reload once the change was voided", async () => {
+    stubRoutes({ ok: true });
     const { result: first, unmount } = renderHook(() => useAccountSettings());
     act(() => first.current.setNewEmail("grace@example.com"));
     await act(async () => {
@@ -1283,15 +1291,27 @@ describe("dismissing an email change", () => {
       data: {
         user: {
           id: 1,
-          new_email: "grace@example.com",
-          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+          // No new_email: the cancel cleared it server-side.
         },
       },
     });
     const { result: reloaded } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(reloaded.current.emailSent).toBe(true));
-    expect(reloaded.current.newEmail).toBe("grace@example.com");
+    await waitFor(() => expect(reloaded.current.emailSent).toBe(false));
+    expect(reloaded.current.newEmail).toBe("ada@example.com");
+  });
+
+  it("keeps the banner and toasts when the cancel route fails", async () => {
+    stubRoutes({ ok: false, error: { status: 500, message: "boom" } });
+    const result = await getSentState();
+    expect(result.current.emailSent).toBe(true);
+
+    await act(async () => {
+      await result.current.cancelEmailChange();
+    });
+
+    expect(result.current.emailSent).toBe(true);
+    expect(result.current.toast?.type).toBe("error");
   });
 });
 
