@@ -1,4 +1,4 @@
-import { escapeHtml, layout } from "./layout";
+import { escapeHtml, layout, textFooter } from "./layout";
 
 export interface EventSurveyParams {
   name: string;
@@ -29,9 +29,7 @@ function eventSurveyText(params: EventSurveyParams): string {
     "Open this address to rate the event:",
     params.surveyUrl,
     "",
-    "--",
-    "Startup Lab · startuplab.center",
-    "You received this because you registered for an event at Startup Lab. This mailbox is unattended.",
+    ...textFooter(),
   ].join("\n");
 }
 
@@ -39,4 +37,7 @@ export const eventSurveyTemplate = {
   subject: "How was the event? Share your feedback",
   buildHtml: eventSurveyHtml,
   buildText: eventSurveyText,
+  // Sent to a list after the fact rather than in answer to anything the
+  // recipient did, so declining further ones has to be possible.
+  unsubscribable: true,
 } as const;

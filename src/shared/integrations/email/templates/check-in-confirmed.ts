@@ -1,4 +1,4 @@
-import { escapeHtml, layout } from "./layout";
+import { escapeHtml, layout, textFooter } from "./layout";
 
 export interface CheckInConfirmedParams {
   name: string;
@@ -25,9 +25,7 @@ function checkInConfirmedText(params: CheckInConfirmedParams): string {
     "",
     "Enjoy the event. No further action is needed — this message is your record of arrival.",
     "",
-    "--",
-    "Startup Lab · startuplab.center",
-    "You received this because you registered for an event at Startup Lab. This mailbox is unattended.",
+    ...textFooter(),
   ].join("\n");
 }
 

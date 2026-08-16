@@ -72,9 +72,18 @@ back and shown in the run summary.
    read as delivered. `next dev` still logs to the console instead — it has no
    socket either way, so there the fallback means nothing is wrong.
    `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
-   `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional overrides. None of these
-   may be renamed to `NEXT_PUBLIC_*`: the compiler inlines those into the client
-   bundle, publishing the password.
+   `SMTP_LIST_UNSUBSCRIBE`, `SMTP_TIMEOUT_MS` and `SMTP_ATTEMPTS` are optional
+   overrides. None of these may be renamed to `NEXT_PUBLIC_*`: the compiler
+   inlines those into the client bundle, publishing the password.
+
+   `SMTP_LIST_UNSUBSCRIBE` adds a `List-Unsubscribe` header to the invitation
+   and survey messages only — the two that reach somebody who did not ask for
+   them. A ticket or a password reset never carries it, because a message the
+   recipient requested must not offer to stop sending itself. Set it to a
+   `mailto:` or `https:` target somebody monitors, or leave it unset; the header
+   is omitted rather than faked. One-click unsubscribe (`List-Unsubscribe-Post`)
+   is deliberately not sent, since honouring it needs an endpoint and a
+   suppression list this app does not have.
 
    Two senders exist, and which one is responsible decides where a fix goes:
 

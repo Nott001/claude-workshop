@@ -127,6 +127,28 @@ describe("buildMimeMessage", () => {
     expect(build("<p>x</p>", { replyTo: "support@startuplab.center" })).toContain("Reply-To: <support@startuplab.center>");
   });
 
+  it("adds List-Unsubscribe only when one is passed", () => {
+    expect(build("<p>x</p>")).not.toContain("List-Unsubscribe");
+    expect(build("<p>x</p>", { listUnsubscribe: "mailto:unsub@startuplab.center" })).toContain(
+      "List-Unsubscribe: <mailto:unsub@startuplab.center>",
+    );
+  });
+
+  it("brackets each unsubscribe target without double-wrapping one already bracketed", () => {
+    const message = build("<p>x</p>", {
+      listUnsubscribe: "<mailto:unsub@startuplab.center>, https://startuplab.center/unsub",
+    });
+
+    expect(message).toContain("List-Unsubscribe: <mailto:unsub@startuplab.center>, <https://startuplab.center/unsub>");
+    expect(message).not.toContain("<<");
+  });
+
+  // Honouring one-click means the target has already unsubscribed the reader by
+  // the time it answers, and nothing here can do that.
+  it("does not claim one-click unsubscribe support", () => {
+    expect(build("<p>x</p>", { listUnsubscribe: "https://startuplab.center/unsub" })).not.toContain("List-Unsubscribe-Post");
+  });
+
   it("prefers a written plain-text part over one derived from the HTML", () => {
     const message = build("<h1>Ticket</h1><p>Details</p>", { text: "Ticket\n\nWritten by the template." });
 

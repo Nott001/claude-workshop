@@ -15,6 +15,8 @@ export interface MimeMessageParams {
   /** Written by the caller; derived from the HTML when omitted. */
   text?: string;
   replyTo?: string;
+  /** Unsubscribe target, already decided by the caller to belong on this message. */
+  listUnsubscribe?: string;
   /** Injected by tests so the output is deterministic. */
   now?: Date;
   idSeed?: string;
@@ -227,6 +229,25 @@ function imagePart(boundary: string, image: InlineImage): string[] {
   ];
 }
 
+/**
+ * RFC 2369 wants each target in angle brackets, comma-separated. Configuration
+ * is hand-entered, so a value that already carries them is left alone rather
+ * than being wrapped twice into something no client will parse.
+ *
+ * `List-Unsubscribe-Post` is deliberately not emitted alongside this. One-click
+ * unsubscribe means a receiver may POST to the target and expect the opt-out to
+ * have happened; this app has no endpoint that would honour that, and claiming
+ * the capability without it is worse than offering the plain header alone.
+ */
+function formatUnsubscribe(value: string): string {
+  return value
+    .split(",")
+    .map((target) => target.trim())
+    .filter(Boolean)
+    .map((target) => (target.startsWith("<") ? target : `<${target}>`))
+    .join(", ");
+}
+
 export function buildMimeMessage(params: MimeMessageParams): string {
   const now = params.now ?? new Date();
   const idSeed = params.idSeed ?? crypto.randomUUID().replace(/-/g, "");
@@ -249,6 +270,8 @@ export function buildMimeMessage(params: MimeMessageParams): string {
   ];
 
   if (params.replyTo) headers.push(`Reply-To: <${params.replyTo}>`);
+
+  if (params.listUnsubscribe) headers.push(`List-Unsubscribe: ${formatUnsubscribe(params.listUnsubscribe)}`);
 
   if (images.length === 0) {
     headers.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`);

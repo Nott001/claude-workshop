@@ -10,7 +10,7 @@ describe("passwordResetTemplate", () => {
     const html = passwordResetTemplate.buildHtml({ name: "Ada", resetUrl: URL });
 
     expect(html.startsWith("<!doctype html>")).toBe(true);
-    expect(html).toContain("<title>Reset your Startup Lab password</title>");
+    expect(html).toContain("<title>Reset your StartupLab password</title>");
     expect(html).toContain("Hi Ada,");
     // Once as the button target, once as copyable text for clients that strip
     // the anchor.

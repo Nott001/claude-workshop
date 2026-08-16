@@ -1,4 +1,4 @@
-import { escapeHtml, layout } from "./layout";
+import { escapeHtml, layout, textFooter } from "./layout";
 
 export interface TicketIssuedParams {
   name: string;
@@ -35,9 +35,7 @@ function ticketIssuedText(params: TicketIssuedParams): string {
     "",
     "Keep this email — the code is your ticket. If it does not scan, staff can look you up by the name and email on this message.",
     "",
-    "--",
-    "Startup Lab · startuplab.center",
-    "You received this because you registered for an event at Startup Lab. This mailbox is unattended.",
+    ...textFooter(),
   ].join("\n");
 }
 
