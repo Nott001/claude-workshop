@@ -48,9 +48,11 @@ always lands in inbucket → **Studio → inbucket** (or http://127.0.0.1:54324)
 
 The project's own transactional mail — password-reset links, organization
 invites, tickets, check-in receipts — is delivered by the app's SMTP seam, not
-by GoTrue, so it reaches inbucket only when the seam points at it. Add this to
-`.env` (the file `pnpm dev` reads; `pnpm db:env` rewrites only the Supabase
-block, so it survives toggling):
+by GoTrue. When `.env` points at the local stack (`pnpm db:env local`), the
+seam routes this mail to the same capture box GoTrue already uses, so it lands
+in inbucket automatically — no SMTP configuration needed. Only a custom
+capture port requires the block below in `.env` (the file `pnpm dev` reads;
+`pnpm db:env` rewrites only the Supabase block, so it survives toggling):
 
 ```env
 SMTP_HOST=127.0.0.1
@@ -60,13 +62,13 @@ SMTP_PASSWORD=inbucket
 ```
 
 inbucket does not authenticate, so any non-empty `SMTP_USER`/`SMTP_PASSWORD`
-satisfies the config reader. A loopback host defaults to plaintext, so no
-`SMTP_SECURE` is needed; leave the host unset (or at a remote address) and
-`next dev` falls back to logging to the terminal — in which case a reset still
-hands the link back on its own success screen. Note the reverse: with the
-capture box configured but inbucket down, a reset answers `delivery_failed`
-rather than falling back to the console, because the seam is genuinely trying
-to mail.
+satisfies the config reader, and a loopback host defaults to plaintext, so no
+`SMTP_SECURE` is needed. Against the hosted project (`pnpm db:env remote`) the
+seam must not mail a real relay from `next dev`, so it logs to the terminal
+instead — and a reset still hands the link back on its own success screen.
+Note the reverse: with the capture-box routing active but inbucket down, a
+reset answers `delivery_failed` rather than falling back to the console,
+because the seam is genuinely trying to mail.
 
 ### Seeded logins
 

@@ -87,9 +87,10 @@ is invisible to the other.
    pretending to: `EMAIL_LOG` records `failed` and an invite answers `502`.
    That is deliberate. Reporting success for mail that never left the isolate
    is how these three secrets stayed unset here for weeks while every invitation
-   read as delivered. `next dev` only dials a loopback capture box, so a remote
-   host there still means logging to the console — dev credentials can never
-   accidentally mail a real relay.
+   read as delivered. `next dev` only ever dials a loopback capture box — a
+   remote host there never reaches a real relay, and when the app targets the
+   local Supabase stack the seam routes to the same inbucket GoTrue's own mail
+   uses, so dev needs no SMTP configuration at all.
    `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `SMTP_REPLY_TO`,
    `SMTP_TIMEOUT_MS`, `SMTP_ATTEMPTS` and `SMTP_SECURE` are optional overrides.
    `SMTP_SECURE` defaults to plaintext when `SMTP_HOST` is loopback and to

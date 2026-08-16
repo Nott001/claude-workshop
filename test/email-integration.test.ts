@@ -114,6 +114,36 @@ describe("createDefaultProvider", () => {
     expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
   });
 
+  it("routes local-stack dev mail to the capture box with no SMTP configured", () => {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
+  });
+
+  // The usual dev `.env` carries prod-ish SMTP for the workerd build. Node dev
+  // must not mail that relay, but it should still reach inbucket — GoTrue's own
+  // mail already does, because config.toml routes it there.
+  it("routes local-stack dev mail to the capture box over a remote SMTP host", () => {
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
+  });
+
+  it("keeps the console when dev targets the hosted project even with SMTP set", () => {
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aiyernsxamtgjebheekp.supabase.co";
+
+    expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
   it("speaks SMTP in dev when the config points at a local capture box", () => {
     process.env.SMTP_HOST = "127.0.0.1";
     process.env.SMTP_PORT = "54325";
