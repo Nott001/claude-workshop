@@ -30,9 +30,23 @@ describe("readSmtpConfig", () => {
   });
 
   it("defaults to implicit-TLS SMTP with a bounded timeout", () => {
-    // Generous on purpose: delivery runs after the response, so a slow greeting
-    // costs no one latency, while cutting it short loses the email outright.
-    expect(readSmtpConfig(COMPLETE)).toMatchObject({ port: 465, timeoutMs: 30_000 });
+    // Generous on purpose: a slow greeting costs a retry, not the email, and
+    // the bound is what keeps a dead relay from holding an awaited send open.
+    expect(readSmtpConfig(COMPLETE)).toMatchObject({ port: 465, secure: true, timeoutMs: 30_000 });
+  });
+
+  // The local capture box speaks plaintext; pointing dev at it must not force
+  // a second env var to say so.
+  it("defaults to plaintext for a loopback capture host", () => {
+    expect(readSmtpConfig({ ...COMPLETE, SMTP_HOST: "127.0.0.1", SMTP_PORT: "54325" })).toMatchObject({
+      port: 54325,
+      secure: false,
+    });
+  });
+
+  it("honours an explicit SMTP_SECURE override either way", () => {
+    expect(readSmtpConfig({ ...COMPLETE, SMTP_SECURE: "off" })).toMatchObject({ secure: false });
+    expect(readSmtpConfig({ ...COMPLETE, SMTP_HOST: "127.0.0.1", SMTP_SECURE: "on" })).toMatchObject({ secure: true });
   });
 
   it("sends from the authenticated mailbox unless told otherwise", () => {

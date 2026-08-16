@@ -5,7 +5,7 @@ import { buildMimeMessage } from "./mime";
 import { runSmtpSession, SmtpError } from "./session";
 import { connectSmtp, withTimeout } from "./socket";
 
-type Connect = (hostname: string, port: number) => Promise<SmtpDuplex>;
+type Connect = (hostname: string, port: number, secure: boolean) => Promise<SmtpDuplex>;
 
 /** 4xx is the server saying "not now"; 5xx is "never", and retrying it is rude. */
 function isRetryable(error: unknown): boolean {
@@ -62,7 +62,7 @@ export class SmtpEmailProvider implements EmailProvider {
   }
 
   private async deliver(message: string, to: string, from: string): Promise<void> {
-    const connection = await this.connect(this.config.host, this.config.port);
+    const connection = await this.connect(this.config.host, this.config.port, this.config.secure);
 
     try {
       await withTimeout(
