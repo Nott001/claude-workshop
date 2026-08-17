@@ -51,13 +51,8 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
   // Nullable: PostgREST returns null for the embed if the row is gone. The old
   // code read straight through it, which threw rather than degrading.
   const event = ticket.EVENT;
-  const payment = ticket.PAYMENT;
   const venue = formatVenue(event?.venue_name, event?.venue_address);
   const price = formatEventPrice(event?.price, event?.currency);
-
-  const paidTime = payment?.paid_at
-    ? new Date(payment.paid_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-    : null;
 
   return (
     <div className="flex overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
@@ -122,20 +117,12 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
               <span className="material-symbols-rounded text-[14px]">arrow_forward</span>
             </Link>
           </div>
-
-          <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <span>Payment #{ticket.payment_id}</span>
-              <span>Issued {new Date(ticket.issued_at).toLocaleDateString()}</span>
-              {paidTime && <span>Paid {paidTime}</span>}
-            </div>
-          </div>
         </div>
       </div>
 
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
-      <div className="flex w-56 shrink-0 items-center justify-center border-l border-dashed border-border bg-muted p-6">
+      <div className="flex w-56 shrink-0 flex-col items-center justify-center gap-3 border-l border-dashed border-border bg-muted p-6">
         {qrFailed ? (
           <div className="grid size-44 place-items-center rounded-lg bg-surface">
             <span className="text-sm text-muted-foreground">No QR</span>
@@ -154,6 +141,12 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>
           </div>
         )}
+        {/* The code stays visible even when the image fails to render — it is
+            the fallback credential for anyone whose camera cannot scan. */}
+        <div className="text-center">
+          <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Check-in code</span>
+          <span className="font-mono text-base font-bold tracking-widest text-fg">{ticket.qr_token}</span>
+        </div>
       </div>
     </div>
   );

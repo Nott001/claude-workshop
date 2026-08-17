@@ -6,30 +6,30 @@ const row = {
   id: 1,
   payment_id: 99,
   qr_token: "tok",
-  PAYMENT: { status: "paid", paid_at: "2026-08-01T00:00:00Z" },
   EVENT: { title: "Alpha" },
 };
 
 describe("ticket list payload", () => {
-  // The tickets page renders payment status and the QR straight off these rows.
-  // If either stops arriving the page silently loses a field, so this is the
-  // test that keeps the per-card request deleted.
-  it("carries the payment embed for a user's own tickets", async () => {
+  // The tickets page renders EVENT details and the QR (token) straight off
+  // these rows. If either stops arriving the page silently loses a field, so
+  // this is the test that keeps the per-card request deleted.
+  it("leaves payment bookkeeping out but still carries the token for a user's own tickets", async () => {
     const { client, selects } = fakePostgrest([row]);
 
     const { data: tickets } = await ticketDao.listByUser(client, 5);
 
-    expect(selects[0]).toContain("PAYMENT(status, paid_at)");
-    expect(tickets[0].PAYMENT).toEqual({ status: "paid", paid_at: "2026-08-01T00:00:00Z" });
+    // Issue #240 dropped the PAYMENT embed from the card payload.
+    expect(selects[0]).not.toContain("PAYMENT(");
+    expect(tickets[0].qr_token).toBe("tok");
   });
 
-  it("carries the payment embed for the staff listing too", async () => {
+  it("leaves payment bookkeeping out of the staff listing too", async () => {
     const { client, selects } = fakePostgrest([row]);
 
     const { data: tickets } = await ticketDao.listAll(client);
 
-    expect(selects[0]).toContain("PAYMENT(status, paid_at)");
-    expect(tickets[0].PAYMENT).not.toBeNull();
+    expect(selects[0]).not.toContain("PAYMENT(");
+    expect(tickets[0].qr_token).toBe("tok");
   });
 
   it("keeps the event embed both lists already relied on", async () => {

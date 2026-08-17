@@ -111,6 +111,17 @@ describe("KioskScannerView controls", () => {
 });
 
 describe("KioskScannerView lookup-then-confirm", () => {
+  it("normalizes a typed code case- and space-insensitively", async () => {
+    stubFetch({ lookup: issuedPreview });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("  TOK-123  ");
+
+    expect(await screen.findByText("Jane Doe")).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/checkin/lookup?qr_token=tok-123");
+    expect(qrInput()).toHaveProperty("value", "tok-123");
+  });
+
   it("looks up a token and previews the attendee without checking them in", async () => {
     stubFetch({ lookup: issuedPreview });
     render(<KioskScannerView event={event} />);

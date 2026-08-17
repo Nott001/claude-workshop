@@ -5,6 +5,7 @@ const {
   updateStatus,
   findByGatewayReference,
   ticketCreate,
+  findActiveByQrToken,
   findByPaymentId,
   ticketUpdateStatus,
   sendEmailNotification,
@@ -14,6 +15,7 @@ const {
   updateStatus: vi.fn(),
   findByGatewayReference: vi.fn(),
   ticketCreate: vi.fn(),
+  findActiveByQrToken: vi.fn(),
   findByPaymentId: vi.fn(),
   ticketUpdateStatus: vi.fn(),
   sendEmailNotification: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/shared/db/dao/payment.dao", () => ({
 }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({
   create: ticketCreate,
+  findActiveByQrToken,
   findByPaymentId,
   updateStatus: ticketUpdateStatus,
 }));
@@ -68,6 +71,7 @@ beforeEach(() => {
   paymentFindById.mockResolvedValue(PENDING_PAYMENT);
   updateStatus.mockResolvedValue(true);
   ticketCreate.mockResolvedValue({ id: 9 });
+  findActiveByQrToken.mockResolvedValue(null);
   findByPaymentId.mockResolvedValue(null);
   ticketUpdateStatus.mockResolvedValue(true);
   generateQRDataUrl.mockResolvedValue("data:image/png;base64,QUJD");
@@ -91,6 +95,7 @@ describe("SimulatedPaymentGateway.createPayment", () => {
         email: "jane@example.com",
         eventTitle: "Founder Workshop",
         eventDate: "2026-09-01",
+        code: expect.stringMatching(/^[0-9a-f]{6}$/),
         qrDataUrl: "data:image/png;base64,QUJD",
       }),
     );
@@ -100,7 +105,28 @@ describe("SimulatedPaymentGateway.createPayment", () => {
     await new SimulatedPaymentGateway().createPayment(OPTIONS);
 
     expect(ticketCreate).toHaveBeenCalledWith({}, expect.objectContaining({ payment_id: 77, user_id: 5, event_id: 3 }));
-    expect(ticketCreate.mock.calls[0][1].qr_token).toMatch(/\S/);
+    expect(ticketCreate.mock.calls[0][1].qr_token).toMatch(/^[0-9a-f]{6}$/);
+  });
+
+  it("re-draws a token when the first draw collides with a live ticket", async () => {
+    findActiveByQrToken
+      .mockResolvedValueOnce({ id: 1 }) // first draw taken
+      .mockResolvedValueOnce(null); // second draw free
+
+    await new SimulatedPaymentGateway().createPayment(OPTIONS);
+
+    expect(findActiveByQrToken).toHaveBeenCalledTimes(2);
+    const issued = ticketCreate.mock.calls[0][1].qr_token;
+    expect(issued).toMatch(/^[0-9a-f]{6}$/);
+    expect(ticketCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails loudly when no free code can be drawn", async () => {
+    findActiveByQrToken.mockResolvedValue({ id: 1 });
+
+    await expect(new SimulatedPaymentGateway().createPayment(OPTIONS)).rejects.toThrow(/Could not allocate a unique QR token/);
+    expect(ticketCreate).not.toHaveBeenCalled();
+    expect(sendEmailNotification).not.toHaveBeenCalled();
   });
 
   it("returns a gateway reference but no checkout URL", async () => {

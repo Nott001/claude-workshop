@@ -420,7 +420,7 @@ INSERT INTO public."TICKET" (
   (5, 6,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000104'),
    3, 'dev-ticket-rust-bea', 'cancelled', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 4 — Startup Weekend Manila (120 days ago, 250 PHP)
 INSERT INTO public."PAYMENT" (
@@ -470,7 +470,7 @@ INSERT INTO public."TICKET" (
   (10, 12,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000110'),
    4, 'dev-ticket-sw-nina', 'cancelled', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 5 — Design Systems Day (200 days ago, 800 PHP)
 INSERT INTO public."PAYMENT" (
@@ -503,7 +503,7 @@ INSERT INTO public."TICKET" (
   (13, 16,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000102'),
    5, 'dev-ticket-dsd-liwanag', 'issued', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 1 — Product Summit 2026 (paid ticket for Alex, pending for Bri
 -- pre-exist as ids 1-2) — plus a realistic spread of newer bookings.
@@ -545,7 +545,7 @@ INSERT INTO public."TICKET" (
   (17, 20,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000107'),
    1, 'dev-ticket-prodsummit-ria', 'cancelled')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 6 — AI/ML Meetup (60 days out, free)
 INSERT INTO public."PAYMENT" (
@@ -580,7 +580,7 @@ INSERT INTO public."TICKET" (
   (20, 25,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000110'),
    6, 'dev-ticket-aiml-nina', 'issued')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------
 -- Surveys.
@@ -803,7 +803,7 @@ INSERT INTO public."TICKET" (
   (22, 29,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
    7, 'dev-ticket-today-bri', 'issued')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- The Q&A thread lives in the Open Q&A module: an attendee asks, the
 -- speaker and facilitator answer, so the panel opens already populated.

@@ -107,4 +107,13 @@ describe("token lookup", () => {
 
     await expect(res.json()).resolves.toEqual(expect.objectContaining({ status: "cancelled" }));
   });
+
+  it("normalizes a typed code to lowercase before lookup", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+
+    const res = await GET(get("qr_token=T0K-123"));
+
+    expect(res.status).toBe(200);
+    expect(findByQrToken).toHaveBeenCalledWith({}, "t0k-123");
+  });
 });

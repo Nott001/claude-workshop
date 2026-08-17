@@ -56,12 +56,15 @@ describe("emailTemplates", () => {
       name: "Bob",
       eventTitle: "Conference",
       eventDate: "2026-08-15",
+      code: "1a2b3c",
       qrDataUrl: "data:image/png;base64,abc123",
     });
     expect(html).toContain("Registration Confirmed");
     expect(html).toContain("Ticket Issued");
     expect(html).toContain("Bob");
     expect(html).toContain("Conference");
+    expect(html).toContain("Your check-in code: <strong");
+    expect(html).toContain("1a2b3c");
     expect(html).toContain("data:image/png;base64,abc123");
   });
 
@@ -70,8 +73,10 @@ describe("emailTemplates", () => {
       name: "Bob",
       eventTitle: "Conference",
       eventDate: "2026-08-15",
+      code: "1a2b3c",
     });
     expect(html).toContain("Bob");
+    expect(html).toContain("1a2b3c");
     expect(html).not.toContain("base64");
   });
 
@@ -87,7 +92,12 @@ describe("emailTemplates", () => {
 
   it("emits a complete HTML document, not a fragment", () => {
     // Filters score a bare run of <h1>/<p> worse than a real document.
-    const html = emailTemplates.ticketIssued.buildHtml({ name: "Bob", eventTitle: "Conference", eventDate: "2026-08-15" });
+    const html = emailTemplates.ticketIssued.buildHtml({
+      name: "Bob",
+      eventTitle: "Conference",
+      eventDate: "2026-08-15",
+      code: "1a2b3c",
+    });
 
     expect(html.startsWith("<!doctype html>")).toBe(true);
     expect(html).toContain('<meta charset="utf-8" />');
@@ -103,12 +113,18 @@ describe("emailTemplates", () => {
   });
 
   it("builds a plain-text part that stands on its own", () => {
-    const text = emailTemplates.ticketIssued.buildText({ name: "Bob", eventTitle: "Conference", eventDate: "2026-08-15" });
+    const text = emailTemplates.ticketIssued.buildText({
+      name: "Bob",
+      eventTitle: "Conference",
+      eventDate: "2026-08-15",
+      code: "1a2b3c",
+    });
 
     expect(text).toContain("Registration Confirmed");
     expect(text).toContain("Hi Bob,");
     expect(text).toContain("Conference");
     expect(text).toContain("2026-08-15");
+    expect(text).toContain("Your check-in code: 1a2b3c");
     expect(text).toContain("startuplab.center");
     expect(text).not.toContain("<");
   });
@@ -175,12 +191,27 @@ describe("emailTemplates", () => {
       name: '<img src=x onerror="alert(1)">',
       eventTitle: "<script>alert(1)</script>",
       eventDate: "2026-08-15",
+      code: "1a2b3c",
     });
 
     expect(html).not.toContain("<script>");
     expect(html).not.toContain("<img src=x");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+  });
+
+  // The code is generated hex today, but the template must not assume that:
+  // a hostile value here would land in a monospace <strong> in every inbox.
+  it("escapes the check-in code like every other interpolated value", () => {
+    const html = emailTemplates.ticketIssued.buildHtml({
+      name: "Bob",
+      eventTitle: "Conference",
+      eventDate: "2026-08-15",
+      code: "<script>alert(1)</script>",
+    });
+
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).not.toContain("<script>");
   });
 
   it("escapes a title that would otherwise close its attribute", () => {

@@ -42,7 +42,20 @@ describe("migration replay", () => {
       "00004_qa_message_policy_helper.sql",
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
+      "00007_short_qr_token.sql",
     ]);
+  });
+
+  describe("short-qr-token final state (00007)", () => {
+    const migration = content("00007_short_qr_token.sql");
+
+    it("drops the global UNIQUE on TICKET.qr_token so codes repool", () => {
+      expect(migration).toContain('DROP CONSTRAINT "TICKET_qr_token_key"');
+    });
+
+    it("does not restore a CREATE UNIQUE for qr_token", () => {
+      expect(migration).not.toMatch(/UNIQUE.*qr_token/);
+    });
   });
 
   describe("user-deletion final state (was 00015)", () => {

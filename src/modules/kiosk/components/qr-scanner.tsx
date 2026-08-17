@@ -59,9 +59,13 @@ export function QrScanner({ onScan, active, paused = false, onError }: QrScanner
           (decodedText) => {
             if (!mounted || session !== sessionRef.current) return;
             if (pausedRef.current) return;
-            if (decodedText === lastTokenRef.current) return;
-            lastTokenRef.current = decodedText;
-            onScanRef.current(decodedText);
+            // Decoded text mirrors what is printed on the QR; typing is
+            // case-insensitive, so dedupe and forwarding agree with the server
+            // on one canonical form.
+            const token = decodedText.trim().toLowerCase();
+            if (token === lastTokenRef.current) return;
+            lastTokenRef.current = token;
+            onScanRef.current(token);
           },
           () => {
             // No code detected this frame — expected, not an error

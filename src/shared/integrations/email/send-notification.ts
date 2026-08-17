@@ -10,7 +10,7 @@ import type { EmailType } from "@/shared/types";
  * compile, so a new PG enum member cannot reach `buildMessage` unhandled.
  */
 interface EmailPayloads extends Record<EmailType, object> {
-  ticket_issued: { eventTitle: string; eventDate: string; qrDataUrl?: string };
+  ticket_issued: { eventTitle: string; eventDate: string; code: string; qrDataUrl?: string };
   check_in_confirmed: { eventTitle: string };
   event_survey: { eventTitle: string; surveyUrl: string };
 }
@@ -33,7 +33,7 @@ function sendForType(params: SendEmailNotificationParams) {
     case "ticket_issued":
       return sendTemplatedEmail(
         emailTemplates.ticketIssued,
-        { name, eventTitle, eventDate: params.eventDate, qrDataUrl: params.qrDataUrl },
+        { name, eventTitle, eventDate: params.eventDate, code: params.code, qrDataUrl: params.qrDataUrl },
         to,
       );
     case "check_in_confirmed":

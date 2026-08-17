@@ -12,7 +12,7 @@ const {
   paymentListByUser,
   paymentListAll,
   paymentFindById,
-  findWithPaymentAndEvent,
+  findWithEvent,
   generateQRDataUrl,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -21,7 +21,7 @@ const {
   paymentListByUser: vi.fn(),
   paymentListAll: vi.fn(),
   paymentFindById: vi.fn(),
-  findWithPaymentAndEvent: vi.fn(),
+  findWithEvent: vi.fn(),
   generateQRDataUrl: vi.fn(),
 }));
 
@@ -30,7 +30,7 @@ vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({
   listByUser: ticketListByUser,
   listAll: ticketListAll,
-  findWithPaymentAndEvent,
+  findWithEvent,
 }));
 vi.mock("@/shared/db/dao/payment.dao", () => ({
   listByUser: paymentListByUser,
@@ -164,7 +164,7 @@ describe("GET /api/tickets/[paymentId] hides other users' tickets", () => {
     [ROLES.SPEAKER, speaker],
   ])("%s is refused someone else's ticket, and no QR is rendered", async (_label, who) => {
     requireRole.mockResolvedValue(who);
-    findWithPaymentAndEvent.mockResolvedValue({ id: 1, user_id: 999, qr_token: "secret-token" });
+    findWithEvent.mockResolvedValue({ id: 1, user_id: 999, qr_token: "secret-token" });
 
     const res = await GET_TICKET(req(), params);
 
@@ -176,7 +176,7 @@ describe("GET /api/tickets/[paymentId] hides other users' tickets", () => {
 
   it("an attendee still gets a QR for their own ticket", async () => {
     requireRole.mockResolvedValue(attendee);
-    findWithPaymentAndEvent.mockResolvedValue({ id: 1, user_id: attendee.user.id, qr_token: "own-token" });
+    findWithEvent.mockResolvedValue({ id: 1, user_id: attendee.user.id, qr_token: "own-token" });
 
     const res = await GET_TICKET(req(), params);
 

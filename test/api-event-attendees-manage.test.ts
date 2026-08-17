@@ -283,6 +283,7 @@ describe("POST /api/events/[id]/attendees/[userId]/resend-ticket", () => {
           email_type: "ticket_issued",
           eventTitle: "Launch Day",
           eventDate: "2020-01-01",
+          code: "qr-abc",
           qrDataUrl: "data:image/png;base64,aaa",
         }),
       );
