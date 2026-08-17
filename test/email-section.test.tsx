@@ -26,6 +26,17 @@ function renderSection(newEmail: string, emailSent = false, overrides: Partial<P
 afterEach(cleanup);
 
 describe("EmailSection", () => {
+  // The pending branch renders no field, so copy pointing at one sent people
+  // looking for an input that is not there. Cancel is what brings it back.
+  it("does not tell a pending change to type into a field it has removed", () => {
+    renderSection("new@example.com", true);
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(screen.getByText(new RegExp(`valid for ${EMAIL_CHANGE_LINK_TTL_LABEL}.*cancel this change first`))).toBeTruthy();
+    expect(screen.queryByText(/type it below/)).toBeNull();
+  });
+
   it("shows why the account's own address was refused", () => {
     renderSection("ada@example.com", false, { emailError: "This is already your email address." });
 

@@ -49,8 +49,10 @@ export function EmailSection({
             <span className="material-symbols-rounded mt-0.5 text-sm text-success">mark_email_unread</span>
             <div>
               <p className="text-xs font-bold text-fg">Email change pending</p>
+              {/* The field is not rendered in this branch, so the copy cannot
+                  send anyone to it: Cancel is what brings it back. */}
               <p className="text-xs text-muted-fg">
-                The link is valid for {EMAIL_CHANGE_LINK_TTL_LABEL} — to send to a new address, type it below.
+                The link is valid for {EMAIL_CHANGE_LINK_TTL_LABEL} — to send to a different address, cancel this change first.
               </p>
             </div>
           </div>
