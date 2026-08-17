@@ -43,7 +43,24 @@ describe("migration replay", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
+      "00008_ticket_realtime_read.sql",
     ]);
+  });
+
+  describe("ticket realtime read final state (00008)", () => {
+    const migration = content("00008_ticket_realtime_read.sql");
+
+    it("grants SELECT on TICKET to authenticated, never to anon", () => {
+      expect(migration).toContain('GRANT SELECT ON TABLE "public"."TICKET" TO "authenticated";');
+      expect(migration).not.toMatch(/TO "anon"/);
+    });
+
+    it("routes the read through a SECURITY DEFINER helper", () => {
+      expect(migration).toMatch(/ticket_visible/);
+      expect(migration).toMatch(/SECURITY DEFINER/s);
+      expect(migration).toMatch(/CREATE POLICY "Staff and ticket holders read tickets"/);
+      expect(migration).toMatch(/USING \("public"\."ticket_visible"\("id"\)\)/);
+    });
   });
 
   describe("short-qr-token final state (00007)", () => {

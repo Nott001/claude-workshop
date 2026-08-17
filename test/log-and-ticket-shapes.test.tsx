@@ -132,6 +132,13 @@ describe("TicketCard", () => {
     expect(screen.queryByText(/Paid/)).toBeNull();
   });
 
+  it("links the card to the ticket pass page", () => {
+    render(<TicketCard ticket={ticket} />);
+
+    const viewPass = screen.getByRole("link", { name: /View pass/ });
+    expect(viewPass).toHaveProperty("href", "http://localhost:3000/tickets/41");
+  });
+
   it("degrades instead of crashing when the embed comes back null", () => {
     render(<TicketCard ticket={{ ...ticket, EVENT: null }} />);
 
