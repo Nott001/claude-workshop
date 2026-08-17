@@ -689,6 +689,46 @@ describe("CurriculumBuilder lesson row", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
+  // A database missing the column hands the row a lesson with no name at all,
+  // which the `Lesson` type says cannot happen. Opening the editor used to seed
+  // it with undefined; blurring straight back out then threw on trim. Typing
+  // first hides the bug, because the change event replaces the state.
+  const namelessModule = () => {
+    const nameless: Partial<Lesson> = lesson(7, 1, 1);
+    delete nameless.name;
+    return mod(1, "Module 1", "lessons", [nameless as Lesson], 1);
+  };
+
+  it("opens the name editor empty for a lesson whose name is absent", () => {
+    renderStatic({ modules: [namelessModule()] });
+
+    fireEvent.click(screen.getByLabelText("Rename lesson"));
+
+    expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("");
+  });
+
+  it("commits an untouched editor for a nameless lesson without throwing", () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ modules: [namelessModule()], onRenameLesson });
+
+    fireEvent.click(screen.getByLabelText("Rename lesson"));
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(onRenameLesson).not.toHaveBeenCalled();
+  });
+
+  it("renames a nameless lesson once a name is typed", () => {
+    const onRenameLesson = vi.fn(async () => {});
+    renderStatic({ modules: [namelessModule()], onRenameLesson });
+
+    fireEvent.click(screen.getByLabelText("Rename lesson"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: " Recovered " } });
+    fireEvent.blur(screen.getByRole("textbox"));
+
+    expect(onRenameLesson).toHaveBeenCalledWith(7, "Recovered");
+  });
+
   it("opens the description editor with the value on Enter", () => {
     renderStatic({ modules: [describedModule] });
 

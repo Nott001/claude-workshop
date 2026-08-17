@@ -52,21 +52,25 @@ export function LessonRow({
     }
   }, [editTarget]);
 
-  function startEdit(target: EditTarget, initial: string) {
-    setEditValue(initial);
+  // `Lesson` types every field as present, but the row renders whatever the
+  // select returned: a column the database is missing arrives as undefined and
+  // would seed the editor with it, leaving the input uncontrolled and blowing
+  // up the commit. Normalising here covers every caller, now and later.
+  function startEdit(target: EditTarget, initial: string | null | undefined) {
+    setEditValue(initial ?? "");
     setEditTarget(target);
   }
 
   function commit() {
+    if (!editTarget) return;
+
+    const trimmed = editValue.trim();
+    setEditTarget(null);
+
     if (editTarget === "name") {
-      const trimmed = editValue.trim();
-      setEditTarget(null);
       if (trimmed && trimmed !== lesson.name) onRenameLesson(lesson.id, trimmed);
-    } else if (editTarget === "description") {
-      const trimmed = editValue.trim();
-      setEditTarget(null);
-      const current = lesson.description ?? "";
-      if (trimmed !== current) onUpdateLessonDescription(lesson.id, trimmed || null);
+    } else if (editTarget === "description" && trimmed !== (lesson.description ?? "")) {
+      onUpdateLessonDescription(lesson.id, trimmed || null);
     }
   }
 
@@ -176,16 +180,16 @@ export function LessonRow({
               tabIndex={0}
               title="Edit description"
               className="cursor-pointer rounded px-1 py-0.5 text-xs text-muted-fg transition-colors hover:bg-muted"
-              onClick={() => startEdit("description", lesson.description ?? "")}
+              onClick={() => startEdit("description", lesson.description)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") startEdit("description", lesson.description ?? "");
+                if (e.key === "Enter") startEdit("description", lesson.description);
               }}
             >
               {lesson.description || <span className="italic">Add description</span>}
             </span>
             <button
               type="button"
-              onClick={() => startEdit("description", lesson.description ?? "")}
+              onClick={() => startEdit("description", lesson.description)}
               aria-label="Edit lesson description"
               title="Edit lesson description"
               className="rounded-md p-1 text-muted-fg transition-colors hover:bg-muted hover:text-fg"
