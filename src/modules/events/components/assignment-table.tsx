@@ -1,13 +1,9 @@
 "use client";
 
 import { LoadMoreButton } from "@/shared/components/load-more";
+import type { AssignmentRow } from "@/modules/events/lib/types";
 
-export interface AssignmentRow {
-  id: number;
-  name: string;
-  /** Secondary line shown under the name, e.g. email or designation. */
-  detail?: string;
-}
+export type { AssignmentRow };
 
 interface AssignmentTableProps {
   loading?: boolean;

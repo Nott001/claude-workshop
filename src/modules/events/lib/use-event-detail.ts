@@ -1,7 +1,7 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
@@ -94,6 +94,19 @@ export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
     router.push(withBackLink(`/events/${eventId}/register`, backOrigin));
   }
 
+  /**
+   * Fold a saved row back into the event on screen.
+   *
+   * The PATCH and the cover upload both already answer with what they stored,
+   * so the hero can follow an edit without a second GET. Merged rather than
+   * replaced: those responses are the EVENT row alone, without the COURSE and
+   * speaker embeds the page reads.
+   */
+  const applyEventPatch = useCallback(
+    (patch: Record<string, unknown>) => setEvent((current) => (current ? { ...current, ...patch } : current)),
+    [],
+  );
+
   async function handlePublish() {
     setPublishing(true);
     setPublishError(null);
@@ -138,5 +151,6 @@ export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
     handleRegister,
     handlePublish,
     handleDelete,
+    applyEventPatch,
   };
 }

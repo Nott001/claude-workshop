@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { type AssignmentRow } from "@/modules/events/components/assignment-table";
 import { EventFormFields } from "@/modules/events/components/event-form-fields";
-import { BackLink } from "@/shared/components/back-link";
+import { EventTeamFields } from "@/modules/events/components/event-team-fields";
+import { Button } from "@/shared/components/button";
 import {
   EMPTY_EVENT_FORM,
   toEventPayload,
@@ -16,102 +16,57 @@ export { EMPTY_EVENT_FORM, toFormValues, toEventPayload } from "@/modules/events
 export type { EventFormValues, EventPayload } from "@/modules/events/lib/event-form-schema";
 
 interface EventFormProps {
-  heading: string;
-  backHref: string;
-  backLabel: string;
   submitLabel: string;
   submittingLabel: string;
   initialValues?: EventFormValues;
+  /** Creation only — see `EventTeamFields` for why an existing event differs. */
+  includeTeam?: boolean;
+  /**
+   * Editing an existing row: offers Discard, and holds Save until something has
+   * actually changed. A create form has nothing to discard back to.
+   */
+  editing?: boolean;
+  /** Shown beside the submit button, e.g. "Changes saved." */
+  statusMessage?: string | null;
+  onDirtyChange?: (dirty: boolean) => void;
   onSubmit: (payload: EventPayload) => Promise<void>;
 }
 
-interface FacilitatorCandidate {
-  id: number;
-  full_name: string;
-  email: string;
-}
-
-interface SpeakerCandidate {
-  id: number;
-  user_id: number;
-  designation: string | null;
-  USER: { full_name: string; email: string } | null;
-}
-
+/**
+ * The event fields and nothing else — no page frame, no heading, no back link.
+ *
+ * It used to carry all three, which was invisible on `/staff/events/new` where
+ * it *was* the page, and wrong everywhere else: dropped into a panel on the
+ * staff detail page it rendered a second page inside the first, complete with
+ * its own "Back to Event" link. Page chrome is the route's job now.
+ */
 export function EventForm({
-  heading,
-  backHref,
-  backLabel,
   submitLabel,
   submittingLabel,
   initialValues = EMPTY_EVENT_FORM,
+  includeTeam = false,
+  editing = false,
+  statusMessage,
+  onDirtyChange,
   onSubmit,
 }: EventFormProps) {
   const [values, setValues] = useState<EventFormValues>(initialValues);
+  // What is currently stored, as this form understands it. Held here rather
+  // than re-read from `initialValues` because the server echoes columns back in
+  // its own spelling — a `time` comes back as "09:00:00" against the "09:00" an
+  // <input type="time"> holds — which would leave a just-saved form dirty.
+  const [baseline, setBaseline] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [facilitators, setFacilitators] = useState<FacilitatorCandidate[]>([]);
-  const [facilitatorsError, setFacilitatorsError] = useState(false);
-  const [speakers, setSpeakers] = useState<SpeakerCandidate[]>([]);
-  const [speakersError, setSpeakersError] = useState(false);
-  const [selectedFacilitatorId, setSelectedFacilitatorId] = useState("");
-  const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
+
+  const dirty = JSON.stringify(values) !== JSON.stringify(baseline);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const [facRes, spkRes] = await Promise.all([fetch("/api/facilitators"), fetch("/api/speakers?role=speaker&limit=100")]);
-      if (cancelled) return;
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
-      if (facRes.ok) {
-        const rows: FacilitatorCandidate[] = await facRes.json();
-        if (!cancelled) setFacilitators(rows);
-      } else {
-        setFacilitatorsError(true);
-      }
-
-      if (spkRes.ok) {
-        const data = (await spkRes.json()) as { data?: SpeakerCandidate[] };
-        const rows: SpeakerCandidate[] = data.data ?? [];
-        if (!cancelled) setSpeakers(rows);
-      } else {
-        setSpeakersError(true);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
+  const set: <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => void = (key, value) =>
     setValues((current) => ({ ...current, [key]: value }));
-
-  const facilitatorRows: AssignmentRow[] = facilitators.map((f) => ({
-    id: f.id,
-    name: f.full_name,
-    detail: f.email,
-  }));
-
-  const speakerRows: AssignmentRow[] = speakers.map((s) => ({
-    id: s.id,
-    name: s.USER?.full_name ?? `User #${s.user_id}`,
-    detail: s.designation ?? s.USER?.email ?? undefined,
-  }));
-
-  function addFacilitator() {
-    if (!selectedFacilitatorId) return;
-    const id = Number(selectedFacilitatorId);
-    if (!values.facilitator_ids.includes(id)) set("facilitator_ids", [...values.facilitator_ids, id]);
-    setSelectedFacilitatorId("");
-  }
-
-  function addSpeaker() {
-    if (!selectedSpeakerId) return;
-    const id = Number(selectedSpeakerId);
-    if (!values.speaker_profile_ids.includes(id)) set("speaker_profile_ids", [...values.speaker_profile_ids, id]);
-    setSelectedSpeakerId("");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,6 +84,7 @@ export function EventForm({
 
     try {
       await onSubmit(toEventPayload(values));
+      setBaseline(values);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -137,41 +93,30 @@ export function EventForm({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
-      <div className="mx-auto w-full max-w-[896px]">
-        <BackLink href={backHref} className="mb-6">
-          {backLabel}
-        </BackLink>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <EventFormFields values={values} set={set} />
+      {includeTeam && <EventTeamFields values={values} set={set} />}
 
-        <h1 className="mb-8 text-[36px] leading-[40px] font-bold tracking-[-0.02em] text-fg">{heading}</h1>
+      {/* Sticky, because the fields are taller than a viewport and a save
+          button at the bottom of them is a scroll away from most of the edits
+          it commits. */}
+      <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-bg/90 px-6 py-4 backdrop-blur">
+        {error && (
+          <p role="alert" className="mr-auto text-sm text-error">
+            {error}
+          </p>
+        )}
+        {!error && statusMessage && <p className="mr-auto text-sm text-success">{statusMessage}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <EventFormFields
-            values={values}
-            set={set}
-            facilitatorCandidates={facilitatorRows}
-            speakerCandidates={speakerRows}
-            facilitatorsError={facilitatorsError}
-            speakersError={speakersError}
-            selectedFacilitatorId={selectedFacilitatorId}
-            setSelectedFacilitatorId={setSelectedFacilitatorId}
-            selectedSpeakerId={selectedSpeakerId}
-            setSelectedSpeakerId={setSelectedSpeakerId}
-            onAddFacilitator={addFacilitator}
-            onAddSpeaker={addSpeaker}
-          />
-
-          {error && <p className="text-sm text-error">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-          >
-            {submitting ? submittingLabel : submitLabel}
-          </button>
-        </form>
+        {editing && dirty && (
+          <Button type="button" variant="secondary" size="lg" onClick={() => setValues(baseline)} disabled={submitting}>
+            Discard changes
+          </Button>
+        )}
+        <Button type="submit" size="lg" disabled={submitting || (editing && !dirty)}>
+          {submitting ? submittingLabel : submitLabel}
+        </Button>
       </div>
-    </div>
+    </form>
   );
 }
