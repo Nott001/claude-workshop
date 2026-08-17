@@ -7,10 +7,12 @@ import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useAuditLogs } from "@/modules/audit/lib/use-audit-logs";
 import type { AuditLogWithActor } from "@/modules/audit/db/audit.dao";
 import { Badge } from "@/shared/components/badge";
+import { Button } from "@/shared/components/button";
 import { Drawer } from "@/shared/components/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { TableToolbar } from "@/shared/components/table-toolbar";
 import { Pagination } from "@/shared/components/table-pagination";
+import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import {
   Table,
   TableBody,
@@ -101,11 +103,7 @@ export default function StaffAuditLogsPage() {
   const [selected, setSelected] = useState<AuditLogWithActor | null>(null);
 
   if (pending) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
+    return <StaffPageState>Loading...</StaffPageState>;
   }
 
   if (!allowed) return null;
@@ -113,20 +111,17 @@ export default function StaffAuditLogsPage() {
   const filteredLogs = category === "all" ? logs : logs.filter((log) => categoryOf(log.action) === category);
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1024px] px-6 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-fg">Audit Logs</h1>
-            <p className="mt-1 text-sm text-muted-fg">Track all facilitator actions across the platform</p>
-          </div>
-          <button
-            onClick={() => router.push("/staff/events")}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-fg transition-colors hover:bg-muted"
-          >
-            Back to Dashboard
-          </button>
-        </div>
+    <>
+      <StaffPage>
+        <StaffPageHeader
+          title="Audit Logs"
+          description="Track all facilitator actions across the platform"
+          actions={
+            <Button variant="secondary" size="lg" onClick={() => router.push("/staff/events")}>
+              Back to Dashboard
+            </Button>
+          }
+        />
 
         <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search action, entity, or actor..." }}>
           <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
@@ -204,7 +199,7 @@ export default function StaffAuditLogsPage() {
             <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
           </>
         )}
-      </div>
+      </StaffPage>
 
       <Drawer
         open={selected !== null}
@@ -244,6 +239,6 @@ export default function StaffAuditLogsPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </>
   );
 }

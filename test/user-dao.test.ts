@@ -59,19 +59,38 @@ describe("user.dao reads", () => {
   });
 });
 
-describe("user.dao listStaff", () => {
-  it("lists staff roles only, never attendees", async () => {
+describe("user.dao listOrganizationMembers", () => {
+  it("lists staff roles only when nothing was asked for", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, { page: 1, search: "" });
+    await userDao.listOrganizationMembers(client, { page: 1, search: "" });
 
     expect(argsOf(calls, "in")).toEqual(["role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN]]);
+  });
+
+  // An attendee who cannot be found cannot be promoted, so naming one lifts the
+  // staff restriction rather than searching within it.
+  it("searches every role, attendees included", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listOrganizationMembers(client, { page: 1, search: "ada" });
+
+    expect(calls.some(([m]) => m === "in")).toBe(false);
+  });
+
+  it("lists attendees when they are the role asked for", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listOrganizationMembers(client, { page: 1, search: "", role: ROLES.ATTENDEE });
+
+    expect(calls.some(([m]) => m === "in")).toBe(false);
+    expect(calls.filter(([m]) => m === "eq").map(([, args]) => args)).toContainEqual(["role", ROLES.ATTENDEE]);
   });
 
   it("asks for the page the caller wanted", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, { page: 3, search: "", pageSize: 10 });
+    await userDao.listOrganizationMembers(client, { page: 3, search: "", pageSize: 10 });
 
     // Page 3 of 10 starts at row 20 and ends at 29, inclusive.
     expect(argsOf(calls, "range")).toEqual([20, 29]);
@@ -80,7 +99,7 @@ describe("user.dao listStaff", () => {
   it("searches the name and the address together", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, { page: 1, search: "ana" });
+    await userDao.listOrganizationMembers(client, { page: 1, search: "ana" });
 
     // ilikePattern quotes and escapes the term so input cannot re-write the
     // or-filter; the quotes are part of the generated expression.
@@ -90,7 +109,7 @@ describe("user.dao listStaff", () => {
   it("narrows to one role and keeps pagination when role is set", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listStaff(client, { page: 2, search: "", pageSize: 10, role: ROLES.SPEAKER });
+    await userDao.listOrganizationMembers(client, { page: 2, search: "", pageSize: 10, role: ROLES.SPEAKER });
 
     const eqs = calls.filter(([m]) => m === "eq").map(([, args]) => args);
     expect(eqs).toContainEqual(["role", ROLES.SPEAKER]);
@@ -100,7 +119,41 @@ describe("user.dao listStaff", () => {
   it("reports an empty page rather than null when the query returns nothing", async () => {
     const { client } = stub({ data: null, count: null });
 
-    await expect(userDao.listStaff(client, { page: 1, search: "" })).resolves.toMatchObject({ data: [], total: 0 });
+    await expect(userDao.listOrganizationMembers(client, { page: 1, search: "" })).resolves.toMatchObject({
+      data: [],
+      total: 0,
+    });
+  });
+
+  // The staff list holds four roles at once, and a roster that opens on whoever
+  // happens to be alphabetically first buries the people it is consulted about.
+  it("ranks the staff list by authority before name", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listOrganizationMembers(client, { page: 1, search: "" });
+
+    const orders = calls.filter(([m]) => m === "order").map(([, args]) => args);
+    expect(orders).toEqual([
+      ["role", { ascending: false }],
+      ["full_name", { ascending: true }],
+    ]);
+  });
+
+  it("ranks a mixed search result the same way", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listOrganizationMembers(client, { page: 1, search: "ada" });
+
+    expect(calls.filter(([m]) => m === "order").map(([, args]) => args)[0]).toEqual(["role", { ascending: false }]);
+  });
+
+  it("orders a single-role list by name alone, having nothing to rank", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listOrganizationMembers(client, { page: 1, search: "", role: ROLES.SPEAKER });
+
+    const orders = calls.filter(([m]) => m === "order").map(([, args]) => args);
+    expect(orders).toEqual([["full_name", { ascending: true }]]);
   });
 });
 

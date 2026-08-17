@@ -7,7 +7,9 @@ import { useEventList } from "@/modules/events/lib/use-event-list";
 import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { LoadMoreButton } from "@/shared/components/load-more";
+import { buttonStyles } from "@/shared/components/button";
 import { TableToolbar } from "@/shared/components/table-toolbar";
+import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 
 const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
@@ -22,67 +24,46 @@ export function StaffEventListPage() {
     useEventList();
 
   if (pending || loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading events...</div>
-      </div>
-    );
+    return <StaffPageState>Loading events...</StaffPageState>;
   }
 
   if (error) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">{error}</div>
-      </div>
-    );
+    return <StaffPageState tone="error">{error}</StaffPageState>;
   }
 
   if (!allowed) return null;
 
   return (
-    <>
-      <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
-        <div className="mx-auto w-full max-w-[1024px]">
-          <div className="mb-8 flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-info/10 p-2">
-                <span className="material-symbols-rounded text-[24px] text-brand">event</span>
-              </div>
-              <div>
-                <h1 className="text-[36px] leading-[40px] font-bold tracking-[-0.02em] text-fg">Events</h1>
-                <p className="mt-1 text-sm text-muted-fg">Create, publish and manage your events.</p>
-              </div>
-            </div>
-            <Link
-              href="/staff/events/new"
-              prefetch={false}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand/90"
-            >
-              <span className="material-symbols-rounded text-[18px]">add</span>
-              Create Event
-            </Link>
-          </div>
+    <StaffPage>
+      <StaffPageHeader
+        title="Events"
+        description="Create, publish and manage your events."
+        actions={
+          <Link href="/staff/events/new" prefetch={false} className={buttonStyles({ size: "lg" })}>
+            <span className="material-symbols-rounded text-[18px]">add</span>
+            Create Event
+          </Link>
+        }
+      />
 
-          <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search events" }}>
-            <Select value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
-              <SelectTrigger>
-                <SelectValue>{STATUS_OPTIONS.find((o) => o.value === activeTab)?.label ?? "Upcoming"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TableToolbar>
+      <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search events" }}>
+        <Select value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+          <SelectTrigger>
+            <SelectValue>{STATUS_OPTIONS.find((o) => o.value === activeTab)?.label ?? "Upcoming"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableToolbar>
 
-          <EventTable events={filteredEvents} showEdit />
+      <EventTable events={filteredEvents} showEdit />
 
-          {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
-        </div>
-      </div>
-    </>
+      {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
+    </StaffPage>
   );
 }
