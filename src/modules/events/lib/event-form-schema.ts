@@ -32,12 +32,16 @@ export const EMPTY_EVENT_FORM: EventFormValues = {
  */
 export function toFormValues(event: Partial<Record<keyof EventFormValues, unknown>>): EventFormValues {
   const text = (value: unknown, fallback = "") => (value === null || value === undefined ? fallback : String(value));
+  // Postgres hands a `time` column back as "09:00:00"; an <input type="time">
+  // holds "09:00". Trimming here keeps a form seeded from a stored row equal to
+  // the same form after a round-trip through the browser.
+  const time = (value: unknown) => text(value).slice(0, 5);
 
   return {
     title: text(event.title),
     event_date: text(event.event_date),
-    start_time: text(event.start_time),
-    end_time: text(event.end_time),
+    start_time: time(event.start_time),
+    end_time: time(event.end_time),
     venue_name: text(event.venue_name),
     venue_address: text(event.venue_address),
     description: text(event.description),

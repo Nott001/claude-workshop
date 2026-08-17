@@ -1,3 +1,17 @@
+/**
+ * One person in an assignment roster, flattened to what the table renders.
+ *
+ * Lives in lib rather than beside the table so the hooks that build these rows
+ * do not have to reach up into `components` for the shape — the dependency runs
+ * app → components → lib, and only that way.
+ */
+export interface AssignmentRow {
+  id: number;
+  name: string;
+  /** Secondary line shown under the name, e.g. email or designation. */
+  detail?: string;
+}
+
 export interface EventSpeakerProfile {
   id: number;
   user_id: number;

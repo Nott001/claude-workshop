@@ -67,8 +67,10 @@ describe("toFormValues", () => {
     expect(values).toEqual({
       title: "Alpha",
       event_date: "2026-09-01",
-      start_time: "09:00:00",
-      end_time: "17:00:00",
+      // Trimmed from the "09:00:00" a `time` column returns, so a form seeded
+      // from a stored row equals the same form after a browser round-trip.
+      start_time: "09:00",
+      end_time: "17:00",
       venue_name: "Hall A",
       venue_address: "123 Main St",
       description: "All about AI",
@@ -96,16 +98,7 @@ describe("toFormValues", () => {
 
 describe("EventForm", () => {
   function renderForm(onSubmit = vi.fn().mockResolvedValue(undefined)) {
-    render(
-      <EventForm
-        heading="Create Event"
-        backHref="/staff/events"
-        backLabel="Back"
-        submitLabel="Create Event"
-        submittingLabel="Creating..."
-        onSubmit={onSubmit}
-      />,
-    );
+    render(<EventForm includeTeam submitLabel="Create Event" submittingLabel="Creating..." onSubmit={onSubmit} />);
     return onSubmit;
   }
 
