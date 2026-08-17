@@ -5,6 +5,9 @@ import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { CommunityAdminCard } from "@/modules/community/components/community-admin-card";
 import { CommunityForm, type CommunityFormValues } from "@/modules/community/components/community-form";
 import { useCommunityLinks } from "@/modules/community/lib/use-community-links";
+import { Button } from "@/shared/components/button";
+import { TableEmpty } from "@/shared/components/table";
+import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import { useState } from "react";
 
 export function StaffCommunityListPage() {
@@ -74,38 +77,27 @@ export function StaffCommunityListPage() {
   }
 
   if (pending || loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading community...</div>
-      </div>
-    );
+    return <StaffPageState>Loading community...</StaffPageState>;
   }
 
   if (!allowed) return null;
 
   if (error) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">Failed to load community groups.</div>
-      </div>
-    );
+    return <StaffPageState tone="error">Failed to load community groups.</StaffPageState>;
   }
 
   return (
-    <div className="flex flex-1 flex-col p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold text-foreground">Community groups</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage the cards shown on the community page.</p>
-        </div>
-        <button
-          onClick={() => setShowCreate((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-brand-fg transition-colors hover:bg-brand/90"
-        >
-          <span className="material-symbols-rounded text-base">{showCreate ? "close" : "add"}</span>
-          {showCreate ? "Close" : "Add group"}
-        </button>
-      </div>
+    <StaffPage>
+      <StaffPageHeader
+        title="Community groups"
+        description="Manage the cards shown on the community page."
+        actions={
+          <Button onClick={() => setShowCreate((v) => !v)}>
+            <span className="material-symbols-rounded text-base">{showCreate ? "close" : "add"}</span>
+            {showCreate ? "Close" : "Add group"}
+          </Button>
+        }
+      />
 
       {showCreate && (
         <div className="mb-6 rounded-xl border border-border bg-surface p-6">
@@ -119,9 +111,7 @@ export function StaffCommunityListPage() {
       )}
 
       {links.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center p-8">
-          <div className="text-sm text-muted-foreground">No community groups yet. Add the first one.</div>
-        </div>
+        <TableEmpty icon="forum" title="No community groups yet" hint="Add the first one." />
       ) : (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {links.map((link, index) => (
@@ -142,6 +132,6 @@ export function StaffCommunityListPage() {
           ))}
         </div>
       )}
-    </div>
+    </StaffPage>
   );
 }
