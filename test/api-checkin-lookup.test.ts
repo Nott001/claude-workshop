@@ -4,14 +4,16 @@ import type { TicketStatus } from "@/shared/types";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireRole, findByQrToken } = vi.hoisted(() => ({
+const { requireRole, findByQrToken, loadEventOr403 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   findByQrToken: vi.fn(),
+  loadEventOr403: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken }));
+vi.mock("@/modules/events/lib/event-service", () => ({ loadEventOr403 }));
 
 import { GET } from "@/app/api/checkin/lookup/route";
 
@@ -37,6 +39,7 @@ function ticket(status: TicketStatus = "issued") {
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(facilitator);
+  loadEventOr403.mockResolvedValue({ id: 10 });
 });
 
 describe("authorization", () => {
@@ -74,6 +77,26 @@ describe("token lookup", () => {
 
     expect(res.status).toBe(404);
     await expect(res.json()).resolves.toEqual({ error: "Invalid QR token" });
+    expect(loadEventOr403).not.toHaveBeenCalled();
+  });
+
+  it("previews the ticket for a facilitator assigned to the event", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+
+    const res = await GET(get("qr_token=tok-123"));
+
+    expect(res.status).toBe(200);
+    expect(loadEventOr403).toHaveBeenCalledWith({}, 10, { id: 7, role: ROLES.FACILITATOR }, "attendees");
+  });
+
+  it("rejects an unassigned facilitator with 403", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+    loadEventOr403.mockRejectedValue({ status: 403 });
+
+    const res = await GET(get("qr_token=tok-123"));
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
   });
 
   it("previews the attendee without mutating when the ticket is issued", async () => {
