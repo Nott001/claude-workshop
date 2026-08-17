@@ -121,6 +121,50 @@ describe("POST /api/auth/email/send", () => {
     expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
 
+  // The elapsed seconds are measured from a field GoTrue does not always send.
+  // Reading a missing one as zero gated the address for good: the window never
+  // widened, and only a cancel clears the pending record it was gating on.
+  it("sends when the pending change has no recorded send time", async () => {
+    routeAuth.getUser.mockResolvedValue({
+      data: { user: goTrueUser({ new_email: "new@example.com" }) },
+      error: null,
+    });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    expect(routeAuth.updateUser).toHaveBeenCalled();
+  });
+
+  it("sends when the recorded send time cannot be parsed", async () => {
+    routeAuth.getUser.mockResolvedValue({
+      data: { user: goTrueUser({ new_email: "new@example.com", email_change_sent_at: "not-a-date" }) },
+      error: null,
+    });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    expect(routeAuth.updateUser).toHaveBeenCalled();
+  });
+
+  it("sends once the cooldown window has actually passed", async () => {
+    routeAuth.getUser.mockResolvedValue({
+      data: {
+        user: goTrueUser({
+          new_email: "new@example.com",
+          email_change_sent_at: new Date(Date.now() - 61_000).toISOString(),
+        }),
+      },
+      error: null,
+    });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(200);
+    expect(routeAuth.updateUser).toHaveBeenCalled();
+  });
+
   it("lets a different address supersede a pending change instead of cooldown-gating it", async () => {
     routeAuth.getUser.mockResolvedValue({
       data: {

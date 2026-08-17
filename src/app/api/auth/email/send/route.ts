@@ -42,9 +42,14 @@ export async function POST(request: Request) {
 
   const pending = data.user?.new_email?.trim() ?? "";
   if (pending && isSameEmail(pending, target)) {
-    const sentAt = data.user?.email_change_sent_at ?? null;
-    const elapsed = sentAt ? (Date.now() - new Date(sentAt).getTime()) / 1000 : 0;
-    if (elapsed < RESEND_COOLDOWN_SECONDS) {
+    // `email_change_sent_at` is optional on the GoTrue user, and a send time we
+    // do not have cannot show the window is still open. This has to fail open:
+    // treating an unknown time as "just sent" gated every retry of a pending
+    // address forever, since the elapsed seconds never grew and nothing but a
+    // cancel clears the pending record. Waiting could not fix it.
+    const sentAtMs = new Date(data.user?.email_change_sent_at ?? "").getTime();
+    const withinCooldown = Number.isFinite(sentAtMs) && (Date.now() - sentAtMs) / 1000 < RESEND_COOLDOWN_SECONDS;
+    if (withinCooldown) {
       // The empty message is deliberate: the client's error helper maps a 429
       // before it ever reads the body, so nothing here can render as "{ }".
       return NextResponse.json({ ok: false, error: { status: 429, message: "" } }, { status: 429 });
