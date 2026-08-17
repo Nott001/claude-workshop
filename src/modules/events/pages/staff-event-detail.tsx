@@ -145,13 +145,11 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
 
       {currentTab === "details" && isAdmin && (
         <div className="space-y-6">
-          <SectionCard title="Cover image" icon="image" description="Shown on event cards across the site.">
-            <CoverImageUpload
-              eventId={eventId}
-              initialUrl={event.cover_image_url}
-              onUploaded={(url) => applyEventPatch({ cover_image_url: url })}
-            />
-          </SectionCard>
+          <CoverImageUpload
+            eventId={eventId}
+            initialUrl={event.cover_image_url}
+            onUploaded={(url) => applyEventPatch({ cover_image_url: url })}
+          />
 
           <EditEventForm eventId={eventId} initialData={staffEvent} onSaved={applyEventPatch} />
         </div>

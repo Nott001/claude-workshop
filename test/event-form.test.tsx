@@ -98,7 +98,7 @@ describe("toFormValues", () => {
 
 describe("EventForm", () => {
   function renderForm(onSubmit = vi.fn().mockResolvedValue(undefined)) {
-    render(<EventForm includeTeam submitLabel="Create Event" submittingLabel="Creating..." onSubmit={onSubmit} />);
+    render(<EventForm mode="create" submitLabel="Create Event" submittingLabel="Creating..." onSubmit={onSubmit} />);
     return onSubmit;
   }
 
@@ -143,6 +143,15 @@ describe("EventForm", () => {
     }
     expect(screen.getByText(/Facilitators/)).toBeTruthy();
     expect(screen.getByText(/Speakers/)).toBeTruthy();
+  });
+
+  it("reads as the same page the event's own Details tab does", () => {
+    renderForm();
+
+    // Section order is the unification: cover, basics, pricing, team, both
+    // where an event is created and where it is edited.
+    const headings = Array.from(document.querySelectorAll("h2")).map((h) => h.textContent);
+    expect(headings).toEqual(["COVER IMAGE", "EVENT BASICS", "PRICING", "TEAM"]);
   });
 
   it("lets an admin pick facilitators to assign at creation", async () => {
@@ -239,5 +248,86 @@ describe("EventForm", () => {
     submit();
 
     expect(await screen.findByText("Failed to create event")).toBeTruthy();
+  });
+
+  describe("cover image", () => {
+    function renderWithCover(onSubmit = vi.fn().mockResolvedValue(undefined)) {
+      render(<EventForm mode="create" submitLabel="Create Event" submittingLabel="Creating..." onSubmit={onSubmit} />);
+      return onSubmit;
+    }
+
+    function pickCover(file: File) {
+      const input = document.getElementById("event-cover-input") as HTMLInputElement;
+      Object.defineProperty(input, "files", { value: [file], configurable: true });
+      fireEvent.change(input);
+    }
+
+    function imageFile(name = "cover.png", type = "image/png", size = 1024) {
+      const file = new File(["x"], name, { type });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    }
+
+    // jsdom implements neither, and the picker previews the file through them.
+    beforeEach(() => {
+      URL.createObjectURL = vi.fn(() => "blob:cover");
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    });
+
+    it("hands the picked cover to the submit handler, which owns the upload", async () => {
+      // Nothing is stored here: the object path is keyed on an event id that
+      // does not exist until the POST answers.
+      const onSubmit = renderWithCover();
+
+      pickCover(imageFile());
+      fill(REQUIRED);
+      submit();
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect((onSubmit.mock.calls[0][1] as File).name).toBe("cover.png");
+    });
+
+    it("shows a preview of the staged cover", async () => {
+      renderWithCover();
+      expect(screen.getByText("No cover image yet")).toBeTruthy();
+
+      pickCover(imageFile());
+
+      expect((await screen.findByAltText("Event cover")).getAttribute("src")).toBe("blob:cover");
+    });
+
+    it("submits without a cover when none was picked", async () => {
+      const onSubmit = renderWithCover();
+
+      fill(REQUIRED);
+      submit();
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][1]).toBeNull();
+    });
+
+    it("refuses a file the bucket would reject instead of staging it", async () => {
+      const onSubmit = renderWithCover();
+
+      pickCover(imageFile("notes.pdf", "application/pdf"));
+      expect(await screen.findByText("Only JPEG and PNG images are allowed.")).toBeTruthy();
+
+      fill(REQUIRED);
+      submit();
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][1]).toBeNull();
+    });
+
+    it("leaves the cover out of an edit form, where an existing event uploads on pick", () => {
+      render(<EventForm mode="edit" submitLabel="Save changes" submittingLabel="Saving..." onSubmit={vi.fn()} />);
+
+      expect(document.getElementById("event-cover-input")).toBeNull();
+    });
   });
 });

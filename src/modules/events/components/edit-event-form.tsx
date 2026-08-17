@@ -42,7 +42,7 @@ export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormPr
 
   return (
     <EventForm
-      editing
+      mode="edit"
       submitLabel="Save changes"
       submittingLabel="Saving..."
       statusMessage={saved ? "Changes saved." : null}
