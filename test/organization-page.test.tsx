@@ -78,6 +78,64 @@ describe("StaffOrganizationPage", () => {
     expect(urls[urls.length - 1]).toBe("/api/organization?page=1&limit=10&search=ada");
   });
 
+  it("shows the empty state under the column headers when nothing matches", async () => {
+    stubFetch([], 0);
+
+    render(<StaffOrganizationPage />);
+
+    expect(await screen.findByText("No members found")).toBeTruthy();
+    expect(screen.getByText("Email")).toBeTruthy();
+    expect(screen.getByText("Role")).toBeTruthy();
+  });
+
+  it("keeps the rows and shows the unified notice when a refetch fails", async () => {
+    vi.useFakeTimers();
+    stubFetch([MEMBER], 1);
+
+    render(<StaffOrganizationPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText("Ada Admin")).toBeTruthy();
+
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: false, json: async () => ({}) }));
+
+    fireEvent.change(screen.getByPlaceholderText("Search name or email..."), { target: { value: "ada" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText("Failed to refresh members — showing last loaded results.")).toBeTruthy();
+    expect(screen.getByText("Ada Admin")).toBeTruthy();
+    expect(screen.getByText("Email")).toBeTruthy();
+  });
+
+  it("dims the rows and sets aria-busy while a search refetch is in flight", async () => {
+    vi.useFakeTimers();
+    let lastResolve: ((value: unknown) => void) | undefined;
+    fetchMock = vi.fn(() => new Promise((resolve) => (lastResolve = resolve)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<StaffOrganizationPage />);
+    await act(async () => {
+      lastResolve?.({ ok: true, json: async () => ({ users: [MEMBER], total: 1 }) });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText("Ada Admin")).toBeTruthy();
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Search name or email..."), { target: { value: "ada" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      lastResolve?.({ ok: true, json: async () => ({ users: [MEMBER], total: 1 }) });
+    });
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
+  });
+
   it("filters by role via the select", async () => {
     stubFetch([], 0);
 

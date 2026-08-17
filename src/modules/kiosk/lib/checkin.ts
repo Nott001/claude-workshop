@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { TicketStatus } from "@/shared/types";
 
 export const checkinSchema = z.object({
-  qr_token: z.string().min(1, "QR token is required"),
+  qr_token: z
+    .string()
+    .trim()
+    .min(1, "QR token is required")
+    .transform((token) => token.toLowerCase()),
 });
 
 export interface TicketPreview {

@@ -67,6 +67,29 @@ describe("ticketDao.findByQrToken", () => {
   });
 });
 
+describe("ticketDao.findActiveByQrToken", () => {
+  it("only admits issued tickets, so retired codes stay reusable", async () => {
+    const { client, calls } = queryStub({ data: { id: 9 } });
+
+    await ticketDao.findActiveByQrToken(client, "1a2b3c");
+
+    expect(filters(calls)).toEqual([
+      ["eq", ["qr_token", "1a2b3c"]],
+      ["eq", ["status", "issued"]],
+    ]);
+  });
+
+  it("returns null when no issued ticket holds the code", async () => {
+    const { client } = queryStub({ data: null });
+    await expect(ticketDao.findActiveByQrToken(client, "1a2b3c")).resolves.toBeNull();
+  });
+
+  it("throws when the query fails instead of reporting a clean miss", async () => {
+    const { client } = queryStub({ error: { message: "connection refused" } });
+    await expect(ticketDao.findActiveByQrToken(client, "1a2b3c")).rejects.toThrow(/connection refused/);
+  });
+});
+
 describe("ticketDao.updateStatus", () => {
   // One updated row is what a successful write looks like through PostgREST's
   // `select`-after-update.

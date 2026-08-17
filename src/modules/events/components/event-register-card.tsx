@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { AddToCalendar } from "@/modules/events/components/event-add-to-calendar";
 import { Button } from "@/shared/components/button";
 import { formatEventPrice } from "@/shared/lib/event-format";
-import { isEventStarted } from "@/shared/lib/date-utils";
+import { isEventFinished, isEventStarted } from "@/shared/lib/date-utils";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
 interface EventRegisterCardProps {
@@ -22,6 +22,11 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   const price = formatEventPrice(event.price, event.currency);
   const courseId = event.COURSE?.id;
   const eventStarted = isEventStarted(event.event_date, event.start_time);
+  // Either read is sufficient: the detail routes already serve the effective
+  // status, so a plain expired `active` event arrives as "complete"; the time
+  // check covers any path that hands over the raw row, on the same local clock
+  // the server's ensureRegistrable guard uses.
+  const finished = event.status === "complete" || isEventFinished(event.event_date, event.end_time);
 
   let label = "Register";
   let onAction = onRegister;
@@ -38,6 +43,9 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   } else if (hasTicket) {
     label = "View Ticket";
     onAction = () => router.push("/tickets");
+  } else if (!hasTicket && finished) {
+    label = "Completed";
+    locked = true;
   }
 
   return (

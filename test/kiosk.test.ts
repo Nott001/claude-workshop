@@ -8,6 +8,17 @@ describe("checkinSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("normalizes typed codes to lowercase", () => {
+    const result = checkinSchema.safeParse({ qr_token: " 7AB2C9 " });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.qr_token).toBe("7ab2c9");
+  });
+
+  it("still rejects a whitespace-only code", () => {
+    const result = checkinSchema.safeParse({ qr_token: "   " });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects empty qr_token", () => {
     const result = checkinSchema.safeParse({ qr_token: "" });
     expect(result.success).toBe(false);

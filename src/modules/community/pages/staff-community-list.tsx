@@ -6,7 +6,6 @@ import { CommunityAdminCard } from "@/modules/community/components/community-adm
 import { CommunityForm, type CommunityFormValues } from "@/modules/community/components/community-form";
 import { useCommunityLinks } from "@/modules/community/lib/use-community-links";
 import { Button } from "@/shared/components/button";
-import { TableEmpty } from "@/shared/components/table";
 import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import { useState } from "react";
 
@@ -111,7 +110,13 @@ export function StaffCommunityListPage() {
       )}
 
       {links.length === 0 ? (
-        <TableEmpty icon="forum" title="No community groups yet" hint="Add the first one." />
+        <div className="rounded-lg border border-border bg-muted px-4 py-8 text-center">
+          <span aria-hidden className="material-symbols-rounded mb-1 text-2xl text-muted-fg">
+            forum
+          </span>
+          <p className="text-xs font-medium text-fg">No community groups yet</p>
+          <p className="mt-0.5 text-[10px] text-muted-fg">Add the first one.</p>
+        </div>
       ) : (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {links.map((link, index) => (

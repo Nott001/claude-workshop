@@ -1,16 +1,28 @@
-import type { KeyboardEvent, ThHTMLAttributes, TdHTMLAttributes } from "react";
+import type { KeyboardEvent, ReactNode, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "@/shared/lib/utils";
 
 function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
-  return <table className={cn("w-full text-left text-sm", className)} {...props} />;
+  return <table className={cn("w-full table-fixed text-left text-sm", className)} {...props} />;
 }
 
 function TableHead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={className} {...props} />;
+  return <thead className={cn("border-b border-border bg-muted", className)} {...props} />;
 }
 
-function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn("divide-y divide-border", className)} {...props} />;
+interface TableBodyProps extends React.HTMLAttributes<HTMLTableSectionElement> {
+  // True while a refetch is in flight with rows already on screen: rows are
+  // dimmed, not unmounted, so the table keeps its shape.
+  busy?: boolean;
+}
+
+function TableBody({ className, busy, ...props }: TableBodyProps) {
+  return (
+    <tbody
+      className={cn("divide-y divide-border transition-opacity duration-200", busy && "opacity-60", className)}
+      aria-busy={busy || undefined}
+      {...props}
+    />
+  );
 }
 
 function TableHeadCell({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
@@ -60,19 +72,48 @@ function TableRow({ className, onClick, children, ...props }: TableRowProps) {
   );
 }
 
-interface TableEmptyProps {
-  icon?: string;
-  title: string;
-  hint?: string;
+interface TableBodyStateProps {
+  /** True once at least one row is ready to render. */
+  ready: boolean;
+  loading: boolean;
+  /** Column count, used to span the loading/empty row across the header width. */
+  colSpan: number;
+  empty: { icon?: string; title: string; hint?: string };
+  children: ReactNode;
 }
 
-function TableEmpty({ icon, title, hint }: TableEmptyProps) {
+// The body's state handled without ever unmounting the header: rows render
+// as-is (dimmed by TableBody's busy while a refetch is in flight), otherwise
+// loading and empty become single rows spanning the full header width.
+function TableBodyState({ ready, loading, colSpan, empty, children }: TableBodyStateProps) {
+  if (ready) return <>{children}</>;
+
+  if (loading) {
+    return (
+      <tr>
+        <td colSpan={colSpan} className="px-5 py-12">
+          <div className="flex items-center justify-center">
+            <span aria-hidden className="material-symbols-rounded animate-spin text-2xl text-brand">
+              progress_activity
+            </span>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-border bg-muted px-4 py-8 text-center">
-      {icon && <span className="material-symbols-rounded mb-1 text-2xl text-muted-fg">{icon}</span>}
-      <p className="text-xs font-medium text-fg">{title}</p>
-      {hint && <p className="mt-0.5 text-[10px] text-muted-fg">{hint}</p>}
-    </div>
+    <tr>
+      <td colSpan={colSpan} className="px-5 py-12 text-center">
+        {empty.icon && (
+          <span aria-hidden className="material-symbols-rounded mb-1 text-2xl text-muted-fg">
+            {empty.icon}
+          </span>
+        )}
+        <p className="text-xs font-medium text-fg">{empty.title}</p>
+        {empty.hint && <p className="mt-0.5 text-[10px] text-muted-fg">{empty.hint}</p>}
+      </td>
+    </tr>
   );
 }
 
@@ -80,4 +121,4 @@ function TableContainer({ className, ...props }: React.HTMLAttributes<HTMLDivEle
   return <div className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-sm", className)} {...props} />;
 }
 
-export { Table, TableHead, TableBody, TableRow, TableHeadCell, TableCell, TableEmpty, TableContainer };
+export { Table, TableHead, TableBody, TableRow, TableHeadCell, TableCell, TableBodyState, TableContainer };

@@ -19,7 +19,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableEmpty,
+  TableBodyState,
   TableContainer,
 } from "@/shared/components/table";
 import { TableToolbar } from "@/shared/components/table-toolbar";
@@ -88,6 +88,7 @@ export default function StaffOrganizationPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -128,11 +129,14 @@ export default function StaffOrganizationPage() {
       if (roleFilter !== "all") params.set("role", roleFilter);
 
       const res = await fetch(`/api/organization?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (!cancelled) {
+      if (!cancelled) {
+        if (res.ok) {
+          const data = await res.json();
           setMembers(data.users ?? []);
           setTotal(data.total ?? 0);
+          setError(null);
+        } else {
+          setError("Failed to refresh members — showing last loaded results.");
         }
       }
       if (!cancelled) setLoading(false);
@@ -330,48 +334,49 @@ export default function StaffOrganizationPage() {
           </DialogContent>
         </Dialog>
 
-        {loading ? (
-          <StaffPageState>Loading members...</StaffPageState>
-        ) : members.length === 0 ? (
-          <TableEmpty
-            icon="group"
-            title="No members found"
-            hint={debouncedSearch ? "Try a different search term." : "No members match the current filter."}
-          />
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeadCell>Name</TableHeadCell>
-                    <TableHeadCell>Email</TableHeadCell>
-                    <TableHeadCell>Role</TableHeadCell>
-                    <TableHeadCell className="w-12" aria-label="Actions" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {members.map((m) => (
-                    <TableRow key={m.id} onClick={() => openMember(m)} aria-label={`Manage ${m.full_name}`}>
-                      <TableCell className="font-medium">{m.full_name}</TableCell>
-                      <TableCell className="text-muted-fg">{m.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={roleBadgeVariant[m.role] ?? "default"}>{roleLabel(m.role)}</Badge>
-                      </TableCell>
-                      <TableCell className="w-12">
-                        <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
-                          chevron_right
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+        {error && members.length > 0 && <p className="mb-3 text-sm text-destructive">{error}</p>}
 
-            <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
-          </>
-        )}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeadCell>Name</TableHeadCell>
+                <TableHeadCell className="w-64">Email</TableHeadCell>
+                <TableHeadCell className="w-28">Role</TableHeadCell>
+                <TableHeadCell className="w-12" aria-label="Actions" />
+              </TableRow>
+            </TableHead>
+            <TableBody busy={loading && members.length > 0}>
+              <TableBodyState
+                ready={members.length > 0}
+                loading={loading}
+                colSpan={4}
+                empty={{
+                  icon: "group",
+                  title: "No members found",
+                  hint: debouncedSearch ? "Try a different search term." : "No members match the current filter.",
+                }}
+              >
+                {members.map((m) => (
+                  <TableRow key={m.id} onClick={() => openMember(m)} aria-label={`Manage ${m.full_name}`}>
+                    <TableCell className="truncate font-medium">{m.full_name}</TableCell>
+                    <TableCell className="truncate text-muted-fg">{m.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={roleBadgeVariant[m.role] ?? "default"}>{roleLabel(m.role)}</Badge>
+                    </TableCell>
+                    <TableCell className="w-12">
+                      <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                        chevron_right
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBodyState>
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
       </StaffPage>
 
       <Drawer

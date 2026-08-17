@@ -97,6 +97,15 @@ describe("token lookup", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid QR token" });
     expect(updateStatus).not.toHaveBeenCalled();
   });
+
+  it("looks up a typed code case-insensitively", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+
+    const res = await POST(post({ qr_token: "Tok-123" }));
+
+    expect(res.status).toBe(200);
+    expect(findByQrToken).toHaveBeenCalledWith({}, "tok-123");
+  });
 });
 
 describe("replay and cancelled tickets", () => {

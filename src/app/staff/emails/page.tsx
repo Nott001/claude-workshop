@@ -15,7 +15,7 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  TableEmpty,
+  TableBodyState,
   TableHead,
   TableHeadCell,
   TableRow,
@@ -58,6 +58,7 @@ export default function StaffEmailsPage() {
     loading,
     loadingMore,
     hasMore,
+    error,
     loadMore,
     emailTypeFilter,
     statusFilter,
@@ -109,27 +110,32 @@ export default function StaffEmailsPage() {
           </div>
         </TableToolbar>
 
-        {loading ? (
-          <StaffPageState>Loading emails...</StaffPageState>
-        ) : logs.length === 0 ? (
-          <TableEmpty
-            icon="mail"
-            title="No email logs found"
-            hint={search ? "Try a different search term." : "No emails match the current filters."}
-          />
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableHeadCell>User</TableHeadCell>
-                  <TableHeadCell>Email Type</TableHeadCell>
-                  <TableHeadCell>Status</TableHeadCell>
-                  <TableHeadCell>Sent At</TableHeadCell>
-                  <TableHeadCell className="w-12" aria-label="Details" />
-                </TableRow>
-              </TableHead>
-              <TableBody>
+        {error && logs.length > 0 && (
+          <p className="mt-2 text-sm text-destructive">Failed to refresh email logs — showing last loaded results.</p>
+        )}
+
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeadCell>User</TableHeadCell>
+                <TableHeadCell className="w-32">Email Type</TableHeadCell>
+                <TableHeadCell className="w-24">Status</TableHeadCell>
+                <TableHeadCell className="w-44">Sent At</TableHeadCell>
+                <TableHeadCell className="w-12" aria-label="Details" />
+              </TableRow>
+            </TableHead>
+            <TableBody busy={loading && logs.length > 0}>
+              <TableBodyState
+                ready={logs.length > 0}
+                loading={loading}
+                colSpan={5}
+                empty={{
+                  icon: "mail",
+                  title: "No email logs found",
+                  hint: search ? "Try a different search term." : "No emails match the current filters.",
+                }}
+              >
                 {logs.map((log) => (
                   <TableRow
                     key={log.id}
@@ -137,9 +143,9 @@ export default function StaffEmailsPage() {
                     aria-label={`View ${EMAIL_TYPE_LABELS[log.email_type] ?? log.email_type}`}
                   >
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className="flex min-w-0 flex-col">
                         <span className="font-medium text-fg">{log.USER?.full_name ?? "Unknown"}</span>
-                        <span className="text-xs text-muted-fg">{log.USER?.email ?? ""}</span>
+                        <span className="truncate text-xs text-muted-fg">{log.USER?.email ?? ""}</span>
                       </div>
                     </TableCell>
                     <TableCell>{EMAIL_TYPE_LABELS[log.email_type] ?? log.email_type}</TableCell>
@@ -148,7 +154,7 @@ export default function StaffEmailsPage() {
                         {STATUS_LABELS[log.status] ?? log.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-fg">{formatDate(log.sent_at)}</TableCell>
+                    <TableCell className="truncate text-muted-fg">{formatDate(log.sent_at)}</TableCell>
                     <TableCell className="w-12">
                       <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
                         chevron_right
@@ -156,10 +162,10 @@ export default function StaffEmailsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+              </TableBodyState>
+            </TableBody>
+          </Table>
+        </TableContainer>
         {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
       </StaffPage>
 

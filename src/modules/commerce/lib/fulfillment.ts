@@ -16,6 +16,16 @@ export interface FulfillmentInput {
   event: { title: string; event_date: string };
 }
 
+async function generateAvailableQrToken(supabase: DbClient): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const token = generateQrToken();
+    if (!(await ticketDao.findActiveByQrToken(supabase, token))) return token;
+  }
+  // 16M codes: exhausted retries means something is pathologically wrong,
+  // not a functioning queue. Fail loudly rather than issue a duplicate.
+  throw new Error("Could not allocate a unique QR token");
+}
+
 /** Maps a payment row (with its USER/EVENT embeds) to what fulfillment needs. */
 export function fulfillmentInputFrom(payment: PaymentWithEventAndUser): FulfillmentInput {
   return {
@@ -50,7 +60,7 @@ export async function fulfillPaidPayment(supabase: DbClient, input: FulfillmentI
     throw new Error(`Failed to mark payment as paid`);
   }
 
-  const qrToken = generateQrToken();
+  const qrToken = await generateAvailableQrToken(supabase);
   const ticket = await ticketDao.create(supabase, {
     payment_id: input.payment_id,
     user_id: input.user_id,
@@ -74,6 +84,7 @@ export async function fulfillPaidPayment(supabase: DbClient, input: FulfillmentI
       email_type: "ticket_issued",
       eventTitle: input.event.title,
       eventDate: input.event.event_date,
+      code: qrToken,
       qrDataUrl: await generateQRDataUrl(qrToken),
     });
   });

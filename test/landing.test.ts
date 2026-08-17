@@ -18,7 +18,7 @@ describe("date-utils", () => {
   it("eventStatusLabel maps statuses correctly", () => {
     expect(eventStatusLabel("active")).toBe("Upcoming");
     expect(eventStatusLabel("draft")).toBe("Draft");
-    expect(eventStatusLabel("complete")).toBe("Past");
+    expect(eventStatusLabel("complete")).toBe("Completed");
     expect(eventStatusLabel("unknown")).toBe("unknown");
   });
 

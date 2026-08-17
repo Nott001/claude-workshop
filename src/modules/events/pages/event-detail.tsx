@@ -20,7 +20,7 @@ export function EventDetailPage({ from }: { from?: string }) {
   const eventId = params.id as string;
   const { user } = useSession();
   const backOrigin = toBackLinkOrigin(from);
-  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
+  const { event, loading, error, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
   const backLink = resolveBackLink(backOrigin);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function EventDetailPage({ from }: { from?: string }) {
           {backLink.label}
         </BackLink>
 
-        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
+        <EventDetailHero event={event} />
         {/* fr, not %: gap is added to the tracks rather than taken out of them,
             so 65%+35% plus a 24px gap overflowed the container by exactly the
             gap and hung the sticky column past the hero's right edge. */}

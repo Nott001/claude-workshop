@@ -67,7 +67,7 @@ export function eventStatusLabel(status: string): string {
     case "draft":
       return "Draft";
     case "complete":
-      return "Past";
+      return "Completed";
     default:
       return status;
   }

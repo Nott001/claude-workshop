@@ -19,16 +19,18 @@ export function AssignedEventListPage() {
   // Exact facilitator, not min-role: an admin clears a facilitator minimum, but
   // the server hands admins every event and this page must not leak that.
   const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { exactRole: true });
-  const { filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
+  const { events, filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
     useEventList({
       upcomingIncludesDrafts: true,
     });
 
-  if (pending || loading) {
+  if (pending) {
     return <StaffPageState>Loading events...</StaffPageState>;
   }
 
-  if (error) {
+  // Only blank the page when there is nothing to fall back on; a failed search
+  // keeps the last loaded rows on screen instead.
+  if (error && events.length === 0) {
     return <StaffPageState tone="error">{error}</StaffPageState>;
   }
 
@@ -53,7 +55,11 @@ export function AssignedEventListPage() {
         </Select>
       </TableToolbar>
 
-      <EventTable events={filteredEvents} showKiosk />
+      {error && events.length > 0 && (
+        <p className="mt-2 text-sm text-destructive">Failed to refresh events — showing last loaded results.</p>
+      )}
+
+      <EventTable events={filteredEvents} showKiosk loading={loading} />
 
       {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
     </StaffPage>

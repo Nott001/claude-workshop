@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { StatusBadge } from "@/modules/events/components/status-badge";
+import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
@@ -54,7 +54,12 @@ export function SpeakerEventDetailPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.6)] to-[rgba(0,0,0,0)]" />
 
               <div className="absolute bottom-8 left-8 flex flex-col gap-3">
-                <StatusBadge status={badge.status} label={badge.label} className="w-fit bg-brand text-brand border-0" />
+                <EventStatusBadge
+                  status={event.status}
+                  date={event.event_date}
+                  startTime={event.start_time}
+                  endTime={event.end_time}
+                />
                 <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
                 <div className="flex items-center gap-6 pt-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-white/90">

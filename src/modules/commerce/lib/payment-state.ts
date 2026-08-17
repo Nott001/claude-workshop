@@ -31,7 +31,7 @@ export function canTransitionTicket(from: TicketStatus, to: TicketStatus): boole
 }
 
 export function generateQrToken(): string {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(3).toString("hex");
 }
 
 export function isPaymentTerminal(status: PaymentStatus): boolean {

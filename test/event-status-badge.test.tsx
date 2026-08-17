@@ -36,6 +36,28 @@ describe("EventStatusBadge", () => {
     unmount();
 
     render(<EventStatusBadge status="complete" date="2026-06-02" startTime="13:00" endTime="14:00" />);
-    expect(screen.getByText("Past")).toBeTruthy();
+    expect(screen.getByText("Completed")).toBeTruthy();
+  });
+
+  it("gives each status its own icon", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+
+    const { container: upcoming, unmount } = render(
+      <EventStatusBadge status="active" date="2026-06-01" startTime="13:00" endTime="14:00" />,
+    );
+    expect(upcoming.querySelector(".material-symbols-rounded")?.textContent).toBe("auto_awesome");
+    unmount();
+
+    const { container: completed } = render(
+      <EventStatusBadge status="complete" date="2026-06-02" startTime="13:00" endTime="14:00" />,
+    );
+    expect(completed.querySelector(".material-symbols-rounded")?.textContent).toBe("check_circle");
+    expect(screen.getByText("Completed")).toBeTruthy();
+
+    const { container: draft } = render(
+      <EventStatusBadge status="draft" date="2026-06-03" startTime="13:00" endTime="14:00" />,
+    );
+    expect(draft.querySelector(".material-symbols-rounded")?.textContent).toBe("edit_note");
   });
 });

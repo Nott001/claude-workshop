@@ -662,18 +662,8 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   const { user } = useSession();
   const { role: userRole, allowed: isStaff, pending } = useRoleGuard(ROLES.FACILITATOR);
 
-  const {
-    event,
-    loading,
-    error,
-    badgeProps,
-    publishing,
-    publishError,
-    deleteError,
-    attendeesTotal,
-    handlePublish,
-    handleDelete,
-  } = useEventDetail(eventId);
+  const { event, loading, error, publishing, publishError, deleteError, attendeesTotal, handlePublish, handleDelete } =
+    useEventDetail(eventId);
 
   // One speakers fetch for the page; the admin section reads from it rather
   // than hitting /api/events/[id]/speakers twice.
@@ -711,7 +701,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         Back to Events
       </BackLink>
 
-      <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
+      <EventDetailHero event={event} />
 
       <div className="mb-6 mt-8 flex gap-1.5 border-b border-border pb-3">
         {tabs.map((tab) => (
