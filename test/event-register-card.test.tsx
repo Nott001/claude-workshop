@@ -160,4 +160,56 @@ describe("EventRegisterCard", () => {
 
     expect(screen.getByRole("button", { name: /add to calendar/i })).toBeTruthy();
   });
+
+  it("shows a disabled Completed button for a finished event with no ticket", () => {
+    const onRegister = vi.fn();
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, status: "complete" }}
+        hasTicket={false}
+        isSignedIn={true}
+        onRegister={onRegister}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Completed" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRegister).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
+  });
+
+  it("gates on the end time too, not just the stored status", () => {
+    const onRegister = vi.fn();
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, event_date: "2020-01-01" }}
+        hasTicket={false}
+        isSignedIn={true}
+        onRegister={onRegister}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Completed" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRegister).not.toHaveBeenCalled();
+  });
+
+  it("keeps a ticket holder's View Ticket on a finished event", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, status: "complete", event_date: "2020-01-01" }}
+        hasTicket={true}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /view ticket/i });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(button);
+    expect(push).toHaveBeenCalledWith("/tickets");
+    expect(screen.queryByRole("button", { name: "Completed" })).toBeNull();
+  });
 });

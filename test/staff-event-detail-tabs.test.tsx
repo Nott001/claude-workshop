@@ -78,7 +78,6 @@ function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Parti
     event: { ...event, ...eventOverride },
     loading: false,
     error: null,
-    badgeProps: null,
     publishing: false,
     publishError: null,
     deleteError: null,
