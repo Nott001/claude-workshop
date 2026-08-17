@@ -131,20 +131,49 @@ describe("AdminAttendeeManagement", () => {
     expect(screen.getByText("The 14-day response window has passed.")).toBeTruthy();
   });
 
-  it("shows the empty state when nothing matches", async () => {
+  it("shows the empty state under the column headers when nothing matches", async () => {
     list = [];
 
     render(<AdminAttendeeManagement eventId="7" />);
 
     expect(await screen.findByText("No attendees found")).toBeTruthy();
+    expect(screen.getByText("Status")).toBeTruthy();
   });
 
-  it("surfaces a failed load", async () => {
-    fetchMock.mockImplementation(() => Promise.resolve({ ok: false, json: async () => ({}) }));
+  it("dims the rows and sets aria-busy while a search refetch is in flight", async () => {
+    let lastResolve: ((value: unknown) => void) | undefined;
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return Promise.resolve(postOk);
+      return new Promise((resolve) => {
+        lastResolve = resolve;
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<AdminAttendeeManagement eventId="7" />);
+    act(() => lastResolve?.(manageResponse([attendee])));
+    await screen.findByText("Rina Dela Cruz");
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
 
-    expect(await screen.findByText("Failed to load attendees")).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("Search name or email..."), { target: { value: "rina" } });
+    await act(async () => {});
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
+
+    act(() => lastResolve?.(manageResponse([attendee])));
+    await act(async () => {});
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
+  });
+
+  it("keeps the rows and shows the unified notice when a refetch fails", async () => {
+    render(<AdminAttendeeManagement eventId="7" />);
+    await screen.findByText("Rina Dela Cruz");
+
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: false, json: async () => ({}) }));
+
+    fireEvent.change(screen.getByPlaceholderText("Search name or email..."), { target: { value: "rina" } });
+
+    expect(await screen.findByText("Failed to refresh attendees — showing last loaded results.")).toBeTruthy();
+    expect(screen.getByText("Rina Dela Cruz")).toBeTruthy();
   });
 
   it("refetches when the search term or status filter changes", async () => {

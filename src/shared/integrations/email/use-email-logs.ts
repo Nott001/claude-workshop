@@ -13,6 +13,7 @@ export function useEmailLogs() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [emailTypeFilter, setEmailTypeFilter] = useState<"" | EmailType>("");
   const [statusFilter, setStatusFilter] = useState<"" | EmailStatus>("");
   const [search, setSearch] = useState("");
@@ -31,14 +32,17 @@ export function useEmailLogs() {
 
         const res = await fetch(`/api/logs?${params}`);
         if (!res.ok) {
+          setError("Failed to load email logs");
           return false;
         }
         const data = await res.json();
         const rows = (Array.isArray(data.data) ? data.data : []) as EmailLogWithUser[];
         setLogs((prev) => (append ? [...prev, ...rows] : rows));
         setHasMore((data.total ?? 0) > page * PAGE_SIZE);
+        setError(null);
         return true;
       } catch {
+        setError("Failed to load email logs");
         return false;
       }
     },
@@ -78,6 +82,7 @@ export function useEmailLogs() {
     loading,
     loadingMore,
     hasMore,
+    error,
     loadMore,
     emailTypeFilter,
     statusFilter,

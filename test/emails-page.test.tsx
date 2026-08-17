@@ -147,4 +147,41 @@ describe("StaffEmailsPage", () => {
     expect(await screen.findByText("Ben Member")).toBeTruthy();
     expect(fetchMock).toHaveBeenLastCalledWith("/api/logs?page=2&limit=50");
   });
+
+  it("keeps the headers and shows the empty row under them", async () => {
+    stubFetch([], 0);
+
+    render(<StaffEmailsPage />);
+
+    expect(await screen.findByText("No email logs found")).toBeTruthy();
+    expect(screen.getByText("Email Type")).toBeTruthy();
+  });
+
+  it("keeps rows and shows an error notice when a refetch fails", async () => {
+    vi.useFakeTimers();
+    let fail = false;
+    fetchMock = vi.fn(async () => {
+      if (fail) return { ok: false };
+      return { ok: true, json: async () => ({ data: [adaRow], total: 1, page: 1, limit: 50 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<StaffEmailsPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText("Ada Admin")).toBeTruthy();
+
+    fail = true;
+    fireEvent.change(screen.getByPlaceholderText("Search recipient name or email..."), {
+      target: { value: "nope" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText("Ada Admin")).toBeTruthy();
+    expect(screen.getByText("Email Type")).toBeTruthy();
+    expect(screen.getByText("Failed to refresh email logs — showing last loaded results.")).toBeTruthy();
+  });
 });

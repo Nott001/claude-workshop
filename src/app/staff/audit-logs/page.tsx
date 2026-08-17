@@ -16,9 +16,9 @@ import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/
 import {
   Table,
   TableBody,
+  TableBodyState,
   TableCell,
   TableContainer,
-  TableEmpty,
   TableHead,
   TableHeadCell,
   TableRow,
@@ -98,7 +98,7 @@ const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
 export default function StaffAuditLogsPage() {
   const router = useRouter();
   const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
-  const { logs, total, loading, page, setPage, search, setSearch } = useAuditLogs();
+  const { logs, total, loading, error, page, setPage, search, setSearch } = useAuditLogs();
   const [category, setCategory] = useState<Category>("all");
   const [selected, setSelected] = useState<AuditLogWithActor | null>(null);
 
@@ -138,67 +138,61 @@ export default function StaffAuditLogsPage() {
           </Select>
         </TableToolbar>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex items-center gap-2">
-              <div className="size-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-              <p className="text-sm text-muted-fg">Loading audit logs...</p>
-            </div>
-          </div>
-        ) : filteredLogs.length === 0 ? (
-          <TableEmpty
-            icon="history"
-            title="No audit logs found"
-            hint={search ? "Try a different search term." : "No logs match the current filter."}
-          />
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeadCell>Action</TableHeadCell>
-                    <TableHeadCell>Actor</TableHeadCell>
-                    <TableHeadCell>Details</TableHeadCell>
-                    <TableHeadCell>Date</TableHeadCell>
-                    <TableHeadCell className="w-12" aria-label="Details" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredLogs.map((log) => (
-                    <TableRow key={log.id} onClick={() => setSelected(log)} aria-label={`View ${actionLabel(log.action)}`}>
-                      <TableCell>
-                        <Badge variant={actionVariant(log.action)}>{actionLabel(log.action)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-fg">{log.ACTOR?.full_name ?? "Unknown"}</span>
-                          <span className="text-xs text-muted-fg">{log.ACTOR?.email ?? ""}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-fg">
-                            {log.entity_type}
-                            {log.entity_id ? ` #${log.entity_id}` : ""}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-fg">{new Date(log.created_at).toLocaleString()}</TableCell>
-                      <TableCell className="w-12">
-                        <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
-                          chevron_right
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+        {error && filteredLogs.length > 0 && <p className="mb-3 text-sm text-destructive">{error}</p>}
 
-            <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
-          </>
-        )}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeadCell className="w-44">Action</TableHeadCell>
+                <TableHeadCell>Actor</TableHeadCell>
+                <TableHeadCell className="w-44">Details</TableHeadCell>
+                <TableHeadCell className="w-52">Date</TableHeadCell>
+                <TableHeadCell className="w-12" aria-label="Details" />
+              </TableRow>
+            </TableHead>
+            <TableBody busy={loading && filteredLogs.length > 0}>
+              <TableBodyState
+                ready={filteredLogs.length > 0}
+                loading={loading}
+                colSpan={5}
+                empty={{
+                  icon: "history",
+                  title: "No audit logs found",
+                  hint: search ? "Try a different search term." : "No logs match the current filter.",
+                }}
+              >
+                {filteredLogs.map((log) => (
+                  <TableRow key={log.id} onClick={() => setSelected(log)} aria-label={`View ${actionLabel(log.action)}`}>
+                    <TableCell>
+                      <Badge variant={actionVariant(log.action)}>{actionLabel(log.action)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="font-medium text-fg">{log.ACTOR?.full_name ?? "Unknown"}</span>
+                        <span className="truncate text-xs text-muted-fg">{log.ACTOR?.email ?? ""}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="block truncate text-fg">
+                        {log.entity_type}
+                        {log.entity_id ? ` #${log.entity_id}` : ""}
+                      </span>
+                    </TableCell>
+                    <TableCell className="truncate text-muted-fg">{new Date(log.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="w-12">
+                      <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                        chevron_right
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBodyState>
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </StaffPage>
 
       <Drawer

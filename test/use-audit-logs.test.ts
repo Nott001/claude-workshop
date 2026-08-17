@@ -34,6 +34,53 @@ afterEach(() => {
 });
 
 describe("useAuditLogs debounced search", () => {
+  it("keeps the last rows and exposes an error when a refetch fails", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes("search=")) return { ok: false, json: async () => ({}) };
+      return { ok: true, json: async () => ({ logs, total: 1 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAuditLogs());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.logs).toHaveLength(1);
+    expect(result.current.error).toBeNull();
+
+    act(() => result.current.setSearch("event"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(result.current.error).toBe("Failed to refresh audit logs — showing last loaded results.");
+    expect(result.current.logs).toHaveLength(1);
+  });
+
+  it("surfaces the notice when a refetch request throws", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes("search=")) throw new Error("network down");
+      return { ok: true, json: async () => ({ logs, total: 1 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAuditLogs());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.logs).toHaveLength(1);
+
+    act(() => result.current.setSearch("event"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(result.current.error).toBe("Failed to refresh audit logs — showing last loaded results.");
+    expect(result.current.logs).toHaveLength(1);
+  });
+
   it("starts with no search term on the first request", async () => {
     vi.useFakeTimers();
     const urls = stubFetch();

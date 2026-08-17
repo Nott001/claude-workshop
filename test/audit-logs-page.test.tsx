@@ -49,6 +49,76 @@ afterEach(() => {
 });
 
 describe("StaffAuditLogsPage", () => {
+  it("keeps the column headers when a category has no rows", async () => {
+    stubFetch(logs, 2);
+
+    render(<StaffAuditLogsPage />);
+    await screen.findByText("Event Created");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+      const invitedOption = await screen.findByRole("option", { name: "Invited" });
+      fireEvent.pointerDown(invitedOption, { pointerType: "mouse" });
+      fireEvent.click(invitedOption);
+    });
+
+    expect(screen.getByText("No audit logs found")).toBeTruthy();
+    expect(screen.getByText("Actor")).toBeTruthy();
+    expect(screen.queryByText("event #7")).toBeNull();
+  });
+
+  it("keeps the rows and shows the unified notice when a refetch fails", async () => {
+    vi.useFakeTimers();
+    stubFetch(logs, 2);
+
+    render(<StaffAuditLogsPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText("Event Created")).toBeTruthy();
+
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: false, json: async () => ({}) }));
+
+    fireEvent.change(screen.getByPlaceholderText("Search action, entity, or actor..."), {
+      target: { value: "ada" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText("Failed to refresh audit logs — showing last loaded results.")).toBeTruthy();
+    expect(screen.getByText("Event Created")).toBeTruthy();
+    expect(screen.getByText("Actor")).toBeTruthy();
+  });
+
+  it("dims the rows and sets aria-busy while a search refetch is in flight", async () => {
+    vi.useFakeTimers();
+    let lastResolve: ((value: unknown) => void) | undefined;
+    fetchMock = vi.fn(() => new Promise((resolve) => (lastResolve = resolve)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<StaffAuditLogsPage />);
+    await act(async () => {
+      lastResolve?.({ ok: true, json: async () => ({ logs, total: 2 }) });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText("Event Created")).toBeTruthy();
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Search action, entity, or actor..."), {
+      target: { value: "ada" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      lastResolve?.({ ok: true, json: async () => ({ logs, total: 2 }) });
+    });
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBeNull();
+  });
+
   it("renders logs with the action pill, actor and pagination range", async () => {
     stubFetch(logs, 25);
 

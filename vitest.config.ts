@@ -22,10 +22,10 @@ export default defineConfig({
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
       thresholds: {
-        statements: 80.14,
-        branches: 74.55,
-        functions: 79.78,
-        lines: 81.35,
+        statements: 80.59,
+        branches: 74.9,
+        functions: 79.96,
+        lines: 81.82,
       },
     },
   },
