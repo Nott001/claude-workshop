@@ -817,6 +817,56 @@ describe("saveChanges dirty-only submission", () => {
     expect(result.current.newPassword).toBe("");
   });
 
+  // The submit button's `disabled` is a DOM attribute, and a browser extension
+  // stripping it is what a hydration mismatch on this page turned out to be. It
+  // cannot be the only thing holding a second submission off.
+  it("ignores a second submit while the first is still verifying the password", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    // Held open on purpose: this is the window a `saving` state flag misses,
+    // since setSaving does not run until after this call resolves.
+    let releaseVerify: (ok: boolean) => void = () => {};
+    verifyPassword.mockImplementation(() => new Promise<boolean>((resolve) => (releaseVerify = resolve)));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword(STRONG);
+    });
+
+    await act(async () => {
+      const first = result.current.saveChanges(submitEvent);
+      const second = result.current.saveChanges(submitEvent);
+      releaseVerify(true);
+      await Promise.all([first, second]);
+    });
+
+    expect(verifyPassword).toHaveBeenCalledTimes(1);
+    expect(updateUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a fresh submit after a validation failure releases the guard", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const { result } = renderHook(() => useAccountSettings());
+
+    // A weak new password fails before any write, on the path that returns
+    // early rather than through the try/finally.
+    act(() => {
+      result.current.setCurrentPassword("old-pass");
+      result.current.setNewPassword("short");
+    });
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+    expect(updateUser).not.toHaveBeenCalled();
+
+    act(() => result.current.setNewPassword(STRONG));
+    await act(async () => {
+      await result.current.saveChanges(submitEvent);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
+  });
+
   it("batches name and password changes, leaving the untouched email alone", async () => {
     updateUser.mockResolvedValue({ error: null });
     const fetch = stubFetch();

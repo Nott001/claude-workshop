@@ -156,6 +156,10 @@ export function useAccountSettings() {
   // Full-form submission state: the unified form (sheet 04) paints one button
   // off this, while the per-section flags above keep the current cards working.
   const [saving, setSaving] = useState(false);
+  // A ref alongside it, because `saving` is set too late to gate re-entry:
+  // validation awaits a full signInWithPassword round trip before setSaving
+  // runs, and the state flag is false for all of it. This flips synchronously.
+  const savingRef = useRef(false);
 
   // Editing the field is the retry, so the message clears with the keystroke
   // rather than lingering over input it no longer describes.
@@ -493,6 +497,14 @@ export function useAccountSettings() {
 
   async function saveChanges(e: React.FormEvent) {
     e.preventDefault();
+    // The disabled submit button is the only other thing holding a second
+    // submission off, and it is a DOM attribute an extension can strip — which
+    // is what a hydration mismatch here turned out to be. A second pass would
+    // re-run the password change against the password the first one just set,
+    // and spend another of the hourly auth-mail sends.
+    if (savingRef.current) return;
+    savingRef.current = true;
+
     setNameError(null);
     setEmailError(null);
     setCurrentPasswordError(null);
@@ -556,7 +568,12 @@ export function useAccountSettings() {
       }
     }
 
-    if (failed) return;
+    // Released here too: this return is taken before the try/finally below, and
+    // holding the flag past a validation failure would lock the form for good.
+    if (failed) {
+      savingRef.current = false;
+      return;
+    }
 
     let savedProfile = false;
     let savedPassword = false;
@@ -579,6 +596,7 @@ export function useAccountSettings() {
       }
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
 
     // The email section confirms in place with its own green sent-box, so only
