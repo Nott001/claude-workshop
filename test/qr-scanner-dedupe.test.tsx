@@ -42,6 +42,23 @@ afterEach(() => {
 });
 
 describe("QrScanner dedupe", () => {
+  it("normalizes decoded tokens before dedupe and forwarding", async () => {
+    const onScan = vi.fn();
+    render(<QrScanner onScan={onScan} active />);
+
+    await act(async () => {
+      await Promise.resolve(); // let startScanner import and buffer a frame
+    });
+
+    await fireDecoded(" 7AB2C9  ");
+    await fireDecoded("7ab2c9"); // same code, different casing — no refire
+    await fireDecoded(" 1A2B3C");
+
+    expect(onScan).toHaveBeenCalledTimes(2);
+    expect(onScan).toHaveBeenNthCalledWith(1, "7ab2c9");
+    expect(onScan).toHaveBeenNthCalledWith(2, "1a2b3c");
+  });
+
   it("forwards each distinct decoded token only once", async () => {
     const onScan = vi.fn();
     render(<QrScanner onScan={onScan} active />);

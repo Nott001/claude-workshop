@@ -30,21 +30,24 @@ export function KioskScannerView({ event }: { event: Event }) {
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   async function lookupToken(token: string) {
-    const trimmed = token.trim();
-    if (!trimmed) return;
-    setScanState({ phase: "looking_up", token: trimmed });
-    setQrInput(trimmed);
+    // The manual path types free-form text; the scan path is already
+    // canonicalized by QrScanner, but one normalization here keeps every
+    // input in the single form the server stores.
+    const normalized = token.trim().toLowerCase();
+    if (!normalized) return;
+    setScanState({ phase: "looking_up", token: normalized });
+    setQrInput(normalized);
 
     try {
-      const res = await fetch(`/api/checkin/lookup?qr_token=${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`/api/checkin/lookup?qr_token=${encodeURIComponent(normalized)}`);
       if (!res.ok) {
-        setScanState({ phase: "invalid", token: trimmed });
+        setScanState({ phase: "invalid", token: normalized });
         return;
       }
       const preview = (await res.json()) as TicketPreview;
-      setScanState({ phase: "preview", token: trimmed, preview });
+      setScanState({ phase: "preview", token: normalized, preview });
     } catch {
-      setScanState({ phase: "invalid", token: trimmed });
+      setScanState({ phase: "invalid", token: normalized });
     }
   }
 

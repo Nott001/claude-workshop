@@ -31,6 +31,7 @@ describe("sendEmailNotification", () => {
       email_type: "ticket_issued",
       eventTitle: "Launch Day",
       eventDate: "2026-09-01",
+      code: "1a2b3c",
       qrDataUrl: "data:image/png;base64,qr",
     });
 
@@ -39,7 +40,10 @@ describe("sendEmailNotification", () => {
     expect(payload.subject).toContain("Registration Confirmed");
     expect(payload.htmlContent).toContain("Launch Day");
     expect(payload.htmlContent).toContain("2026-09-01");
+    expect(payload.htmlContent).toContain("Your check-in code: <strong");
+    expect(payload.htmlContent).toContain("1a2b3c");
     expect(payload.htmlContent).toContain("data:image/png;base64,qr");
+    expect(payload.textContent).toContain("Your check-in code: 1a2b3c");
     expect(payload.textContent).toContain("Hi Ada,");
     expect(insert).toHaveBeenCalledWith(
       {},
@@ -99,6 +103,7 @@ describe("sendEmailNotification", () => {
       email_type: "ticket_issued",
       eventTitle: "Launch Day",
       eventDate: "2026-09-01",
+      code: "1a2b3c",
     });
 
     expect(result).toBe(false);

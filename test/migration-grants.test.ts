@@ -40,7 +40,15 @@ describe("migration grants", () => {
       "00004_qa_message_policy_helper.sql",
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
+      "00007_short_qr_token.sql",
     ]);
+  });
+
+  // 00007 drops the unique constraint rather than touching grants, so it must
+  // not add any grant for the roles this suite guards.
+  it("adds no table grant in 00007", () => {
+    const migration = migrations().find((f) => f.name === "00007_short_qr_token.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
   });
 
   // The table grant must appear AFTER the table definition so it applies to

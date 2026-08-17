@@ -6,6 +6,7 @@ const {
   updateStatus,
   findByGatewayReference,
   ticketCreate,
+  findActiveByQrToken,
   findByPaymentId,
   ticketUpdateStatus,
   sendEmailNotification,
@@ -15,6 +16,7 @@ const {
   updateStatus: vi.fn(),
   findByGatewayReference: vi.fn(),
   ticketCreate: vi.fn(),
+  findActiveByQrToken: vi.fn(),
   findByPaymentId: vi.fn(),
   ticketUpdateStatus: vi.fn(),
   sendEmailNotification: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock("@/shared/db/dao/payment.dao", () => ({
 }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({
   create: ticketCreate,
+  findActiveByQrToken,
   findByPaymentId,
   updateStatus: ticketUpdateStatus,
 }));
@@ -89,6 +92,7 @@ beforeEach(() => {
   updateStatus.mockResolvedValue(true);
   findByGatewayReference.mockResolvedValue(WEBHOOK_ROW);
   ticketCreate.mockResolvedValue({ id: 9 });
+  findActiveByQrToken.mockResolvedValue(null);
   findByPaymentId.mockResolvedValue(null);
   ticketUpdateStatus.mockResolvedValue(true);
   generateQRDataUrl.mockResolvedValue("data:image/png;base64,QUJD");

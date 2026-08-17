@@ -1,6 +1,6 @@
 import type { DbClient, PaginatedResult } from "./types";
 import { ilikePattern, pageBounds, throwOnDbError } from "./helpers";
-import type { Payment, Ticket, TicketStatus, User } from "@/shared/types";
+import type { Ticket, TicketStatus, User } from "@/shared/types";
 
 interface TicketWithUser extends Ticket {
   USER: Pick<User, "full_name" | "email"> | null;
@@ -18,9 +18,8 @@ export interface TicketEvent {
   currency: string;
 }
 
-export interface TicketWithPaymentAndEvent extends Ticket {
+export interface TicketWithEvent extends Ticket {
   EVENT: TicketEvent | null;
-  PAYMENT: Pick<Payment, "status" | "paid_at"> | null;
 }
 
 interface AttendeeRow {
@@ -58,6 +57,19 @@ export async function findByQrToken(supabase: DbClient, qrToken: string): Promis
     .eq("qr_token", qrToken)
     .maybeSingle();
   throwOnDbError(error, "ticket.dao.findByQrToken");
+  return data;
+}
+
+/** Whether a code is currently held by a live ticket. Retired (checked-in or
+ * cancelled) tickets release their code back to the pool. */
+export async function findActiveByQrToken(supabase: DbClient, qrToken: string): Promise<Ticket | null> {
+  const { data, error } = await supabase
+    .from("TICKET")
+    .select("*")
+    .eq("qr_token", qrToken)
+    .eq("status", "issued")
+    .maybeSingle();
+  throwOnDbError(error, "ticket.dao.findActiveByQrToken");
   return data;
 }
 
@@ -101,14 +113,13 @@ export async function findActiveTicketWithUser(
 }
 
 // Everything a ticket card renders, so it never has to ask a second time.
-const TICKET_CARD_SELECT =
-  "*, PAYMENT(status, paid_at), EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";
+const TICKET_CARD_SELECT = "*, EVENT(title, event_date, start_time, end_time, venue_name, venue_address, price, currency)";
 
 export async function listByUser(
   supabase: DbClient,
   userId: number,
   options?: { page?: number; limit?: number },
-): Promise<PaginatedResult<TicketWithPaymentAndEvent>> {
+): Promise<PaginatedResult<TicketWithEvent>> {
   const { from, to, page, limit } = pageBounds(options);
   const { data, count } = await supabase
     .from("TICKET")
@@ -122,7 +133,7 @@ export async function listByUser(
 export async function listAll(
   supabase: DbClient,
   options?: { page?: number; limit?: number },
-): Promise<PaginatedResult<TicketWithPaymentAndEvent>> {
+): Promise<PaginatedResult<TicketWithEvent>> {
   const { from, to, page, limit } = pageBounds(options);
   const { data, count } = await supabase
     .from("TICKET")
@@ -132,12 +143,9 @@ export async function listAll(
   return { data: data ?? [], total: count ?? 0, page, limit };
 }
 
-export async function findWithPaymentAndEvent(
-  supabase: DbClient,
-  paymentId: number,
-): Promise<TicketWithPaymentAndEvent | null> {
+export async function findWithEvent(supabase: DbClient, paymentId: number): Promise<TicketWithEvent | null> {
   const { data, error } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("payment_id", paymentId).maybeSingle();
-  throwOnDbError(error, "ticket.dao.findWithPaymentAndEvent");
+  throwOnDbError(error, "ticket.dao.findWithEvent");
   return data;
 }
 

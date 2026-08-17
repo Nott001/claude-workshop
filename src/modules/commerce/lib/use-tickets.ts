@@ -4,34 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // The route serves ticketDao rows verbatim. The copy that used to live here
 // named the embeds `EVENTS` and `PAYMENTS`; the selects alias neither, so both
 // arrive singular. `ticket.EVENTS.title` was reading through `undefined`.
-import type { TicketWithPaymentAndEvent } from "@/shared/db/dao/ticket.dao";
+import type { TicketWithEvent } from "@/shared/db/dao/ticket.dao";
 
-export type Ticket = TicketWithPaymentAndEvent;
+export type Ticket = TicketWithEvent;
 
 const PAGE_SIZE = 50;
 
 export function useTickets() {
-  const [tickets, setTickets] = useState<TicketWithPaymentAndEvent[]>([]);
+  const [tickets, setTickets] = useState<TicketWithEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const pageRef = useRef(1);
 
-  const load = useCallback(
-    async (page: number): Promise<{ rows: TicketWithPaymentAndEvent[]; hasMore: boolean; ok: boolean }> => {
-      try {
-        const res = await fetch(`/api/tickets?page=${page}&limit=${PAGE_SIZE}`);
-        if (!res.ok) return { rows: [], hasMore: false, ok: false };
-        const data = await res.json();
-        const rows = (Array.isArray(data.data) ? data.data : []) as TicketWithPaymentAndEvent[];
-        return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
-      } catch {
-        return { rows: [], hasMore: false, ok: false };
-      }
-    },
-    [],
-  );
+  const load = useCallback(async (page: number): Promise<{ rows: TicketWithEvent[]; hasMore: boolean; ok: boolean }> => {
+    try {
+      const res = await fetch(`/api/tickets?page=${page}&limit=${PAGE_SIZE}`);
+      if (!res.ok) return { rows: [], hasMore: false, ok: false };
+      const data = await res.json();
+      const rows = (Array.isArray(data.data) ? data.data : []) as TicketWithEvent[];
+      return { rows, hasMore: (data.total ?? 0) > page * PAGE_SIZE, ok: true };
+    } catch {
+      return { rows: [], hasMore: false, ok: false };
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

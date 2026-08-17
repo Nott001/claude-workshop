@@ -50,6 +50,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       email_type: "ticket_issued",
       eventTitle: event.title,
       eventDate: event.event_date,
+      code: ticket.qr_token,
       qrDataUrl: await generateQRDataUrl(ticket.qr_token),
     });
   });
