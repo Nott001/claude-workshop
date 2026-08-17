@@ -1,15 +1,13 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
-import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
-import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
-import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
+import { useSeededCourseBuilder } from "@/modules/courses/lib/use-seeded-course-builder";
+import { ManageCoursePage } from "@/modules/courses/components/manage-course-page";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
-import { BackLink } from "@/shared/components/back-link";
 
 export default function SpeakerCoursePage() {
   const params = useParams();
@@ -19,17 +17,7 @@ export default function SpeakerCoursePage() {
 
   const { event: speakerEvent, loading: speakerLoading, error: speakerError } = useSpeakerEvent(eventId);
   const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
-  const { course, loading: courseLoading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate(eventId, course?.id);
-
-  const seededRef = useRef(false);
-
-  useEffect(() => {
-    if (course && !seededRef.current) {
-      courseBuilder.setModules(course.MODULE);
-      seededRef.current = true;
-    }
-  }, [course, courseBuilder]);
+  const { builder: courseBuilder, loading: courseLoading } = useSeededCourseBuilder(eventId);
 
   useEffect(() => {
     if (speakerLoading || sessionPending) return;
@@ -38,49 +26,18 @@ export default function SpeakerCoursePage() {
     }
   }, [speakerLoading, sessionPending, speakerError, speakerEvent, eventId, router]);
 
-  if (sessionPending || speakerLoading || speakersLoading || courseLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-bg">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!isSpeaker) return null;
-
-  if (speakerError || !speakerEvent) return null;
-
-  const noCourse = !course && courseBuilder.modules.length === 0;
+  const loading = sessionPending || speakerLoading || speakersLoading || courseLoading;
+  // Nothing to draw for a reader the effect above is already redirecting.
+  if (!loading && (!isSpeaker || speakerError || !speakerEvent)) return null;
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <BackLink href={`/speaker/events/${eventId}`} className="mb-8">
-          Back to event
-        </BackLink>
-
-        <h1 className="mb-8 text-[32px] font-bold tracking-[-0.02em] text-fg">Manage Course</h1>
-
-        {noCourse ? (
-          <div className="rounded-xl border border-border bg-surface p-8">
-            <CourseBuilderSection
-              builder={courseBuilder}
-              eventSpeakers={speakers}
-              eventStartTime={speakerEvent.start_time}
-              eventEndTime={speakerEvent.end_time}
-            />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-surface p-6">
-            <CourseBuilderSection
-              builder={courseBuilder}
-              eventSpeakers={speakers}
-              eventStartTime={speakerEvent.start_time}
-              eventEndTime={speakerEvent.end_time}
-            />
-          </div>
-        )}
-      </div>
-    </div>
+    <ManageCoursePage
+      loading={loading}
+      backHref={`/speaker/events/${eventId}`}
+      builder={courseBuilder}
+      speakers={speakers}
+      eventStartTime={speakerEvent?.start_time}
+      eventEndTime={speakerEvent?.end_time}
+    />
   );
 }

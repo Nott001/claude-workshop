@@ -3,219 +3,141 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/components/button";
 import { Toast } from "@/shared/components/toast";
-import type { Lesson } from "@/shared/types";
-import { findTimeOverlaps, rowIssueFor, toInputTime, workingRows } from "../lib/scheduling";
+import { findTimeOverlaps, rowIssueFor, workingRows } from "../lib/scheduling";
+import { BUILDER_SURFACE } from "../lib/surface";
+import { createDraft, draftLesson, moveDraftLesson, removeDraftLesson, type ModuleDraft } from "../lib/module-draft";
 import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
-import {
-  describeLessonMove,
-  describeModuleMove,
-  moveLesson,
-  moveModule,
-  type LessonMove,
-  type MoveDirection,
-} from "../lib/reorder";
+import { describeModuleMove, moveLessonToModule, moveModule, type LessonMove, type MoveDirection } from "../lib/reorder";
 import { ModuleCard, type FlashState, type PreviewState } from "./module-card";
-import type { TimeField } from "./session-time-picker";
+import { MaterialViewer, type ViewerTarget } from "./material-viewer";
 
 export interface CurriculumBuilderProps {
   modules: ModuleWithLessons[];
   eventSpeakers: CourseSpeaker[];
   eventStartTime?: string | null;
   eventEndTime?: string | null;
-  onUpdateModuleSchedule: (
-    moduleId: number,
-    patch: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
-  ) => Promise<string | null>;
   onAddModule: () => Promise<number | undefined> | number | undefined;
   onAddQaModule: () => Promise<number | undefined> | number | undefined;
-  onRenameModule: (moduleId: number, newName: string) => Promise<void> | void;
-  onDeleteModule: (moduleId: number) => Promise<void> | void;
-  onDeleteLesson: (lessonId: number, moduleId: number) => Promise<void> | void;
-  onAddLessonClick: (moduleId: number) => void;
+  onDeleteModule: (moduleId: number) => void;
   onReorderModules: (modules: ModuleWithLessons[]) => Promise<void>;
+  /** Cross-module lesson moves write straight through; see moveLessonToModule. */
   onMoveLesson: (modules: ModuleWithLessons[], updates: LessonMove[]) => Promise<void>;
-  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
-  onUpdateLessonDescription: (lessonId: number, description: string | null) => Promise<void> | void;
+  /** One batched write for everything a module's editor changed. */
+  onSaveModule: (draft: ModuleDraft) => Promise<string | null>;
 }
-
-export type SchedulePatch = { start_time: string | null; end_time: string | null; speaker_profile_id: number | null };
 
 export function CurriculumBuilder({
   modules,
   eventSpeakers,
   eventStartTime,
   eventEndTime,
-  onUpdateModuleSchedule,
   onAddModule,
   onAddQaModule,
-  onRenameModule,
   onDeleteModule,
-  onDeleteLesson,
-  onAddLessonClick,
   onReorderModules,
   onMoveLesson,
-  onRenameLesson,
-  onUpdateLessonDescription,
+  onSaveModule,
 }: CurriculumBuilderProps) {
-  const [renamingModuleId, setRenamingModuleId] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
-
-  // A session needs both times, but the two inputs change one at a time; hold
-  // the partial pair locally so the edited input survives until its partner
-  // arrives, then commit the whole pair together.
-  const [scheduleDrafts, setScheduleDrafts] = useState<Record<number, { start: string; end: string }>>({});
+  // One module is editable at a time: a draft spans a module, and two open at
+  // once would let a reader believe a Save had covered both.
+  const [draft, setDraft] = useState<ModuleDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [viewing, setViewing] = useState<ViewerTarget | null>(null);
 
   const [preview, setPreview] = useState<PreviewState>(null);
-  const [flash, setFlash] = useState<FlashState>({ lessons: [], modules: [] });
+  const [flash, setFlash] = useState<FlashState>({ modules: [] });
   const flashTimerRef = useRef<number | null>(null);
   const [toast, setToast] = useState<{ title: string; description?: string } | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (renamingModuleId !== null && renameInputRef.current) {
-      renameInputRef.current.focus();
-      renameInputRef.current.select();
+    if (draft && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
     }
-  }, [renamingModuleId]);
+    // Only when the edited module changes — not on every keystroke in it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.moduleId]);
 
-  function flashRows(lessons: number[], moduleIds: number[]) {
-    setFlash({ lessons, modules: moduleIds });
+  function flashModule(moduleId: number) {
+    setFlash({ modules: [moduleId] });
     if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = window.setTimeout(() => setFlash({ lessons: [], modules: [] }), 1000);
-  }
-
-  function scrollLessonIntoView(lessonId: number) {
-    window.setTimeout(() => {
-      document.querySelector(`[data-lesson-id="${lessonId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
+    flashTimerRef.current = window.setTimeout(() => setFlash({ modules: [] }), 1000);
   }
 
   async function handleAddModuleClick() {
     const newModuleId = await onAddModule();
-    if (newModuleId != null) {
-      setRenamingModuleId(newModuleId);
-      setRenameValue("New Module");
-    }
+    if (newModuleId != null) setToast({ title: "Module added", description: "Use Edit to name it and add lessons." });
   }
 
   async function handleAddQaModuleClick() {
-    const newModuleId = await onAddQaModule();
-    if (newModuleId != null) {
-      setRenamingModuleId(newModuleId);
-      setRenameValue("Q&A");
-    }
+    await onAddQaModule();
   }
 
   function handleMoveModule(moduleId: number, direction: MoveDirection) {
-    const info = describeModuleMove(modules, moduleId, direction);
-    if (!info.possible) return;
+    if (!describeModuleMove(modules, moduleId, direction).possible) return;
     const next = moveModule(modules, moduleId, direction);
     if (!next) return;
     void onReorderModules(next);
     setPreview(null);
-    flashRows([], [moduleId]);
+    flashModule(moduleId);
   }
 
-  function handleMoveLesson(lesson: Lesson, direction: MoveDirection) {
-    const info = describeLessonMove(modules, lesson.id, direction);
-    if (!info.possible) return;
-    const next = moveLesson(modules, lesson.id, direction);
+  function handleMoveLessonToModule(lessonId: number, targetModuleId: number) {
+    const next = moveLessonToModule(modules, lessonId, targetModuleId);
     if (!next) return;
     void onMoveLesson(next.modules, next.updates);
-    setPreview(null);
-
-    if (info.kind === "within" && info.swapLessonId !== null) {
-      flashRows([lesson.id, info.swapLessonId], []);
-    } else {
-      flashRows([lesson.id], []);
-    }
-
-    if (info.kind === "cross" && info.targetModuleName) {
-      setToast({
-        title: `Lesson moved to ${info.targetModuleName}`,
-        description: `It is now the ${info.slot === "start" ? "first" : "last"} lesson in that module.`,
-      });
-      scrollLessonIntoView(lesson.id);
-    }
+    setToast({
+      title: `Lesson moved to ${modules.find((m) => m.id === targetModuleId)?.module_name ?? "another module"}`,
+      description: "It is now the last lesson there.",
+    });
   }
 
-  const working = workingRows(modules, scheduleDrafts);
+  async function handleSave() {
+    if (!draft) return;
+    setSaving(true);
+    const failure = await onSaveModule(draft);
+    setSaving(false);
+
+    if (failure) {
+      setToast({ title: "Could not save the module", description: failure });
+      return;
+    }
+    setDraft(null);
+  }
+
+  const working = workingRows(modules, {});
   const overlaps = findTimeOverlaps(working);
   const conflictingModuleIds = new Set(overlaps.flatMap(([a, b]) => [a.id, b.id]));
 
-  function draftFor(mod: ModuleWithLessons): { start: string; end: string } {
-    return scheduleDrafts[mod.id] ?? { start: toInputTime(mod.start_time), end: toInputTime(mod.end_time) };
-  }
-
-  function dropDraft(moduleId: number) {
-    setScheduleDrafts((prev) => {
-      if (!(moduleId in prev)) return prev;
-      const next = { ...prev };
-      delete next[moduleId];
-      return next;
-    });
-  }
-
-  async function commitSchedule(mod: ModuleWithLessons, patch: SchedulePatch) {
-    const error = await onUpdateModuleSchedule(mod.id, patch);
-    dropDraft(mod.id);
-    if (error) {
-      setToast({ title: "Could not save schedule", description: error });
-    }
-  }
-
-  async function handleTimeChange(mod: ModuleWithLessons, field: TimeField, value: string) {
-    const next = { ...draftFor(mod), [field]: value };
-    setScheduleDrafts((prev) => ({ ...prev, [mod.id]: next }));
-
-    const start = next.start === "" ? null : next.start;
-    const end = next.end === "" ? null : next.end;
-    if (start === null && end === null) {
-      await commitSchedule(mod, { start_time: null, end_time: null, speaker_profile_id: mod.speaker_profile_id });
-      return;
-    }
-    if (start === null || end === null) return;
-
-    // The picker already greys out anything that would clash; this guard keeps
-    // a pre-existing committed overlap (e.g. left behind by a reorder) from
-    // being re-committed while the row is still red.
-    const proposed = workingRows(modules, { ...scheduleDrafts, [mod.id]: next });
-    const blocks = findTimeOverlaps(proposed).some(([a, b]) => a.id === mod.id || b.id === mod.id);
-    if (blocks) return;
-
-    await commitSchedule(mod, { start_time: start, end_time: end, speaker_profile_id: mod.speaker_profile_id });
-  }
-
-  async function handleSpeakerChange(mod: ModuleWithLessons, speakerProfileId: number | null) {
-    // The props carry the DAO's "HH:MM:SS"; the API validates "HH:MM".
-    const error = await onUpdateModuleSchedule(mod.id, {
-      start_time: mod.start_time?.slice(0, 5) ?? null,
-      end_time: mod.end_time?.slice(0, 5) ?? null,
-      speaker_profile_id: speakerProfileId,
-    });
-    if (error) {
-      setToast({ title: "Could not assign speaker", description: error });
-    }
-  }
-
   return (
-    <div className="rounded-xl border border-border bg-surface p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
+    <div className={BUILDER_SURFACE}>
       <div className="flex items-center gap-3 border-b border-border pb-4">
         <div className="rounded-lg bg-info/10 p-2">
-          <span className="material-symbols-rounded text-[20px] text-brand">school</span>
+          <span aria-hidden className="material-symbols-rounded text-[20px] text-brand">
+            school
+          </span>
         </div>
         <span className="text-xs font-bold tracking-[0.1em] text-fg">CURRICULUM</span>
       </div>
 
-      <div className="mb-6 mt-6 flex items-center justify-between">
-        <p className="text-sm text-muted-fg">Organize your course into modules and lessons.</p>
+      <div className="mt-6 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-fg">
+          {draft
+            ? "Editing a module — changes are held until you press Save."
+            : "Organize your course into modules and lessons."}
+        </p>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={handleAddQaModuleClick}>
-            <span className="material-symbols-rounded text-[14px]">forum</span>
+          <Button variant="secondary" size="sm" onClick={handleAddQaModuleClick} disabled={draft !== null}>
+            <span aria-hidden className="material-symbols-rounded text-[14px]">
+              forum
+            </span>
             Add Q&A
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleAddModuleClick}>
-            <span className="material-symbols-rounded text-[14px]">add_circle</span>
+          <Button variant="secondary" size="sm" onClick={handleAddModuleClick} disabled={draft !== null}>
+            <span aria-hidden className="material-symbols-rounded text-[14px]">
+              add_circle
+            </span>
             Add module
           </Button>
         </div>
@@ -223,14 +145,18 @@ export function CurriculumBuilder({
 
       {modules.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-border py-12 text-center">
-          <span className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">post_add</span>
+          <span aria-hidden className="material-symbols-rounded mb-2 block text-[32px] text-muted-fg">
+            post_add
+          </span>
           <p className="text-sm text-muted-fg">No modules yet. Add your first module to start building the curriculum.</p>
         </div>
       ) : (
         <>
           {overlaps.length > 0 && (
             <div className="mb-6 flex items-center gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
-              <span className="material-symbols-rounded text-[18px]">warning</span>
+              <span aria-hidden className="material-symbols-rounded text-[18px]">
+                warning
+              </span>
               <span>
                 Fix required — overlapping sessions:{" "}
                 {overlaps.map(([a, b]) => `"${a.module_name}" and "${b.module_name}"`).join(", ")}.
@@ -238,61 +164,60 @@ export function CurriculumBuilder({
             </div>
           )}
           <div className="space-y-3">
-            {modules.map((mod) => {
-              const isQa = mod.module_type === "qa";
-              const scheduleIssue = rowIssueFor(working, overlaps, mod.id);
-              return (
-                <ModuleCard
-                  key={mod.id}
-                  mod={mod}
-                  modules={modules}
-                  isQa={isQa}
-                  working={working}
-                  eventSpeakers={eventSpeakers}
-                  eventStartTime={eventStartTime}
-                  eventEndTime={eventEndTime}
-                  issue={scheduleIssue}
-                  conflicting={conflictingModuleIds.has(mod.id)}
-                  preview={preview}
-                  flash={flash}
-                  renaming={renamingModuleId === mod.id}
-                  renameValue={renameValue}
-                  renameInputRef={renameInputRef}
-                  onRenameValueChange={setRenameValue}
-                  onCommitRename={() => {
-                    if (renameValue.trim()) {
-                      onRenameModule(mod.id, renameValue.trim());
-                    }
-                    setRenamingModuleId(null);
-                  }}
-                  onCancelRename={() => setRenamingModuleId(null)}
-                  onStartRename={() => {
-                    setRenamingModuleId(mod.id);
-                    setRenameValue(mod.module_name);
-                  }}
-                  onPreviewModuleMove={(direction) => setPreview({ type: "module", id: mod.id, direction })}
-                  onPreviewLessonMove={(lessonId, direction) => setPreview({ type: "lesson", id: lessonId, direction })}
-                  onPreviewMoveEnd={() => setPreview(null)}
-                  onMoveModule={(direction) => handleMoveModule(mod.id, direction)}
-                  onDeleteModule={() => onDeleteModule(mod.id)}
-                  startValue={draftFor(mod).start}
-                  endValue={draftFor(mod).end}
-                  onTimeChange={(field, value) => handleTimeChange(mod, field, value)}
-                  onSpeakerChange={(speakerProfileId) => handleSpeakerChange(mod, speakerProfileId)}
-                  onAddLessonClick={() => onAddLessonClick(mod.id)}
-                  onMoveLesson={(lesson, direction) => handleMoveLesson(lesson, direction)}
-                  onDeleteLesson={(lessonId) => onDeleteLesson(lessonId, mod.id)}
-                  onRenameLesson={onRenameLesson}
-                  onUpdateLessonDescription={onUpdateLessonDescription}
-                />
-              );
-            })}
+            {modules.map((mod) => (
+              <ModuleCard
+                key={mod.id}
+                mod={mod}
+                modules={modules}
+                isQa={mod.module_type === "qa"}
+                working={working}
+                eventSpeakers={eventSpeakers}
+                eventStartTime={eventStartTime}
+                eventEndTime={eventEndTime}
+                issue={rowIssueFor(working, overlaps, mod.id)}
+                conflicting={conflictingModuleIds.has(mod.id)}
+                preview={preview}
+                flash={flash}
+                draft={draft?.moduleId === mod.id ? draft : null}
+                saving={saving}
+                nameInputRef={nameInputRef}
+                onDraftChange={setDraft}
+                onEdit={() => setDraft(createDraft(mod))}
+                onSave={handleSave}
+                onCancel={() => setDraft(null)}
+                onPreviewModuleMove={(direction) => setPreview({ type: "module", id: mod.id, direction })}
+                onPreviewMoveEnd={() => setPreview(null)}
+                onMoveModule={(direction) => handleMoveModule(mod.id, direction)}
+                onDeleteModule={() => onDeleteModule(mod.id)}
+                onAddLesson={() =>
+                  setDraft((current) =>
+                    current
+                      ? {
+                          ...current,
+                          lessons: [
+                            ...current.lessons,
+                            draftLesson({ name: `Lesson ${current.lessons.length + 1}`, content_type: "link" }),
+                          ],
+                        }
+                      : current,
+                  )
+                }
+                onMoveLesson={(key, direction) =>
+                  setDraft((current) => (current ? moveDraftLesson(current, key, direction) : current))
+                }
+                onDeleteLesson={(key) => setDraft((current) => (current ? removeDraftLesson(current, key) : current))}
+                onMoveLessonToModule={handleMoveLessonToModule}
+                onView={setViewing}
+              />
+            ))}
           </div>
         </>
       )}
 
+      <MaterialViewer target={viewing} onClose={() => setViewing(null)} />
+
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed right-6 bottom-6 z-50">
           <Toast title={toast.title} description={toast.description} onClose={() => setToast(null)} />
         </div>
       )}

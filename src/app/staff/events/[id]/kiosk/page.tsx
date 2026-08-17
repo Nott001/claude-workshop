@@ -4,29 +4,18 @@ import { ROLES } from "@/shared/lib/roles";
 import { useParams, useRouter } from "next/navigation";
 import { KioskScannerView } from "@/modules/kiosk/components/kiosk-scanner-view";
 import { KioskBar } from "@/modules/kiosk/components/kiosk-bar";
-import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
-import type { Event } from "@/shared/types";
+import { useEvent } from "@/modules/events/lib/use-event";
 
 export default function StaffEventKioskPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
   const { pending, allowed } = useRoleGuard(ROLES.FACILITATOR);
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!allowed) return;
-    // One event by id. Scanning page one of ?filter=upcoming lost the event the
-    // moment its end_time passed — exactly when a queue is still at the door —
-    // and anything past the first page was never found at all.
-    fetch(`/api/events/${eventId}`)
-      .then((r) => (r.ok ? (r.json() as Promise<Event>) : Promise.reject(new Error("Failed to load event"))))
-      .then(setEvent)
-      .catch(() => setEvent(null))
-      .finally(() => setLoading(false));
-  }, [allowed, eventId]);
+  // One event by id. Scanning page one of ?filter=upcoming lost the event the
+  // moment its end_time passed — exactly when a queue is still at the door —
+  // and anything past the first page was never found at all.
+  const { event, loading } = useEvent(eventId, { enabled: allowed });
 
   function handleExit() {
     router.push(`/staff/events/${eventId}`);

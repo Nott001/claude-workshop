@@ -2,27 +2,16 @@
 
 import { ROLES } from "@/shared/lib/roles";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
+import { useEvent } from "@/modules/events/lib/use-event";
 import { SurveyForm } from "@/modules/surveys/components/survey-form";
-import type { Event } from "@/shared/types";
 import { BackLink } from "@/shared/components/back-link";
 
 export function SurveyPreviewPage() {
   const params = useParams();
   const eventId = params.id as string;
   const { pending, allowed } = useRoleGuard(ROLES.ADMIN);
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!allowed) return;
-    fetch(`/api/events/${eventId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setEvent(data ?? null))
-      .catch(() => setEvent(null))
-      .finally(() => setLoading(false));
-  }, [allowed, eventId]);
+  const { event, loading } = useEvent(eventId, { enabled: allowed });
 
   if (pending || loading) {
     return (

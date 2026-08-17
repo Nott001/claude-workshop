@@ -1,15 +1,13 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
-import { useCourseByEvent } from "@/modules/courses/lib/use-course-by-event";
-import { useCourseCreate } from "@/modules/courses/lib/use-course-create";
-import { CourseBuilderSection } from "@/modules/courses/components/course-builder-section";
+import { useSeededCourseBuilder } from "@/modules/courses/lib/use-seeded-course-builder";
+import { ManageCoursePage } from "@/modules/courses/components/manage-course-page";
 import { useAssignedSpeakers } from "@/modules/events/lib/use-assigned-speakers";
-import type { Event } from "@/shared/types";
-import { BackLink } from "@/shared/components/back-link";
+import { useEvent } from "@/modules/events/lib/use-event";
 
 export default function StaffEventCoursePage() {
   const params = useParams();
@@ -17,72 +15,29 @@ export default function StaffEventCoursePage() {
   const eventId = params.id as string;
   const { pending: sessionPending, allowed: isStaff } = useRoleGuard(ROLES.FACILITATOR);
 
-  const [event, setEvent] = useState<Event | null>(null);
-  const [eventLoading, setEventLoading] = useState(true);
+  const { event, loading: eventLoading, error: eventError } = useEvent(eventId, { enabled: !sessionPending && isStaff });
   const { speakers, loading: speakersLoading } = useAssignedSpeakers(eventId);
-  const { course, loading: courseLoading } = useCourseByEvent(eventId);
-  const courseBuilder = useCourseCreate(eventId, course?.id);
-
-  const seededRef = useRef(false);
-
-  useEffect(() => {
-    if (course && !seededRef.current) {
-      courseBuilder.setModules(course.MODULE);
-      seededRef.current = true;
-    }
-  }, [course, courseBuilder]);
+  const { builder: courseBuilder, loading: courseLoading } = useSeededCourseBuilder(eventId);
 
   useEffect(() => {
     if (sessionPending) return;
-    if (!isStaff) {
-      router.replace("/staff/events");
-      return;
-    }
+    // A denied reader and an event that will not load both belong back on the
+    // list; the hook does not run its fetch for the first of those.
+    if (!isStaff || eventError) router.replace("/staff/events");
+  }, [sessionPending, isStaff, eventError, router]);
 
-    fetch(`/api/events/${eventId}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Not found");
-        return r.json();
-      })
-      .then((data) => {
-        setEvent(data);
-        setEventLoading(false);
-      })
-      .catch(() => {
-        router.replace("/staff/events");
-      });
-  }, [eventId, sessionPending, isStaff, router]);
-
-  if (sessionPending || eventLoading || speakersLoading || courseLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-bg">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!isStaff || !event) return null;
-
-  const noCourse = !course && courseBuilder.modules.length === 0;
+  const loading = sessionPending || eventLoading || speakersLoading || courseLoading;
+  // Nothing to draw for a reader the effect above is already redirecting.
+  if (!loading && (!isStaff || !event)) return null;
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <BackLink href={`/staff/events/${eventId}`} className="mb-8">
-          Back to event
-        </BackLink>
-
-        <h1 className="mb-8 text-[32px] font-bold tracking-[-0.02em] text-fg">Manage Course</h1>
-
-        <div className="rounded-xl border border-border bg-surface p-6">
-          <CourseBuilderSection
-            builder={courseBuilder}
-            eventSpeakers={speakers}
-            eventStartTime={event.start_time}
-            eventEndTime={event.end_time}
-          />
-        </div>
-      </div>
-    </div>
+    <ManageCoursePage
+      loading={loading}
+      backHref={`/staff/events/${eventId}`}
+      builder={courseBuilder}
+      speakers={speakers}
+      eventStartTime={event?.start_time}
+      eventEndTime={event?.end_time}
+    />
   );
 }
