@@ -76,8 +76,11 @@ export function useEventSpeakers(eventId: string) {
     setProfilesLoadingMore(false);
   }, [loadProfiles, profilesLoadingMore]);
 
-  async function handleAssign(e: React.FormEvent) {
-    e.preventDefault();
+  // The event is optional: this is called from a plain button as often as from
+  // a form submit, and the button callers were faking an event object to satisfy
+  // the old signature.
+  async function handleAssign(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!selectedProfileId) return;
 
     const res = await fetch(`/api/events/${eventId}/speakers`, {

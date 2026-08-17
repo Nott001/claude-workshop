@@ -5,11 +5,11 @@
 // way: anything else a course author does is owned by this module.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
+import { getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
+import { planDraft, planIsEmpty, type ModuleDraft } from "./module-draft";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
-import type { Lesson } from "@/shared/types";
 
 /**
  * Routes answer with `{ error: string }` for a refusal the caller can act on and
@@ -32,7 +32,6 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
   const [submitting, setSubmitting] = useState(false);
 
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
-  const [lessonDialogModuleId, setLessonDialogModuleId] = useState<number | null>(null);
 
   async function handleCreateCourse(e: React.FormEvent) {
     e.preventDefault();
@@ -123,191 +122,11 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     return mod.id;
   }
 
-  async function handleRenameModule(moduleId: number, newName: string) {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-
-    const mod = modules.find((m) => m.id === moduleId);
-    if (!mod || trimmed === mod.module_name) return;
-
-    const res = await fetch(`/api/modules/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ module_name: trimmed, sequence_order: mod.sequence_order }),
-    });
-
-    if (res.ok) {
-      setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, module_name: trimmed } : m)));
-    }
-  }
-
   async function handleDeleteModule(moduleId: number) {
     if (!confirm("Delete this module and all its content?")) return;
     const res = await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
     if (!res.ok) return;
     setModules((prev) => prev.filter((m) => m.id !== moduleId));
-  }
-
-  async function handleDeleteLesson(lessonId: number, moduleId: number) {
-    if (!confirm("Delete this lesson?")) return;
-    const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
-    if (!res.ok) return;
-    setModules((prev) =>
-      prev.map((m) => (m.id === moduleId ? { ...m, LESSONS: m.LESSONS.filter((l) => l.id !== lessonId) } : m)),
-    );
-  }
-
-  async function handleRenameLesson(lessonId: number, name: string) {
-    const trimmed = name.trim();
-    let lesson: Lesson | undefined;
-    for (const m of modules) {
-      const found = m.LESSONS.find((l) => l.id === lessonId);
-      if (found) {
-        lesson = found;
-        break;
-      }
-    }
-    if (!lesson || trimmed === lesson.name) return;
-
-    const res = await fetch(`/api/lessons/${lessonId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: trimmed,
-        content_type: lesson.content_type,
-        content_url: lesson.content_url ?? undefined,
-        sequence_order: lesson.sequence_order,
-      }),
-    });
-    if (res.ok) {
-      setModules((prev) =>
-        prev.map((m) => ({
-          ...m,
-          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, name: trimmed } : l)),
-        })),
-      );
-    }
-  }
-
-  async function handleUpdateLessonDescription(lessonId: number, description: string | null) {
-    const trimmed = description?.trim() ?? "";
-    let lesson: Lesson | undefined;
-    for (const m of modules) {
-      const found = m.LESSONS.find((l) => l.id === lessonId);
-      if (found) {
-        lesson = found;
-        break;
-      }
-    }
-    // A stored null and an empty edit are the same text, so re-committing an
-    // empty description sends nothing.
-    if (!lesson || trimmed === (lesson.description ?? "")) return;
-
-    const res = await fetch(`/api/lessons/${lessonId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: lesson.name,
-        description: trimmed || null,
-        content_type: lesson.content_type,
-        content_url: lesson.content_url ?? undefined,
-        sequence_order: lesson.sequence_order,
-      }),
-    });
-    if (res.ok) {
-      setModules((prev) =>
-        prev.map((m) => ({
-          ...m,
-          LESSONS: m.LESSONS.map((l) => (l.id === lessonId ? { ...l, description: trimmed || null } : l)),
-        })),
-      );
-    }
-  }
-
-  function openLessonDialog(moduleId: number) {
-    setLessonDialogModuleId(moduleId);
-  }
-
-  async function handleAddLesson(data: {
-    name: string;
-    description: string;
-    file: File | null;
-    url: string;
-  }): Promise<string | null> {
-    const moduleId = lessonDialogModuleId;
-    if (!moduleId) return "No module selected";
-
-    const mod = modules.find((m) => m.id === moduleId);
-    if (!mod) return "Module not found";
-
-    const sequenceOrder = mod.LESSONS.length + 1;
-    setError(null);
-
-    const contentType = detectContentType(data.file, data.url);
-
-    const res = await fetch(`/api/modules/${moduleId}/lessons`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: data.name,
-        description: data.description || undefined,
-        content_type: contentType,
-        content_url: data.file ? undefined : data.url ? normalizeUrl(data.url) : undefined,
-        sequence_order: sequenceOrder,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => null);
-      return err?.error?.message ?? "Failed to create lesson";
-    }
-    const lesson = await res.json();
-
-    if (data.file) {
-      const endpoint = getUploadEndpoint(contentType);
-      const bucket = uploadBucket(contentType);
-      if (endpoint && bucket) {
-        const result = await postUpload(bucket, endpoint, data.file, {
-          lesson_id: String(lesson.id),
-          course_id: String(modules[0].course_id),
-          module_id: String(moduleId),
-        });
-        if (!result.ok) return `Lesson saved, but ${result.error.charAt(0).toLowerCase()}${result.error.slice(1)}`;
-      }
-    }
-
-    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, LESSONS: [...m.LESSONS, lesson] } : m)));
-    setLessonDialogModuleId(null);
-    return null;
-  }
-
-  async function handleUpdateModuleSchedule(
-    moduleId: number,
-    schedule: { start_time: string | null; end_time: string | null; speaker_profile_id: number | null },
-  ): Promise<string | null> {
-    const mod = modules.find((m) => m.id === moduleId);
-    if (!mod) return "Module not found";
-
-    const previous = modules;
-    setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, ...schedule } : m)));
-
-    const res = await fetch(`/api/modules/${moduleId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        module_name: mod.module_name,
-        sequence_order: mod.sequence_order,
-        ...schedule,
-      }),
-    });
-
-    if (!res.ok) {
-      setModules(previous);
-      const err = await res.json().catch(() => null);
-      return err?.error?.message ?? "Failed to update schedule";
-    }
-
-    return null;
   }
 
   async function handleReorderModules(reordered: ModuleWithLessons[]) {
@@ -353,29 +172,135 @@ export function useCourseCreate(eventId: string, existingCourseId?: number) {
     );
   }
 
+  /** Storage posts need the lesson's whole path, not just its id. */
+  async function uploadMaterial(lessonId: number, moduleId: number, contentType: string, file: File) {
+    const endpoint = getUploadEndpoint(contentType);
+    const bucket = uploadBucket(contentType);
+    if (!endpoint || !bucket) return null;
+
+    const result = await postUpload(bucket, endpoint, file, {
+      lesson_id: String(lessonId),
+      course_id: String(modules[0]?.course_id ?? ""),
+      module_id: String(moduleId),
+    });
+    return result.ok ? null : result.error;
+  }
+
+  /**
+   * Re-read the course rather than patch state from each response: a save is a
+   * batch, and rebuilding local state from six partial answers is how the two
+   * drift. One read after the batch is also one read, not six.
+   */
+  async function reloadModules() {
+    const res = await fetch(`/api/courses/event/${eventId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data?.MODULE)) setModules(data.MODULE);
+  }
+
+  /**
+   * Apply a module's whole edit in one go. Order matters: deletes and material
+   * drops run before creates and uploads, so a lesson can shed one file and
+   * gain another in the same save without the drop landing on the new url.
+   *
+   * The first refusal stops the batch and is returned verbatim. Writes already
+   * made are not rolled back — the reload that follows shows exactly how far it
+   * got, which is more honest than a rollback that could fail in turn.
+   */
+  async function handleSaveModule(draft: ModuleDraft): Promise<string | null> {
+    const mod = modules.find((m) => m.id === draft.moduleId);
+    if (!mod) return "Module not found";
+
+    const plan = planDraft(mod, draft);
+    if (planIsEmpty(plan)) return null;
+
+    if (plan.modulePatch) {
+      const res = await fetch(`/api/modules/${mod.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...plan.modulePatch, sequence_order: mod.sequence_order }),
+      });
+      if (!res.ok) return refusalMessage(res, "Failed to save the module");
+    }
+
+    for (const lessonId of plan.deletes) {
+      const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
+      if (!res.ok) return refusalMessage(res, "Failed to remove a lesson");
+    }
+
+    for (const lessonId of plan.materialDrops) {
+      const res = await fetch(`/api/lessons/${lessonId}/material`, { method: "DELETE" });
+      if (!res.ok) return refusalMessage(res, "Failed to remove the material");
+    }
+
+    for (const update of plan.updates) {
+      const res = await fetch(`/api/lessons/${update.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: update.name,
+          description: update.description,
+          content_type: update.content_type,
+          sequence_order: update.sequence_order,
+        }),
+      });
+      if (!res.ok) return refusalMessage(res, "Failed to save a lesson");
+    }
+
+    for (const create of plan.creates) {
+      const res = await fetch(`/api/modules/${mod.id}/lessons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: create.name,
+          description: create.description ?? undefined,
+          content_type: create.content_type,
+          content_url: create.content_url ?? undefined,
+          sequence_order: create.sequence_order,
+        }),
+      });
+      if (!res.ok) return refusalMessage(res, "Failed to add a lesson");
+
+      if (create.pendingFile) {
+        const lesson = await res.json();
+        // The row exists by now, so a failed upload leaves a lesson with no
+        // material rather than losing the lesson: say which, and stop.
+        const failure = await uploadMaterial(lesson.id, mod.id, create.content_type, create.pendingFile);
+        if (failure) {
+          await reloadModules();
+          return `Lesson "${create.name}" was saved, but its file did not upload: ${failure}`;
+        }
+      }
+    }
+
+    for (const upload of plan.uploads) {
+      const lesson = draft.lessons.find((l) => l.id === upload.lessonId);
+      const failure = await uploadMaterial(upload.lessonId, mod.id, lesson?.content_type ?? "pdf", upload.file);
+      if (failure) {
+        await reloadModules();
+        return failure;
+      }
+    }
+
+    await reloadModules();
+    return null;
+  }
+
   return {
     courseName,
     courseDescription,
     error,
     submitting,
     modules,
-    lessonDialogModuleId,
     setCourseName,
     setCourseDescription,
-    setLessonDialogModuleId,
     setModules,
     handleCreateCourse,
     handleAddModule,
     handleAddQaModule,
-    handleRenameModule,
     handleDeleteModule,
-    handleDeleteLesson,
-    handleRenameLesson,
-    handleUpdateLessonDescription,
-    openLessonDialog,
-    handleAddLesson,
-    handleUpdateModuleSchedule,
     handleReorderModules,
     handleMoveLesson,
+    handleSaveModule,
   };
 }

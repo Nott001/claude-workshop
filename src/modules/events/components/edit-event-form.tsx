@@ -1,22 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import { EventForm, toFormValues, type EventPayload, type EventFormValues } from "./event-form";
 
 interface EditEventFormProps {
   eventId: string;
   /** An EVENT row. Widened through `toFormValues`, so extra keys are ignored. */
   initialData: Partial<Record<keyof EventFormValues, unknown>>;
-  /** Where the back link goes and where the form lands after a save. */
-  backHref?: string;
+  /** The saved row, so the hero above the form reflects the edit without a refetch. */
+  onSaved?: (event: Record<string, unknown>) => void;
 }
 
-export function EditEventForm({ eventId, initialData, backHref }: EditEventFormProps) {
-  const router = useRouter();
-  // The standalone /staff/events/[id]/edit route keeps the public-event target;
-  // the staff detail page passes its own URL so an admin never bounces through
-  // the attendee-view redirect at /events/[id].
-  const target = backHref ?? `/events/${eventId}`;
+/**
+ * Saving stays on the page. It used to `router.push` to wherever it came from,
+ * which was a redirect back to the same URL once the form moved into the event
+ * page — a navigation whose only visible effect was losing your place.
+ */
+export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormProps) {
+  const [saved, setSaved] = useState(false);
+
+  // Passed to EventForm as an effect dependency, so it has to keep its identity
+  // across renders or the dirty-change effect would loop.
+  const handleDirtyChange = useCallback((dirty: boolean) => {
+    if (dirty) setSaved(false);
+  }, []);
 
   async function saveEvent(payload: EventPayload) {
     const res = await fetch(`/api/events/${eventId}`, {
@@ -24,22 +31,24 @@ export function EditEventForm({ eventId, initialData, backHref }: EditEventFormP
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Failed to update event");
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error?.message ?? "Failed to update event");
+    }
 
-    router.push(target);
+    onSaved?.(await res.json());
+    setSaved(true);
   }
 
   return (
-    <>
-      <EventForm
-        heading="Edit Event"
-        backHref={target}
-        backLabel="Back to Event"
-        submitLabel="Save Changes"
-        submittingLabel="Saving..."
-        initialValues={toFormValues(initialData)}
-        onSubmit={saveEvent}
-      />
-    </>
+    <EventForm
+      editing
+      submitLabel="Save changes"
+      submittingLabel="Saving..."
+      statusMessage={saved ? "Changes saved." : null}
+      initialValues={toFormValues(initialData)}
+      onDirtyChange={handleDirtyChange}
+      onSubmit={saveEvent}
+    />
   );
 }

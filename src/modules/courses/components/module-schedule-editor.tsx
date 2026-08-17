@@ -14,6 +14,9 @@ interface ModuleScheduleEditorProps {
   startValue: string;
   endValue: string;
   issue: RowIssue | null;
+  /** Outside edit mode the window is shown but not editable. */
+  disabled?: boolean;
+  speakerValue?: number | null;
   onTimeChange: (field: TimeField, value: string) => void;
   onSpeakerChange: (speakerProfileId: number | null) => void;
 }
@@ -27,6 +30,8 @@ export function ModuleScheduleEditor({
   startValue,
   endValue,
   issue,
+  disabled = false,
+  speakerValue,
   onTimeChange,
   onSpeakerChange,
 }: ModuleScheduleEditorProps) {
@@ -53,11 +58,13 @@ export function ModuleScheduleEditor({
         endOptions={endOptions}
         invalid={issue?.error ?? false}
         issueMessage={issue?.message ?? null}
+        disabled={disabled}
         onChange={onTimeChange}
       />
       {eventSpeakers.length > 1 && (
         <select
-          value={mod.speaker_profile_id ?? ""}
+          value={(speakerValue === undefined ? mod.speaker_profile_id : speakerValue) ?? ""}
+          disabled={disabled}
           onChange={(e) => onSpeakerChange(e.target.value === "" ? null : Number(e.target.value))}
           aria-label={`Speaker for ${mod.module_name}`}
           className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg outline-none focus:border-brand focus:ring-2 focus:ring-ring/20"

@@ -84,6 +84,7 @@ function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Parti
     attendeesTotal: 0,
     handlePublish: noop,
     handleDelete: noop,
+    applyEventPatch: noop,
   });
   (useEventSpeakers as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     assignments: [],
@@ -128,64 +129,104 @@ afterEach(() => {
 });
 
 describe("Staff event detail tabs", () => {
-  it("shows the merged tab set to an admin with the hero, action buttons and edit form", () => {
+  it("gives an admin one tab per concern, with the event actions above them", () => {
     renderDetail(ROLES.ADMIN);
 
     expect(screen.getByRole("heading", { name: "Launch" })).toBeTruthy();
-    for (const label of ["Overview", "Course", "Kiosk", "Surveys"]) {
-      expect(screen.getByRole("button", { name: label })).toBeTruthy();
+    for (const label of ["Overview", "Details", "Team", "Course", "Attendees", "Surveys"]) {
+      expect(screen.getByRole("tab", { name: label })).toBeTruthy();
     }
-    expect(screen.queryByRole("button", { name: "Event Details" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Speakers" })).toBeNull();
 
-    // Overview is the default and the single merged panel: actions, edit form,
-    // cover upload and both assignment tables render together.
+    // Publish and the kiosk apply to the whole event, so they sit outside the
+    // panels rather than inside whichever one used to own them.
     expect(screen.getByRole("button", { name: "Publish" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
-    expect(screen.getByText("Edit Event")).toBeTruthy();
-    expect(screen.getByText("Upload image")).toBeTruthy();
-    expect(screen.getByText("No facilitators assigned to this event.")).toBeTruthy();
-    expect(screen.getByText("No speakers assigned to this event.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Open Kiosk/ })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Kiosk" })).toBeNull();
   });
 
-  it("switches the other panels for an admin", () => {
+  it("opens on a read-only overview, with no form and no roster", () => {
     renderDetail(ROLES.ADMIN);
 
-    fireEvent.click(screen.getByRole("button", { name: "Course" }));
-    expect(screen.getByRole("button", { name: "Create Course" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Kiosk" }));
-    expect(screen.getByRole("button", { name: "Open Kiosk" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Surveys" }));
-    expect(screen.getByText("Post-event survey")).toBeTruthy();
-  });
-
-  it("shows a facilitator only Overview, Course and Kiosk, with no admin actions", () => {
-    renderDetail(ROLES.FACILITATOR);
-
-    expect(screen.getByRole("button", { name: "Overview" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Course" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Kiosk" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Surveys" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
-    expect(screen.queryByText("Edit Event")).toBeNull();
+    expect(screen.getByText("All about the launch")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete event" })).toBeTruthy();
+    // The edit form and the assignment tables have their own tabs now; the
+    // overview rendering them was the whole of the nested-page problem.
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.queryByText("Upload image")).toBeNull();
     expect(screen.queryByText("No facilitators assigned to this event.")).toBeNull();
   });
 
-  it("seeds the Overview panel from the C-02 edit link for an admin", () => {
+  it("edits the event under Details, without a nested page frame", () => {
+    const { container } = renderDetail(ROLES.ADMIN, "details");
+
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Launch");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
+    expect(screen.getByText("Upload image")).toBeTruthy();
+
+    // The form used to bring its own page shell in here, back link and all.
+    expect(screen.queryByRole("link", { name: "Back to Event" })).toBeNull();
+    expectStaffColumn(container);
+  });
+
+  it("holds Save until something has actually changed", () => {
     renderDetail(ROLES.ADMIN, "details");
 
-    expect(screen.getByText("Edit Event")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Publish" })).toBeTruthy();
+    const save = screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Launch Day" } });
+    expect((screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("button", { name: "Discard changes" })).toBeTruthy();
+  });
+
+  it("staffs the event under Team, in one place only", () => {
+    renderDetail(ROLES.ADMIN, "team");
+
+    expect(screen.getByText("No facilitators assigned to this event.")).toBeTruthy();
+    expect(screen.getByText("No speakers assigned to this event.")).toBeTruthy();
+    // Team is not also a section of the edit form any more.
+    expect(screen.queryByLabelText("Title")).toBeNull();
+  });
+
+  // The page used to mount the speaker roster for everyone on arrival, so a
+  // facilitator who cannot even see Team paid for two requests to build it.
+  it("does not load the speaker roster until the Team tab is opened", () => {
+    renderDetail(ROLES.ADMIN);
+    expect(useEventSpeakers).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Team" }));
+    expect(useEventSpeakers).toHaveBeenCalledWith("7");
+  });
+
+  it("switches the remaining panels for an admin", () => {
+    renderDetail(ROLES.ADMIN);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Course" }));
+    expect(screen.getByRole("link", { name: "Create Course" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Surveys" }));
+    expect(screen.getByRole("switch", { name: "Enable post-event survey" })).toBeTruthy();
+  });
+
+  it("shows a facilitator only Overview and Course, with no admin actions", () => {
+    renderDetail(ROLES.FACILITATOR);
+
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Course" })).toBeTruthy();
+    for (const label of ["Details", "Team", "Attendees", "Surveys"]) {
+      expect(screen.queryByRole("tab", { name: label })).toBeNull();
+    }
+    expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+    // The kiosk is the one whole-event action a facilitator keeps.
+    expect(screen.getByRole("link", { name: /Open Kiosk/ })).toBeTruthy();
   });
 
   it("clamps a requested tab the role cannot use to Overview", () => {
     renderDetail(ROLES.FACILITATOR, "surveys");
 
     expect(screen.getByText("OVERVIEW")).toBeTruthy();
-    expect(screen.queryByText("Post-event survey")).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Enable post-event survey" })).toBeNull();
   });
 
   it("shows a locked bulk send button until the event ends", () => {
