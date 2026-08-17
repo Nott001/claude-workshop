@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 
@@ -11,12 +11,21 @@ const baseEvent = {
   cover_image_url: null,
   venue_name: "Hall A",
   venue_address: "123 Main St",
+  status: "active",
 } as const;
 
 const renderHero = (props: Partial<Parameters<typeof EventDetailHero>[0]> = {}) =>
-  render(<EventDetailHero event={baseEvent} badgeLabel="Upcoming" {...props} />);
+  render(<EventDetailHero event={baseEvent} {...props} />);
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
 describe("EventDetailHero", () => {
   it("renders the cover image with the event title as alt", () => {
@@ -54,6 +63,13 @@ describe("EventDetailHero", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Launch Day" })).toBeTruthy();
     expect(screen.getByText("Sep 1, 2026")).toBeTruthy();
     expect(screen.getByText("9:00 AM – 5:00 PM")).toBeTruthy();
+  });
+
+  it("shows a Completed badge for a finished event", () => {
+    renderHero({ event: { ...baseEvent, status: "complete", event_date: "2020-01-01" } });
+
+    expect(screen.getByText("Completed")).toBeTruthy();
+    expect(screen.queryByText("Upcoming")).toBeNull();
   });
 
   it("shows the duration and venue facts derived from the event", () => {

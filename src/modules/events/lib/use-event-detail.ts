@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
-import { getBadgeProps } from "@/modules/events/lib/schemas";
 import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { EventWithCourse } from "@/modules/events/lib/types";
@@ -82,8 +81,6 @@ export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
   const eventStart = event ? parseLocalDateTime(event.event_date, event.start_time) : null;
   const eventStarted = event ? (eventStart ? eventStart <= new Date() : false) : true;
 
-  const badgeProps = event ? getBadgeProps(event) : null;
-
   const isFacilitator = hasMinRole(userRole, ROLES.FACILITATOR);
   const showCountdown = event?.status === "active";
 
@@ -129,7 +126,6 @@ export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
     hasTicket,
     isSpeakerAssigned,
     eventStarted,
-    badgeProps,
     isFacilitator,
     showCountdown,
     isSignedIn,
