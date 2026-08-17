@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectContentType, normalizeUrl, getUploadEndpoint } from "@/modules/courses/lib/lesson-utils";
+import { detectContentType, normalizeUrl, getUploadEndpoint, uploadBucket } from "@/modules/courses/lib/lesson-utils";
 
 function fileOfType(type: string): File {
   return new File(["x"], "asset", { type });
@@ -57,7 +57,13 @@ describe("getUploadEndpoint", () => {
 
   it("returns undefined for types that are not uploaded", () => {
     expect(getUploadEndpoint("link")).toBeUndefined();
-    expect(getUploadEndpoint("image")).toBeUndefined();
     expect(getUploadEndpoint("")).toBeUndefined();
+  });
+
+  // A picked image used to reach no endpoint at all, so the file was dropped
+  // and the lesson saved with no content_url.
+  it("uploads an image to the course asset bucket", () => {
+    expect(getUploadEndpoint("image")).toBe("/api/upload/course-asset");
+    expect(uploadBucket("image")).toBe("course_assets");
   });
 });

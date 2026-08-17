@@ -205,6 +205,40 @@ export function moveLesson(modules: ModuleWithLessons[], lessonId: number, direc
   return { modules: next, updates: diffLessons(modules, next, renumber) };
 }
 
+/**
+ * Send a lesson to the end of another module outright.
+ *
+ * Reordering inside a module is buffered by that module's editor, but a move
+ * between modules cannot be: the destination is not the module being edited, so
+ * no Save of the source could ever cover it. This one writes straight through.
+ */
+export function moveLessonToModule(
+  modules: ModuleWithLessons[],
+  lessonId: number,
+  targetModuleId: number,
+): LessonMoveResult | null {
+  const next = modules.map((m) => ({ ...m, LESSONS: m.LESSONS.map((l) => ({ ...l })) }));
+  const source = next.find((m) => m.LESSONS.some((l) => l.id === lessonId));
+  const target = next.find((m) => m.id === targetModuleId);
+  if (!source || !target || source.id === target.id || target.module_type === "qa") return null;
+
+  const index = source.LESSONS.findIndex((l) => l.id === lessonId);
+  const [moved] = source.LESSONS.splice(index, 1);
+  moved.module_id = target.id;
+  target.LESSONS.push(moved);
+
+  const renumber = new Set<number>([source.id, target.id]);
+  for (const id of renumber) {
+    next
+      .find((m) => m.id === id)!
+      .LESSONS.forEach((l, i) => {
+        l.sequence_order = i + 1;
+      });
+  }
+
+  return { modules: next, updates: diffLessons(modules, next, renumber) };
+}
+
 function diffLessons(before: ModuleWithLessons[], after: ModuleWithLessons[], scope: Set<number>): LessonMove[] {
   const beforeById = new Map<number, Lesson>();
   for (const m of before) {
