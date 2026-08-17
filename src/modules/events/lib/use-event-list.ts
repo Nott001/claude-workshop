@@ -78,7 +78,14 @@ export function useEventList(options?: UseEventListOptions) {
       // Not on a superseded run: that one leaves every flag to its replacement.
       // Guarding only `loading` let the discarded run's data still land.
       if (cancelled) return;
-      if (!result.ok) setError("Failed to load events");
+      if (!result.ok) {
+        // Keep the rows already on screen: wiping them on a failed search is
+        // the whole-page blanking this refetch path exists to avoid.
+        setError("Failed to load events");
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
       setEvents(result.rows);
       setHasMore(result.hasMore);
       setLoading(false);

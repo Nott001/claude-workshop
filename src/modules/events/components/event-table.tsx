@@ -13,7 +13,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableEmpty,
+  TableBodyState,
   TableContainer,
 } from "@/shared/components/table";
 import { Drawer } from "@/shared/components/drawer";
@@ -39,14 +39,18 @@ interface EventTableProps {
   showKiosk?: boolean;
   /** Offer the Edit action (admin view). */
   showEdit?: boolean;
+  /** True while a search refetch is in flight, so rows are dimmed, not unmounted. */
+  loading?: boolean;
 }
 
-export function EventTable({ events, basePath = "/staff/events", showKiosk = false, showEdit = false }: EventTableProps) {
+export function EventTable({
+  events,
+  basePath = "/staff/events",
+  showKiosk = false,
+  showEdit = false,
+  loading = false,
+}: EventTableProps) {
   const [selected, setSelected] = useState<EventTableRow | null>(null);
-
-  if (events.length === 0) {
-    return <TableEmpty icon="event" title="No events found" />;
-  }
 
   return (
     <>
@@ -55,53 +59,60 @@ export function EventTable({ events, basePath = "/staff/events", showKiosk = fal
           <TableHead>
             <TableRow>
               <TableHeadCell>Title</TableHeadCell>
-              <TableHeadCell>Date</TableHeadCell>
-              <TableHeadCell>Time</TableHeadCell>
-              <TableHeadCell>Venue</TableHeadCell>
-              <TableHeadCell>Status</TableHeadCell>
-              <TableHeadCell>Attendees</TableHeadCell>
+              <TableHeadCell className="w-28">Date</TableHeadCell>
+              <TableHeadCell className="w-28">Time</TableHeadCell>
+              <TableHeadCell className="w-36">Venue</TableHeadCell>
+              <TableHeadCell className="w-28">Status</TableHeadCell>
+              <TableHeadCell className="w-20">Attendees</TableHeadCell>
               <TableHeadCell className="w-12" aria-label="Actions" />
             </TableRow>
           </TableHead>
-          <TableBody>
-            {events.map((event) => (
-              <TableRow key={event.id} onClick={() => setSelected(event)} aria-label={`Open ${event.title}`}>
-                <TableCell>
-                  {/* Title survives as a link; clicking it navigates, not opens the drawer. */}
-                  <Link
-                    href={`${basePath}/${event.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    // One per row, so a full page of events renders a page of
-                    // detail views nobody opened. The drawer's own actions
-                    // below keep their prefetch: they exist only once a row has
-                    // been clicked, which is intent rather than arrival.
-                    prefetch={false}
-                    className="font-medium text-fg hover:text-brand hover:underline"
-                  >
-                    {event.title}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-fg">{formatEventDate(event.event_date)}</TableCell>
-                <TableCell className="text-muted-fg">
-                  {formatTime(event.start_time)} &ndash; {formatTime(event.end_time)}
-                </TableCell>
-                <TableCell className="text-muted-fg">{event.venue_name}</TableCell>
-                <TableCell>
-                  <EventStatusBadge
-                    status={event.status}
-                    date={event.event_date}
-                    startTime={event.start_time}
-                    endTime={event.end_time}
-                  />
-                </TableCell>
-                <TableCell className="text-muted-fg">{event.attendee_count ?? 0}</TableCell>
-                <TableCell className="w-12">
-                  <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
-                    chevron_right
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
+          <TableBody busy={loading && events.length > 0}>
+            <TableBodyState
+              ready={events.length > 0}
+              loading={loading}
+              colSpan={7}
+              empty={{ icon: "event", title: "No events found" }}
+            >
+              {events.map((event) => (
+                <TableRow key={event.id} onClick={() => setSelected(event)} aria-label={`Open ${event.title}`}>
+                  <TableCell className="min-w-0">
+                    {/* Title survives as a link; clicking it navigates, not opens the drawer. */}
+                    <Link
+                      href={`${basePath}/${event.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      // One per row, so a full page of events renders a page of
+                      // detail views nobody opened. The drawer's own actions
+                      // below keep their prefetch: they exist only once a row has
+                      // been clicked, which is intent rather than arrival.
+                      prefetch={false}
+                      className="block truncate font-medium text-fg hover:text-brand hover:underline"
+                    >
+                      {event.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-fg">{formatEventDate(event.event_date)}</TableCell>
+                  <TableCell className="text-muted-fg">
+                    {formatTime(event.start_time)} &ndash; {formatTime(event.end_time)}
+                  </TableCell>
+                  <TableCell className="truncate text-muted-fg">{event.venue_name}</TableCell>
+                  <TableCell>
+                    <EventStatusBadge
+                      status={event.status}
+                      date={event.event_date}
+                      startTime={event.start_time}
+                      endTime={event.end_time}
+                    />
+                  </TableCell>
+                  <TableCell className="text-muted-fg">{event.attendee_count ?? 0}</TableCell>
+                  <TableCell className="w-12">
+                    <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                      chevron_right
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBodyState>
           </TableBody>
         </Table>
       </TableContainer>

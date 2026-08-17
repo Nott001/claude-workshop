@@ -1,16 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import {
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeadCell,
-  TableCell,
-  TableEmpty,
-  TableContainer,
-} from "@/shared/components/table";
+import { Table, TableHead, TableBody, TableRow, TableHeadCell, TableCell, TableContainer } from "@/shared/components/table";
 
 afterEach(() => {
   cleanup();
@@ -98,21 +89,5 @@ describe("Table rows", () => {
 
     fireEvent.keyDown(row, { key: " " });
     expect(onClick).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("TableEmpty", () => {
-  it("renders the required title and optional hint", () => {
-    render(<TableEmpty icon="group" title="No attendees found" hint="Try a different search term." />);
-
-    expect(screen.getByText("No attendees found")).toBeTruthy();
-    expect(screen.getByText("Try a different search term.")).toBeTruthy();
-  });
-
-  it("renders only the title when no hint is given", () => {
-    render(<TableEmpty title="No attendees found" />);
-
-    expect(screen.getByText("No attendees found")).toBeTruthy();
-    expect(screen.queryByText(/Try a different/i)).toBeNull();
   });
 });

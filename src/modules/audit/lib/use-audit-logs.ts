@@ -11,6 +11,7 @@ export function useAuditLogs() {
   const [logs, setLogs] = useState<AuditLogWithActor[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
@@ -38,18 +39,21 @@ export function useAuditLogs() {
         const params = new URLSearchParams({ page: String(page) });
         if (debouncedSearch) params.set("search", debouncedSearch);
         const res = await fetch(`/api/audit-logs?${params}`);
-        const data = res.ok ? await res.json() : { logs: [], total: 0 };
-        if (!cancelled) {
-          setLogs(Array.isArray(data.logs) ? data.logs : []);
-          setTotal(data.total ?? 0);
-          setTotalPages(Math.max(1, Math.ceil((data.total ?? 0) / 20)));
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            setLogs(Array.isArray(data.logs) ? data.logs : []);
+            setTotal(data.total ?? 0);
+            setTotalPages(Math.max(1, Math.ceil((data.total ?? 0) / 20)));
+            setError(null);
+          }
+        } else if (!cancelled) {
+          // A failed refetch keeps the last page on screen instead of replacing
+          // it with a misleading "no results"; the page surfaces the notice.
+          setError("Failed to refresh audit logs — showing last loaded results.");
         }
       } catch {
-        if (!cancelled) {
-          setLogs([]);
-          setTotal(0);
-          setTotalPages(1);
-        }
+        if (!cancelled) setError("Failed to refresh audit logs — showing last loaded results.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,5 +65,5 @@ export function useAuditLogs() {
     };
   }, [page, debouncedSearch]);
 
-  return { logs, total, loading, page, setPage, totalPages, search, setSearch };
+  return { logs, total, loading, error, page, setPage, totalPages, search, setSearch };
 }

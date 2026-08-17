@@ -106,4 +106,27 @@ describe("EventTable", () => {
 
     expect(screen.getByText("No events found")).toBeTruthy();
   });
+
+  it("keeps the column headers when there are no events", () => {
+    render(<EventTable events={[]} />);
+
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(screen.getByText("No events found")).toBeTruthy();
+  });
+
+  it("dims the existing rows, not the header, while a search refetch is in flight", () => {
+    render(<EventTable events={rows} loading />);
+
+    expect(screen.getByText("Launch")).toBeTruthy();
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("shows the loading row under the headers, not the empty message, while the first load is pending", () => {
+    render(<EventTable events={[]} loading />);
+
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(screen.getByText("progress_activity")).toBeTruthy();
+    expect(screen.queryByText("No events found")).toBeNull();
+  });
 });
