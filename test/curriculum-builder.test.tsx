@@ -131,6 +131,15 @@ describe("CurriculumBuilder edit mode", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   });
 
+  // The editor once opened on a hardcoded "New Module" while the API had created
+  // "Module N", so a fresh module's editor showed a name it did not have.
+  it("opens on the module's saved name", () => {
+    renderBuilder();
+    openEditor();
+
+    expect((screen.getByLabelText("Module name") as HTMLInputElement).value).toBe("Module 1");
+  });
+
   it("turns the module's lessons into inputs", () => {
     renderBuilder();
     openEditor();
