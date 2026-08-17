@@ -2,26 +2,74 @@ import type { EmailProvider } from "./types";
 import { ConsoleEmailProvider } from "./providers/console";
 import { UnconfiguredEmailProvider } from "./providers/unconfigured";
 import { SmtpEmailProvider } from "./providers/smtp";
-import { readSmtpConfig } from "./providers/smtp/config";
+import { isLoopbackHost, readSmtpConfig } from "./providers/smtp/config";
 import { isWorkerdRuntime } from "./providers/smtp/socket";
+import { connectSmtpNode } from "./providers/smtp/node-socket";
 
 let instance: EmailProvider | null = null;
 
 /**
- * SMTP needs both a configured mailbox and the Workers runtime that can open
- * the socket, so `next dev` keeps logging to the console even with credentials
- * present. Use `pnpm cf:preview` to exercise real delivery.
- *
- * Missing credentials mean opposite things on the two runtimes, so they get
- * opposite answers: off workerd there is no socket either way and logging is
- * expected, while on workerd it is a deployment that forgot its secrets and
- * must not be allowed to report delivery it never attempted.
+ * The Worker opens the cloudflare:sockets connection for whatever host is
+ * configured. `next dev` has no such socket, so it only ever dials a local
+ * capture box — a loopback guard is what keeps dev credentials from ever
+ * reaching a real relay by accident. When the app targets the local Supabase
+ * stack it routes to the same capture box GoTrue's own mail already lands in,
+ * so app-sent mail (resets, invites, tickets) needs no per-developer SMTP
+ * config. A worker that forgot its secrets must not report delivery it never
+ * attempted.
  */
 export function createDefaultProvider(): EmailProvider {
-  if (!isWorkerdRuntime()) return new ConsoleEmailProvider();
-
   const config = readSmtpConfig();
-  return config ? new SmtpEmailProvider(config) : new UnconfiguredEmailProvider();
+
+  if (config && isWorkerdRuntime()) return new SmtpEmailProvider(config);
+  if (config && isLoopbackHost(config.host)) return new SmtpEmailProvider(config, connectSmtpNode);
+
+  if (!isWorkerdRuntime() && pointsAtLocalStack()) {
+    return new SmtpEmailProvider(devCaptureBoxConfig(), connectSmtpNode);
+  }
+
+  return isWorkerdRuntime() ? new UnconfiguredEmailProvider() : new ConsoleEmailProvider();
+}
+
+/**
+ * True when the app is pointed at the local Supabase stack (`pnpm db:env
+ * local` writes this URL). It is the signal that a capture box exists, because
+ * `supabase/config.toml` routes all of GoTrue's auth mail there.
+ */
+function pointsAtLocalStack(): boolean {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return false;
+  try {
+    return isLoopbackHost(new URL(raw).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The cap: 54325 is the capture box's host-published SMTP port (GoTrue reaches
+ * it by its docker-network alias on 1025). Parsed through `readSmtpConfig` so a
+ * loopback host gets plaintext without having to restate the rule. The from
+ * address is set explicitly: the default would inherit the username, and
+ * "inbucket" is not a valid envelope sender.
+ */
+export function devCaptureBoxConfig() {
+  return readSmtpConfig({
+    SMTP_HOST: "127.0.0.1",
+    SMTP_PORT: "54325",
+    SMTP_USER: "inbucket",
+    SMTP_PASSWORD: "inbucket",
+    SMTP_FROM_EMAIL: "no-reply@startuplab.center",
+  })!;
+}
+
+/**
+ * True only for the dev fallback that logs instead of sending. The reset route
+ * reads it to decide whether handing the minted URL back to the browser could
+ * ever be a thing worth doing.
+ */
+export function emailDeliveryIsLocal(): boolean {
+  return getEmailService() instanceof ConsoleEmailProvider;
 }
 
 export function configureEmailService(provider: EmailProvider): void {

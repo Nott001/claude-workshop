@@ -15,9 +15,8 @@ vi.mock("@/modules/auth/lib/password-reset", async (importOriginal) => ({
   preparePasswordReset,
   confirmPasswordReset,
 }));
-const { afterResponse } = vi.hoisted(() => ({ afterResponse: vi.fn() }));
-// Run the deferred work inline by default so its effects are observable here.
-vi.mock("@/shared/lib/after-response", () => ({ afterResponse }));
+const { emailDeliveryIsLocal } = vi.hoisted(() => ({ emailDeliveryIsLocal: vi.fn() }));
+vi.mock("@/shared/integrations/email", () => ({ emailDeliveryIsLocal }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ findByAuthId }));
@@ -27,6 +26,7 @@ import { POST as recover } from "@/app/api/auth/recover/route";
 import { POST as confirm } from "@/app/api/auth/recover/confirm/route";
 
 const TOKEN = "aaaabbbbccccddddeeeeffff";
+const RESET_URL = `https://startuplab.center/reset-password?token=${TOKEN}`;
 const PASSWORD = "a-long-enough-password";
 const deliver = vi.fn();
 
@@ -50,9 +50,9 @@ function formReq(fields: Record<string, string>, headers: Record<string, string>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  deliver.mockResolvedValue(undefined);
-  preparePasswordReset.mockResolvedValue({ status: "ready", deliver });
-  afterResponse.mockImplementation((work: () => Promise<unknown>) => work());
+  deliver.mockResolvedValue({ success: true });
+  preparePasswordReset.mockResolvedValue({ status: "ready", deliver, resetUrl: RESET_URL });
+  emailDeliveryIsLocal.mockReturnValue(false);
   confirmPasswordReset.mockResolvedValue({ ok: true, authUserId: "auth-1" });
   findByAuthId.mockResolvedValue({ id: 7 });
   logAuditEvent.mockResolvedValue(true);
@@ -128,17 +128,38 @@ describe("POST /api/auth/recover", () => {
     expect(preparePasswordReset).toHaveBeenCalledWith({}, "ada@example.com", null);
   });
 
-  // The lookup now has to settle before the reply, but the SMTP session still
-  // must not: it takes seconds, and nothing the browser is told depends on it.
-  it("hands the mail to afterResponse rather than awaiting it", async () => {
-    // Held rather than run, so the reply is produced with delivery still pending.
-    afterResponse.mockImplementation(() => {});
+  // The lookup and the send both settle before the reply: the response tells the
+  // visitor whether the mail went out, which is a fact only the send knows.
+  it("awaits delivery and reports a send only when it landed", async () => {
+    const res = await recover(jsonReq({ email: "ada@example.com" }));
+
+    expect(deliver).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "sent" });
+  });
+
+  it("reports delivery_failed when the mail did not land", async () => {
+    deliver.mockResolvedValue({ success: false, error: "550 mailbox unavailable" });
 
     const res = await recover(jsonReq({ email: "ada@example.com" }));
 
-    expect(await res.json()).toEqual({ status: "sent" });
-    expect(afterResponse).toHaveBeenCalledWith(deliver);
-    expect(deliver).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "delivery_failed" });
+  });
+
+  it("hands the reset URL back only when delivery is the dev console", async () => {
+    emailDeliveryIsLocal.mockReturnValue(true);
+
+    const res = await recover(jsonReq({ email: "ada@example.com" }));
+
+    expect(await res.json()).toEqual({ status: "sent", devResetUrl: RESET_URL });
+  });
+
+  it("never puts the reset URL in a production reply", async () => {
+    const res = await recover(jsonReq({ email: "ada@example.com" }));
+
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.devResetUrl).toBeUndefined();
   });
 });
 
