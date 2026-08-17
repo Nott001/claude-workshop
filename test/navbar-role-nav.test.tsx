@@ -3,9 +3,12 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
+vi.mock("next/navigation", () => ({ usePathname }));
 
-const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
+const { useSession, usePathname } = vi.hoisted(() => ({
+  useSession: vi.fn(),
+  usePathname: vi.fn(() => "/"),
+}));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 import { Navbar } from "@/modules/shell/components/navbar";
@@ -116,5 +119,30 @@ describe("Navbar collapsed rail", () => {
       const iconBox = link.querySelector(".material-symbols-rounded")?.parentElement;
       expect(iconBox?.className).toContain("w-6");
     }
+  });
+});
+
+describe("Navbar selection state", () => {
+  it("marks the current page with a right-hand line and no fill", () => {
+    usePathname.mockReturnValue("/staff/community");
+    renderAs(ROLES.ADMIN);
+
+    const nav = screen.getByRole("navigation", { name: "Primary navigation" });
+    const community = within(nav).getByRole("link", { name: /Community/ });
+    const events = within(nav).getByRole("link", { name: /Events/ });
+
+    expect(community.className).toContain("after:opacity-100");
+    expect(community.className).toContain("after:bg-brand");
+    expect(community.className).toContain("after:right-0");
+    expect(community.className).toContain("text-brand");
+    expect(community.className).not.toContain("hover:after");
+    expect(community.className).not.toContain("hover:text-fg");
+    expect(community.className).not.toContain("bg-brand/10");
+    expect(community.className).not.toContain("bg-muted");
+
+    expect(events.className).not.toContain("after:opacity-100");
+    expect(events.className).toContain("after:opacity-0");
+    expect(events.className).toContain("text-muted-fg/80");
+    expect(events.className).toContain("hover:text-fg");
   });
 });

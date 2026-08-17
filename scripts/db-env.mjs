@@ -7,7 +7,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = join(ROOT, ".env");
 const REMOTE_PATH = join(ROOT, ".env.remote");
 
-const REWRITE_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+// The block db:env owns. Everything else in `.env` (SUPABASE_DB_PASSWORD,
+// SMTP_*, PAYMENT_*) survives both switches untouched.
+const REWRITE_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "NEXT_PUBLIC_APP_URL",
+];
 
 const USAGE = "Usage: node scripts/db-env.mjs <local|remote>";
 
@@ -48,10 +55,22 @@ function rewrite(current, values) {
     replaced += 1;
     return `${key}=${values[key]}`;
   });
-  if (replaced < REWRITE_KEYS.length + (values.NEXT_PUBLIC_APP_URL ? 1 : 0)) {
-    throw new Error(`expected to rewrite ${REWRITE_KEYS.length + 1} lines but matched ${replaced} — .env may be malformed`);
+  for (const key of Object.keys(values)) {
+    if (!lines.some((line) => line.startsWith(`${key}=`))) next.push(`${key}=${values[key]}`);
+  }
+  if (replaced < REWRITE_KEYS.length) {
+    throw new Error(`expected to rewrite ${REWRITE_KEYS.length} lines but matched ${replaced} — .env may be malformed`);
   }
   return next.join("\n");
+}
+
+function readOverlay(path) {
+  const values = {};
+  for (const line of readEnv(path).split(/\r?\n/)) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (match) values[match[1]] = match[2].replace(/^['"]|['"]$/g, "");
+  }
+  return values;
 }
 
 function reportDiff(before, after, label) {
@@ -76,11 +95,6 @@ function reportDiff(before, after, label) {
 const mode = process.argv[2];
 
 if (mode === "local") {
-  const current = readEnv(ENV_PATH);
-  if (!existsSync(REMOTE_PATH)) {
-    atomicWrite(REMOTE_PATH, current);
-    console.log("Saved current .env to .env.remote for later restore.");
-  }
   const local = fetchLocalValues();
   const before = readEnv(ENV_PATH);
   const after = rewrite(before, local);
@@ -88,13 +102,21 @@ if (mode === "local") {
   reportDiff(before, after, "local");
 } else if (mode === "remote") {
   if (!existsSync(REMOTE_PATH)) {
-    console.error("No .env.remote snapshot to restore from. Run `pnpm db:env local` first.");
+    console.error(
+      "No .env.remote overlay to apply. Create one from .env.remote.example and fill in the hosted project's keys.",
+    );
     process.exit(1);
   }
-  const restored = readFileSync(REMOTE_PATH, "utf8");
+  const remote = readOverlay(REMOTE_PATH);
+  const missing = REWRITE_KEYS.filter((key) => !(key in remote));
+  if (missing.length > 0) {
+    console.error(`No ${missing.join(", ")} in .env.remote — expected all ${REWRITE_KEYS.length} keys.`);
+    process.exit(1);
+  }
   const before = readEnv(ENV_PATH);
-  atomicWrite(ENV_PATH, restored);
-  reportDiff(before, restored, "remote");
+  const after = rewrite(before, remote);
+  atomicWrite(ENV_PATH, after);
+  reportDiff(before, after, "remote");
 } else {
   console.error(USAGE);
   process.exit(1);

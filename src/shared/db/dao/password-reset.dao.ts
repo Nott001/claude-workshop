@@ -37,3 +37,8 @@ export function countByEmail(supabase: DbClient, email: string, windowStart: str
 export function countByIp(supabase: DbClient, ip: string, windowStart: string): Promise<number> {
   return countSince(supabase, "ip", ip, windowStart);
 }
+
+export async function deleteByEmail(supabase: DbClient, email: string): Promise<boolean> {
+  const { error } = await supabase.from("PASSWORD_RESET_ATTEMPT").delete().eq("email", email);
+  return !error;
+}

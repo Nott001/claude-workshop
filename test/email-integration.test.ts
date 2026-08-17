@@ -2,10 +2,24 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { ConsoleEmailProvider } from "@/shared/integrations/email/providers/console";
 import { UnconfiguredEmailProvider } from "@/shared/integrations/email/providers/unconfigured";
 import { SmtpEmailProvider } from "@/shared/integrations/email/providers/smtp";
-import { getEmailService, configureEmailService, createDefaultProvider, resetEmailService } from "@/shared/integrations/email";
+import {
+  getEmailService,
+  configureEmailService,
+  createDefaultProvider,
+  devCaptureBoxConfig,
+  emailDeliveryIsLocal,
+  resetEmailService,
+} from "@/shared/integrations/email";
+import { readSmtpConfig } from "@/shared/integrations/email/providers/smtp/config";
 import type { EmailProvider } from "@/shared/integrations/email/types";
 import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
 import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
+
+const COMPLETE = {
+  SMTP_HOST: "mail.startuplab.center",
+  SMTP_USER: "no-reply@startuplab.center",
+  SMTP_PASSWORD: "s3cret",
+};
 
 /** workerd is identified by its user agent; vitest runs on Node, which is not. */
 function pretendWorkerd() {
@@ -75,9 +89,9 @@ describe("createDefaultProvider", () => {
   });
 
   it("speaks SMTP on workerd once the mailbox is configured", () => {
-    process.env.SMTP_HOST = "mail.startuplab.center";
-    process.env.SMTP_USER = "no-reply@startuplab.center";
-    process.env.SMTP_PASSWORD = "s3cret";
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
     pretendWorkerd();
 
     expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
@@ -91,14 +105,72 @@ describe("createDefaultProvider", () => {
     expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
   });
 
-  it("still logs off-workerd even with credentials, since no socket exists", () => {
-    // vitest runs on Node, which is exactly the `next dev` situation: the
-    // credentials are present but `cloudflare:sockets` is not.
-    process.env.SMTP_HOST = "mail.startuplab.center";
-    process.env.SMTP_USER = "no-reply@startuplab.center";
-    process.env.SMTP_PASSWORD = "s3cret";
+  // A remote host off workerd must not be dialled from a dev machine: the
+  // credentials would mail a real relay. Only a loopback capture box is SMTP'd.
+  it("keeps logging off-workerd when the configured host is remote", () => {
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
 
     expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
+  it("routes local-stack dev mail to the capture box with no SMTP configured", () => {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
+  });
+
+  // The usual dev `.env` carries prod-ish SMTP for the workerd build. Node dev
+  // must not mail that relay, but it should still reach inbucket — GoTrue's own
+  // mail already does, because config.toml routes it there.
+  it("routes local-stack dev mail to the capture box over a remote SMTP host", () => {
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
+  });
+
+  it("keeps the console when dev targets the hosted project even with SMTP set", () => {
+    process.env.SMTP_HOST = COMPLETE.SMTP_HOST;
+    process.env.SMTP_USER = COMPLETE.SMTP_USER;
+    process.env.SMTP_PASSWORD = COMPLETE.SMTP_PASSWORD;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aiyernsxamtgjebheekp.supabase.co";
+
+    expect(createDefaultProvider()).toBeInstanceOf(ConsoleEmailProvider);
+  });
+
+  // Mailpit rejects a MAIL FROM it cannot address: the username-derived
+  // default "inbucket" is not a valid sender, which answered the capture box
+  // with 553 5.1.3 for every dev reset.
+  it("gives the dev capture box a real-shaped envelope sender", () => {
+    const config = devCaptureBoxConfig();
+
+    expect(config.host).toBe("127.0.0.1");
+    expect(config.port).toBe(54325);
+    expect(config.secure).toBe(false);
+    expect(config.fromEmail).toMatch(/^[^@\s]+@[^@\s]+$/);
+  });
+
+  it("speaks SMTP in dev when the config points at a local capture box", () => {
+    process.env.SMTP_HOST = "127.0.0.1";
+    process.env.SMTP_PORT = "54325";
+    process.env.SMTP_USER = "inbucket";
+    process.env.SMTP_PASSWORD = "inbucket";
+
+    expect(createDefaultProvider()).toBeInstanceOf(SmtpEmailProvider);
+  });
+
+  it("reports console delivery as local and SMTP delivery as not", () => {
+    resetEmailService();
+    expect(emailDeliveryIsLocal()).toBe(true);
+    configureEmailService(new SmtpEmailProvider(readSmtpConfig(COMPLETE)!));
+    expect(emailDeliveryIsLocal()).toBe(false);
   });
 });
 

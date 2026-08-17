@@ -41,6 +41,7 @@ describe("migration replay", () => {
       "00003_qa_realtime.sql",
       "00004_qa_message_policy_helper.sql",
       "00005_qa_message_policy_staff.sql",
+      "00006_cancel_pending_email_change.sql",
     ]);
   });
 

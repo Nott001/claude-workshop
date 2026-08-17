@@ -17,9 +17,16 @@ PAYMENT_API_KEY=
 PAYMENT_WEBHOOK_SALT=
 
 # Transactional email. SMTP needs the Workers runtime for its socket, so
-# `next dev` logs to the console regardless — use `pnpm cf:preview` to send.
-# Under that runtime, leaving any of the three unset makes a send fail rather
-# than log: on workerd a missing mailbox is a misconfiguration, not a fallback.
+# `next dev` only dials a loopback host (see LOCAL_DB.md — set SMTP_* in .env);
+# `pnpm cf:preview` talks to whatever SMTP_HOST is configured here. On workerd,
+# leaving any of the three unset makes a send fail rather than log: a missing
+# mailbox is a misconfiguration, not a fallback.
+#
+# Pointing at the local capture box (plaintext, no auth) is just:
+#   SMTP_HOST=127.0.0.1
+#   SMTP_PORT=54325
+#   SMTP_USER=inbucket
+#   SMTP_PASSWORD=inbucket
 #
 # Never rename these to NEXT_PUBLIC_*: the compiler would inline the password
 # into the client bundle.
@@ -27,10 +34,12 @@ SMTP_HOST=
 SMTP_USER=
 SMTP_PASSWORD=
 
-# Optional. Defaults: 465, the SMTP_USER mailbox, "Startup Lab", 30000, 2.
-# SMTP_REPLY_TO is omitted unless set — a reply address nobody reads is worse
-# than none, so point it at a monitored mailbox or leave it blank.
+# Optional. Defaults: 465 for SMTP_PORT (54325 for inbucket), implicit TLS
+# unless SMTP_HOST is loopback (plaintext), the SMTP_USER mailbox, "Startup
+# Lab", 30000, 2. SMTP_REPLY_TO is omitted unless set — a reply address nobody
+# reads is worse than none, so point it at a monitored mailbox or leave it blank.
 # SMTP_PORT=
+# SMTP_SECURE=
 # SMTP_FROM_EMAIL=
 # SMTP_FROM_NAME=
 # SMTP_REPLY_TO=

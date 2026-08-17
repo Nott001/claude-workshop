@@ -35,19 +35,21 @@ export function isWorkerdRuntime(): boolean {
 }
 
 /**
- * Opens an implicit-TLS connection. Port 465 expects TLS from the first byte,
- * which is what `secureTransport: "on"` provides — STARTTLS on 587 would need
- * an in-band upgrade mid-stream that the runtime cannot perform.
+ * Opens a connection in the requested security mode. Implicit TLS is the
+ * default because port 465 expects TLS from the first byte, which is what
+ * `secureTransport: "on"` provides — STARTTLS on 587 would need an in-band
+ * upgrade mid-stream that the runtime cannot perform. Plaintext is for a local
+ * capture box only, which the config's loopback default guarantees.
  */
-export async function connectSmtp(hostname: string, port: number): Promise<SmtpDuplex> {
+export async function connectSmtp(hostname: string, port: number, secure = true): Promise<SmtpDuplex> {
   if (!isWorkerdRuntime()) {
     throw new Error(
-      "SMTP needs the Workers runtime. Use `pnpm cf:preview` to exercise it; `next dev` falls back to the console provider.",
+      "SMTP needs the Workers runtime. Use `pnpm cf:preview` to exercise it; `next dev` dials a local capture box directly.",
     );
   }
 
   const { connect } = await loadSockets();
-  const socket = connect({ hostname, port }, { secureTransport: "on", allowHalfOpen: false });
+  const socket = connect({ hostname, port }, { secureTransport: secure ? "on" : "off", allowHalfOpen: false });
 
   return {
     readable: socket.readable,

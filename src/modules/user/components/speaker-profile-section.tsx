@@ -1,8 +1,10 @@
 "use client";
 
-import { Button } from "@/shared/components/button";
 import { Input } from "@/shared/components/input";
-import { Form, FormField, FormLabel } from "@/shared/components/form";
+import { FormField, FormLabel, FormMessage } from "@/shared/components/form";
+
+export type SpeakerFieldKey = "linkedin" | "twitter" | "github" | "website";
+export type SpeakerFieldErrors = Partial<Record<SpeakerFieldKey, string>>;
 
 interface SpeakerProfileSectionProps {
   loading: boolean;
@@ -18,8 +20,16 @@ interface SpeakerProfileSectionProps {
   onGithubUrlChange: (value: string) => void;
   websiteUrl: string;
   onWebsiteUrlChange: (value: string) => void;
-  saving: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  errors?: SpeakerFieldErrors;
+}
+
+interface LinkField {
+  key: SpeakerFieldKey;
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export function SpeakerProfileSection({
@@ -36,17 +46,51 @@ export function SpeakerProfileSection({
   onGithubUrlChange,
   websiteUrl,
   onWebsiteUrlChange,
-  saving,
-  onSubmit,
+  errors,
 }: SpeakerProfileSectionProps) {
+  const links: LinkField[] = [
+    {
+      key: "linkedin",
+      id: "linkedin-url",
+      label: "LinkedIn",
+      placeholder: "https://linkedin.com/in/username",
+      value: linkedinUrl,
+      onChange: onLinkedinUrlChange,
+    },
+    {
+      key: "twitter",
+      id: "twitter-url",
+      label: "X (Twitter)",
+      placeholder: "https://x.com/username",
+      value: twitterUrl,
+      onChange: onTwitterUrlChange,
+    },
+    {
+      key: "github",
+      id: "github-url",
+      label: "GitHub",
+      placeholder: "https://github.com/username",
+      value: githubUrl,
+      onChange: onGithubUrlChange,
+    },
+    {
+      key: "website",
+      id: "website-url",
+      label: "Website",
+      placeholder: "https://yoursite.com",
+      value: websiteUrl,
+      onChange: onWebsiteUrlChange,
+    },
+  ];
+
   return (
-    <div className="rounded-xl border border-border bg-surface p-6">
+    <>
       <h2 className="text-sm font-bold text-fg">Professional Info</h2>
       <p className="mt-1 text-xs text-muted-fg">Speaker designation, bio, and links.</p>
       {loading ? (
         <p className="mt-4 text-xs text-muted-fg">Loading...</p>
       ) : (
-        <Form onSubmit={onSubmit} className="mt-4 space-y-3">
+        <div className="mt-4 space-y-3">
           <FormField>
             <FormLabel htmlFor="designation">Designation</FormLabel>
             <Input
@@ -67,51 +111,30 @@ export function SpeakerProfileSection({
               className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring/20"
             />
           </FormField>
-          <FormField>
-            <FormLabel htmlFor="linkedin-url">LinkedIn</FormLabel>
-            <Input
-              id="linkedin-url"
-              type="url"
-              value={linkedinUrl}
-              onChange={(e) => onLinkedinUrlChange(e.target.value)}
-              placeholder="https://linkedin.com/in/username"
-            />
-          </FormField>
-          <FormField>
-            <FormLabel htmlFor="twitter-url">X (Twitter)</FormLabel>
-            <Input
-              id="twitter-url"
-              type="url"
-              value={twitterUrl}
-              onChange={(e) => onTwitterUrlChange(e.target.value)}
-              placeholder="https://x.com/username"
-            />
-          </FormField>
-          <FormField>
-            <FormLabel htmlFor="github-url">GitHub</FormLabel>
-            <Input
-              id="github-url"
-              type="url"
-              value={githubUrl}
-              onChange={(e) => onGithubUrlChange(e.target.value)}
-              placeholder="https://github.com/username"
-            />
-          </FormField>
-          <FormField>
-            <FormLabel htmlFor="website-url">Website</FormLabel>
-            <Input
-              id="website-url"
-              type="url"
-              value={websiteUrl}
-              onChange={(e) => onWebsiteUrlChange(e.target.value)}
-              placeholder="https://yoursite.com"
-            />
-          </FormField>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </Form>
+          {links.map(({ key, id, label, placeholder, value, onChange }) => {
+            const error = errors?.[key];
+            return (
+              <FormField key={key}>
+                <FormLabel htmlFor={id}>{label}</FormLabel>
+                <Input
+                  id={id}
+                  type="url"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  placeholder={placeholder}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? `${id}-error` : undefined}
+                />
+                {error && (
+                  <FormMessage id={`${id}-error`} role="alert">
+                    {error}
+                  </FormMessage>
+                )}
+              </FormField>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </>
   );
 }

@@ -13,8 +13,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function respondWith(status: string) {
-  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status }) });
+function respondWith(status: string, extra: Record<string, string> = {}) {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status, ...extra }) });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -57,6 +57,50 @@ describe("ForgotPasswordForm", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(/too many reset requests/i);
     expect(alert.textContent).not.toMatch(/not yet registered/i);
+  });
+
+  it("explains a delivery failure instead of claiming a send", async () => {
+    respondWith("delivery_failed");
+
+    render(<ForgotPasswordForm />);
+    submit("member@example.com");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/could not be sent right now/i);
+    expect(screen.queryByText("Check your inbox")).toBeNull();
+  });
+
+  it("shows the reset link when the route returns one for dev", async () => {
+    respondWith("sent", { devResetUrl: "http://localhost:3000/reset-password?token=abc" });
+
+    render(<ForgotPasswordForm />);
+    submit("member@example.com");
+
+    const link = await screen.findByRole("link", { name: /open reset page/i });
+    expect(link.getAttribute("href")).toBe("http://localhost:3000/reset-password?token=abc");
+  });
+
+  // The dev handover must not claim an inbox send alongside itself: that is
+  // the same lie as delivery_failed, just prettier.
+  it("does not claim a sent inbox mail when it hands back a dev link", async () => {
+    respondWith("sent", { devResetUrl: "http://localhost:3000/reset-password?token=abc" });
+
+    render(<ForgotPasswordForm />);
+    submit("member@example.com");
+
+    await screen.findByRole("link", { name: /open reset page/i });
+    expect(screen.queryByText(/we have sent a link to reset your password/i)).toBeNull();
+    expect(screen.queryByText("Check your inbox")).toBeNull();
+  });
+
+  it("stays quiet about a link when the route returned none", async () => {
+    respondWith("sent");
+
+    render(<ForgotPasswordForm />);
+    submit("member@example.com");
+
+    await screen.findByText("Check your inbox");
+    expect(screen.queryByRole("link", { name: /open reset page/i })).toBeNull();
   });
 
   // An outage answers `failed`, never `unknown_email` — otherwise Supabase going

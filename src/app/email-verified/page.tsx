@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { isSafeRedirectPath } from "@/modules/auth/lib/redirect-url";
+import { roleHome } from "@/modules/auth/lib/role-home";
+import { requireAuth } from "@/modules/auth/lib/session";
 
 export default async function EmailVerifiedPage({ searchParams }: { searchParams: Promise<{ redirect_url?: string }> }) {
   const { redirect_url } = await searchParams;
   const redirectUrl = isSafeRedirectPath(redirect_url) ? redirect_url : null;
+  const user = await requireAuth();
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-bg px-4">
@@ -14,8 +17,7 @@ export default async function EmailVerifiedPage({ searchParams }: { searchParams
         <h1 className="text-xl font-bold text-fg">Email verified</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-fg">Your email has been verified.</p>
         <Link
-          href={redirectUrl ?? "/home"}
-          prefetch={false}
+          href={redirectUrl ?? roleHome(user?.role)}
           className="mt-6 inline-flex h-9 w-full items-center justify-center rounded-lg bg-brand px-3 text-sm font-medium text-brand-fg shadow-sm transition-colors hover:bg-brand/90"
         >
           {redirectUrl ? "Continue to event" : "Go to home"}

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SmtpEmailProvider } from "@/shared/integrations/email/providers/smtp";
 import type { SmtpConfig } from "@/shared/integrations/email/providers/smtp/config";
 import type { FakeSmtpServer } from "./helpers/smtp-server";
@@ -7,6 +7,7 @@ import { acceptingScript, ESMTP_GREETING, fakeSmtpServer, stalledSmtpServer } fr
 const CONFIG: SmtpConfig = {
   host: "mail.startuplab.center",
   port: 465,
+  secure: true,
   username: "no-reply@startuplab.center",
   password: "s3cret",
   fromEmail: "no-reply@startuplab.center",
@@ -31,6 +32,16 @@ describe("SmtpEmailProvider", () => {
   it("reports success once the server queues the message", async () => {
     const { provider } = providerAgainst(acceptingScript());
     await expect(provider.send(MESSAGE)).resolves.toEqual({ success: true });
+  });
+
+  it("passes the configured security mode to the connector", async () => {
+    const server = fakeSmtpServer(acceptingScript());
+    const connect = vi.fn(async () => server.duplex);
+    const provider = new SmtpEmailProvider(CONFIG, connect);
+
+    await provider.send(MESSAGE);
+
+    expect(connect).toHaveBeenCalledWith("mail.startuplab.center", 465, true);
   });
 
   it("sends from the configured mailbox with its display name", async () => {

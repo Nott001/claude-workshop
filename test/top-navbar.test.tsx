@@ -57,9 +57,9 @@ describe("TopNavbar role nav items", () => {
     }
   });
 
-  it("points the attendee Home item at /home", () => {
+  it("points the attendee Home item at the merged landing page", () => {
     renderAs(ROLES.ATTENDEE);
-    expect(navLink("Home").getAttribute("href")).toBe("/home");
+    expect(navLink("Home").getAttribute("href")).toBe("/");
   });
 
   it("falls back to the attendee set for an unrecognised role", () => {
@@ -78,9 +78,10 @@ describe("TopNavbar role nav items", () => {
     expect(navLink("Home").getAttribute("aria-current")).toBeNull();
   });
 
-  // The active item used to be a brand-tinted pill. Now that it is text on the
-  // bar's own background, colour is the only thing separating it from its
-  // neighbours — so it carries weight too, and says so out loud above.
+  // The active item used to be a brand-tinted pill, then bare brand text.
+  // It is an underline now, sitting flush at the bar's bottom edge. Hover
+  // lives only on non-selected links: idle text is lighter, and hovering
+  // darkens it — the selected entry carries no hover class and never changes.
   it("distinguishes the active link by more than its colour", () => {
     renderAs(ROLES.ATTENDEE, "/events");
 
@@ -88,14 +89,26 @@ describe("TopNavbar role nav items", () => {
     expect(navLink("Home").className).toContain("font-medium");
   });
 
-  it("gives the nav links no box of their own", () => {
+  it("marks the active link with a flush-bottom underline and no fill", () => {
     renderAs(ROLES.ATTENDEE, "/events");
 
-    for (const label of ["Events", "Home"]) {
-      const className = navLink(label).className;
-      expect(className).not.toMatch(/(^|\s|:)bg-/);
-      expect(className).not.toContain("border");
-    }
+    const active = navLink("Events").className;
+    const idle = navLink("Home").className;
+
+    expect(active).toContain("after:opacity-100");
+    expect(active).toContain("after:bg-brand");
+    expect(active).toContain("after:bottom-0");
+    expect(active).toContain("text-brand");
+    expect(active).not.toContain("hover:after"); // no line preview on hover
+    expect(active).not.toContain("hover:text-fg"); // selected never darkens on hover
+    expect(active).not.toContain("bg-brand/10");
+    expect(active).not.toContain("bg-muted");
+
+    expect(idle).not.toContain("after:opacity-100");
+    expect(idle).toContain("after:opacity-0");
+    expect(idle).toContain("text-muted-fg/80");
+    expect(idle).toContain("hover:text-fg");
+    expect(idle).not.toMatch(/(^|\s)bg-/);
   });
 });
 
@@ -197,7 +210,7 @@ describe("TopNavbar minimal", () => {
   });
 
   it("still pins on an ordinary page", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
     useSession.mockReturnValue({ user: null, isSignedIn: false, signOut: vi.fn() });
 
     const { container } = render(<TopNavbar />);

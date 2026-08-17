@@ -11,8 +11,6 @@ function renderSection(overrides: Record<string, unknown> = {}) {
       onCurrentPasswordChange={vi.fn()}
       newPassword="the quiet kettle sings"
       onNewPasswordChange={vi.fn()}
-      saving={false}
-      onSubmit={vi.fn()}
       {...overrides}
     />,
   );
@@ -20,6 +18,13 @@ function renderSection(overrides: Record<string, unknown> = {}) {
 
 describe("PasswordSection field errors", () => {
   afterEach(cleanup);
+
+  it("offers the reset flow from the password heading", () => {
+    renderSection();
+
+    const link = screen.getByRole("link", { name: "Forgot Password?" });
+    expect(link.getAttribute("href")).toBe("/forgot-password");
+  });
 
   it("renders no message and marks nothing invalid while both fields are accepted", () => {
     renderSection();

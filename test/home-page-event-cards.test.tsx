@@ -16,7 +16,6 @@ const { useSession } = vi.hoisted(() => ({ useSession: vi.fn() }));
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession }));
 
 import LandingPage from "@/app/page";
-import AttendeeHomePage from "@/app/home/page";
 
 const apiRows = [
   {
@@ -51,20 +50,6 @@ const attendee = {
   profile_image_url: null,
 };
 
-function signInAsAttendee() {
-  useSession.mockReturnValue({
-    user: attendee,
-    loading: false,
-    isLoaded: true,
-    isSignedIn: true,
-    signOut: vi.fn(),
-  });
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: apiRows, total: 2, page: 1, limit: 50 }) }),
-  );
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -75,23 +60,32 @@ afterEach(() => {
 });
 
 describe("landing page (logged out) event cards", () => {
-  it("renders published events as linkable EventCards", async () => {
+  it("shows guests the tagline and the Join Now CTA", async () => {
     getUpcomingForLanding.mockResolvedValue(apiRows);
+    useSession.mockReturnValue({
+      user: null,
+      loading: false,
+      isLoaded: true,
+      isSignedIn: false,
+      signOut: vi.fn(),
+    });
 
     render(await LandingPage());
 
-    const links = await screen.findAllByRole("link");
-    // Only the card links: the hero carries its own CTA, and asserting on every
-    // link in the page made this event-card test fail on unrelated hero edits.
-    const cardHrefs = links.map((link) => link.getAttribute("href")).filter((href) => href?.startsWith("/events/"));
-
-    // Tagged with the origin so the detail page's back link returns here
-    // rather than dropping the reader on the events list.
-    expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing"]);
+    expect(screen.getByText(/learn\. connect\. grow\./i)).toBeTruthy();
+    expect(screen.getByText("Upcoming Events")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Join Now" }).getAttribute("href")).toBe("/sign-up");
   });
 
   it("shows the empty state when no events are published", async () => {
     getUpcomingForLanding.mockResolvedValue([]);
+    useSession.mockReturnValue({
+      user: null,
+      loading: false,
+      isLoaded: true,
+      isSignedIn: false,
+      signOut: vi.fn(),
+    });
 
     render(await LandingPage());
 
@@ -99,27 +93,28 @@ describe("landing page (logged out) event cards", () => {
   });
 });
 
-describe("attendee home page event grid", () => {
-  it("renders upcoming events as linkable cards", async () => {
-    signInAsAttendee();
+describe("merged landing page for a signed-in attendee", () => {
+  it("greets by name and still lists upcoming events tagged for the landing page", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+    useSession.mockReturnValue({
+      user: attendee,
+      loading: false,
+      isLoaded: true,
+      isSignedIn: true,
+      signOut: vi.fn(),
+    });
 
-    render(<AttendeeHomePage />);
+    render(await LandingPage());
 
-    expect(await screen.findByRole("link", { name: /Alpha/ })).toBeTruthy();
-  });
+    expect(screen.getByText("Welcome, Jane!")).toBeTruthy();
+    expect(screen.getByText(/learn\. connect\. grow\./i)).toBeTruthy();
+    expect(screen.getByText("Upcoming Events")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Join Now" })).toBeNull();
 
-  it("wraps the grid in a full-width container with page padding", async () => {
-    signInAsAttendee();
-
-    render(<AttendeeHomePage />);
-
-    const link = await screen.findByRole("link", { name: /Alpha/ });
-    const grid = link.closest(".grid");
-    const wrapper = grid?.parentElement;
-
-    expect(grid?.className).toContain("gap-4");
-    expect(wrapper?.className).toContain("px-6");
-    expect(wrapper?.className).toContain("py-12");
-    expect(wrapper?.className).not.toContain("max-w");
+    const cardHrefs = screen
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"))
+      .filter((href) => href?.startsWith("/events/"));
+    expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing"]);
   });
 });

@@ -32,7 +32,7 @@ function renderShell(user: { role: string } | null = null) {
 
 describe("AppShell footer placement", () => {
   it("pins the footer to the bottom of the shell's main column", () => {
-    vi.mocked(usePathname).mockReturnValue("/home");
+    vi.mocked(usePathname).mockReturnValue("/");
     const { container } = renderShell();
 
     const footer = container.querySelector("footer");
@@ -51,7 +51,7 @@ describe("AppShell footer placement", () => {
   });
 
   it("gives a signed-in attendee the public footer", () => {
-    vi.mocked(usePathname).mockReturnValue("/home");
+    vi.mocked(usePathname).mockReturnValue("/");
     renderShell({ role: "attendee" });
 
     expect(screen.getByText("Company")).toBeTruthy();

@@ -115,10 +115,36 @@ describe("preparePasswordReset", () => {
     expect(outcome.status).toBe("failed");
   });
 
-  it("swallows a send failure, which happens after the caller has been answered", async () => {
+  it("hands a rejecting send back to the caller as a failure", async () => {
     sendTemplatedEmail.mockRejectedValue(new Error("smtp down"));
 
-    await expect(prepareAndDeliver(supabase, EMAIL, "1.2.3.4")).resolves.toEqual(expect.objectContaining({ status: "ready" }));
+    const outcome = await preparePasswordReset(supabase, EMAIL, null);
+
+    expect(outcome.status).toBe("ready");
+    if (outcome.status === "ready") {
+      await expect(outcome.deliver()).resolves.toMatchObject({ success: false, error: "smtp down" });
+    }
+  });
+
+  it("hands the provider's verdict back to the caller", async () => {
+    sendTemplatedEmail.mockResolvedValue({ success: false, error: "550 mailbox unavailable" });
+
+    const outcome = await preparePasswordReset(supabase, EMAIL, null);
+
+    expect(outcome.status).toBe("ready");
+    if (outcome.status === "ready") {
+      await expect(outcome.deliver()).resolves.toEqual({ success: false, error: "550 mailbox unavailable" });
+    }
+  });
+
+  it("exposes the minted URL for the caller to relay", async () => {
+    const outcome = await preparePasswordReset(supabase, EMAIL, null);
+
+    expect(outcome.status).toBe("ready");
+    if (outcome.status === "ready") {
+      expect(outcome.resetUrl).toContain("/reset-password?token=");
+      expect(outcome.resetUrl).toContain(TOKEN);
+    }
   });
 
   // Refused before the lookup runs: the limit has to throttle the question, not

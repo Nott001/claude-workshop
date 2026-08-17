@@ -126,10 +126,24 @@ describe("runSmtpSession", () => {
     await expect(runSmtpSession(server.duplex, PARAMS)).resolves.toBeUndefined();
   });
 
-  it("rejects a server offering no usable AUTH mechanism", async () => {
-    const server = fakeSmtpServer(["220 ready\r\n", "250-server2 Hello\r\n250 SIZE 100\r\n"]);
+  // inbucket advertises no AUTH; the session must speak the envelope anyway,
+  // or nothing this project mails could ever land in the local capture box.
+  it("sends without AUTH when the server advertises none", async () => {
+    const server = fakeSmtpServer([
+      "220 ready\r\n",
+      "250-server2 Hello\r\n250 SIZE 100\r\n",
+      "250 OK\r\n",
+      "250 Accepted\r\n",
+      "354 Send data\r\n",
+      "250 Queued\r\n",
+    ]);
 
-    await expect(runSmtpSession(server.duplex, PARAMS)).rejects.toThrow(/no supported AUTH mechanism/);
+    await expect(runSmtpSession(server.duplex, PARAMS)).resolves.toBeUndefined();
+    const sent = server.written();
+
+    expect(sent).not.toContain("AUTH");
+    expect(sent).toContain("MAIL FROM:<no-reply@startuplab.center>");
+    expect(sent).toContain("QUIT\r\n");
   });
 
   it("surfaces a connection that drops mid-conversation", async () => {
