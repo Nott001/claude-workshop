@@ -7,7 +7,7 @@ const {
   requireRole,
   findStaffByEmail,
   findAuthAccountByEmail,
-  listStaff,
+  listOrganizationMembers,
   logAuditEvent,
   generateLink,
   updateUserById,
@@ -17,7 +17,7 @@ const {
   requireRole: vi.fn(),
   findStaffByEmail: vi.fn(),
   findAuthAccountByEmail: vi.fn(),
-  listStaff: vi.fn(),
+  listOrganizationMembers: vi.fn(),
   logAuditEvent: vi.fn(),
   generateLink: vi.fn(),
   updateUserById: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
-vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listStaff }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listOrganizationMembers }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
   logAuditEvent,
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
@@ -70,36 +70,68 @@ describe("GET /api/organization", () => {
   ];
 
   it("lists a page of staff with no filters", async () => {
-    listStaff.mockResolvedValue({ data: staff, total: 2, page: 1, limit: 10 });
+    listOrganizationMembers.mockResolvedValue({ data: staff, total: 2, page: 1, limit: 10 });
 
     const res = await GET(new Request("https://app.test/api/organization"));
 
     expect(res.status).toBe(200);
-    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "", pageSize: 10, role: undefined });
+    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+      page: 1,
+      search: "",
+      pageSize: 10,
+      role: undefined,
+    });
     await expect(res.json()).resolves.toMatchObject({ users: staff, total: 2, page: 1 });
   });
 
   it("forwards a validated role filter", async () => {
-    listStaff.mockResolvedValue({ data: [staff[1]], total: 1, page: 1, limit: 10 });
+    listOrganizationMembers.mockResolvedValue({ data: [staff[1]], total: 1, page: 1, limit: 10 });
 
     await GET(new Request("https://app.test/api/organization?role=admin"));
 
-    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "", pageSize: 10, role: ROLES.ADMIN });
+    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+      page: 1,
+      search: "",
+      pageSize: 10,
+      role: ROLES.ADMIN,
+    });
   });
 
-  it("rejects a role that is not in the staff set", async () => {
+  // Attendee is a valid filter now: it is how an admin finds the person they
+  // are about to promote. The check exists to keep an arbitrary string out of
+  // the .eq filter, not to keep attendees out of the list.
+  it("forwards attendee as a role filter", async () => {
+    listOrganizationMembers.mockResolvedValue({ data: [], total: 0, page: 1, limit: 10 });
+
     const res = await GET(new Request("https://app.test/api/organization?role=attendee"));
 
+    expect(res.status).toBe(200);
+    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+      page: 1,
+      search: "",
+      pageSize: 10,
+      role: ROLES.ATTENDEE,
+    });
+  });
+
+  it("rejects a role that is not a role at all", async () => {
+    const res = await GET(new Request("https://app.test/api/organization?role=root"));
+
     expect(res.status).toBe(400);
-    expect(listStaff).not.toHaveBeenCalled();
+    expect(listOrganizationMembers).not.toHaveBeenCalled();
   });
 
   it("forwards a search term alongside a role", async () => {
-    listStaff.mockResolvedValue({ data: [staff[0]], total: 1, page: 1, limit: 10 });
+    listOrganizationMembers.mockResolvedValue({ data: [staff[0]], total: 1, page: 1, limit: 10 });
 
     await GET(new Request("https://app.test/api/organization?search=ada&role=speaker"));
 
-    expect(listStaff).toHaveBeenCalledWith(expect.anything(), { page: 1, search: "ada", pageSize: 10, role: ROLES.SPEAKER });
+    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+      page: 1,
+      search: "ada",
+      pageSize: 10,
+      role: ROLES.SPEAKER,
+    });
   });
 });
 

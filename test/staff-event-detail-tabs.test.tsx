@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import type { UserRole } from "@/shared/types";
 import { StaffEventDetailPage } from "@/modules/events/pages/staff-event-detail";
+import { expectStaffColumn } from "./helpers/staff-column";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -207,5 +208,18 @@ describe("Staff event detail tabs", () => {
 
     expect(screen.queryByRole("button", { name: "Send bulk survey" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Locked until event ends" })).toBeNull();
+  });
+
+  // This page is where a facilitator lands from their own event list, so it has
+  // to be measured to the same column the list is. Its width was the deliberate
+  // one — matched to the public detail page — and is now the shared token, so
+  // this asserts the page reads it rather than spelling a number of its own.
+  it("sits in the same column as every other staff page, for both roles", () => {
+    for (const role of [ROLES.ADMIN, ROLES.FACILITATOR] as UserRole[]) {
+      const { container, unmount } = renderDetail(role);
+
+      expectStaffColumn(container, role);
+      unmount();
+    }
   });
 });

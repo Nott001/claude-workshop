@@ -1,17 +1,31 @@
-import { ROLES } from "@/shared/lib/roles";
+import { ASSIGNABLE_ROLES, ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import * as userDao from "@/shared/db/dao/user.dao";
-import type { UserRole } from "@/shared/types";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { changeMemberRole, OrganizationServiceError, removeMember } from "@/modules/auth/lib/organization-service";
 
 const updateSchema = z.object({
-  role: z.enum([ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN]),
+  role: z.enum(ASSIGNABLE_ROLES),
 });
+
+function mapError(err: unknown): NextResponse {
+  if (err instanceof OrganizationServiceError) {
+    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+  }
+  throw err;
+}
+
+/**
+ * The path segment is caller-supplied text. `Number("abc")` is NaN, which
+ * PostgREST answers with an error rather than "no such row", so it is refused
+ * here instead of reaching the database as a malformed filter.
+ */
+function parseUserId(raw: string): number | null {
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const guard = await requireMinRole(ROLES.ADMIN);
@@ -20,29 +34,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   }
 
   const { userId } = await params;
+  const targetId = parseUserId(userId);
+  if (targetId === null) {
+    return NextResponse.json({ error: { message: "Invalid user" } }, { status: 400 });
+  }
+
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  if (parsed.data.role === ROLES.ADMIN && !hasMinRole(guard.user.role, ROLES.SUPER_ADMIN)) {
-    return NextResponse.json({ error: { message: "Only super admins can promote to admin" } }, { status: 403 });
-  }
-
   const supabase = getServiceClient();
 
-  const user = await userDao.updateRole(supabase, Number(userId), parsed.data.role as UserRole);
-
-  if (!user) {
-    return NextResponse.json({ error: { message: "Failed to update user role" } }, { status: 500 });
+  try {
+    const user = await changeMemberRole(supabase, { targetId, role: parsed.data.role }, guard.user);
+    return NextResponse.json(user);
+  } catch (err) {
+    return mapError(err);
   }
-
-  await requireAuditEvent(supabase, guard.user.id, "organization.role_changed", "user", Number(userId), {
-    new_role: parsed.data.role,
-  });
-
-  return NextResponse.json(user);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
@@ -52,19 +62,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   }
 
   const { userId } = await params;
+  const targetId = parseUserId(userId);
+  if (targetId === null) {
+    return NextResponse.json({ error: { message: "Invalid user" } }, { status: 400 });
+  }
+
   const supabase = getServiceClient();
 
-  if (guard.user.id === Number(userId)) {
-    return NextResponse.json({ error: { message: "Cannot remove yourself" } }, { status: 400 });
+  try {
+    await removeMember(supabase, targetId, guard.user);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return mapError(err);
   }
-
-  const ok = await userDao.removeById(supabase, Number(userId));
-
-  if (!ok) {
-    return NextResponse.json({ error: { message: "Failed to remove user" } }, { status: 500 });
-  }
-
-  await requireAuditEvent(supabase, guard.user.id, "organization.removed", "user", Number(userId));
-
-  return NextResponse.json({ success: true });
 }

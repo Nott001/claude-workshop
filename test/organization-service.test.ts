@@ -1,22 +1,42 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DbClient } from "@/shared/db/dao/types";
-import { cleanupStaleAccounts, generateInviteLink, inviteUser, sendInviteEmail } from "@/modules/auth/lib/organization-service";
+import type { Actor } from "@/modules/auth/lib/organization-service";
+import {
+  changeMemberRole,
+  cleanupStaleAccounts,
+  generateInviteLink,
+  inviteUser,
+  removeMember,
+  sendInviteEmail,
+} from "@/modules/auth/lib/organization-service";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 
-const { findStaffByEmail, findAuthAccountByEmail, logAuditEvent, generateLink, updateUserById, deleteUser, send } = vi.hoisted(
-  () => ({
-    findStaffByEmail: vi.fn(),
-    findAuthAccountByEmail: vi.fn(),
-    logAuditEvent: vi.fn(),
-    generateLink: vi.fn(),
-    updateUserById: vi.fn(),
-    deleteUser: vi.fn(),
-    send: vi.fn(),
-  }),
-);
+const {
+  findStaffByEmail,
+  findRoleById,
+  updateRole,
+  removeById,
+  findAuthAccountByEmail,
+  logAuditEvent,
+  generateLink,
+  updateUserById,
+  deleteUser,
+  send,
+} = vi.hoisted(() => ({
+  findStaffByEmail: vi.fn(),
+  findRoleById: vi.fn(),
+  updateRole: vi.fn(),
+  removeById: vi.fn(),
+  findAuthAccountByEmail: vi.fn(),
+  logAuditEvent: vi.fn(),
+  generateLink: vi.fn(),
+  updateUserById: vi.fn(),
+  deleteUser: vi.fn(),
+  send: vi.fn(),
+}));
 
-vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, findRoleById, updateRole, removeById }));
 vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
   logAuditEvent,
@@ -31,6 +51,14 @@ const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: ROLES.S
 beforeEach(() => {
   vi.clearAllMocks();
   findStaffByEmail.mockResolvedValue(null);
+  findRoleById.mockResolvedValue({ id: 9, role: ROLES.ATTENDEE });
+  updateRole.mockImplementation(async (_c: unknown, id: number, role: string) => ({
+    id,
+    full_name: "Ada",
+    email: "a@b.c",
+    role,
+  }));
+  removeById.mockResolvedValue(true);
   findAuthAccountByEmail.mockResolvedValue(null);
   generateLink.mockResolvedValue({ data: { user: { id: "auth-1" }, properties: { hashed_token: TOKEN } }, error: null });
   updateUserById.mockResolvedValue({ error: null });
@@ -160,6 +188,97 @@ describe("inviteUser", () => {
     send.mockResolvedValue({ success: false, error: "SMTP session timed out" });
 
     await expect(inviteUser(supabase, INVITE, 3)).rejects.toMatchObject({ status: 502 });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+});
+
+const admin: Actor = { id: 3, role: ROLES.ADMIN };
+const superAdmin: Actor = { id: 1, role: ROLES.SUPER_ADMIN };
+
+/**
+ * Driven directly rather than through PATCH/DELETE: these are the rules that
+ * decide who may act on whom, and pinning them to HTTP status codes states them
+ * only as far as the route happens to translate them.
+ */
+describe("changeMemberRole", () => {
+  it("promotes an attendee to a role the actor outranks", async () => {
+    const user = await changeMemberRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
+
+    expect(user).toMatchObject({ id: 9, role: ROLES.FACILITATOR });
+    expect(updateRole).toHaveBeenCalledWith(supabase, 9, ROLES.FACILITATOR);
+  });
+
+  it("records the role it replaced, which the request never carried", async () => {
+    findRoleById.mockResolvedValue({ id: 9, role: ROLES.SPEAKER });
+
+    await changeMemberRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
+
+    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "organization.role_changed", "user", 9, {
+      previous_role: ROLES.SPEAKER,
+      new_role: ROLES.FACILITATOR,
+    });
+  });
+
+  // An admin minting admins is how one compromised account becomes several.
+  it("refuses a role the actor only equals", async () => {
+    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
+    expect(updateRole).not.toHaveBeenCalled();
+
+    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, superAdmin)).resolves.toMatchObject({
+      role: ROLES.ADMIN,
+    });
+  });
+
+  it("refuses before reading the target, when the role alone settles it", async () => {
+    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
+
+    expect(findRoleById).not.toHaveBeenCalled();
+  });
+});
+
+describe("acting on a member at all", () => {
+  for (const [name, act] of [
+    [
+      "changeMemberRole",
+      (id: number, actor: Actor) => changeMemberRole(supabase, { targetId: id, role: ROLES.SPEAKER }, actor),
+    ],
+    ["removeMember", (id: number, actor: Actor) => removeMember(supabase, id, actor)],
+  ] as const) {
+    it(`${name} refuses a super admin, whoever asks`, async () => {
+      findRoleById.mockResolvedValue({ id: 9, role: ROLES.SUPER_ADMIN });
+
+      await expect(act(9, superAdmin)).rejects.toMatchObject({ status: 403 });
+      expect(updateRole).not.toHaveBeenCalled();
+      expect(removeById).not.toHaveBeenCalled();
+    });
+
+    it(`${name} refuses the actor's own account`, async () => {
+      await expect(act(admin.id, admin)).rejects.toMatchObject({ status: 400 });
+      expect(findRoleById).not.toHaveBeenCalled();
+    });
+
+    it(`${name} answers a missing member with 404 rather than writing`, async () => {
+      findRoleById.mockResolvedValue(null);
+
+      await expect(act(9, admin)).rejects.toMatchObject({ status: 404 });
+      expect(updateRole).not.toHaveBeenCalled();
+      expect(removeById).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("removeMember", () => {
+  it("removes an ordinary member and records it", async () => {
+    await removeMember(supabase, 9, admin);
+
+    expect(removeById).toHaveBeenCalledWith(supabase, 9);
+    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "organization.removed", "user", 9);
+  });
+
+  it("does not record a removal the database refused", async () => {
+    removeById.mockResolvedValue(false);
+
+    await expect(removeMember(supabase, 9, admin)).rejects.toMatchObject({ status: 500 });
     expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });

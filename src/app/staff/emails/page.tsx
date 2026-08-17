@@ -9,6 +9,7 @@ import { LoadMoreButton } from "@/shared/components/load-more";
 import { Badge } from "@/shared/components/badge";
 import { Drawer } from "@/shared/components/drawer";
 import { TableToolbar } from "@/shared/components/table-toolbar";
+import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import {
   Table,
   TableBody,
@@ -69,21 +70,15 @@ export default function StaffEmailsPage() {
   const [selected, setSelected] = useState<EmailLogWithUser | null>(null);
 
   if (pending) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
+    return <StaffPageState>Loading...</StaffPageState>;
   }
 
   if (!allowed) return null;
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1024px] px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-fg">Email Logs</h1>
-        </div>
+    <>
+      <StaffPage>
+        <StaffPageHeader title="Email Logs" description="Every message the platform has sent, and whether it arrived." />
 
         <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search recipient name or email..." }}>
           <div className="flex gap-3">
@@ -172,7 +167,7 @@ export default function StaffEmailsPage() {
           </Table>
         </TableContainer>
         {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
-      </div>
+      </StaffPage>
 
       <Drawer
         open={selected !== null}
@@ -207,6 +202,6 @@ export default function StaffEmailsPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </>
   );
 }

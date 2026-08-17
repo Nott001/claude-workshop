@@ -53,8 +53,12 @@ export function EventDetailPage({ from }: { from?: string }) {
     <div className="flex flex-1 flex-col bg-bg">
       {/* Gutters stay at sm:px-8. Widening them at lg would take width back off
           the content on any viewport narrower than the cap, where the cap is
-          not what is limiting the layout in the first place. */}
-      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
+          not what is limiting the layout in the first place.
+
+          The cap is `--container-page`, shared with the staff pages: a
+          non-attendee opening this page is redirected to the staff view of the
+          same event, and the journey should not change shape halfway. */}
+      <div className="mx-auto w-full max-w-page px-5 py-12 sm:px-8">
         <BackLink href={backLink.href} className="mb-6">
           {backLink.label}
         </BackLink>

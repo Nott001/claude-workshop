@@ -20,6 +20,7 @@ import { AssignmentTable, type AssignmentRow } from "@/modules/events/components
 import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { BackLink } from "@/shared/components/back-link";
+import { StaffPage, StaffPageState } from "@/shared/components/staff-page";
 
 const TAB_KEYS = ["overview", "course", "kiosk", "attendees", "surveys"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -684,19 +685,11 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   );
 
   if (pending || loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading event...</div>
-      </div>
-    );
+    return <StaffPageState>Loading event...</StaffPageState>;
   }
 
   if (error || !event) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-error">{error ?? "Event not found"}</div>
-      </div>
-    );
+    return <StaffPageState tone="error">{error ?? "Event not found"}</StaffPageState>;
   }
 
   if (!isStaff) return null;
@@ -713,57 +706,50 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   const staffEvent = event as EventWithCourse & { facilitator_ids?: number[] };
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      {/* Same content width as the public detail page: a non-attendee is
-          redirected here from /events/[id], so the two are one journey and
-          should not change shape halfway through it. */}
-      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
-        <BackLink href={backHref} className="mb-6">
-          Back to Events
-        </BackLink>
+    <StaffPage>
+      <BackLink href={backHref} className="mb-6">
+        Back to Events
+      </BackLink>
 
-        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
+      <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
 
-        <div className="mb-6 mt-8 flex gap-1.5 border-b border-border pb-3">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs transition-colors",
-                currentTab === tab.key
-                  ? "bg-surface-hover font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-surface-hover",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {currentTab === "overview" && (
-          <OverviewSection
-            event={staffEvent}
-            eventId={eventId}
-            userRole={userRole}
-            publishing={publishing}
-            publishError={publishError}
-            deleteError={deleteError}
-            handlePublish={handlePublish}
-            handleDelete={handleDelete}
-            attendeeCount={attendeesTotal}
-            speakers={speakers}
-          />
-        )}
-
-        {currentTab === "course" && <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
-
-        {currentTab === "kiosk" && <KioskSection eventId={eventId} userRole={userRole} />}
-
-        {currentTab === "attendees" && <AttendeesSection userRole={userRole} eventId={eventId} />}
-
-        {currentTab === "surveys" && <SurveysSection event={event} userRole={userRole} />}
+      <div className="mb-6 mt-8 flex gap-1.5 border-b border-border pb-3">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-xs transition-colors",
+              currentTab === tab.key ? "bg-surface-hover font-medium text-fg" : "text-muted-fg hover:bg-surface-hover",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
-    </div>
+
+      {currentTab === "overview" && (
+        <OverviewSection
+          event={staffEvent}
+          eventId={eventId}
+          userRole={userRole}
+          publishing={publishing}
+          publishError={publishError}
+          deleteError={deleteError}
+          handlePublish={handlePublish}
+          handleDelete={handleDelete}
+          attendeeCount={attendeesTotal}
+          speakers={speakers}
+        />
+      )}
+
+      {currentTab === "course" && <CourseSection eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
+
+      {currentTab === "kiosk" && <KioskSection eventId={eventId} userRole={userRole} />}
+
+      {currentTab === "attendees" && <AttendeesSection userRole={userRole} eventId={eventId} />}
+
+      {currentTab === "surveys" && <SurveysSection event={event} userRole={userRole} />}
+    </StaffPage>
   );
 }

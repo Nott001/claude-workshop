@@ -1,5 +1,8 @@
 import type { DbClient } from "@/shared/db/dao/types";
+import type { User } from "@/shared/types";
 import * as userDao from "@/shared/db/dao/user.dao";
+import { ROLES, type AssignableRole } from "@/shared/lib/roles";
+import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 import { findAuthAccountByEmail } from "@/modules/auth/lib/auth-account";
@@ -112,6 +115,76 @@ export async function sendInviteEmail(
     await supabase.auth.admin.deleteUser(link.userId);
     throw new OrganizationServiceError(502, "Could not send the invitation email");
   }
+}
+
+/** The acting admin, as much of them as these rules need to judge a request. */
+export type Actor = Pick<User, "id" | "role">;
+
+/**
+ * The rules that decide whether one member may act on another.
+ *
+ * Both callers need the same three, and they need the target's current role to
+ * apply them — which is also the half of the audit trail the request does not
+ * carry, so it is read once here and handed back rather than fetched twice.
+ */
+async function authorizeMemberChange(supabase: DbClient, targetId: number, actor: Actor): Promise<Actor> {
+  // Acting on yourself takes away the page you are standing on, and the account
+  // that could undo it.
+  if (actor.id === targetId) {
+    throw new OrganizationServiceError(400, "Cannot act on your own account");
+  }
+
+  // The role is the only field these rules judge, and the only one the audit row
+  // needs back, so this reads two columns rather than the whole row.
+  const target = await userDao.findRoleById(supabase, targetId);
+  if (!target) {
+    throw new OrganizationServiceError(404, "User not found");
+  }
+
+  // A super admin outranks everyone who can reach these routes, including
+  // another super admin. Leaving them editable would make the role assignable in
+  // effect — demote the holder, and the seat is open to whoever asked.
+  if (target.role === ROLES.SUPER_ADMIN) {
+    throw new OrganizationServiceError(403, "A super admin cannot be changed or removed");
+  }
+
+  return target;
+}
+
+export async function changeMemberRole(
+  supabase: DbClient,
+  input: { targetId: number; role: AssignableRole },
+  actor: Actor,
+): Promise<Pick<User, "id" | "full_name" | "email" | "role">> {
+  // Judged before the lookup: it depends only on who is asking and for what, so
+  // a refusal here costs no round trip.
+  if (!canGrantRole(actor.role, input.role)) {
+    throw new OrganizationServiceError(403, "You cannot grant a role you do not outrank");
+  }
+
+  const target = await authorizeMemberChange(supabase, input.targetId, actor);
+
+  const user = await userDao.updateRole(supabase, input.targetId, input.role);
+  if (!user) {
+    throw new OrganizationServiceError(500, "Failed to update user role");
+  }
+
+  await requireAuditEvent(supabase, actor.id, "organization.role_changed", "user", input.targetId, {
+    previous_role: target.role,
+    new_role: input.role,
+  });
+
+  return user;
+}
+
+export async function removeMember(supabase: DbClient, targetId: number, actor: Actor): Promise<void> {
+  await authorizeMemberChange(supabase, targetId, actor);
+
+  if (!(await userDao.removeById(supabase, targetId))) {
+    throw new OrganizationServiceError(500, "Failed to remove user");
+  }
+
+  await requireAuditEvent(supabase, actor.id, "organization.removed", "user", targetId);
 }
 
 export async function inviteUser(
