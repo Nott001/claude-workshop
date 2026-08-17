@@ -158,16 +158,31 @@ startup, so restart it after toggling.
 
 ## Checking out the remote
 
-The remote project is linked (`pnpm db:link` sets the project ref). Pushing
-schema changes with `pnpm db:push` runs pending migrations against the remote.
+`pnpm db:push` runs pending migrations against the remote. It targets the
+_linked_ project, so a fresh clone must run `pnpm db:link` first — that needs a
+Supabase login. Without one, pass the connection string directly:
 
-> **Warning — read before pushing.** After the migration squash, `pnpm db:push`
-> is safe only once the remote's tracking table
-> (`supabase_migrations.schema_migrations`) is rebased to the new baseline. Until
-> that happens (sheet `14`), a push sees `00001_initial_schema.sql` as pending
-> and would replay `DROP SCHEMA public CASCADE` against prod. Do not run
-> `pnpm db:push` against the remote on this branch; future **numbered**
-> migrations (00022+) are safe once the rebase lands.
+```bash
+supabase db push --db-url "postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres"
+```
+
+Which migrations run is decided by the remote's own tracking table
+(`supabase_migrations.schema_migrations`), never by the state of your local
+database — a `db:reset` beforehand changes nothing about what gets pushed. It is
+still worth running one first as a rehearsal, because replaying from an empty
+database is the only thing that proves a migration is sound from zero;
+`supabase migration up` only ever runs it against a populated schema.
+
+> **Always dry-run first.** `supabase db push --dry-run` prints exactly what
+> would be applied and writes nothing. Read that list before every push against
+> the remote — it is the one cheap check that catches a tracking table which has
+> drifted out of step with the migration files.
+
+The tracking table is rebased onto the post-squash baseline; it records
+`00001`–`00006`, so a push applies only genuinely new migrations. An earlier
+warning here said a push would see `00001_initial_schema.sql` as pending and
+replay `DROP SCHEMA public CASCADE` against prod. That is no longer true, and
+the dry run above will show it: verify rather than trust either claim.
 
 ## Troubleshooting
 
@@ -182,8 +197,13 @@ http://localhost:3000` and its redirect allowlist; the app derives callback
   the dev server on a different port/host, update both the env var and the
   redirect URLs before testing email links.
 - **`22505` / `schema_migrations` errors** — a stale local DB from before the
-  squash, or prod tracking out of sync. Run `pnpm db:reset` locally; for remote
-  read the push warning above and see the rebase sheet `14`.
+  squash, or prod tracking out of sync. Run `pnpm db:reset` locally; for remote,
+  dry-run the push first and compare against `supabase migration list`.
+- **A column the code expects is missing** — the local DB is behind the
+  migration files. `LESSON (*)` and other wildcard selects return the columns
+  that exist rather than failing, so the gap surfaces as an `undefined` field far
+  from its cause. Run `supabase migration list --local`; if it shows unapplied
+  migrations, `supabase migration up --local` applies them without wiping data.
 - **`pnpm db:env local` throws "did not report API_URL"** — the stack is down;
   run `pnpm db:start` first (the script reads `supabase status`).
 - **Backup before destructive moves** — `pnpm db:reset` wipes local data. Stage
