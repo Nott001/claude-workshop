@@ -257,4 +257,62 @@ describe("QAPanel", () => {
     expect(screen.queryByText("Speaker")).toBeNull();
     expect(screen.queryByText("Staff")).toBeNull();
   });
+
+  it.each([
+    ["facilitator", ROLES.FACILITATOR],
+    ["admin", ROLES.ADMIN],
+    ["super admin", ROLES.SUPER_ADMIN],
+  ])("labels a %s response with the Staff badge", async (_label, role) => {
+    stubFetch([
+      { method: "GET", url: "/api/qa/module/4", body: { messages: [question(1, "A staff answer.", role)] } },
+      { method: "GET", url: "/api/qa/message/1", body: question(1, "A staff answer.", role) },
+    ]);
+    render(
+      <QAPanel
+        moduleId={4}
+        userRole={ROLES.ATTENDEE}
+        isSpeakerAssigned={false}
+        eventStarted={true}
+        eventEnded={false}
+        isLocked={false}
+        onToggleLock={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("A staff answer.");
+    const bubble = screen.getByText("A staff answer.").closest("div");
+    expect(bubble?.className).toContain("bg-info/10");
+    expect(screen.getByText("Staff")).toBeTruthy();
+    expect(screen.queryByText("Speaker")).toBeNull();
+  });
+
+  it("keeps a staff bubble distinct from a speaker bubble", async () => {
+    stubFetch([
+      {
+        method: "GET",
+        url: "/api/qa/module/4",
+        body: {
+          messages: [question(1, "A staff answer.", ROLES.FACILITATOR), question(2, "A speaker answer.", ROLES.SPEAKER)],
+        },
+      },
+      { method: "GET", url: "/api/qa/message/1", body: question(1, "A staff answer.", ROLES.FACILITATOR) },
+      { method: "GET", url: "/api/qa/message/2", body: question(2, "A speaker answer.", ROLES.SPEAKER) },
+    ]);
+    render(
+      <QAPanel
+        moduleId={4}
+        userRole={ROLES.ATTENDEE}
+        isSpeakerAssigned={false}
+        eventStarted={true}
+        eventEnded={false}
+        isLocked={false}
+        onToggleLock={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("A staff answer.");
+    expect(screen.getByText("Staff")).toBeTruthy();
+    expect(screen.getByText("Speaker")).toBeTruthy();
+    expect(screen.getAllByText(/answer/)).toHaveLength(2);
+  });
 });

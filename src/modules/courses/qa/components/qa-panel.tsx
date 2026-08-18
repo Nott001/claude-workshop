@@ -176,13 +176,19 @@ export default function QAPanel({
             <div className="space-y-3">
               {sortedMessages.length === 0 && <p className="py-12 text-center text-sm text-muted-fg">No questions yet.</p>}
               {sortedMessages.map((msg) => {
-                const isSpeaker = qaAuthorKind(msg.USER?.role) === "speaker";
+                const kind = qaAuthorKind(msg.USER?.role);
+                const isSpeaker = kind === "speaker";
+                const isStaff = kind === "staff";
                 return (
                   <div
                     key={msg.id}
                     className={
                       "flex flex-col gap-1.5 rounded-xl border p-3 shadow-sm " +
-                      (isSpeaker ? "border-warning/40 bg-warning/10" : "border-border bg-muted")
+                      (isSpeaker
+                        ? "border-warning/40 bg-warning/10"
+                        : isStaff
+                          ? "border-info/40 bg-info/10"
+                          : "border-border bg-muted")
                     }
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -195,6 +201,12 @@ export default function QAPanel({
                           <span className="inline-flex shrink-0 items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning">
                             <span className="material-symbols-rounded text-[10px]">record_voice_over</span>
                             Speaker
+                          </span>
+                        )}
+                        {isStaff && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
+                            <span className="material-symbols-rounded text-[10px]">support_agent</span>
+                            Staff
                           </span>
                         )}
                       </div>
