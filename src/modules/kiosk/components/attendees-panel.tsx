@@ -10,7 +10,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableEmpty,
+  TableBodyState,
   TableContainer,
 } from "@/shared/components/table";
 import { Badge } from "@/shared/components/badge";
@@ -67,6 +67,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selected, setSelected] = useState<Attendee | null>(null);
 
@@ -94,6 +95,9 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
         const data = await res.json();
         setAttendees(data.attendees);
         setTotal(data.total);
+        setError(null);
+      } else if (!ignore) {
+        setError("Failed to refresh attendees — showing last loaded results.");
       }
       if (!ignore) setLoading(false);
     }
@@ -153,64 +157,63 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
         </Select>
       </TableToolbar>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <span className="material-symbols-rounded animate-spin text-2xl text-brand">progress_activity</span>
-        </div>
-      ) : attendees.length === 0 ? (
-        <TableEmpty
-          icon="group"
-          title="No attendees found"
-          hint={search ? "Try a different search term." : "No attendees match the current filter."}
-        />
-      ) : (
-        <>
-          <TableContainer className="flex-1 overflow-auto">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableHeadCell>Name</TableHeadCell>
-                  <TableHeadCell>Status</TableHeadCell>
-                  <TableHeadCell>Checked In</TableHeadCell>
-                  <TableHeadCell className="w-12" aria-label="Actions" />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {attendees.map((attendee) => (
-                  <TableRow
-                    key={attendee.user_id}
-                    onClick={() => setSelected(attendee)}
-                    aria-label={`View ${attendee.full_name}`}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="grid size-6 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
-                          {getInitials(attendee.full_name)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-fg">{attendee.full_name}</p>
-                          <p className="truncate text-[10px] text-muted-fg">{attendee.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{statusBadge(attendee)}</TableCell>
-                    <TableCell className="text-muted-fg">
-                      {attendee.checked_in_at ? formatTime(attendee.checked_in_at) : "\u2014"}
-                    </TableCell>
-                    <TableCell className="w-12">
-                      <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
-                        chevron_right
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+      {error && attendees.length > 0 && <p className="mb-3 text-sm text-error">{error}</p>}
 
-          <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} className="mt-4" />
-        </>
-      )}
+      <TableContainer className="flex-1 overflow-auto">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeadCell>Name</TableHeadCell>
+              <TableHeadCell className="w-28">Status</TableHeadCell>
+              <TableHeadCell className="w-28">Checked In</TableHeadCell>
+              <TableHeadCell className="w-12" aria-label="Actions" />
+            </TableRow>
+          </TableHead>
+          <TableBody busy={loading && attendees.length > 0}>
+            <TableBodyState
+              ready={attendees.length > 0}
+              loading={loading}
+              colSpan={4}
+              empty={{
+                icon: "group",
+                title: "No attendees found",
+                hint: search ? "Try a different search term." : "No attendees match the current filter.",
+              }}
+            >
+              {attendees.map((attendee) => (
+                <TableRow
+                  key={attendee.user_id}
+                  onClick={() => setSelected(attendee)}
+                  aria-label={`View ${attendee.full_name}`}
+                >
+                  <TableCell>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="grid size-6 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
+                        {getInitials(attendee.full_name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-fg">{attendee.full_name}</p>
+                        <p className="truncate text-[10px] text-muted-fg">{attendee.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{statusBadge(attendee)}</TableCell>
+                  <TableCell className="text-muted-fg">
+                    {attendee.checked_in_at ? formatTime(attendee.checked_in_at) : "\u2014"}
+                  </TableCell>
+                  <TableCell className="w-12">
+                    <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
+                      chevron_right
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBodyState>
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} className="mt-4" />
 
       <Drawer
         open={selected !== null}

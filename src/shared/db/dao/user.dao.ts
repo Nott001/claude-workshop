@@ -1,4 +1,4 @@
-import { ROLES, STAFF_ROLES } from "@/shared/lib/roles";
+import { STAFF_ROLES } from "@/shared/lib/roles";
 import type { DbClient, PaginatedResult } from "./types";
 import { ilikePattern, throwOnDbError } from "./helpers";
 import type { User } from "@/shared/types";
@@ -20,26 +20,52 @@ export async function findStaffByEmail(supabase: DbClient, email: string): Promi
   return data;
 }
 
-export async function listStaff(
+/**
+ * The organization roster, and the search that reaches past it.
+ *
+ * Unfiltered, this is the staff list it has always been: attendees outnumber
+ * staff by orders of magnitude and would bury the roster. But a role can now be
+ * granted to an existing account, and an attendee nobody can find is an
+ * attendee nobody can promote — so naming one, by search or by asking for the
+ * role outright, widens the query to every role.
+ *
+ * Ordering follows from that: a mixed list is ranked by authority before name,
+ * a single-role list by name alone. See the ordering below for why the database
+ * can rank the roles at all.
+ */
+export async function listOrganizationMembers(
   supabase: DbClient,
   options: { page: number; search: string; pageSize?: number; role?: string },
 ): Promise<PaginatedResult<Pick<User, "id" | "full_name" | "email" | "role">>> {
   const { page, search, role } = options;
   const pageSize = options.pageSize ?? 10;
-  let query = supabase
-    .from("USER")
-    .select("id, full_name, email, role", { count: "exact" })
-    .in("role", [...STAFF_ROLES])
-    .order("full_name", { ascending: true });
+  let query = supabase.from("USER").select("id, full_name, email, role", { count: "exact" });
+
+  if (role) {
+    // Any single role, attendee included; the route validates it before here.
+    query = query.eq("role", role);
+  } else {
+    // Only a roster nobody narrowed still defaults to staff. Searching reaches
+    // past them on purpose, which costs a full scan — the term has a leading
+    // wildcard, so no index serves it and there is no trigram index on USER.
+    // Fine at this size; a pg_trgm GIN index is the answer if it stops being.
+    if (!search) query = query.in("role", [...STAFF_ROLES]);
+
+    // More than one role can come back, so the list leads with the most senior.
+    // Postgres sorts an enum by the order its members were declared in, and
+    // `user_role` runs from `attendee` up to `super_admin`, so descending is
+    // descending authority — the ladder `hasMinRole` reads, pinned by
+    // test/role-enum-order.ts. Nested here rather than tested separately: the
+    // ranking is only meaningful in the branch that can return mixed roles.
+    query = query.order("role", { ascending: false });
+  }
 
   if (search) {
     const pattern = ilikePattern(search);
     query = query.or(`full_name.ilike.${pattern},email.ilike.${pattern}`);
   }
-  if (role) {
-    // Narrows the staff set; the route validates `role` before it gets here.
-    query = query.eq("role", role);
-  }
+
+  query = query.order("full_name", { ascending: true });
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -126,6 +152,12 @@ export async function removeById(supabase: DbClient, id: number): Promise<boolea
 export async function deleteByAuthId(supabase: DbClient, authUserId: string): Promise<boolean> {
   const { error } = await supabase.from("USER").delete().eq("auth_user_id", authUserId);
   return !error;
+}
+
+export async function findRoleById(supabase: DbClient, id: number): Promise<Pick<User, "id" | "role"> | null> {
+  const { data, error } = await supabase.from("USER").select("id, role").eq("id", id).maybeSingle();
+  throwOnDbError(error, "user.dao.findRoleById");
+  return data;
 }
 
 export async function findByAuthIdWithRole(supabase: DbClient, authUserId: string): Promise<Pick<User, "id" | "role"> | null> {

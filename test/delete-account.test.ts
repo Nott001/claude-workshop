@@ -13,6 +13,7 @@ const {
   deleteResponsesByUser,
   deleteEmailLogRows,
   deleteByEmail,
+  deleteEmailChangeAttempts,
   removeByUserId,
   updateUser,
   listStorageFolder,
@@ -27,6 +28,7 @@ const {
   deleteResponsesByUser: vi.fn(),
   deleteEmailLogRows: vi.fn(),
   deleteByEmail: vi.fn(),
+  deleteEmailChangeAttempts: vi.fn(),
   removeByUserId: vi.fn(),
   updateUser: vi.fn(),
   listStorageFolder: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock("@/modules/courses/qa/db/qa-message.dao", () => ({ deleteByUser: deleteQ
 vi.mock("@/modules/surveys/db/survey.dao", () => ({ deleteResponsesByUser }));
 vi.mock("@/shared/db/dao/email.dao", () => ({ deleteByUser: deleteEmailLogRows }));
 vi.mock("@/shared/db/dao/password-reset.dao", () => ({ deleteByEmail }));
+vi.mock("@/shared/db/dao/email-change-attempt.dao", () => ({ deleteByUser: deleteEmailChangeAttempts }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ removeByUserId }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ updateUser }));
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
@@ -57,11 +60,23 @@ const input: DeleteAccountInput = {
   role: ROLES.ATTENDEE,
 };
 
+// Every step whose failure must abort the teardown. A step missing from here
+// is a step that could fail silently and leave the account half-deleted, so
+// the list is the whole chain rather than a sample of it.
+// Every step whose failure must abort the teardown. A step missing from here
+// is a step that could fail silently and leave the account half-deleted, so
+// the list is the whole chain rather than a sample of it. `id` is what the
+// step is keyed on — all of them the user id, bar the reset attempts, which
+// only ever carried the address.
 const purges = [
-  { name: "ticket rows", fn: deleteTicketRows },
-  { name: "QA messages", fn: deleteQaRows },
-  { name: "survey responses", fn: deleteResponsesByUser },
-  { name: "email log rows", fn: deleteEmailLogRows },
+  { name: "received by the user", fn: deleteMessagesByRecipient, id: 7 },
+  { name: "ticket rows", fn: deleteTicketRows, id: 7 },
+  { name: "QA messages", fn: deleteQaRows, id: 7 },
+  { name: "survey responses", fn: deleteResponsesByUser, id: 7 },
+  { name: "email log rows", fn: deleteEmailLogRows, id: 7 },
+  { name: "password-reset attempts", fn: deleteByEmail, id: "ada@example.com" },
+  { name: "email-change attempts", fn: deleteEmailChangeAttempts, id: 7 },
+  { name: "speaker profile", fn: removeByUserId, id: 7 },
 ] as const;
 
 beforeEach(() => {
@@ -73,6 +88,7 @@ beforeEach(() => {
   deleteResponsesByUser.mockResolvedValue(true);
   deleteEmailLogRows.mockResolvedValue(true);
   deleteByEmail.mockResolvedValue(true);
+  deleteEmailChangeAttempts.mockResolvedValue(true);
   removeByUserId.mockResolvedValue(true);
   updateUser.mockResolvedValue({ id: input.userId });
   deleteAuthUser.mockResolvedValue({ error: null });
@@ -90,11 +106,9 @@ describe("deleteAccount", () => {
     expect(endCase).toHaveBeenCalledWith(client, 7, { id: 7, role: ROLES.ATTENDEE });
     expect(deleteMessagesByUser).toHaveBeenCalledWith(client, 7);
     expect(deleteMessagesByRecipient).toHaveBeenCalledWith(client, 7);
-    for (const { fn } of purges) {
-      expect(fn).toHaveBeenCalledWith(client, 7);
+    for (const { fn, id } of purges) {
+      expect(fn).toHaveBeenCalledWith(client, id);
     }
-    expect(deleteByEmail).toHaveBeenCalledWith(client, "ada@example.com");
-    expect(removeByUserId).toHaveBeenCalledWith(client, 7);
 
     expect(listStorageFolder).toHaveBeenCalledWith("profile_images", "users/7");
     expect(deleteFromStorage).toHaveBeenCalledWith("profile_images", paths);

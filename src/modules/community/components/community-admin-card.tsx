@@ -67,7 +67,7 @@ export function CommunityAdminCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-semibold text-foreground">{link.label}</h3>
+            <h3 className="truncate font-semibold text-fg">{link.label}</h3>
             {link.is_hidden && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-fg">Hidden</span>
             )}
@@ -83,7 +83,7 @@ export function CommunityAdminCard({
         </div>
       </div>
 
-      {link.description && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{link.description}</p>}
+      {link.description && <p className="mt-3 text-sm leading-relaxed text-muted-fg">{link.description}</p>}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <button

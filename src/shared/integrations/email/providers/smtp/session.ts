@@ -154,7 +154,13 @@ export async function runSmtpSession(connection: SmtpDuplex, params: SmtpSession
 type Write = (...lines: string[]) => Promise<void>;
 type Expect = (stage: string, ...codes: number[]) => Promise<SmtpReply>;
 
-/** Prefers PLAIN (one round trip) and falls back to LOGIN for older servers. */
+/**
+ * Prefers PLAIN (one round trip) and falls back to LOGIN for older servers.
+ * A server that advertises no mechanism — or only one we do not speak, like
+ * CRAM-MD5 — is treated as an open relay or a capture box: nothing to prove,
+ * so the session proceeds unauthenticated and the MTA decides. inbucket is
+ * exactly this case and needs its mail to land without a login.
+ */
 async function authenticate(write: Write, expect: Expect, capabilities: string[], params: SmtpSessionParams): Promise<void> {
   const mechanisms = (capabilities.find((line) => line.toUpperCase().startsWith("AUTH")) ?? "").toUpperCase();
 
@@ -173,6 +179,4 @@ async function authenticate(write: Write, expect: Expect, capabilities: string[]
     await expect("AUTH LOGIN password", 235);
     return;
   }
-
-  throw new Error(`SMTP server advertises no supported AUTH mechanism (got: ${mechanisms || "none"})`);
 }

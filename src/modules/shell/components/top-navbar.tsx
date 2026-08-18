@@ -7,6 +7,7 @@ import { useSession } from "@/modules/auth/components/session-context";
 import { cn } from "@/shared/lib/utils";
 import type { UserRole } from "@/shared/types";
 import { getNavItems } from "@/modules/shell/lib/nav-items";
+import { NAV_BAR_SURFACE } from "@/modules/shell/lib/nav-surface";
 import { Brand } from "@/modules/shell/components/brand";
 import { originFromPathname, withBackLink } from "@/shared/lib/back-link";
 import { ProfileMenu } from "@/modules/shell/components/profile-menu";
@@ -32,10 +33,12 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
   const navItems = minimal ? [] : getNavItems(isSignedIn, userRole);
 
   return (
-    <header className={cn("inset-x-0 top-0 z-20 border-b border-border bg-surface", minimal ? "sticky" : "fixed")}>
+    // Frosted rather than solid: the bar sits over content that scrolls beneath
+    // it, and letting that read through is what tells you the page moved.
+    <header className={cn(NAV_BAR_SURFACE, minimal ? "sticky" : "fixed")}>
       {/* Minimal keeps the mark over the content column it sits above, which is
           inset further than the app's own gutter. */}
-      <div className={cn("flex h-16 items-center gap-6 px-6", minimal && "lg:px-16")}>
+      <div className={cn("h-navbar flex items-center gap-6 px-6", minimal && "lg:px-16")}>
         <Brand />
 
         {/* Nothing else on an auth screen: an empty nav landmark is still a
@@ -43,7 +46,7 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
             at a page the visitor is one form away from anyway. */}
         {minimal ? null : (
           <>
-            <nav className="flex items-center gap-2" aria-label="Primary navigation">
+            <nav className="flex h-full items-stretch gap-2" aria-label="Primary navigation">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
@@ -52,12 +55,14 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                     key={item.href}
                     href={item.href}
                     // Text alone, like SIGN IN beside it: no hover fill, no
-                    // tinted pill on the active item. Weight carries the active
-                    // state alongside the brand colour so it does not rest on
-                    // hue alone, and `aria-current` states it outright — with
-                    // the pill gone there is nothing else left to imply it.
-                    // `rounded-md` stays: it shapes the focus ring, which is
-                    // the one box here that still earns its place.
+                    // tinted pill. Idle links sit lighter than the foreground
+                    // and hover jumps them to full `fg`, so the darkening is
+                    // unmistakable; the selected entry stays blue on hover —
+                    // blue means selected and nothing else on the bar does.
+                    // The heavier weight and `aria-current` state it outright
+                    // so it does not rest on colour alone. `rounded-md` stays:
+                    // it shapes the focus ring, which is the one box here that
+                    // still earns its place.
                     aria-current={isActive ? "page" : undefined}
                     // Same reason as the staff rail: these are dynamic routes,
                     // and the default prefetch renders every one of them on
@@ -66,11 +71,12 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                     // `/community` requests.
                     prefetch={false}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition hover:text-brand",
-                      isActive ? "font-semibold text-brand" : "font-medium text-muted-fg",
+                      "relative flex items-center gap-2 rounded-md px-3 py-2 text-base transition",
+                      "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand after:opacity-0",
+                      isActive ? "font-semibold text-brand after:opacity-100" : "font-medium text-muted-fg/80 hover:text-fg",
                     )}
                   >
-                    <span className="material-symbols-rounded text-[18px]">{item.icon}</span>
+                    <span className="material-symbols-rounded text-[20px]">{item.icon}</span>
                     {item.label}
                   </Link>
                 );
@@ -84,10 +90,11 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
                 // Signing up is the hero's "Join Now" now, so the bar carries sign-in
                 // alone — in the slot sign-up used to hold.
                 //
-                // Set at the nav links' own `text-sm`, not smaller. This is the
-                // only thing in the bar that is not navigation, and the caps and
-                // tracking are what say so; size is the wrong axis for it, since
-                // smaller reads as less important rather than as different.
+                // Held at `text-sm` while the nav links stepped up to `text-base`.
+                // It was deliberately matched to them once, on the grounds that
+                // size reads as rank; the caps and tracking now carry that
+                // distinction on their own, and this is the one control in the
+                // bar that is not navigation.
                 <Link
                   href={withBackLink("/sign-in", origin)}
                   // The origin rides in the query string, so every page this bar

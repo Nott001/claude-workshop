@@ -1,4 +1,4 @@
-import type { LandingEvent } from "@/shared/types";
+import type { EventMode, LandingEvent } from "@/shared/types";
 
 /** An EVENT row as `/api/events` and the landing page query return it. */
 export interface EventRow {
@@ -9,6 +9,7 @@ export interface EventRow {
   end_time: string;
   venue_name: string;
   status: string;
+  event_type?: EventMode | null;
   cover_image_url?: string | null;
   COURSE?: { course_name: string } | null;
 }
@@ -30,6 +31,7 @@ export function toLandingEvent(row: EventRow): LandingEvent {
     end_time: row.end_time,
     venue_name: row.venue_name,
     status: row.status,
+    event_type: row.event_type ?? "onsite",
     course_name: row.COURSE?.course_name ?? null,
     cover_image_url: row.cover_image_url ?? null,
   };

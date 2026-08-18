@@ -55,7 +55,6 @@ const ticket: Ticket = {
   checked_in_at: null,
   created_at: "2026-08-01T00:00:00Z",
   updated_at: "2026-08-01T00:00:00Z",
-  PAYMENT: { status: "paid", paid_at: "2026-08-01T00:00:00Z" },
   EVENT: {
     title: "The Best Event",
     event_date: "2026-08-12",
@@ -122,6 +121,22 @@ describe("TicketCard", () => {
     expect(screen.getByText("The Best Event")).toBeTruthy();
     expect(screen.getByText("StartupLab, 123 Main St")).toBeTruthy();
     expect(screen.getByText("PHP 1,500.00")).toBeTruthy();
+  });
+
+  it("shows the check-in code and hides payment bookkeeping", () => {
+    render(<TicketCard ticket={ticket} />);
+
+    expect(screen.getByText("tok")).toBeTruthy();
+    expect(screen.queryByText(/Payment #/)).toBeNull();
+    expect(screen.queryByText(/Issued/)).toBeNull();
+    expect(screen.queryByText(/Paid/)).toBeNull();
+  });
+
+  it("links the card to the ticket pass page", () => {
+    render(<TicketCard ticket={ticket} />);
+
+    const viewPass = screen.getByRole("link", { name: /View pass/ });
+    expect(viewPass).toHaveProperty("href", "http://localhost:3000/tickets/41");
   });
 
   it("degrades instead of crashing when the embed comes back null", () => {

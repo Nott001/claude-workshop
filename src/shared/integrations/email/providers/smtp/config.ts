@@ -1,6 +1,7 @@
 export interface SmtpConfig {
   host: string;
   port: number;
+  secure: boolean;
   username: string;
   password: string;
   fromEmail: string;
@@ -13,8 +14,9 @@ export interface SmtpConfig {
 const DEFAULT_PORT = 465;
 
 // A normal send against the live host takes ~4.5s, but the greeting sometimes
-// stalls well past that. Now that delivery happens after the response, waiting
-// longer costs nobody anything, where cutting it short loses the email.
+// stalls well past that. The reset route awaits its send, so this bound is what
+// keeps a dead relay from holding a request open for minutes; the retry below
+// then gives a second connection to a stall a second chance.
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 // One retry. The observed failure was a greeting that never arrived on an
@@ -25,6 +27,18 @@ const DEFAULT_ATTEMPTS = 2;
 function positiveInt(raw: string | undefined, fallback: number): number {
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/** A loopback host can only be a local capture box (inbucket); nothing real is relayed there. */
+export function isLoopbackHost(host: string): boolean {
+  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+}
+
+/** Explicit off/on wins; otherwise the security mode follows the host. */
+function parseSecure(raw: string | undefined, host: string): boolean {
+  if (raw === "off" || raw === "false" || raw === "0") return false;
+  if (raw === "on" || raw === "true" || raw === "1") return true;
+  return !isLoopbackHost(host);
 }
 
 /**
@@ -43,6 +57,10 @@ export function readSmtpConfig(env: Record<string, string | undefined> = process
   return {
     host,
     port: positiveInt(env.SMTP_PORT, DEFAULT_PORT),
+    // A local capture box speaks plaintext and gets it with no extra setting;
+    // a remote relay defaults to implicit TLS so a password is never sent
+    // unencrypted to a real host by accident. SMTP_SECURE overrides both.
+    secure: parseSecure(env.SMTP_SECURE, host),
     username,
     password,
     // cPanel rejects a MAIL FROM the authenticated account does not own, so the

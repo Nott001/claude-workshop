@@ -22,7 +22,7 @@ const allTemplates = {
 const cases = [
   {
     name: "ticketIssued",
-    params: { name: "Ada", eventTitle: "Launch", eventDate: "2026-09-01" },
+    params: { name: "Ada", eventTitle: "Launch", eventDate: "2026-09-01", code: "1a2b3c" },
     reason: /registered for an event/,
   },
   { name: "checkInConfirmed", params: { name: "Ada", eventTitle: "Launch" }, reason: /registered for an event/ },

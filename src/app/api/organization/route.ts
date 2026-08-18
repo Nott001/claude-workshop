@@ -1,11 +1,11 @@
-import { ROLES, STAFF_ROLES } from "@/shared/lib/roles";
+import { ALL_ROLES, ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES } from "@/modules/auth/lib/invited-role";
 import { inviteUser, OrganizationServiceError } from "@/modules/auth/lib/organization-service";
 
@@ -36,16 +36,17 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const search = searchParams.get("search")?.trim() || "";
 
-  // `role` reaches the DAO as an .eq value, so pinch it to the staff set rather
-  // than let an arbitrary string ride the filter out to PostgREST.
+  // `role` reaches the DAO as an .eq value, so pinch it to the known roles
+  // rather than let an arbitrary string ride the filter out to PostgREST.
+  // Attendee is among them: promoting one means first being able to list them.
   const role = searchParams.get("role") ?? undefined;
-  if (role && !(STAFF_ROLES as readonly string[]).includes(role)) {
+  if (role && !(ALL_ROLES as readonly string[]).includes(role)) {
     return NextResponse.json({ error: { message: "Invalid role" } }, { status: 400 });
   }
 
   const supabase = getServiceClient();
 
-  const result = await userDao.listStaff(supabase, { page, search, pageSize: PAGE_SIZE, role });
+  const result = await userDao.listOrganizationMembers(supabase, { page, search, pageSize: PAGE_SIZE, role });
 
   return NextResponse.json({
     users: result.data,
@@ -67,8 +68,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  if (parsed.data.role === ROLES.ADMIN && !hasMinRole(guard.user.role, ROLES.SUPER_ADMIN)) {
-    return NextResponse.json({ error: { message: "Only super admins can invite admins" } }, { status: 403 });
+  if (!canGrantRole(guard.user.role, parsed.data.role)) {
+    return NextResponse.json({ error: { message: "You cannot invite a role you do not outrank" } }, { status: 403 });
   }
 
   const supabase = getServiceClient();

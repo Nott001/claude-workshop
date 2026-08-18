@@ -16,7 +16,7 @@ vi.mock("@/modules/user/components/account-settings", () => ({
   AccountSettings: () => <div>Account Settings stub</div>,
 }));
 
-import UserSettingsPage from "@/app/user/[[...rest]]/page";
+import UserSettingsPage from "@/app/user/page";
 
 const user = { id: 1, role: ROLES.SPEAKER, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 

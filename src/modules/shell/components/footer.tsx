@@ -16,8 +16,8 @@ export function Footer({ role = null }: { role?: UserRole | null }) {
 /** Staff pages carry their own chrome, so the console keeps the plain copyright bar. */
 function StaffFooter() {
   return (
-    <footer className="mt-auto flex items-center justify-between border-t border-border bg-background px-6 py-6">
-      <p className="text-sm font-medium tracking-wider text-muted-foreground">{COPYRIGHT}</p>
+    <footer className="mt-auto flex items-center justify-between border-t border-border bg-bg px-6 py-6">
+      <p className="text-sm font-medium tracking-wider text-muted-fg">{COPYRIGHT}</p>
     </footer>
   );
 }

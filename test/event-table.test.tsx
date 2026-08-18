@@ -13,6 +13,7 @@ const rows: EventTableRow[] = [
     venue_name: "Main Hall",
     status: "active",
     attendee_count: 12,
+    capacity: 50,
   },
   {
     id: 8,
@@ -95,15 +96,45 @@ describe("EventTable", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("renders the attendee count per row", () => {
+  it("renders the attendee count against the cap for a capped event", () => {
     render(<EventTable events={rows} />);
 
-    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("12 / 50")).toBeTruthy();
+  });
+
+  it("renders the bare count for an uncapped event, with no empty divider", () => {
+    render(<EventTable events={rows} />);
+
+    // The second row has no capacity; "0 /" would read as a cap of nothing.
+    expect(screen.getByText("0")).toBeTruthy();
   });
 
   it("renders the empty message when there are no events", () => {
     render(<EventTable events={[]} />);
 
     expect(screen.getByText("No events found")).toBeTruthy();
+  });
+
+  it("keeps the column headers when there are no events", () => {
+    render(<EventTable events={[]} />);
+
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(screen.getByText("No events found")).toBeTruthy();
+  });
+
+  it("dims the existing rows, not the header, while a search refetch is in flight", () => {
+    render(<EventTable events={rows} loading />);
+
+    expect(screen.getByText("Launch")).toBeTruthy();
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("shows the loading row under the headers, not the empty message, while the first load is pending", () => {
+    render(<EventTable events={[]} loading />);
+
+    expect(screen.getByText("Date")).toBeTruthy();
+    expect(screen.getByText("progress_activity")).toBeTruthy();
+    expect(screen.queryByText("No events found")).toBeNull();
   });
 });

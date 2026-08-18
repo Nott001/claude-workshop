@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import type { EventMode } from "@/shared/types";
 
 interface Course {
   course_name: string;
@@ -16,6 +17,7 @@ interface Event {
   venue_name: string;
   venue_address: string | null;
   status: "draft" | "active" | "complete";
+  event_type?: EventMode | null;
   cover_image_url: string | null;
   COURSE: Course | null;
   attendee_count?: number;
@@ -78,7 +80,14 @@ export function useEventList(options?: UseEventListOptions) {
       // Not on a superseded run: that one leaves every flag to its replacement.
       // Guarding only `loading` let the discarded run's data still land.
       if (cancelled) return;
-      if (!result.ok) setError("Failed to load events");
+      if (!result.ok) {
+        // Keep the rows already on screen: wiping them on a failed search is
+        // the whole-page blanking this refetch path exists to avoid.
+        setError("Failed to load events");
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
       setEvents(result.rows);
       setHasMore(result.hasMore);
       setLoading(false);

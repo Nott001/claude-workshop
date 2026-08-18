@@ -14,7 +14,11 @@ export function PostLoginRedirect() {
 
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => router.replace(roleHome(data?.role)))
+      .then((data) => {
+        const dest = roleHome(data?.role);
+        if (dest === "/") return;
+        router.replace(dest);
+      })
       .catch(() => {});
   }, [isLoaded, isSignedIn, router]);
 

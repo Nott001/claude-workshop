@@ -17,7 +17,7 @@ function renderStaff(role = "admin") {
     isSignedIn: true,
     signOut: vi.fn(),
   });
-  render(<StaffNavbar />);
+  return render(<StaffNavbar />);
 }
 
 beforeEach(() => {
@@ -41,5 +41,26 @@ describe("StaffNavbar", () => {
     renderStaff("admin");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Events/ })).toBeTruthy();
+  });
+
+  it("wears the same frosted surface as the attendee bar", () => {
+    const { container } = renderStaff();
+
+    const header = container.querySelector("header");
+
+    expect(header?.className).toContain("bg-surface/75");
+    expect(header?.className).toContain("backdrop-blur-xl");
+    expect(header?.className).toContain("fixed");
+  });
+
+  // The rail hangs off the bottom edge of the bar, so the two read the same
+  // token. Sizing one without the other opens a gap down the left of the page.
+  it("stands at the shared height, with the rail starting where it ends", () => {
+    const { container } = renderStaff();
+
+    expect(container.querySelector("header > div")?.className).toContain("h-navbar");
+    expect(container.querySelector("header > div")?.className).not.toContain("h-16");
+    expect(container.querySelector("aside")?.className).toContain("top-navbar");
+    expect(container.querySelector("aside")?.className).not.toContain("top-16");
   });
 });

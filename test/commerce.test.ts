@@ -110,13 +110,13 @@ describe("canTransitionTicket", () => {
 });
 
 describe("generateQrToken", () => {
-  it("generates a 64-character hex string", () => {
+  it("generates a 6-character hexadecimal code", () => {
     const token = generateQrToken();
-    expect(token).toHaveLength(64);
+    expect(token).toHaveLength(6);
     expect(/^[0-9a-f]+$/.test(token)).toBe(true);
   });
 
-  it("generates unique tokens", () => {
+  it("generates distinct codes in a small batch", () => {
     const tokens = new Set(Array.from({ length: 100 }, () => generateQrToken()));
     expect(tokens.size).toBe(100);
   });

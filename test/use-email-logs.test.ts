@@ -110,4 +110,76 @@ describe("useEmailLogs debounced search", () => {
 
     expect(urls[urls.length - 1]).toBe("/api/logs?page=1&limit=50");
   });
+
+  it("marks the list as ended when a single page is returned", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: emailRows, total: 1, page: 1, limit: 50 }) })),
+    );
+
+    const { result } = renderHook(() => useEmailLogs());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.logs).toHaveLength(1);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("treats a non-array payload as no rows", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: null, total: 0, page: 1, limit: 50 }) })),
+    );
+
+    const { result } = renderHook(() => useEmailLogs());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.logs).toEqual([]);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("sets error and keeps the loaded rows when a refetch fails, clearing on success", async () => {
+    vi.useFakeTimers();
+    let fail = false;
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        if (fail) return { ok: false };
+        return { ok: true, json: async () => ({ data: emailRows, total: 1, page: 1, limit: 50 }) };
+      }),
+    );
+
+    const { result } = renderHook(() => useEmailLogs());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.logs).toHaveLength(1);
+    expect(result.current.error).toBeNull();
+
+    fail = true;
+    act(() => result.current.setSearch("zzz"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // The rows that were on screen survive the failed refetch, with the error
+    // exposed for the page's notice.
+    expect(result.current.logs).toHaveLength(1);
+    expect(result.current.error).toBe("Failed to load email logs");
+
+    fail = false;
+    act(() => result.current.setSearch("ada"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(result.current.error).toBeNull();
+  });
 });

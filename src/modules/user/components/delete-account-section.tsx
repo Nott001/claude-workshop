@@ -1,8 +1,8 @@
 "use client";
 
-import { Input } from "@/shared/components/input";
 import { Button } from "@/shared/components/button";
-import { FormField, FormLabel, FormMessage } from "@/shared/components/form";
+import { TextField } from "@/shared/components/text-field";
+import { SettingsCard } from "@/modules/user/components/settings-card";
 import {
   Dialog,
   DialogClose,
@@ -20,12 +20,16 @@ export function DeleteAccountSection() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? openDialog() : closeDialog())}>
-      <div className="p-6">
-        <h2 className="text-sm font-bold text-error">Delete Account</h2>
-        <div className="mt-4">
-          <DialogTrigger render={<Button variant="danger">Delete my account</Button>} />
-        </div>
-      </div>
+      {/* No footer: the action is destructive and confirmed in a dialog, so it
+          must not look like the save buttons above it. */}
+      <SettingsCard
+        id="danger"
+        icon="warning"
+        title="Delete Account"
+        description="Permanently removes your personal data. This cannot be undone."
+      >
+        <DialogTrigger render={<Button variant="danger">Delete my account</Button>} />
+      </SettingsCard>
 
       <DialogContent>
         <DialogHeader>
@@ -34,22 +38,14 @@ export function DeleteAccountSection() {
             Deleting your account permanently removes your personal data. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <FormField>
-          <FormLabel htmlFor="delete-account-phrase">Type &quot;Delete My Account&quot; to confirm</FormLabel>
-          <Input
-            id="delete-account-phrase"
-            type="text"
-            value={phrase}
-            onChange={(e) => setPhrase(e.target.value)}
-            aria-invalid={!!error}
-            aria-describedby={error ? "delete-account-error" : undefined}
-          />
-          {error && (
-            <FormMessage id="delete-account-error" role="alert">
-              {error}
-            </FormMessage>
-          )}
-        </FormField>
+        <TextField
+          id="delete-account-phrase"
+          label='Type "Delete My Account" to confirm'
+          type="text"
+          value={phrase}
+          onChange={setPhrase}
+          error={error}
+        />
         <DialogFooter>
           <DialogClose render={<Button variant="secondary">Cancel</Button>} />
           <Button variant="danger" disabled={!canConfirm || submitting} onClick={() => void confirm()}>

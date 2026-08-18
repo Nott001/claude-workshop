@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatEventPrice, formatVenue, formatDuration } from "@/shared/lib/event-format";
+import { eventModeIcon, formatEventPrice, formatVenue, formatDuration } from "@/shared/lib/event-format";
 
 describe("formatEventPrice", () => {
   it("prefixes the event's own currency code", () => {
@@ -64,5 +64,17 @@ describe("formatDuration", () => {
   it("returns null for inverted or zero-length windows", () => {
     expect(formatDuration("17:00", "09:00")).toBeNull();
     expect(formatDuration("09:00", "09:00")).toBeNull();
+  });
+});
+
+describe("eventModeIcon", () => {
+  it("gives an online event the camera and an onsite one the pin", () => {
+    expect(eventModeIcon("online")).toBe("videocam");
+    expect(eventModeIcon("onsite")).toBe("location_on");
+  });
+
+  it("reads a row with no mode as onsite, matching the column's default", () => {
+    expect(eventModeIcon(null)).toBe("location_on");
+    expect(eventModeIcon(undefined)).toBe("location_on");
   });
 });

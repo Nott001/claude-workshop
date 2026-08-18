@@ -9,12 +9,13 @@ import { LoadMoreButton } from "@/shared/components/load-more";
 import { Badge } from "@/shared/components/badge";
 import { Drawer } from "@/shared/components/drawer";
 import { TableToolbar } from "@/shared/components/table-toolbar";
+import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
 import {
   Table,
   TableBody,
   TableCell,
   TableContainer,
-  TableEmpty,
+  TableBodyState,
   TableHead,
   TableHeadCell,
   TableRow,
@@ -57,6 +58,7 @@ export default function StaffEmailsPage() {
     loading,
     loadingMore,
     hasMore,
+    error,
     loadMore,
     emailTypeFilter,
     statusFilter,
@@ -68,21 +70,15 @@ export default function StaffEmailsPage() {
   const [selected, setSelected] = useState<EmailLogWithUser | null>(null);
 
   if (pending) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
+    return <StaffPageState>Loading...</StaffPageState>;
   }
 
   if (!allowed) return null;
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="mx-auto w-full max-w-[1024px] px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-fg">Email Logs</h1>
-        </div>
+    <>
+      <StaffPage>
+        <StaffPageHeader title="Email Logs" description="Every message the platform has sent, and whether it arrived." />
 
         <TableToolbar search={{ value: search, onChange: setSearch, placeholder: "Search recipient name or email..." }}>
           <div className="flex gap-3">
@@ -114,29 +110,32 @@ export default function StaffEmailsPage() {
           </div>
         </TableToolbar>
 
-        {loading ? (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <div className="text-sm text-muted-fg">Loading emails...</div>
-          </div>
-        ) : logs.length === 0 ? (
-          <TableEmpty
-            icon="mail"
-            title="No email logs found"
-            hint={search ? "Try a different search term." : "No emails match the current filters."}
-          />
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableHeadCell>User</TableHeadCell>
-                  <TableHeadCell>Email Type</TableHeadCell>
-                  <TableHeadCell>Status</TableHeadCell>
-                  <TableHeadCell>Sent At</TableHeadCell>
-                  <TableHeadCell className="w-12" aria-label="Details" />
-                </TableRow>
-              </TableHead>
-              <TableBody>
+        {error && logs.length > 0 && (
+          <p className="mt-2 text-sm text-error">Failed to refresh email logs — showing last loaded results.</p>
+        )}
+
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeadCell>User</TableHeadCell>
+                <TableHeadCell className="w-32">Email Type</TableHeadCell>
+                <TableHeadCell className="w-24">Status</TableHeadCell>
+                <TableHeadCell className="w-44">Sent At</TableHeadCell>
+                <TableHeadCell className="w-12" aria-label="Details" />
+              </TableRow>
+            </TableHead>
+            <TableBody busy={loading && logs.length > 0}>
+              <TableBodyState
+                ready={logs.length > 0}
+                loading={loading}
+                colSpan={5}
+                empty={{
+                  icon: "mail",
+                  title: "No email logs found",
+                  hint: search ? "Try a different search term." : "No emails match the current filters.",
+                }}
+              >
                 {logs.map((log) => (
                   <TableRow
                     key={log.id}
@@ -144,9 +143,9 @@ export default function StaffEmailsPage() {
                     aria-label={`View ${EMAIL_TYPE_LABELS[log.email_type] ?? log.email_type}`}
                   >
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className="flex min-w-0 flex-col">
                         <span className="font-medium text-fg">{log.USER?.full_name ?? "Unknown"}</span>
-                        <span className="text-xs text-muted-fg">{log.USER?.email ?? ""}</span>
+                        <span className="truncate text-xs text-muted-fg">{log.USER?.email ?? ""}</span>
                       </div>
                     </TableCell>
                     <TableCell>{EMAIL_TYPE_LABELS[log.email_type] ?? log.email_type}</TableCell>
@@ -155,7 +154,7 @@ export default function StaffEmailsPage() {
                         {STATUS_LABELS[log.status] ?? log.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-fg">{formatDate(log.sent_at)}</TableCell>
+                    <TableCell className="truncate text-muted-fg">{formatDate(log.sent_at)}</TableCell>
                     <TableCell className="w-12">
                       <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
                         chevron_right
@@ -163,12 +162,12 @@ export default function StaffEmailsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+              </TableBodyState>
+            </TableBody>
+          </Table>
+        </TableContainer>
         {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
-      </div>
+      </StaffPage>
 
       <Drawer
         open={selected !== null}
@@ -203,6 +202,6 @@ export default function StaffEmailsPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </>
   );
 }

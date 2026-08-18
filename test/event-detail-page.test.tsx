@@ -21,7 +21,7 @@ import type { EventSpeakerProfile, EventWithCourse } from "@/modules/events/lib/
 const baseEvent: EventWithCourse = {
   id: 7,
   title: "Launch Day",
-  event_date: "2026-09-01",
+  event_date: "2099-01-01",
   start_time: "09:00",
   end_time: "17:00",
   venue_name: "Main Hall",
@@ -63,7 +63,6 @@ function renderDetail(role: UserRole, overrides: Partial<ReturnType<typeof useEv
     event: baseEvent,
     loading: false,
     error: null,
-    badgeProps: null,
     hasTicket: false,
     isSignedIn: true,
     handleRegister: vi.fn(),
@@ -113,7 +112,7 @@ describe("Event detail page assembly", () => {
     });
 
     expect(screen.getByRole("heading", { level: 1, name: "Launch Day" })).toBeTruthy();
-    expect(screen.getByText("active")).toBeTruthy();
+    expect(screen.getByText("Upcoming")).toBeTruthy();
 
     expect(screen.getByText("About this event")).toBeTruthy();
     expect(screen.getByText("All about the launch")).toBeTruthy();

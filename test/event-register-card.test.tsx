@@ -105,6 +105,46 @@ describe("EventRegisterCard", () => {
     expect(screen.queryByRole("button", { name: /view ticket/i })).toBeNull();
   });
 
+  it("shows the seats left on a capped event", () => {
+    render(
+      <EventRegisterCard event={{ ...baseEvent, seats_left: 12 }} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />,
+    );
+
+    expect(screen.getByText(/seats left/i)).toBeTruthy();
+    expect(screen.getByText("12")).toBeTruthy();
+  });
+
+  it("says nothing about seats when the event is uncapped", () => {
+    render(<EventRegisterCard event={baseEvent} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />);
+
+    expect(screen.queryByText(/seats left/i)).toBeNull();
+  });
+
+  it("locks the button on a sold-out event instead of sending the reader into a refusal", () => {
+    const onRegister = vi.fn();
+    render(
+      <EventRegisterCard event={{ ...baseEvent, seats_left: 0 }} hasTicket={false} isSignedIn={true} onRegister={onRegister} />,
+    );
+
+    const button = screen.getByRole("button", { name: /sold out/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRegister).not.toHaveBeenCalled();
+  });
+
+  it("still offers the room to a ticket holder after the event sells out", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, seats_left: 0, event_date: "2020-01-01" }}
+        hasTicket={true}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /view ticket/i })).toBeTruthy();
+  });
+
   it("hides the price row for a free event and shows it for a paid one", () => {
     render(<EventRegisterCard event={{ ...baseEvent, price: 0 }} hasTicket={false} isSignedIn={true} onRegister={vi.fn()} />);
     expect(screen.queryByText(/PHP/)).toBeNull();
@@ -159,5 +199,57 @@ describe("EventRegisterCard", () => {
     );
 
     expect(screen.getByRole("button", { name: /add to calendar/i })).toBeTruthy();
+  });
+
+  it("shows a disabled Completed button for a finished event with no ticket", () => {
+    const onRegister = vi.fn();
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, status: "complete" }}
+        hasTicket={false}
+        isSignedIn={true}
+        onRegister={onRegister}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Completed" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRegister).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
+  });
+
+  it("gates on the end time too, not just the stored status", () => {
+    const onRegister = vi.fn();
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, event_date: "2020-01-01" }}
+        hasTicket={false}
+        isSignedIn={true}
+        onRegister={onRegister}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Completed" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRegister).not.toHaveBeenCalled();
+  });
+
+  it("keeps a ticket holder's View Ticket on a finished event", () => {
+    render(
+      <EventRegisterCard
+        event={{ ...baseEvent, status: "complete", event_date: "2020-01-01" }}
+        hasTicket={true}
+        isSignedIn={true}
+        onRegister={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /view ticket/i });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(button);
+    expect(push).toHaveBeenCalledWith("/tickets");
+    expect(screen.queryByRole("button", { name: "Completed" })).toBeNull();
   });
 });

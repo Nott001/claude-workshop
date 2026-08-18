@@ -5,7 +5,7 @@ import { render, cleanup } from "@testing-library/react";
 
 const { useSession, usePathname, TopNavbar, StaffNavbar, FloatingAssistButton } = vi.hoisted(() => ({
   useSession: vi.fn(),
-  usePathname: vi.fn(() => "/home"),
+  usePathname: vi.fn(() => "/"),
   TopNavbar: vi.fn(() => null),
   StaffNavbar: vi.fn(() => null),
   FloatingAssistButton: vi.fn(() => null),
@@ -66,17 +66,22 @@ describe("AppShell navbar branch", () => {
 });
 
 describe("AppShell main column offset", () => {
-  it("uses only pt-16 for the top-navbar-only case", () => {
+  // Both bars stand at --spacing-navbar, so one offset clears either. It reads
+  // from the token rather than repeating the number: a hardcoded 64px here is
+  // what would hide the top of every page behind the bar the day one moves.
+  it("clears the top navbar by the token that sets its height", () => {
     const { container } = renderShell(ROLES.ATTENDEE);
     const className = container.querySelector("main")?.className;
-    expect(className).toContain("pt-16");
+    expect(className).toContain("pt-navbar");
+    expect(className).not.toContain("pt-16");
     expect(className).not.toContain("lg:pl-[72px]");
   });
 
-  it("adds the collapsed rail offset for the staff-navbar case", () => {
+  it("clears the staff navbar by the same token, and the rail beside it", () => {
     const { container } = renderShell(ROLES.ADMIN);
     const className = container.querySelector("main")?.className;
-    expect(className).toContain("pt-16");
+    expect(className).toContain("pt-navbar");
+    expect(className).not.toContain("pt-16");
     expect(className).toContain("lg:pl-[72px]");
   });
 });
@@ -97,7 +102,7 @@ describe("AppShell credential screens", () => {
   );
 
   it("keeps the navbar on a page that merely links to one", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
 
     renderShell(null);
 
@@ -139,7 +144,7 @@ describe("AppShell assist button", () => {
   });
 
   it("offers assistance to an attendee", () => {
-    usePathname.mockReturnValue("/home");
+    usePathname.mockReturnValue("/");
 
     renderShell(ROLES.ATTENDEE);
 

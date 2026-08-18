@@ -113,4 +113,92 @@ describe("useEventList debounced search", () => {
 
     expect(urls[urls.length - 1]).not.toContain("search=");
   });
+
+  it("keeps the rows already on screen when a refetch fails", async () => {
+    vi.useFakeTimers();
+    let fail = false;
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        if (fail) return { ok: false };
+        return { ok: true, json: async () => ({ data: events, total: 1, page: 1, limit: 50 }) };
+      }),
+    );
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.events).toHaveLength(1);
+
+    fail = true;
+    act(() => result.current.setSearch("Alpha"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // A failed search must not wipe the rows it would have replaced; the page
+    // chrome depends on them staying put.
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.error).toBe("Failed to load events");
+    expect(result.current.loading).toBe(false);
+  });
+
+  it("marks the list as ended when a single page is returned", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: events, total: 1, page: 1, limit: 50 }) })),
+    );
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("treats a non-array payload as no rows", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: null, total: 0, page: 1, limit: 50 }) })),
+    );
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.events).toEqual([]);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("surfaces an error when loading more fails", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string) => {
+      const page = new URL(String(url), "http://localhost").searchParams.get("page");
+      if (page === "2") return { ok: false };
+      return { ok: true, json: async () => ({ data: events, total: 51, page: 1, limit: 50 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.error).toBe("Failed to load events");
+    expect(result.current.loadingMore).toBe(false);
+    expect(result.current.events).toHaveLength(1);
+  });
 });

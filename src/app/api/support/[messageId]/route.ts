@@ -72,9 +72,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
     return denied;
   }
 
-  const ok = await chatDao.updateMessage(supabase, Number(messageId), {
-    deleted_at: new Date().toISOString(),
-  });
+  const ok = await chatDao.deleteMessagesByIds(supabase, [Number(messageId)]);
 
   if (!ok) {
     return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });

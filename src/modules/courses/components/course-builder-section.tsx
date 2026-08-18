@@ -1,7 +1,8 @@
 "use client";
 
 import { CurriculumBuilder } from "@/modules/courses/components/curriculum-builder";
-import { LessonDialog } from "@/modules/courses/components/lesson-dialog";
+import { Button } from "@/shared/components/button";
+import { BUILDER_SURFACE } from "@/modules/courses/lib/surface";
 import type { CourseSpeaker } from "@/modules/courses/lib/types";
 import type { useCourseCreate } from "@/modules/courses/lib/use-course-create";
 
@@ -19,18 +20,17 @@ export function CourseBuilderSection({
   eventStartTime?: string | null;
   eventEndTime?: string | null;
 }) {
+  // Both states carry their own card so a host page only has to place the
+  // section, never wrap it — two surfaces nested read as a bug.
   if (builder.modules.length === 0) {
     return (
-      <>
+      <div className={BUILDER_SURFACE}>
         <p className="text-sm text-muted-fg">No course yet for this event.</p>
         {builder.error && <p className="mt-3 text-sm text-error">{builder.error}</p>}
-        <button
-          onClick={() => builder.handleAddModule()}
-          className="mt-4 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/80"
-        >
+        <Button className="mt-4" onClick={() => builder.handleAddModule()}>
           Create Course
-        </button>
-      </>
+        </Button>
+      </div>
     );
   }
 
@@ -42,24 +42,12 @@ export function CourseBuilderSection({
         eventSpeakers={eventSpeakers}
         eventStartTime={eventStartTime}
         eventEndTime={eventEndTime}
-        onUpdateModuleSchedule={builder.handleUpdateModuleSchedule}
         onAddModule={builder.handleAddModule}
         onAddQaModule={builder.handleAddQaModule}
-        onRenameModule={builder.handleRenameModule}
         onDeleteModule={builder.handleDeleteModule}
-        onDeleteLesson={builder.handleDeleteLesson}
-        onAddLessonClick={builder.openLessonDialog}
         onReorderModules={builder.handleReorderModules}
         onMoveLesson={builder.handleMoveLesson}
-        onRenameLesson={builder.handleRenameLesson}
-        onUpdateLessonDescription={builder.handleUpdateLessonDescription}
-      />
-      <LessonDialog
-        open={builder.lessonDialogModuleId !== null}
-        onOpenChange={(open) => {
-          if (!open) builder.setLessonDialogModuleId(null);
-        }}
-        onAddLesson={builder.handleAddLesson}
+        onSaveModule={builder.handleSaveModule}
       />
     </>
   );

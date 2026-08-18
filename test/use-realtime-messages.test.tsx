@@ -199,10 +199,10 @@ describe("useRealtimeMessages", () => {
       }),
     );
 
-    channels[0].fire({ eventType: "UPDATE", new: { id: 42, deleted_at: "2026-08-05T10:00:00Z" } });
+    channels[0].fire({ eventType: "UPDATE", new: { id: 42 } });
     channels[0].fire({ eventType: "DELETE", old: { id: 43 } });
 
-    expect(onUpdate).toHaveBeenCalledWith({ id: 42, deleted_at: "2026-08-05T10:00:00Z" });
+    expect(onUpdate).toHaveBeenCalledWith({ id: 42 });
     expect(onDelete).toHaveBeenCalledWith({ id: 43 });
     expect(onInsert).not.toHaveBeenCalled();
   });

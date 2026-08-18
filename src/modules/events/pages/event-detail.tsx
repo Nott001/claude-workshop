@@ -11,6 +11,7 @@ import { EventSchedule } from "@/modules/events/components/event-schedule";
 import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card";
 import { EventRegisterCard } from "@/modules/events/components/event-register-card";
 import { EventMapCard } from "@/modules/events/components/event-map-card";
+import { EventJoinCard } from "@/modules/events/components/event-join-card";
 import { EventShare } from "@/modules/events/components/event-share";
 import { BackLink } from "@/shared/components/back-link";
 
@@ -20,7 +21,7 @@ export function EventDetailPage({ from }: { from?: string }) {
   const eventId = params.id as string;
   const { user } = useSession();
   const backOrigin = toBackLinkOrigin(from);
-  const { event, loading, error, badgeProps, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
+  const { event, loading, error, hasTicket, isSignedIn, handleRegister } = useEventDetail(eventId, backOrigin);
   const backLink = resolveBackLink(backOrigin);
 
   useEffect(() => {
@@ -53,13 +54,17 @@ export function EventDetailPage({ from }: { from?: string }) {
     <div className="flex flex-1 flex-col bg-bg">
       {/* Gutters stay at sm:px-8. Widening them at lg would take width back off
           the content on any viewport narrower than the cap, where the cap is
-          not what is limiting the layout in the first place. */}
-      <div className="mx-auto w-full max-w-[1360px] px-5 py-12 sm:px-8">
+          not what is limiting the layout in the first place.
+
+          The cap is `--container-page`, shared with the staff pages: a
+          non-attendee opening this page is redirected to the staff view of the
+          same event, and the journey should not change shape halfway. */}
+      <div className="mx-auto w-full max-w-page px-5 py-12 sm:px-8">
         <BackLink href={backLink.href} className="mb-6">
           {backLink.label}
         </BackLink>
 
-        <EventDetailHero event={event} badgeLabel={badgeProps?.label ?? event.status} />
+        <EventDetailHero event={event} />
         {/* fr, not %: gap is added to the tracks rather than taken out of them,
             so 65%+35% plus a 24px gap overflowed the container by exactly the
             gap and hung the sticky column past the hero's right edge. */}
@@ -85,6 +90,9 @@ export function EventDetailPage({ from }: { from?: string }) {
           </div>
           <aside className="space-y-6 self-start lg:sticky lg:top-24">
             <EventRegisterCard event={event} hasTicket={hasTicket} isSignedIn={isSignedIn} onRegister={handleRegister} />
+            {/* Exactly one of these renders: the map card is empty for an online
+                event, the join card for an onsite one. */}
+            <EventJoinCard event={event} />
             <EventMapCard event={event} />
             <EventShare />
           </aside>

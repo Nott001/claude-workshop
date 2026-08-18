@@ -1,3 +1,19 @@
+import type { EventMode } from "@/shared/types";
+
+/**
+ * One person in an assignment roster, flattened to what the table renders.
+ *
+ * Lives in lib rather than beside the table so the hooks that build these rows
+ * do not have to reach up into `components` for the shape — the dependency runs
+ * app → components → lib, and only that way.
+ */
+export interface AssignmentRow {
+  id: number;
+  name: string;
+  /** Secondary line shown under the name, e.g. email or designation. */
+  detail?: string;
+}
+
 export interface EventSpeakerProfile {
   id: number;
   user_id: number;
@@ -34,6 +50,9 @@ export interface EventWithCourse {
   course_id: number | null;
   cover_image_url: string | null;
   status: "draft" | "active" | "complete";
+  event_type?: EventMode;
+  /** Null when withheld as well as when unset — see `redactMeetingUrl`. */
+  meeting_url?: string | null;
   price: number;
   currency: string;
   description: string | null;
@@ -41,6 +60,10 @@ export interface EventWithCourse {
   COURSE: { id: number; course_name: string; course_description: string | null } | null;
   EVENT_SPEAKER: EventSpeakerEntry[];
   EVENT_FACILITATOR?: { user_id: number }[];
+  /** Seat cap, or null/absent for an uncapped event. */
+  capacity?: number | null;
+  /** Seats still available. Served only for a capped event; see `seatsLeft`. */
+  seats_left?: number | null;
   attendee_count?: number;
   payment_count?: number;
 }

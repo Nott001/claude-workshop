@@ -34,7 +34,7 @@ export function normalizeEmail(value: string): string {
  * before the lookup for exactly that reason.
  */
 export type ResetOutcome =
-  | { status: "ready"; deliver: () => Promise<void> }
+  | { status: "ready"; deliver: () => Promise<{ success: boolean; error?: string }>; resetUrl: string }
   | { status: "unknown_email" }
   | { status: "rate_limited" }
   | { status: "failed" };
@@ -45,10 +45,12 @@ export type ResetOutcome =
  * definition rather than a copy at each end that can drift.
  *
  * `ready` becomes `sent` — the route reports what happened to the request, not
- * what the service decided internally. `invalid_request` has no outcome behind
- * it: the route rejects those before the service is reached.
+ * what the service decided internally. `delivery_failed` reports a send the
+ * route has actually awaited, distinct from `failed`, where the link was never
+ * minted at all. `invalid_request` has no outcome behind it: the route rejects
+ * those before the service is reached.
  */
-export type RecoverStatus = Exclude<ResetOutcome["status"], "ready"> | "sent" | "invalid_request";
+export type RecoverStatus = Exclude<ResetOutcome["status"], "ready"> | "sent" | "delivery_failed" | "invalid_request";
 
 /** Supabase answers a recovery link for an address it does not know with a 404. */
 function isUnknownUser(error: { status?: number; message?: string } | null): boolean {
@@ -59,10 +61,11 @@ function isUnknownUser(error: { status?: number; message?: string } | null): boo
 /**
  * Looks the address up and, when it owns an account, mints its reset link.
  *
- * Delivery is handed back as `deliver` rather than awaited here: the SMTP
- * session takes seconds, and the caller wants to answer the browser as soon as
- * the lookup is settled. Splitting them keeps the slow half off the response
- * path without making the fast half wait on it.
+ * Delivery is handed back as `deliver` rather than awaited here: minting is
+ * fast and the SMTP session is not, so the caller runs the send when it wants
+ * the verdict — the route awaits it to answer "sent" only once the mail is on
+ * its way. `deliver` resolves the provider's result rather than throwing, so a
+ * refusing transport reads as a failure the caller can report.
  */
 export async function preparePasswordReset(
   supabase: DbClient,
@@ -106,12 +109,15 @@ export async function preparePasswordReset(
 
   return {
     status: "ready",
+    resetUrl,
     deliver: async () => {
       try {
-        await sendTemplatedEmail(passwordResetTemplate, { name, resetUrl }, { email, name });
+        return await sendTemplatedEmail(passwordResetTemplate, { name, resetUrl }, { email, name });
       } catch (err) {
-        // Runs after the response has gone out, so there is nobody left to tell.
+        // The caller answers the browser with this verdict, so a rejecting
+        // send must be reported, not swallowed.
         console.error("Password reset email failed:", err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
   };

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { type AssignmentRow } from "@/modules/events/components/assignment-table";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { EventFormFields } from "@/modules/events/components/event-form-fields";
-import { BackLink } from "@/shared/components/back-link";
+import { EventTeamFields } from "@/modules/events/components/event-team-fields";
+import { CoverImagePicker } from "@/modules/events/components/cover-image-picker";
+import { Button } from "@/shared/components/button";
 import {
   EMPTY_EVENT_FORM,
   toEventPayload,
@@ -15,103 +16,86 @@ import {
 export { EMPTY_EVENT_FORM, toFormValues, toEventPayload } from "@/modules/events/lib/event-form-schema";
 export type { EventFormValues, EventPayload } from "@/modules/events/lib/event-form-schema";
 
+/**
+ * Which event this form is for: one that does not exist yet, or one that does.
+ *
+ * A single word rather than the three independent booleans this used to take
+ * (`includeTeam`, `includeCover`, `editing`), because they were never
+ * independent — an event with no row has no id to assign a facilitator against
+ * and nowhere to store a cover, and nothing to discard back to. Three flags
+ * spelled eight combinations of which two were real, and each caller had to
+ * remember which.
+ */
+export type EventFormMode = "create" | "edit";
+
 interface EventFormProps {
-  heading: string;
-  backHref: string;
-  backLabel: string;
+  mode: EventFormMode;
   submitLabel: string;
   submittingLabel: string;
   initialValues?: EventFormValues;
-  onSubmit: (payload: EventPayload) => Promise<void>;
+  /** Shown beside the submit button, e.g. "Changes saved." */
+  statusMessage?: string | null;
+  onDirtyChange?: (dirty: boolean) => void;
+  /** `coverFile` is what the create form staged, and always null in edit mode. */
+  onSubmit: (payload: EventPayload, coverFile: File | null) => Promise<void>;
 }
 
-interface FacilitatorCandidate {
-  id: number;
-  full_name: string;
-  email: string;
-}
-
-interface SpeakerCandidate {
-  id: number;
-  user_id: number;
-  designation: string | null;
-  USER: { full_name: string; email: string } | null;
-}
-
+/**
+ * The event sections and nothing else — no page frame, no heading, no back link.
+ *
+ * It used to carry all three, which was invisible on `/staff/events/new` where
+ * it *was* the page, and wrong everywhere else: dropped into a panel on the
+ * staff detail page it rendered a second page inside the first, complete with
+ * its own "Back to Event" link. Page chrome is the route's job now.
+ *
+ * The sections run cover, basics, pricing, team in both modes — the same order
+ * the event's own Details tab reads in, so creating an event and editing one
+ * are the same page with the same landmarks rather than two arrangements of the
+ * same fields.
+ */
 export function EventForm({
-  heading,
-  backHref,
-  backLabel,
+  mode,
   submitLabel,
   submittingLabel,
   initialValues = EMPTY_EVENT_FORM,
+  statusMessage,
+  onDirtyChange,
   onSubmit,
 }: EventFormProps) {
-  const [values, setValues] = useState<EventFormValues>(initialValues);
+  const creating = mode === "create";
+
+  // Merged over the empty form rather than taken as given. Every key must exist
+  // from the first render or its input mounts uncontrolled and React warns the
+  // moment a value arrives — and the fields here are conditional, so a caller
+  // that predates a column (or a dev server still holding an older module) would
+  // seed the form without it.
+  const seed = useMemo(() => ({ ...EMPTY_EVENT_FORM, ...initialValues }), [initialValues]);
+
+  const [values, setValues] = useState<EventFormValues>(seed);
+  // What is currently stored, as this form understands it. Held here rather
+  // than re-read from `initialValues` because the server echoes columns back in
+  // its own spelling — a `time` comes back as "09:00:00" against the "09:00" an
+  // <input type="time"> holds — which would leave a just-saved form dirty.
+  const [baseline, setBaseline] = useState<EventFormValues>(seed);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [facilitators, setFacilitators] = useState<FacilitatorCandidate[]>([]);
-  const [facilitatorsError, setFacilitatorsError] = useState(false);
-  const [speakers, setSpeakers] = useState<SpeakerCandidate[]>([]);
-  const [speakersError, setSpeakersError] = useState(false);
-  const [selectedFacilitatorId, setSelectedFacilitatorId] = useState("");
-  const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
+  // Outside `values` because the dirty check compares them as JSON, and a File
+  // serializes to `{}` — every picked cover would read as no change at all.
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+
+  // Serializing the whole form is the cheap way to compare it and the wasteful
+  // way to answer "did the submit button just change state": memoized so
+  // picking a cover, failing a save or starting one does not re-run it.
+  const dirty = useMemo(() => JSON.stringify(values) !== JSON.stringify(baseline), [values, baseline]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const [facRes, spkRes] = await Promise.all([fetch("/api/facilitators"), fetch("/api/speakers?role=speaker&limit=100")]);
-      if (cancelled) return;
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
-      if (facRes.ok) {
-        const rows: FacilitatorCandidate[] = await facRes.json();
-        if (!cancelled) setFacilitators(rows);
-      } else {
-        setFacilitatorsError(true);
-      }
-
-      if (spkRes.ok) {
-        const data = (await spkRes.json()) as { data?: SpeakerCandidate[] };
-        const rows: SpeakerCandidate[] = data.data ?? [];
-        if (!cancelled) setSpeakers(rows);
-      } else {
-        setSpeakersError(true);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
+  // Stable, so the sections below can skip a render they have no stake in.
+  const set = useCallback(<K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
-
-  const facilitatorRows: AssignmentRow[] = facilitators.map((f) => ({
-    id: f.id,
-    name: f.full_name,
-    detail: f.email,
-  }));
-
-  const speakerRows: AssignmentRow[] = speakers.map((s) => ({
-    id: s.id,
-    name: s.USER?.full_name ?? `User #${s.user_id}`,
-    detail: s.designation ?? s.USER?.email ?? undefined,
-  }));
-
-  function addFacilitator() {
-    if (!selectedFacilitatorId) return;
-    const id = Number(selectedFacilitatorId);
-    if (!values.facilitator_ids.includes(id)) set("facilitator_ids", [...values.facilitator_ids, id]);
-    setSelectedFacilitatorId("");
-  }
-
-  function addSpeaker() {
-    if (!selectedSpeakerId) return;
-    const id = Number(selectedSpeakerId);
-    if (!values.speaker_profile_ids.includes(id)) set("speaker_profile_ids", [...values.speaker_profile_ids, id]);
-    setSelectedSpeakerId("");
-  }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -128,7 +112,8 @@ export function EventForm({
     setError(null);
 
     try {
-      await onSubmit(toEventPayload(values));
+      await onSubmit(toEventPayload(values), coverFile);
+      setBaseline(values);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -137,41 +122,38 @@ export function EventForm({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-bg px-5 py-12 sm:px-8 md:px-12">
-      <div className="mx-auto w-full max-w-[896px]">
-        <BackLink href={backHref} className="mb-6">
-          {backLabel}
-        </BackLink>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Creation only: the picked file reaches `onSubmit` rather than storage,
+          because a cover's object path needs the event id. An event that has
+          one uploads on pick, from `CoverImageUpload` on its Details tab. */}
+      {creating && <CoverImagePicker onChange={setCoverFile} />}
 
-        <h1 className="mb-8 text-[36px] leading-[40px] font-bold tracking-[-0.02em] text-fg">{heading}</h1>
+      <EventFormFields values={values} set={set} creating={creating} />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <EventFormFields
-            values={values}
-            set={set}
-            facilitatorCandidates={facilitatorRows}
-            speakerCandidates={speakerRows}
-            facilitatorsError={facilitatorsError}
-            speakersError={speakersError}
-            selectedFacilitatorId={selectedFacilitatorId}
-            setSelectedFacilitatorId={setSelectedFacilitatorId}
-            selectedSpeakerId={selectedSpeakerId}
-            setSelectedSpeakerId={setSelectedSpeakerId}
-            onAddFacilitator={addFacilitator}
-            onAddSpeaker={addSpeaker}
-          />
+      {creating && (
+        <EventTeamFields facilitatorIds={values.facilitator_ids} speakerProfileIds={values.speaker_profile_ids} set={set} />
+      )}
 
-          {error && <p className="text-sm text-error">{error}</p>}
+      {/* Sticky, because the fields are taller than a viewport and a save
+          button at the bottom of them is a scroll away from most of the edits
+          it commits. */}
+      <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-bg/90 px-6 py-4 backdrop-blur">
+        {error && (
+          <p role="alert" className="mr-auto text-sm text-error">
+            {error}
+          </p>
+        )}
+        {!error && statusMessage && <p className="mr-auto text-sm text-success">{statusMessage}</p>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/80 disabled:opacity-50"
-          >
-            {submitting ? submittingLabel : submitLabel}
-          </button>
-        </form>
+        {!creating && dirty && (
+          <Button type="button" variant="secondary" size="lg" onClick={() => setValues(baseline)} disabled={submitting}>
+            Discard changes
+          </Button>
+        )}
+        <Button type="submit" size="lg" disabled={submitting || (!creating && !dirty)}>
+          {submitting ? submittingLabel : submitLabel}
+        </Button>
       </div>
-    </div>
+    </form>
   );
 }

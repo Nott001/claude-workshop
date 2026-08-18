@@ -420,7 +420,7 @@ INSERT INTO public."TICKET" (
   (5, 6,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000104'),
    3, 'dev-ticket-rust-bea', 'cancelled', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 4 — Startup Weekend Manila (120 days ago, 250 PHP)
 INSERT INTO public."PAYMENT" (
@@ -470,7 +470,7 @@ INSERT INTO public."TICKET" (
   (10, 12,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000110'),
    4, 'dev-ticket-sw-nina', 'cancelled', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 5 — Design Systems Day (200 days ago, 800 PHP)
 INSERT INTO public."PAYMENT" (
@@ -503,7 +503,7 @@ INSERT INTO public."TICKET" (
   (13, 16,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000102'),
    5, 'dev-ticket-dsd-liwanag', 'issued', NULL, NULL)
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 1 — Product Summit 2026 (paid ticket for Alex, pending for Bri
 -- pre-exist as ids 1-2) — plus a realistic spread of newer bookings.
@@ -545,7 +545,7 @@ INSERT INTO public."TICKET" (
   (17, 20,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000107'),
    1, 'dev-ticket-prodsummit-ria', 'cancelled')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Event 6 — AI/ML Meetup (60 days out, free)
 INSERT INTO public."PAYMENT" (
@@ -580,7 +580,7 @@ INSERT INTO public."TICKET" (
   (20, 25,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000110'),
    6, 'dev-ticket-aiml-nina', 'issued')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------
 -- Surveys.
@@ -803,7 +803,7 @@ INSERT INTO public."TICKET" (
   (22, 29,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
    7, 'dev-ticket-today-bri', 'issued')
-ON CONFLICT (qr_token) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- The Q&A thread lives in the Open Q&A module: an attendee asks, the
 -- speaker and facilitator answer, so the panel opens already populated.
@@ -825,9 +825,76 @@ INSERT INTO public."QA_MESSAGE" (
   (9, 7,
    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
    'Where does the worksheet for the working session live?', 9, now() - interval '30 minutes'),
-  (10, 7,
-   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000004'),
-   'It is the Working Session worksheet — grab it before the breakout starts.', 9, now() - interval '25 minutes')
+   (10, 7,
+    (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000004'),
+    'It is the Working Session worksheet — grab it before the breakout starts.', 9, now() - interval '25 minutes')
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------
+-- Yesterday: a finished event for testing the survey flow. It ended
+-- yesterday, so its 14-day send window is wide open, it is opted into
+-- surveys, and both sign-in attendees plus a few background users hold
+-- tickets — so the staff Surveys tab can run "Send bulk survey" and the
+-- emailed links can be opened by signing in as an attendee. No survey
+-- is seeded: the first send creates it, which is the path being tested.
+-- ---------------------------------------------------------------
+
+INSERT INTO public."EVENT" (
+  id, title, event_date, start_time, end_time, venue_name, venue_address,
+  description, price, currency, status, survey_enabled
+) OVERRIDING SYSTEM VALUE VALUES
+  (8, 'Community Feedback Night', CURRENT_DATE - 1, '18:00:00', '21:00:00',
+   'StartupLab HQ', '123 Innovation Drive, Manila',
+   'A finished evening for exercising the post-event survey flow.',
+   0.00, 'PHP', 'active', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public."PAYMENT" (
+  id, user_id, event_id, gateway_reference_id, status, paid_at, amount, currency
+) OVERRIDING SYSTEM VALUE VALUES
+  (30,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   8, 'dev-pay-0030', 'paid', (CURRENT_DATE - 1) + time '18:02:00', 0.00, 'PHP'),
+  (31,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
+   8, 'dev-pay-0031', 'paid', (CURRENT_DATE - 1) + time '18:07:00', 0.00, 'PHP'),
+  (32,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000101'),
+   8, 'dev-pay-0032', 'paid', (CURRENT_DATE - 1) + time '18:15:00', 0.00, 'PHP'),
+  (33,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000102'),
+   8, 'dev-pay-0033', 'paid', (CURRENT_DATE - 1) + time '18:21:00', 0.00, 'PHP'),
+  (34,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000103'),
+   8, 'dev-pay-0034', 'paid', (CURRENT_DATE - 1) + time '18:30:00', 0.00, 'PHP'),
+  (35,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000104'),
+   8, 'dev-pay-0035', 'refunded', (CURRENT_DATE - 1) + time '19:50:00', 0.00, 'PHP')
+ON CONFLICT (gateway_reference_id) DO NOTHING;
+
+INSERT INTO public."TICKET" (
+  id, payment_id, user_id, event_id, qr_token, status, checked_in_by, checked_in_at
+) OVERRIDING SYSTEM VALUE VALUES
+  (23, 30,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000001'),
+   8, 'dev-ticket-feedback-alex', 'issued', NULL, NULL),
+  (24, 31,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000002'),
+   8, 'dev-ticket-feedback-bri', 'issued', NULL, NULL),
+  (25, 32,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000101'),
+   8, 'dev-ticket-feedback-jose', 'checked_in',
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000005'),
+   (CURRENT_DATE - 1) + time '19:10:00'),
+  (26, 33,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000102'),
+   8, 'dev-ticket-feedback-liwanag', 'issued', NULL, NULL),
+  (27, 34,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000103'),
+   8, 'dev-ticket-feedback-miguel', 'issued', NULL, NULL),
+  (28, 35,
+   (SELECT id FROM public."USER" WHERE auth_user_id = '00000000-0000-4000-8000-000000000104'),
+   8, 'dev-ticket-feedback-bea', 'cancelled', NULL, NULL)
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------
@@ -950,14 +1017,14 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 ON CONFLICT (id) DO NOTHING;
 
 -- Keep sequences ahead of seeded ids so app-created rows cannot collide.
-SELECT setval(pg_get_serial_sequence('public."EVENT"', 'id'), 7, true);
+SELECT setval(pg_get_serial_sequence('public."EVENT"', 'id'), 8, true);
 SELECT setval(pg_get_serial_sequence('public."COURSE"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."MODULE"', 'id'), 9, true);
 SELECT setval(pg_get_serial_sequence('public."LESSON"', 'id'), 26, true);
 SELECT setval(pg_get_serial_sequence('public."SPEAKER_PROFILE"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."COMMUNITY_LINK"', 'id'), 2, true);
-SELECT setval(pg_get_serial_sequence('public."PAYMENT"', 'id'), 29, true);
-SELECT setval(pg_get_serial_sequence('public."TICKET"', 'id'), 22, true);
+SELECT setval(pg_get_serial_sequence('public."PAYMENT"', 'id'), 35, true);
+SELECT setval(pg_get_serial_sequence('public."TICKET"', 'id'), 28, true);
 SELECT setval(pg_get_serial_sequence('public."SURVEY"', 'id'), 3, true);
 SELECT setval(pg_get_serial_sequence('public."SURVEY_RESPONSE"', 'id'), 6, true);
 SELECT setval(pg_get_serial_sequence('public."QA_MESSAGE"', 'id'), 10, true);

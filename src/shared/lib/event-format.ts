@@ -3,6 +3,18 @@
  * Ticket cards and the event detail page have to agree on what "free" looks
  * like and on whether the address is part of the venue line.
  */
+import type { EventMode } from "@/shared/types";
+
+/**
+ * The icon every surface uses to say where an event happens. Card, hero and
+ * the mode picker in the form each had their own copy of this pair, so a card
+ * kept claiming an online event was onsite. Anything that is not `online` —
+ * including a row written before the column existed — reads as onsite, the
+ * same default the database gives it.
+ */
+export function eventModeIcon(mode: EventMode | null | undefined): string {
+  return mode === "online" ? "videocam" : "location_on";
+}
 
 /** `null` for a free event, so callers can omit the row rather than print "0". */
 export function formatEventPrice(price: number | null | undefined, currency: string | null | undefined): string | null {

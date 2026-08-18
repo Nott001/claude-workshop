@@ -3,18 +3,18 @@
 import type { RefObject } from "react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/button";
-import type { Lesson } from "@/shared/types";
-import { describeLessonMove, describeModuleMove, type MoveDirection } from "../lib/reorder";
+import { describeModuleMove, type MoveDirection } from "../lib/reorder";
 import type { RowIssue, ScheduleWindow } from "../lib/scheduling";
 import type { CourseSpeaker, ModuleWithLessons } from "../lib/types";
+import type { ModuleDraft } from "../lib/module-draft";
 import { LessonRow } from "./lesson-row";
 import { ModuleHeader } from "./module-header";
+import type { ViewerTarget } from "./material-viewer";
 import type { TimeField } from "./session-time-picker";
 
-export type PreviewState = { type: "module" | "lesson"; id: number; direction: MoveDirection } | null;
+export type PreviewState = { type: "module"; id: number; direction: MoveDirection } | null;
 
 export interface FlashState {
-  lessons: number[];
   modules: number[];
 }
 
@@ -30,27 +30,23 @@ interface ModuleCardProps {
   conflicting: boolean;
   preview: PreviewState;
   flash: FlashState;
-  renaming: boolean;
-  renameValue: string;
-  renameInputRef: RefObject<HTMLInputElement | null>;
-  startValue: string;
-  endValue: string;
-  onRenameValueChange: (value: string) => void;
-  onCommitRename: () => void;
-  onCancelRename: () => void;
-  onStartRename: () => void;
+  /** Non-null exactly when this module is the one being edited. */
+  draft: ModuleDraft | null;
+  saving: boolean;
+  nameInputRef: RefObject<HTMLInputElement | null>;
+  onDraftChange: (next: ModuleDraft) => void;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
   onPreviewModuleMove: (direction: MoveDirection) => void;
-  onPreviewLessonMove: (lessonId: number, direction: MoveDirection) => void;
   onPreviewMoveEnd: () => void;
   onMoveModule: (direction: MoveDirection) => void;
   onDeleteModule: () => void;
-  onTimeChange: (field: TimeField, value: string) => void;
-  onSpeakerChange: (speakerProfileId: number | null) => void;
-  onAddLessonClick: () => void;
-  onMoveLesson: (lesson: Lesson, direction: MoveDirection) => void;
-  onDeleteLesson: (lessonId: number) => void;
-  onRenameLesson: (lessonId: number, description: string) => Promise<void> | void;
-  onUpdateLessonDescription: (lessonId: number, description: string | null) => Promise<void> | void;
+  onAddLesson: () => void;
+  onMoveLesson: (key: string, direction: MoveDirection) => void;
+  onDeleteLesson: (key: string) => void;
+  onMoveLessonToModule: (lessonId: number, targetModuleId: number) => void;
+  onView: (target: ViewerTarget) => void;
 }
 
 export function ModuleCard({
@@ -65,50 +61,43 @@ export function ModuleCard({
   conflicting,
   preview,
   flash,
-  renaming,
-  renameValue,
-  renameInputRef,
-  startValue,
-  endValue,
-  onRenameValueChange,
-  onCommitRename,
-  onCancelRename,
-  onStartRename,
+  draft,
+  saving,
+  nameInputRef,
+  onDraftChange,
+  onEdit,
+  onSave,
+  onCancel,
   onPreviewModuleMove,
-  onPreviewLessonMove,
   onPreviewMoveEnd,
   onMoveModule,
   onDeleteModule,
-  onTimeChange,
-  onSpeakerChange,
-  onAddLessonClick,
+  onAddLesson,
   onMoveLesson,
   onDeleteLesson,
-  onRenameLesson,
-  onUpdateLessonDescription,
+  onMoveLessonToModule,
+  onView,
 }: ModuleCardProps) {
+  const editing = draft !== null;
   const upInfo = describeModuleMove(modules, mod.id, "up");
   const downInfo = describeModuleMove(modules, mod.id, "down");
-  const modulePreviewInfo = preview?.type === "module" ? describeModuleMove(modules, preview.id, preview.direction) : null;
-  const lessonPreviewInfo = preview?.type === "lesson" ? describeLessonMove(modules, preview.id, preview.direction) : null;
-  const isModuleMoveSource = preview?.type === "module" && preview.id === mod.id;
-  const isModuleSwapTarget = modulePreviewInfo?.possible === true && modulePreviewInfo.targetModuleId === mod.id;
-  const isModuleFlash = flash.modules.includes(mod.id);
-  const dropSlot =
-    lessonPreviewInfo?.kind === "cross" && lessonPreviewInfo.targetModuleId === mod.id ? lessonPreviewInfo.slot : null;
+  const previewInfo = preview ? describeModuleMove(modules, preview.id, preview.direction) : null;
+  const isSwapTarget = previewInfo?.possible === true && previewInfo.targetModuleId === mod.id;
+  const isSource = preview?.id === mod.id;
 
   const header = (
     <ModuleHeader
       mod={mod}
       isQa={isQa}
       conflicting={conflicting}
-      renaming={renaming}
-      renameValue={renameValue}
-      renameInputRef={renameInputRef}
-      onRenameValueChange={onRenameValueChange}
-      onCommitRename={onCommitRename}
-      onCancelRename={onCancelRename}
-      onStartRename={onStartRename}
+      editing={editing}
+      saving={saving}
+      name={draft ? draft.module_name : mod.module_name}
+      nameInputRef={nameInputRef}
+      onNameChange={(module_name) => draft && onDraftChange({ ...draft, module_name })}
+      onEdit={onEdit}
+      onSave={onSave}
+      onCancel={onCancel}
       upInfo={upInfo}
       downInfo={downInfo}
       onPreviewMove={onPreviewModuleMove}
@@ -119,11 +108,16 @@ export function ModuleCard({
       eventSpeakers={eventSpeakers}
       eventStartTime={eventStartTime}
       eventEndTime={eventEndTime}
-      startValue={startValue}
-      endValue={endValue}
+      startValue={draft ? (draft.start_time ?? "") : (mod.start_time?.slice(0, 5) ?? "")}
+      endValue={draft ? (draft.end_time ?? "") : (mod.end_time?.slice(0, 5) ?? "")}
+      speakerValue={draft ? draft.speaker_profile_id : mod.speaker_profile_id}
       issue={issue}
-      onTimeChange={onTimeChange}
-      onSpeakerChange={onSpeakerChange}
+      onTimeChange={(field: TimeField, value: string) => {
+        if (!draft) return;
+        const key = field === "start" ? "start_time" : "end_time";
+        onDraftChange({ ...draft, [key]: value === "" ? null : value });
+      }}
+      onSpeakerChange={(speaker_profile_id) => draft && onDraftChange({ ...draft, speaker_profile_id })}
     />
   );
 
@@ -132,8 +126,8 @@ export function ModuleCard({
       <div
         className={cn(
           "rounded-lg border border-warning/30 bg-warning/5 p-5",
-          isModuleSwapTarget && "ring-2 ring-brand/50",
-          isModuleFlash && "curriculum-flash",
+          isSwapTarget && "ring-2 ring-brand/50",
+          flash.modules.includes(mod.id) && "curriculum-flash",
         )}
       >
         {header}
@@ -141,62 +135,118 @@ export function ModuleCard({
     );
   }
 
+  const rows = draft
+    ? draft.lessons.map((lesson, index) => ({
+        lessonId: lesson.id,
+        key: lesson.key,
+        ordinal: `${mod.sequence_order}.${index + 1}`,
+        name: lesson.name,
+        description: lesson.description,
+        contentType: lesson.content_type,
+        contentUrl: lesson.content_url,
+        pendingFileName: lesson.pendingFile?.name ?? null,
+        canMoveUp: index > 0,
+        canMoveDown: index < draft.lessons.length - 1,
+      }))
+    : mod.LESSONS.map((lesson) => ({
+        lessonId: lesson.id,
+        key: `lesson-${lesson.id}`,
+        ordinal: `${mod.sequence_order}.${lesson.sequence_order}`,
+        name: lesson.name,
+        description: lesson.description,
+        contentType: lesson.content_type,
+        contentUrl: lesson.content_url,
+        pendingFileName: null,
+        canMoveUp: false,
+        canMoveDown: false,
+      }));
+
   return (
     <div
       className={cn(
-        "relative rounded-lg border border-border bg-muted p-5",
-        (isModuleSwapTarget || dropSlot !== null) && "border-brand/60 ring-2 ring-brand/40",
-        isModuleMoveSource && "bg-brand/5",
-        isModuleFlash && "curriculum-flash",
+        "relative rounded-lg border border-border bg-muted p-5 transition-all",
+        isSwapTarget && "border-brand/60 ring-2 ring-brand/40",
+        isSource && "bg-brand/5",
+        editing && "border-brand/50 ring-2 ring-brand/25",
+        flash.modules.includes(mod.id) && "curriculum-flash",
       )}
     >
       <div className="mb-3">{header}</div>
 
-      {dropSlot !== null && (
-        <div
-          className={cn(
-            "pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-brand/60 bg-surface px-3 py-1 text-[11px] font-semibold text-brand shadow-md",
-            dropSlot === "start" ? "-top-3" : "-bottom-3",
-          )}
-        >
-          <span className="material-symbols-rounded mr-1 align-middle text-[12px]">
-            {dropSlot === "start" ? "vertical_align_top" : "vertical_align_bottom"}
-          </span>
-          Drops in as the {dropSlot === "start" ? "first" : "last"} lesson
-        </div>
-      )}
-
-      {mod.LESSONS.length > 0 && (
+      {rows.length > 0 && (
         <div className="mb-3 space-y-1.5">
-          {mod.LESSONS.map((lesson) => {
-            const upMove = describeLessonMove(modules, lesson.id, "up");
-            const downMove = describeLessonMove(modules, lesson.id, "down");
-            return (
-              <LessonRow
-                key={lesson.id}
-                mod={mod}
-                lesson={lesson}
-                upInfo={upMove}
-                downInfo={downMove}
-                isSource={preview?.type === "lesson" && preview.id === lesson.id}
-                isSwapTarget={lessonPreviewInfo?.kind === "within" && lessonPreviewInfo.swapLessonId === lesson.id}
-                isFlash={flash.lessons.includes(lesson.id)}
-                onPreviewMove={(direction) => onPreviewLessonMove(lesson.id, direction)}
-                onPreviewMoveEnd={onPreviewMoveEnd}
-                onMove={(direction) => onMoveLesson(lesson, direction)}
-                onDelete={() => onDeleteLesson(lesson.id)}
-                onRenameLesson={onRenameLesson}
-                onUpdateLessonDescription={onUpdateLessonDescription}
-              />
-            );
-          })}
+          {rows.map((row) => (
+            <LessonRow
+              key={row.key}
+              ordinal={row.ordinal}
+              name={row.name}
+              description={row.description}
+              contentType={row.contentType}
+              contentUrl={row.contentUrl}
+              pendingFileName={row.pendingFileName}
+              editing={editing}
+              canMoveUp={row.canMoveUp}
+              canMoveDown={row.canMoveDown}
+              linkUrl={row.contentType === "link" ? (row.contentUrl ?? "") : ""}
+              onView={() => row.contentUrl && onView({ name: row.name, contentType: row.contentType, url: row.contentUrl })}
+              onNameChange={(name) => draft && onDraftChange(patchLesson(draft, row.key, { name }))}
+              onDescriptionChange={(description) => draft && onDraftChange(patchLesson(draft, row.key, { description }))}
+              onLinkChange={(value) =>
+                draft &&
+                onDraftChange(
+                  patchLesson(draft, row.key, {
+                    content_type: "link",
+                    content_url: value === "" ? null : value,
+                    pendingFile: null,
+                  }),
+                )
+              }
+              onPickFile={(file) =>
+                draft && onDraftChange(patchLesson(draft, row.key, { pendingFile: file, content_type: fileType(file) }))
+              }
+              onRemoveMaterial={() =>
+                draft &&
+                onDraftChange(patchLesson(draft, row.key, { dropMaterial: true, content_url: null, pendingFile: null }))
+              }
+              onMove={(direction) => onMoveLesson(row.key, direction)}
+              onDelete={() => onDeleteLesson(row.key)}
+              moveTargets={
+                editing || row.lessonId === null
+                  ? []
+                  : modules
+                      .filter((m) => m.id !== mod.id && m.module_type !== "qa")
+                      .map((m) => ({ id: m.id, name: m.module_name }))
+              }
+              onMoveToModule={(targetModuleId) => row.lessonId !== null && onMoveLessonToModule(row.lessonId, targetModuleId)}
+            />
+          ))}
         </div>
       )}
 
-      <Button variant="ghost" size="sm" onClick={onAddLessonClick}>
-        <span className="material-symbols-rounded text-[14px]">add_circle</span>
-        Add lesson to topic
-      </Button>
+      {editing ? (
+        <Button variant="secondary" size="sm" onClick={onAddLesson}>
+          <span aria-hidden className="material-symbols-rounded text-[14px]">
+            add_circle
+          </span>
+          Add lesson
+        </Button>
+      ) : (
+        rows.length === 0 && <p className="text-xs text-muted-fg">No lessons yet — use Edit to add one.</p>
+      )}
     </div>
   );
+}
+
+function patchLesson(draft: ModuleDraft, key: string, changes: Record<string, unknown>): ModuleDraft {
+  return {
+    ...draft,
+    lessons: draft.lessons.map((lesson) => (lesson.key === key ? { ...lesson, ...changes } : lesson)),
+  };
+}
+
+/** Mirrors the upload policy: anything that is not a video or a PDF is an image. */
+function fileType(file: File): "video" | "pdf" | "image" {
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type === "application/pdf") return "pdf";
+  return "image";
 }

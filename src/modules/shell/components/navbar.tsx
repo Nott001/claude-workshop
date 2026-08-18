@@ -19,7 +19,9 @@ export function Navbar() {
     // Expand on hover or keyboard focus only. A mouse-clicked link keeps focus
     // across navigation, so plain :focus-within would pin the rail open until
     // focus moves; :focus-visible matches keyboard focus alone.
-    <aside className="group fixed bottom-0 left-0 top-16 z-10 hidden w-[72px] flex-col overflow-hidden border-r border-border bg-surface px-3 py-5 transition-[width] duration-300 hover:w-[202px] has-[:focus-visible]:w-[202px] lg:flex">
+    // `top-navbar`, not a number: the rail starts where the bar ends, so the
+    // two cannot be sized apart without opening a gap down the left edge.
+    <aside className="group top-navbar fixed bottom-0 left-0 z-10 hidden w-[72px] flex-col overflow-hidden border-r border-border bg-surface py-5 pl-3 transition-[width] duration-300 hover:w-[202px] has-[:focus-visible]:w-[202px] lg:flex">
       <nav className="space-y-2" aria-label="Primary navigation">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -37,8 +39,9 @@ export function Navbar() {
               // never shows it.
               prefetch={false}
               className={cn(
-                "flex w-full items-center overflow-hidden rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition hover:bg-muted hover:text-fg",
-                isActive ? "bg-brand/10 text-brand" : "text-muted-fg",
+                "relative flex w-full items-center rounded-md px-3 py-3.5 text-sm font-medium text-nowrap transition",
+                "after:absolute after:inset-y-0 after:right-0 after:w-[3px] after:bg-brand after:opacity-0",
+                isActive ? "text-brand after:opacity-100" : "text-muted-fg/80 hover:text-fg",
               )}
             >
               <span className="flex w-6 shrink-0 items-center justify-center">

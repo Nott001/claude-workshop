@@ -15,6 +15,8 @@ interface SessionTimePickerProps {
   endOptions: TimeOption[];
   invalid: boolean;
   issueMessage?: string | null;
+  /** A module outside edit mode shows its window but will not open the picker. */
+  disabled?: boolean;
   onChange: (field: TimeField, value: string) => void;
 }
 
@@ -33,6 +35,7 @@ export function SessionTimePicker({
   endOptions,
   invalid,
   issueMessage,
+  disabled = false,
   onChange,
 }: SessionTimePickerProps) {
   const [open, setOpen] = useState(false);
@@ -60,6 +63,7 @@ export function SessionTimePicker({
     <div ref={rootRef} className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="listbox"

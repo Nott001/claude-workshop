@@ -4,19 +4,23 @@ import type { TicketStatus } from "@/shared/types";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotification, logAuditEvent } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
-  findByQrToken: vi.fn(),
-  updateStatus: vi.fn(),
-  findById: vi.fn(),
-  sendEmailNotification: vi.fn(),
-  logAuditEvent: vi.fn(),
-}));
+const { requireRole, findByQrToken, updateStatus, findById, sendEmailNotification, logAuditEvent, loadEventOr403 } = vi.hoisted(
+  () => ({
+    requireRole: vi.fn(),
+    findByQrToken: vi.fn(),
+    updateStatus: vi.fn(),
+    findById: vi.fn(),
+    sendEmailNotification: vi.fn(),
+    logAuditEvent: vi.fn(),
+    loadEventOr403: vi.fn(),
+  }),
+);
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findByQrToken, updateStatus }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById }));
+vi.mock("@/modules/events/lib/event-service", () => ({ loadEventOr403 }));
 
 vi.mock("@/shared/integrations/email/send-notification", () => ({ sendEmailNotification }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
@@ -51,6 +55,7 @@ beforeEach(() => {
   requireRole.mockResolvedValue(facilitator);
   updateStatus.mockResolvedValue(true);
   findById.mockResolvedValue({ title: "Launch Day", event_date: "2026-08-01" });
+  loadEventOr403.mockResolvedValue({ id: 10 });
 });
 
 describe("authorization", () => {
@@ -96,6 +101,40 @@ describe("token lookup", () => {
     expect(res.status).toBe(404);
     await expect(res.json()).resolves.toEqual({ error: "Invalid QR token" });
     expect(updateStatus).not.toHaveBeenCalled();
+    expect(loadEventOr403).not.toHaveBeenCalled();
+  });
+
+  it("looks up a typed code case-insensitively", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+
+    const res = await POST(post({ qr_token: "Tok-123" }));
+
+    expect(res.status).toBe(200);
+    expect(findByQrToken).toHaveBeenCalledWith({}, "tok-123");
+  });
+});
+
+describe("event-staff gating", () => {
+  it("proceeds for a facilitator assigned to the ticket's event", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+
+    const res = await POST(post({ qr_token: "tok" }));
+
+    expect(res.status).toBe(200);
+    expect(loadEventOr403).toHaveBeenCalledWith({}, 10, { id: 7, role: ROLES.FACILITATOR }, "attendees");
+  });
+
+  it("rejects an unassigned facilitator with 403 and never writes", async () => {
+    findByQrToken.mockResolvedValue(ticket("issued"));
+    loadEventOr403.mockRejectedValue({ status: 403 });
+
+    const res = await POST(post({ qr_token: "tok" }));
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+    expect(updateStatus).not.toHaveBeenCalled();
+    expect(sendEmailNotification).not.toHaveBeenCalled();
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });
 

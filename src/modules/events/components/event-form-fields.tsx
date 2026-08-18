@@ -1,248 +1,279 @@
 "use client";
 
-import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
-import type { EventFormValues } from "@/modules/events/lib/event-form-schema";
+import { SectionCard } from "@/shared/components/section-card";
+import { FormField, FormLabel, FormDescription } from "@/shared/components/form";
+import { Input } from "@/shared/components/input";
+import { Button } from "@/shared/components/button";
+import { cn } from "@/shared/lib/utils";
+import { PRICE_STEP, stepPrice, type EventFormValues } from "@/modules/events/lib/event-form-schema";
 
-const FIELD_CLASS = "w-full rounded-lg border border-border px-3 py-2 text-sm";
-const LABEL_CLASS = "mb-1.5 block text-sm font-medium text-fg";
+export type EventFieldSetter = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => void;
 
-interface FormSectionProps {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}
+const OPTIONAL = <span className="font-normal text-muted-fg">(optional)</span>;
 
-function FormSection({ title, icon, children }: FormSectionProps) {
-  return (
-    <section className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <div className="rounded-lg bg-info/10 p-2">
-          <span className="material-symbols-rounded text-[20px] text-brand">{icon}</span>
-        </div>
-        <h2 className="text-xs font-bold tracking-[0.1em] text-fg">{title.toUpperCase()}</h2>
-      </div>
-      <div className="space-y-4">{children}</div>
-    </section>
-  );
-}
+const MODES = [
+  { value: "onsite", label: "Onsite", icon: "location_on" },
+  { value: "online", label: "Online", icon: "videocam" },
+] as const;
 
-interface EventFormFieldsProps {
-  values: EventFormValues;
-  set: <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => void;
-  facilitatorCandidates: AssignmentRow[];
-  speakerCandidates: AssignmentRow[];
-  facilitatorsError: boolean;
-  speakersError: boolean;
-  selectedFacilitatorId: string;
-  setSelectedFacilitatorId: (id: string) => void;
-  selectedSpeakerId: string;
-  setSelectedSpeakerId: (id: string) => void;
-  onAddFacilitator: () => void;
-  onAddSpeaker: () => void;
-}
-
+/** The EVENT columns themselves. Who staffs the event is assigned separately —
+ *  see `EventTeamFields` for creation and `EventTeamPanel` for an existing row. */
 export function EventFormFields({
   values,
   set,
-  facilitatorCandidates,
-  speakerCandidates,
-  facilitatorsError,
-  speakersError,
-  selectedFacilitatorId,
-  setSelectedFacilitatorId,
-  selectedSpeakerId,
-  setSelectedSpeakerId,
-  onAddFacilitator,
-  onAddSpeaker,
-}: EventFormFieldsProps) {
-  const assignedFacilitators = facilitatorCandidates.filter((c) => values.facilitator_ids.includes(c.id));
-  const availableFacilitators = facilitatorCandidates.filter((c) => !values.facilitator_ids.includes(c.id));
-  const assignedSpeakers = speakerCandidates.filter((c) => values.speaker_profile_ids.includes(c.id));
-  const availableSpeakers = speakerCandidates.filter((c) => !values.speaker_profile_ids.includes(c.id));
+  creating = false,
+}: {
+  values: EventFormValues;
+  set: EventFieldSetter;
+  /** An event that does not exist yet has nowhere else to put its meeting link. */
+  creating?: boolean;
+}) {
+  const online = values.event_type === "online";
 
   return (
     <>
-      <FormSection title="Event Basics" icon="event">
-        <div>
-          <label htmlFor="event-title" className={LABEL_CLASS}>
-            Title
-          </label>
-          <input
-            id="event-title"
-            type="text"
-            value={values.title}
-            onChange={(e) => set("title", e.target.value)}
-            required
-            maxLength={255}
-            className={FIELD_CLASS}
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="event-date" className={LABEL_CLASS}>
-              Date
-            </label>
-            <input
-              id="event-date"
-              type="date"
-              value={values.event_date}
-              onChange={(e) => set("event_date", e.target.value)}
+      <SectionCard title="Event Basics" icon="event">
+        <div className="space-y-4">
+          <FormField>
+            <FormLabel htmlFor="event-title">Title</FormLabel>
+            <Input
+              id="event-title"
+              value={values.title}
+              onChange={(e) => set("title", e.target.value)}
               required
-              className={FIELD_CLASS}
+              maxLength={255}
             />
+          </FormField>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField>
+              <FormLabel htmlFor="event-date">Date</FormLabel>
+              <Input
+                id="event-date"
+                type="date"
+                value={values.event_date}
+                onChange={(e) => set("event_date", e.target.value)}
+                required
+              />
+            </FormField>
+            <FormField>
+              <FormLabel htmlFor="event-start-time">Start Time</FormLabel>
+              <Input
+                id="event-start-time"
+                type="time"
+                value={values.start_time}
+                onChange={(e) => set("start_time", e.target.value)}
+                required
+              />
+            </FormField>
+            <FormField>
+              <FormLabel htmlFor="event-end-time">End Time</FormLabel>
+              <Input
+                id="event-end-time"
+                type="time"
+                value={values.end_time}
+                onChange={(e) => set("end_time", e.target.value)}
+                required
+              />
+            </FormField>
           </div>
-          <div>
-            <label htmlFor="event-start-time" className={LABEL_CLASS}>
-              Start Time
-            </label>
-            <input
-              id="event-start-time"
-              type="time"
-              value={values.start_time}
-              onChange={(e) => set("start_time", e.target.value)}
-              required
-              className={FIELD_CLASS}
-            />
+
+          {/* Radios rather than a select: two mutually exclusive choices, both
+              worth seeing at once, and the answer changes what the fields under
+              it mean. A fieldset so the pair is announced as one question. */}
+          <fieldset>
+            <legend className="text-sm leading-none font-medium select-none">Where it happens</legend>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {MODES.map((mode) => (
+                <label
+                  key={mode.value}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+                    values.event_type === mode.value
+                      ? "border-brand bg-brand/5 font-medium text-fg"
+                      : "border-border bg-surface text-muted-fg hover:bg-muted",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="event-type"
+                    value={mode.value}
+                    checked={values.event_type === mode.value}
+                    onChange={() => set("event_type", mode.value)}
+                    className="sr-only"
+                  />
+                  <span aria-hidden className="material-symbols-rounded text-base">
+                    {mode.icon}
+                  </span>
+                  {mode.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField>
+              {/* One column, two meanings. An online event still has to name
+                  where it happens, and venue_name is NOT NULL — it holds the
+                  platform instead of the hall. */}
+              <FormLabel htmlFor="event-venue-name">{online ? "Platform" : "Venue"}</FormLabel>
+              <Input
+                id="event-venue-name"
+                value={values.venue_name}
+                onChange={(e) => set("venue_name", e.target.value)}
+                required
+                maxLength={255}
+                placeholder={online ? "Zoom, Google Meet, ..." : undefined}
+              />
+            </FormField>
+            {/* The same column asks a different question per mode, rather than
+                showing a dead address box next to a live link box. Distinct ids
+                so a browser never carries one field's value into the other.
+
+                The link is editable here only while the event is being created,
+                for the same reason the cover and the team are: there is no row
+                yet to hang a dedicated panel off. Once one exists the Overview
+                panel owns it — one surface per context, and that one is
+                reachable by the facilitator running the session, who cannot
+                open this form at all. */}
+            {!online ? (
+              <FormField>
+                <FormLabel htmlFor="event-venue-address">Venue address {OPTIONAL}</FormLabel>
+                <Input
+                  id="event-venue-address"
+                  value={values.venue_address}
+                  onChange={(e) => set("venue_address", e.target.value)}
+                />
+              </FormField>
+            ) : creating ? (
+              <FormField>
+                <FormLabel htmlFor="event-meeting-url">Meeting link {OPTIONAL}</FormLabel>
+                <Input
+                  id="event-meeting-url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://meet.google.com/..."
+                  value={values.meeting_url}
+                  onChange={(e) => set("meeting_url", e.target.value)}
+                />
+                <FormDescription className="text-xs">
+                  Can be added later, and stays hidden from attendees until the event starts.
+                </FormDescription>
+              </FormField>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-sm leading-none font-medium">Meeting link</p>
+                <FormDescription className="text-xs">
+                  Set on the Overview tab, so whoever is running the session can post it on the day.
+                </FormDescription>
+              </div>
+            )}
           </div>
-          <div>
-            <label htmlFor="event-end-time" className={LABEL_CLASS}>
-              End Time
-            </label>
-            <input
-              id="event-end-time"
-              type="time"
-              value={values.end_time}
-              onChange={(e) => set("end_time", e.target.value)}
-              required
-              className={FIELD_CLASS}
-            />
-          </div>
-        </div>
 
-        <div>
-          <label htmlFor="event-venue-name" className={LABEL_CLASS}>
-            Venue
-          </label>
-          <input
-            id="event-venue-name"
-            type="text"
-            value={values.venue_name}
-            onChange={(e) => set("venue_name", e.target.value)}
-            required
-            maxLength={255}
-            className={FIELD_CLASS}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="event-venue-address" className={LABEL_CLASS}>
-            Venue address <span className="font-normal text-muted-fg">(optional)</span>
-          </label>
-          <input
-            id="event-venue-address"
-            type="text"
-            value={values.venue_address}
-            onChange={(e) => set("venue_address", e.target.value)}
-            className={FIELD_CLASS}
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Description" icon="notes">
-        <div>
-          <label htmlFor="event-description" className={LABEL_CLASS}>
-            Event description <span className="font-normal text-muted-fg">(optional)</span>
-          </label>
-          <textarea
-            id="event-description"
-            value={values.description}
-            onChange={(e) => set("description", e.target.value)}
-            rows={4}
-            className={FIELD_CLASS}
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Team" icon="groups">
-        <div>
-          <p className="mb-3 text-sm font-semibold text-fg">Facilitators</p>
-          <AssignmentTable
-            assigned={assignedFacilitators}
-            candidates={availableFacilitators}
-            selectedId={selectedFacilitatorId}
-            onSelect={setSelectedFacilitatorId}
-            onAdd={onAddFacilitator}
-            onRemove={(id) =>
-              set(
-                "facilitator_ids",
-                values.facilitator_ids.filter((fid) => fid !== id),
-              )
-            }
-            addButtonLabel="Assign"
-            candidatePlaceholder="Select a facilitator..."
-            emptyLabel={facilitatorsError ? "Failed to load facilitators." : "No facilitators assigned yet."}
-            allAssignedLabel="Every facilitator is assigned to this event."
-          />
-        </div>
-
-        <div className="border-t border-border pt-4">
-          <p className="mb-3 text-sm font-semibold text-fg">Speakers</p>
-          <AssignmentTable
-            assigned={assignedSpeakers}
-            candidates={availableSpeakers}
-            selectedId={selectedSpeakerId}
-            onSelect={setSelectedSpeakerId}
-            onAdd={onAddSpeaker}
-            onRemove={(id) =>
-              set(
-                "speaker_profile_ids",
-                values.speaker_profile_ids.filter((sid) => sid !== id),
-              )
-            }
-            addButtonLabel="Assign"
-            candidatePlaceholder="Select a speaker..."
-            emptyLabel={speakersError ? "Failed to load speakers." : "No speakers assigned yet."}
-            allAssignedLabel="Every speaker is assigned to this event."
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Pricing" icon="payments">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2">
-            <label htmlFor="event-price" className={LABEL_CLASS}>
-              Price
-            </label>
-            <input
-              id="event-price"
+          {/* Both gaps are spelled out rather than left to the shared
+              `space-y-1.5`, because they want different sizes: the label
+              carries a second phrase — the "(optional)" — which sat almost on
+              the box, while the note below belongs close to the control it
+              explains. A `<label>` is inline by default, so `block` is what
+              makes its margin apply at all. */}
+          <FormField className="space-y-0">
+            <FormLabel htmlFor="event-capacity" className="mb-3.5 block">
+              Capacity {OPTIONAL}
+            </FormLabel>
+            <Input
+              id="event-capacity"
               type="number"
-              min="0"
-              step="0.01"
-              value={values.price}
-              onChange={(e) => set("price", e.target.value)}
-              className={FIELD_CLASS}
+              min="1"
+              step="1"
+              inputMode="numeric"
+              placeholder="Unlimited"
+              className="sm:max-w-48"
+              value={values.capacity}
+              onChange={(e) => set("capacity", e.target.value)}
             />
-            <p className="mt-1.5 text-xs text-muted-fg">Leave at 0 for a free event.</p>
-          </div>
-          <div>
-            <label htmlFor="event-currency" className={LABEL_CLASS}>
-              Currency
-            </label>
-            <input
+            <FormDescription className="mt-2 text-xs">
+              Registration closes once this many seats are taken. Leave it empty for unlimited seats.
+            </FormDescription>
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="event-description">Event description {OPTIONAL}</FormLabel>
+            <textarea
+              id="event-description"
+              value={values.description}
+              onChange={(e) => set("description", e.target.value)}
+              rows={5}
+              className={cn(
+                "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg transition-colors outline-none",
+                "placeholder:text-muted-fg focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+              )}
+            />
+          </FormField>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Pricing" icon="payments">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField className="sm:col-span-2">
+            <FormLabel htmlFor="event-price">Price</FormLabel>
+            <div className="flex items-center gap-2">
+              <Input
+                id="event-price"
+                type="number"
+                min="0"
+                // `any` rather than the amount the buttons move by: a step of 100
+                // makes the browser reject every price that is not a multiple of
+                // it, and 1500.50 is a price this column stores. The native arrows
+                // are hidden here, so the increment lives on the buttons alone.
+                step="any"
+                inputMode="decimal"
+                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                value={values.price}
+                onChange={(e) => set("price", e.target.value)}
+              />
+              {/* Both steppers sit to the right of the box, where the native
+                  arrows they replace used to be. */}
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                aria-label={`Decrease price by ${PRICE_STEP}`}
+                onClick={() => set("price", stepPrice(values.price, -PRICE_STEP))}
+              >
+                <span aria-hidden className="material-symbols-rounded text-base">
+                  remove
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                aria-label={`Increase price by ${PRICE_STEP}`}
+                onClick={() => set("price", stepPrice(values.price, PRICE_STEP))}
+              >
+                <span aria-hidden className="material-symbols-rounded text-base">
+                  add
+                </span>
+              </Button>
+            </div>
+            <FormDescription className="text-xs">
+              Leave at 0 for a free event. The buttons move it by {PRICE_STEP}; any amount can still be typed.
+            </FormDescription>
+          </FormField>
+          <FormField>
+            <FormLabel htmlFor="event-currency">Currency</FormLabel>
+            <Input
               id="event-currency"
-              type="text"
               value={values.currency}
               onChange={(e) => set("currency", e.target.value.toUpperCase())}
               required
               maxLength={3}
               pattern="[A-Za-z]{3}"
               title="Three-letter currency code, e.g. PHP"
-              className={FIELD_CLASS}
             />
-          </div>
+          </FormField>
         </div>
-      </FormSection>
+      </SectionCard>
     </>
   );
 }

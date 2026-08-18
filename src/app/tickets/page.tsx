@@ -13,7 +13,7 @@ export default function TicketsPage() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading tickets...</div>
+        <div className="text-sm text-muted-fg">Loading tickets...</div>
       </div>
     );
   }
@@ -21,7 +21,7 @@ export default function TicketsPage() {
   if (error) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">{error}</div>
+        <div className="text-sm text-error">{error}</div>
       </div>
     );
   }
@@ -35,13 +35,13 @@ export default function TicketsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-fg">My Tickets</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">Present the QR code at the event for check-in.</p>
+            <p className="mt-0.5 text-sm text-muted-fg">Present the QR code at the event for check-in.</p>
           </div>
         </div>
 
         {tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted p-12 text-center">
-            <span className="material-symbols-rounded text-4xl text-muted-foreground/50">confirmation_number</span>
+            <span className="material-symbols-rounded text-4xl text-muted-fg/50">confirmation_number</span>
             <h3 className="mt-4 text-sm font-semibold text-fg">No tickets yet</h3>
             <p className="mt-1 text-xs text-muted-fg">Register for an event to get your ticket.</p>
             <button

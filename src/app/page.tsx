@@ -1,9 +1,10 @@
 import Link from "next/link";
+
 import { supabase } from "@/shared/db/client";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
 import { EventGrid } from "@/modules/events/components/event-grid";
-import { HeroSection } from "@/modules/shell/components/hero-section";
+import { LandingHero } from "@/modules/shell/components/landing-hero";
 import type { LandingEvent } from "@/shared/types";
 import { toLandingEvent } from "@/modules/events/lib/landing-event";
 
@@ -19,39 +20,37 @@ export const dynamic = "force-dynamic";
 // this query asks for. service_role would bypass RLS on a public page and,
 // now that the page renders per request, make every request depend on a
 // secret it does not need — a missing key would 500 the landing page.
-async function getUpcomingEvents(): Promise<LandingEvent[]> {
-  const data = await eventDao.getUpcomingForLanding(supabase);
-  return data.map(toLandingEvent);
+async function getUpcomingEvents(): Promise<{ events: LandingEvent[]; total: number }> {
+  const { events, total } = await eventDao.getUpcomingForLanding(supabase);
+  return { events: events.map(toLandingEvent), total };
 }
 
 export default async function HomePage() {
-  const events = await getUpcomingEvents();
+  const { events, total } = await getUpcomingEvents();
+  // Only when the strip is actually hiding something. A link promising more
+  // that lands on the same three events is worse than no link.
+  const hasMore = total > events.length;
 
   return (
     <>
       <PostLoginRedirect />
       <div className="flex flex-1 flex-col bg-bg text-fg">
-        <HeroSection>
-          <h1 className="text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl sm:leading-[1.1]">
-            StartupLab Business Center
-          </h1>
-          <p className="mt-4 max-w-[576px] text-base leading-7 text-white/90 sm:text-lg">
-            Unlock the opportunities of the business era by equipping yourself with the knowledge and skills to harness
-            artificial intelligence effectively for growth and innovation.
-          </p>
-          <Link
-            href="/sign-up"
-            // Above the fold on the app's most-visited page, so its prefetch
-            // fired for every visitor including the ones already signed in.
-            prefetch={false}
-            className="mt-8 inline-flex rounded-xl bg-white px-8 py-4 text-base leading-6 font-bold text-brand transition hover:bg-white/90"
-          >
-            Join Now
-          </Link>
-        </HeroSection>
-
+        <LandingHero />
         <div className="px-6 py-12">
-          <h2 className="mb-6 text-lg font-bold text-fg">Upcoming Events</h2>
+          <div className="mb-6 flex items-baseline justify-between gap-4">
+            <h2 className="text-lg font-bold text-fg">Upcoming Events</h2>
+            {hasMore && (
+              <Link
+                href="/events"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-brand outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                See all events
+                <span aria-hidden className="material-symbols-rounded text-base">
+                  chevron_right
+                </span>
+              </Link>
+            )}
+          </div>
           <EventGrid events={events} backOrigin="landing" />
         </div>
       </div>

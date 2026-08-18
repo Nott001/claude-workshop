@@ -24,11 +24,7 @@ export async function listQuestionsByModule(
     limit: number;
   },
 ): Promise<{ messages: QaMessage[]; nextCursor: string | null }> {
-  const query = supabase
-    .from("QA_MESSAGE")
-    .select("*, USER:user_id(full_name, role)")
-    .eq("module_id", moduleId)
-    .is("deleted_at", null);
+  const query = supabase.from("QA_MESSAGE").select("*, USER:user_id(full_name, role)").eq("module_id", moduleId);
 
   const { data, nextCursor } = await runCursorFeed<QaMessage>(query, "created_at", options);
   return { messages: data, nextCursor };
@@ -59,14 +55,8 @@ export async function findById(supabase: DbClient, id: number): Promise<QaMessag
   return data;
 }
 
-export async function updateMessage(supabase: DbClient, id: number, updates: Record<string, unknown>): Promise<boolean> {
-  const { error } = await supabase.from("QA_MESSAGE").update(updates).eq("id", id);
-  return !error;
-}
-
-export async function softDelete(supabase: DbClient, ids: number[]): Promise<boolean> {
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("QA_MESSAGE").update({ deleted_at: now, updated_at: now }).in("id", ids);
+export async function deleteByIds(supabase: DbClient, ids: number[]): Promise<boolean> {
+  const { error } = await supabase.from("QA_MESSAGE").delete().in("id", ids);
   return !error;
 }
 

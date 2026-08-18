@@ -1,24 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface Course {
-  course_name: string;
-}
-
-interface Event {
-  event_id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  status: string;
-  COURSE: Course | null;
-}
+import type { LandingEvent } from "@/shared/types";
 
 export function useSpeakerEvents() {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<LandingEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

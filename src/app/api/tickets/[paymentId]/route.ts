@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ payment
   const { paymentId } = await params;
   const supabase = getServiceClient();
 
-  const ticket = await ticketDao.findWithPaymentAndEvent(supabase, Number(paymentId));
+  const ticket = await ticketDao.findWithEvent(supabase, Number(paymentId));
 
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });

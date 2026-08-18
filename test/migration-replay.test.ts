@@ -42,7 +42,70 @@ describe("migration replay", () => {
       "00004_qa_message_policy_helper.sql",
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
+      "00007_short_qr_token.sql",
+      "00008_email_change_attempt.sql",
+      "00009_event_capacity.sql",
+      "00010_event_mode.sql",
+      "00011_event_meeting_url.sql",
+      "00012_ticket_realtime_read.sql",
+      "00013_messages_replica_identity.sql",
+      "00014_drop_message_deleted_at.sql",
     ]);
+  });
+
+  describe("ticket realtime read final state (00012)", () => {
+    const migration = content("00012_ticket_realtime_read.sql");
+
+    it("grants SELECT on TICKET to authenticated, never to anon", () => {
+      expect(migration).toContain('GRANT SELECT ON TABLE "public"."TICKET" TO "authenticated";');
+      expect(migration).not.toMatch(/TO "anon"/);
+    });
+
+    it("routes the read through a SECURITY DEFINER helper", () => {
+      expect(migration).toMatch(/ticket_visible/);
+      expect(migration).toMatch(/SECURITY DEFINER/s);
+      expect(migration).toMatch(/CREATE POLICY "Staff and ticket holders read tickets"/);
+      expect(migration).toMatch(/USING \("public"\."ticket_visible"\("id"\)\)/);
+    });
+  });
+
+  describe("short-qr-token final state (00007)", () => {
+    const migration = content("00007_short_qr_token.sql");
+
+    it("drops the global UNIQUE on TICKET.qr_token so codes repool", () => {
+      expect(migration).toContain('DROP CONSTRAINT "TICKET_qr_token_key"');
+    });
+
+    it("does not restore a CREATE UNIQUE for qr_token", () => {
+      expect(migration).not.toMatch(/UNIQUE.*qr_token/);
+    });
+  });
+
+  describe("messages-replica-identity final state (00013)", () => {
+    const migration = content("00013_messages_replica_identity.sql");
+
+    it("sets replica identity full on the realtime filtered chat tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" REPLICA IDENTITY FULL;');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" REPLICA IDENTITY FULL;');
+    });
+
+    it("introduces nothing else", () => {
+      expect(migration).not.toMatch(/DROP/);
+      expect(migration).not.toMatch(/GRANT/);
+    });
+  });
+
+  describe("message deleted_at drop final state (00014)", () => {
+    const migration = content("00014_drop_message_deleted_at.sql");
+
+    it("drops deleted_at from the two message tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+    });
+
+    it("introduces no grant", () => {
+      expect(migration).not.toMatch(/GRANT/);
+    });
   });
 
   describe("user-deletion final state (was 00015)", () => {

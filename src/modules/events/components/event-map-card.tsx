@@ -4,9 +4,14 @@ import { useState } from "react";
 import { buildGoogleMapsEmbedUrl } from "@/shared/lib/google-maps";
 import { formatVenue } from "@/shared/lib/event-format";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/dialog";
+import type { EventMode } from "@/shared/types";
 
 interface EventMapCardProps {
-  event: { venue_name: string | null | undefined; venue_address: string | null | undefined };
+  event: {
+    venue_name: string | null | undefined;
+    venue_address: string | null | undefined;
+    event_type?: EventMode | null;
+  };
 }
 
 const BUTTON_STYLES =
@@ -16,7 +21,11 @@ export function EventMapCard({ event }: EventMapCardProps) {
   const [open, setOpen] = useState(false);
 
   const embedUrl = buildGoogleMapsEmbedUrl({ name: event.venue_name, address: event.venue_address });
-  if (!embedUrl) return null;
+
+  // Branching on the mode rather than on empty text, because the text is never
+  // empty: an online event's venue_name holds its platform, and mapping "Zoom"
+  // would render a confident map of an office in California.
+  if (event.event_type === "online" || !embedUrl) return null;
 
   const venue = formatVenue(event.venue_name, event.venue_address);
 

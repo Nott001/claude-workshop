@@ -4,16 +4,17 @@ import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/re
 import { KioskScannerView } from "@/modules/kiosk/components/kiosk-scanner-view";
 import type { Event } from "@/shared/types";
 
-vi.mock("html5-qrcode", () => {
-  const start = vi.fn().mockResolvedValue(undefined);
-  const stop = vi.fn().mockResolvedValue(undefined);
-  return {
-    Html5Qrcode: vi.fn(function (this: { start: typeof start; stop: typeof stop }) {
-      this.start = start;
-      this.stop = stop;
-    }),
-  };
-});
+const { start, stop } = vi.hoisted(() => ({
+  start: vi.fn().mockResolvedValue(undefined),
+  stop: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("html5-qrcode", () => ({
+  Html5Qrcode: vi.fn(function (this: { start: typeof start; stop: typeof stop }) {
+    this.start = start;
+    this.stop = stop;
+  }),
+}));
 
 vi.mock("@/shared/integrations/realtime", () => ({
   subscribeToCheckins: vi.fn(() => ({ unsubscribe: vi.fn() })),
@@ -33,6 +34,9 @@ const event: Event = {
   currency: "PHP",
   cover_image_url: null,
   status: "active",
+  capacity: null,
+  event_type: "onsite",
+  meeting_url: null,
   survey_enabled: false,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
@@ -52,7 +56,7 @@ function stubFetch({
   confirmOk = true,
   confirmError,
 }: {
-  lookup: unknown;
+  lookup?: unknown;
   lookupOk?: boolean;
   confirm?: unknown;
   confirmOk?: boolean;
@@ -61,7 +65,12 @@ function stubFetch({
   const impl = async (input: string | URL | Request) => {
     const url = String(input);
     if (url.startsWith("/api/checkin/lookup")) {
-      return { ok: lookupOk, json: async () => lookup };
+      // A token-keyed record lets scan tests return a different preview per
+      // attendee; a plain object answers every token with the same preview.
+      const token = new URL(url, "https://app.test").searchParams.get("qr_token") ?? "";
+      const byToken = lookup as Record<string, unknown> | undefined;
+      const payload = byToken && !("attendee" in byToken) ? byToken[token] : lookup;
+      return { ok: lookupOk, json: async () => payload };
     }
     if (url.startsWith("/api/checkin")) {
       if (confirmError) throw confirmError;
@@ -111,6 +120,17 @@ describe("KioskScannerView controls", () => {
 });
 
 describe("KioskScannerView lookup-then-confirm", () => {
+  it("normalizes a typed code case- and space-insensitively", async () => {
+    stubFetch({ lookup: issuedPreview });
+    render(<KioskScannerView event={event} />);
+
+    await submitManualToken("  TOK-123  ");
+
+    expect(await screen.findByText("Jane Doe")).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/checkin/lookup?qr_token=tok-123");
+    expect(qrInput()).toHaveProperty("value", "tok-123");
+  });
+
   it("looks up a token and previews the attendee without checking them in", async () => {
     stubFetch({ lookup: issuedPreview });
     render(<KioskScannerView event={event} />);
@@ -249,5 +269,50 @@ describe("KioskScannerView lookup-then-confirm", () => {
     await submitManualToken("unknown-token");
 
     expect(await screen.findByText("Invalid ticket")).toBeTruthy();
+  });
+});
+
+describe("KioskScannerView scan re-arm after Done", () => {
+  function decodeCallback(): (decodedText: string) => void {
+    return start.mock.calls[0][2] as (decodedText: string) => void;
+  }
+
+  it("stays scannable after the card is cleared", async () => {
+    stubFetch({
+      lookup: {
+        a: {
+          attendee: { full_name: "Jane Doe", email: "jane@example.com" },
+          qr_token: "a",
+          status: "issued",
+          checked_in_at: null,
+        },
+        b: {
+          attendee: { full_name: "Bob Smith", email: "bob@example.com" },
+          qr_token: "b",
+          status: "issued",
+          checked_in_at: null,
+        },
+      },
+    });
+    const { container } = render(<KioskScannerView event={event} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Start Camera Scanner/ }));
+
+    await waitFor(() => {
+      expect(container.querySelector("#qr-reader-container")).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(start).toHaveBeenCalled();
+    });
+
+    decodeCallback()("a");
+    expect(await screen.findByText("Jane Doe")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Done$/ }));
+    expect(screen.queryByText("Jane Doe")).toBeNull();
+
+    decodeCallback()("b");
+    expect(await screen.findByText("Bob Smith")).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/checkin/lookup?qr_token=b");
   });
 });

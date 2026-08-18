@@ -28,23 +28,27 @@ export function KioskScannerView({ event }: { event: Event }) {
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [resetSignal, setResetSignal] = useState(0);
 
   async function lookupToken(token: string) {
-    const trimmed = token.trim();
-    if (!trimmed) return;
-    setScanState({ phase: "looking_up", token: trimmed });
-    setQrInput(trimmed);
+    // The manual path types free-form text; the scan path is already
+    // canonicalized by QrScanner, but one normalization here keeps every
+    // input in the single form the server stores.
+    const normalized = token.trim().toLowerCase();
+    if (!normalized) return;
+    setScanState({ phase: "looking_up", token: normalized });
+    setQrInput(normalized);
 
     try {
-      const res = await fetch(`/api/checkin/lookup?qr_token=${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`/api/checkin/lookup?qr_token=${encodeURIComponent(normalized)}`);
       if (!res.ok) {
-        setScanState({ phase: "invalid", token: trimmed });
+        setScanState({ phase: "invalid", token: normalized });
         return;
       }
       const preview = (await res.json()) as TicketPreview;
-      setScanState({ phase: "preview", token: trimmed, preview });
+      setScanState({ phase: "preview", token: normalized, preview });
     } catch {
-      setScanState({ phase: "invalid", token: trimmed });
+      setScanState({ phase: "invalid", token: normalized });
     }
   }
 
@@ -124,6 +128,10 @@ export function KioskScannerView({ event }: { event: Event }) {
   function handleClear() {
     setScanState({ phase: "idle" });
     setQrInput("");
+    // The card is gone but the same QR may still be in the frame; bumping the
+    // reset lets the scanner re-admit it (after the gate's cooldown) instead of
+    // silently swallowing re-scans for the rest of the camera session.
+    setResetSignal((s) => s + 1);
   }
 
   function handleManualSubmit(e: React.FormEvent) {
@@ -173,6 +181,7 @@ export function KioskScannerView({ event }: { event: Event }) {
               onScan={(token) => void lookupToken(token)}
               active={cameraActive}
               paused={cardActive}
+              resetSignal={resetSignal}
               onError={(msg) => {
                 setCameraError(msg);
                 setCameraActive(false);
