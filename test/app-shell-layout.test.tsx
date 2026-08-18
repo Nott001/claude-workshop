@@ -66,9 +66,9 @@ describe("AppShell navbar branch", () => {
 });
 
 describe("AppShell main column offset", () => {
-  // The two bars are no longer the same height, so one shared offset cannot
-  // clear both: TopNavbar reads the --spacing-navbar token, StaffNavbar is
-  // still 64px. Getting this wrong hides the top of the page behind the bar.
+  // Both bars stand at --spacing-navbar, so one offset clears either. It reads
+  // from the token rather than repeating the number: a hardcoded 64px here is
+  // what would hide the top of every page behind the bar the day one moves.
   it("clears the top navbar by the token that sets its height", () => {
     const { container } = renderShell(ROLES.ATTENDEE);
     const className = container.querySelector("main")?.className;
@@ -77,11 +77,11 @@ describe("AppShell main column offset", () => {
     expect(className).not.toContain("lg:pl-[72px]");
   });
 
-  it("clears the shorter staff navbar and the collapsed rail beside it", () => {
+  it("clears the staff navbar by the same token, and the rail beside it", () => {
     const { container } = renderShell(ROLES.ADMIN);
     const className = container.querySelector("main")?.className;
-    expect(className).toContain("pt-16");
-    expect(className).not.toContain("pt-navbar");
+    expect(className).toContain("pt-navbar");
+    expect(className).not.toContain("pt-16");
     expect(className).toContain("lg:pl-[72px]");
   });
 });

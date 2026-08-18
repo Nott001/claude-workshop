@@ -12,11 +12,8 @@ export function StaffNavbar() {
 
   return (
     <>
-      {/* Frosted like the attendee bar, but still 64px: the rail below is
-          pinned to that height, and staff pages are dense enough that the
-          8px would come out of the content rather than out of nothing. */}
       <header className={cn(NAV_BAR_SURFACE, "fixed")}>
-        <div className="flex h-16 items-center px-6">
+        <div className="h-navbar flex items-center px-6">
           <Brand />
           <div className="ml-auto flex items-center gap-3">
             {isSignedIn && user ? <ProfileMenu user={user} signOut={signOut} /> : null}

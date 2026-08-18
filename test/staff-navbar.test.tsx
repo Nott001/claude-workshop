@@ -53,13 +53,14 @@ describe("StaffNavbar", () => {
     expect(header?.className).toContain("fixed");
   });
 
-  // Frosting was all it took from the attendee bar. Growing to match would
-  // have left the rail pinned 8px above where the bar now ends.
-  it("keeps its 64px height, which the rail below is pinned to", () => {
+  // The rail hangs off the bottom edge of the bar, so the two read the same
+  // token. Sizing one without the other opens a gap down the left of the page.
+  it("stands at the shared height, with the rail starting where it ends", () => {
     const { container } = renderStaff();
 
-    expect(container.querySelector("header > div")?.className).toContain("h-16");
-    expect(container.querySelector("header > div")?.className).not.toContain("h-navbar");
-    expect(container.querySelector("aside")?.className).toContain("top-16");
+    expect(container.querySelector("header > div")?.className).toContain("h-navbar");
+    expect(container.querySelector("header > div")?.className).not.toContain("h-16");
+    expect(container.querySelector("aside")?.className).toContain("top-navbar");
+    expect(container.querySelector("aside")?.className).not.toContain("top-16");
   });
 });

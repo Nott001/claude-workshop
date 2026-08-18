@@ -47,10 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       {usesSidebar ? <StaffNavbar /> : <TopNavbar />}
       <ErrorBoundary>
-        {/* The offset belongs to whichever bar rendered above: StaffNavbar is
-            still 64px, TopNavbar is the token's height. One shared `pt-16`
-            covered both only while they happened to be the same size. */}
-        <main className={cn("flex flex-1 flex-col", usesSidebar ? "pt-16 lg:pl-[72px]" : "pt-navbar")}>
+        {/* Both bars stand at the token's height, so one offset clears either
+            — but it reads from the token rather than repeating the number, so
+            the two cannot drift apart again the way they nearly did. */}
+        <main className={cn("pt-navbar flex flex-1 flex-col", usesSidebar && "lg:pl-[72px]")}>
           {children}
           <Footer role={role} />
         </main>
