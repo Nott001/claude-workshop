@@ -48,6 +48,8 @@ describe("migration grants", () => {
       "00012_ticket_realtime_read.sql",
       "00013_messages_replica_identity.sql",
       "00014_drop_message_deleted_at.sql",
+      "00015_live_state_realtime.sql",
+      "00016_live_state_replica_identity.sql",
     ]);
   });
 
@@ -70,6 +72,14 @@ describe("migration grants", () => {
   // who can read messages, so its absence is pinned the same way as above.
   it("adds no table grant in 00014", () => {
     const migration = migrations().find((f) => f.name === "00014_drop_message_deleted_at.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00016 switches the room's live-state table to replica identity full so the
+  // highlight broadcasts over realtime; a grant would widen who can read it,
+  // so its absence is pinned like 00013's.
+  it("adds no table grant in 00016", () => {
+    const migration = migrations().find((f) => f.name === "00016_live_state_replica_identity.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 

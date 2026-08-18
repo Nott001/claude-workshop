@@ -50,6 +50,8 @@ describe("migration replay", () => {
       "00012_ticket_realtime_read.sql",
       "00013_messages_replica_identity.sql",
       "00014_drop_message_deleted_at.sql",
+      "00015_live_state_realtime.sql",
+      "00016_live_state_replica_identity.sql",
     ]);
   });
 
@@ -108,6 +110,19 @@ describe("migration replay", () => {
     });
   });
 
+  describe("live-state replica identity final state (00016)", () => {
+    const migration = content("00016_live_state_replica_identity.sql");
+
+    it("sets replica identity full so realtime UPDATEs carry the highlight", () => {
+      expect(migration).toContain('ALTER TABLE "public"."LIVE_SESSION_STATE" REPLICA IDENTITY FULL;');
+    });
+
+    it("introduces nothing else", () => {
+      expect(migration).not.toMatch(/DROP/);
+      expect(migration).not.toMatch(/GRANT/);
+    });
+  });
+
   describe("user-deletion final state (was 00015)", () => {
     const baseline = content("00001_initial_schema.sql");
 
@@ -131,19 +146,20 @@ describe("migration replay", () => {
     });
   });
 
-  describe("live-session-state realtime drop final state (was 00016)", () => {
-    const baseline = content("00001_initial_schema.sql");
+  describe("live-session-state realtime re-added (was 00015)", () => {
+    const base = content("00001_initial_schema.sql");
+    const final = base + content("00015_live_state_realtime.sql");
 
-    it("keeps LIVE_SESSION_STATE out of the realtime publication", () => {
-      const realtimeSection = baseline.slice(baseline.indexOf("ALTER PUBLICATION supabase_realtime"));
-      expect(realtimeSection).not.toContain("LIVE_SESSION_STATE");
+    it("puts LIVE_SESSION_STATE back on the realtime publication", () => {
+      const realtimeSection = final.slice(final.indexOf("ALTER PUBLICATION supabase_realtime"));
+      expect(realtimeSection).toContain('ADD TABLE "public"."LIVE_SESSION_STATE";');
     });
 
-    it("adds only the five live-participant tables to the publication", () => {
-      const added = [...baseline.matchAll(/ALTER PUBLICATION supabase_realtime ADD TABLE "public"\."([A-Z_]+)";/g)].map(
+    it("adds the six live-participant tables to the publication", () => {
+      const added = [...final.matchAll(/ALTER PUBLICATION supabase_realtime ADD TABLE "public"\."([A-Z_]+)";/g)].map(
         (m) => m[1],
       );
-      expect(added).toEqual(["MODULE", "TICKET", "SUPPORT_SESSION", "CHAT_MESSAGE", "QA_MESSAGE"]);
+      expect(added).toEqual(["MODULE", "TICKET", "SUPPORT_SESSION", "CHAT_MESSAGE", "QA_MESSAGE", "LIVE_SESSION_STATE"]);
     });
   });
 
