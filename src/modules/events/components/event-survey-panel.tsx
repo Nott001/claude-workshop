@@ -38,7 +38,7 @@ function RatingBars({ counts }: { counts: number[] }) {
   );
 }
 
-export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
+export function EventSurveyPanel({ event, onSaved }: { event: SurveyEvent; onSaved?: (surveyEnabled: boolean) => void }) {
   const eventId = String(event.id);
   const [enabled, setEnabled] = useState(event.survey_enabled);
   const { status, loading, error, mutate } = useSurveyStatus(eventId, enabled);
@@ -67,6 +67,7 @@ export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
       return;
     }
     setEnabled(next);
+    onSaved?.(next);
     setSaving(false);
   }
 
