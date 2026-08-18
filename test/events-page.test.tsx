@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, act, fireEvent } from "@testing-library/react";
 import { EventListPage } from "@/modules/events/pages/event-list";
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn() }));
@@ -155,5 +155,131 @@ describe("events page loading state", () => {
 
     // Six cards at the real card height clears any realistic viewport.
     expect(container.querySelectorAll(".h-48").length).toBe(6);
+  });
+});
+
+describe("events page search", () => {
+  it("sends the term to the API after the debounce, not on every keystroke", async () => {
+    vi.useFakeTimers();
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "summit" } });
+    expect(urls).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=summit");
+
+    vi.useRealTimers();
+  });
+
+  // The whole page used to be replaced by the skeleton while a fetch was in
+  // flight. With a search box on it that meant the input unmounting on the
+  // pause after each keystroke, taking the cursor and the caret position out
+  // of it — search would have been unusable.
+  it("keeps the search box and tabs mounted while the refetch is in flight", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+
+    render(<EventListPage />);
+
+    expect(screen.getByLabelText("Loading events")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Search events" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeTruthy();
+  });
+
+  it("says which tab came up empty and what was searched for", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: [], total: 0, page: 1, limit: 50 }) })),
+    );
+
+    render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.getByText("No events found.")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "nothing" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText("No upcoming events match “nothing”.")).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+});
+
+describe("events page tabs", () => {
+  it("marks the selected tab for assistive technology, not by weight alone", async () => {
+    render(<EventListPage />);
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeTruthy());
+
+    const upcoming = screen.getByRole("tab", { name: /Upcoming/ });
+    const completed = screen.getByRole("tab", { name: /Completed/ });
+
+    expect(upcoming.getAttribute("aria-selected")).toBe("true");
+    expect(completed.getAttribute("aria-selected")).toBe("false");
+  });
+
+  // `text-foreground`, `text-muted-foreground` and `bg-surface-hover` are not
+  // tokens in this theme, so Tailwind emitted no rule for them and the two tabs
+  // rendered the same colour on the same transparent background — the selected
+  // one was distinguishable only by font weight.
+  it("distinguishes the selected tab with classes the theme actually defines", async () => {
+    render(<EventListPage />);
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeTruthy());
+
+    const upcoming = screen.getByRole("tab", { name: /Upcoming/ });
+    const completed = screen.getByRole("tab", { name: /Completed/ });
+
+    expect(upcoming.className).toContain("bg-muted");
+    expect(upcoming.className).toContain("text-fg");
+    expect(completed.className).toContain("text-muted-fg");
+    for (const tab of [upcoming, completed]) {
+      expect(tab.className).not.toContain("surface-hover");
+      expect(tab.className).not.toContain("foreground");
+    }
+  });
+
+  it("counts what the search matched, so a term hitting the other tab says so", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ data: [{ ...events[0], status: "complete" }], total: 1, page: 1, limit: 50 }),
+      })),
+    );
+
+    render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Sitting on Upcoming with the only match filed under Completed.
+    expect(screen.getByRole("tab", { name: /Upcoming/ }).textContent).toBe("Upcoming (0)");
+    expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed (1)");
+
+    vi.useRealTimers();
   });
 });
