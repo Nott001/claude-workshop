@@ -48,6 +48,7 @@ describe("migration grants", () => {
       "00012_ticket_realtime_read.sql",
       "00013_messages_replica_identity.sql",
       "00014_drop_message_deleted_at.sql",
+      "00015_live_state_realtime.sql",
     ]);
   });
 

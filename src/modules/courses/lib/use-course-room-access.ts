@@ -3,13 +3,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
-import useSWR from "swr";
-import { fetcher } from "@/shared/lib/fetcher";
 import { findLiveModule } from "@/shared/lib/live-module";
 import { isEventStarted, parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { canAccessCourseRoom } from "@/modules/courses/lib/room-access-policy";
 import { fetchCourseRoomAccess, type CourseRoomCourse } from "@/modules/courses/lib/fetch-course-room-access";
+import { subscribeToCourseHighlight, unsubscribe } from "@/shared/integrations/realtime";
 
 export type AccessLevel = "allowed" | "no_ticket" | "no_course" | "not_started" | "loading" | "denied";
 
@@ -44,12 +43,7 @@ export function useCourseRoomAccess(courseId: string) {
 
   const liveModule = findLiveModule(course?.MODULE ?? [], eventDate, now);
 
-  const { data: highlightData, mutate: mutateHighlight } = useSWR(
-    courseId ? `/api/courses/${courseId}/live/highlight` : null,
-    fetcher,
-    { refreshInterval: 5000, revalidateOnFocus: false, revalidateOnReconnect: false },
-  );
-  const highlightedLessonId = highlightData?.highlighted_lesson_id ?? null;
+  const [highlightedLessonId, setHighlightedLessonId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +92,18 @@ export function useCourseRoomAccess(courseId: string) {
         setCourse(accessData.course);
         setAccess(accessData.course ? "allowed" : "no_course");
       }
+
+      // Seed the highlight once; the realtime channel below carries every
+      // change after it. A failed seed is fine — the next broadcast corrects.
+      try {
+        const res = await fetch(`/api/courses/${courseId}/live/highlight`);
+        if (!cancelled && res.ok) {
+          const body = (await res.json()) as { highlighted_lesson_id?: number | null };
+          setHighlightedLessonId(body.highlighted_lesson_id ?? null);
+        }
+      } catch {
+        // ignore, the channel is the source of truth
+      }
     }
 
     if (!isLoaded) return;
@@ -108,26 +114,45 @@ export function useCourseRoomAccess(courseId: string) {
     };
   }, [courseId, isLoaded, isSignedIn, user]);
 
+  useEffect(() => {
+    if (access !== "allowed") return;
+
+    const channel = subscribeToCourseHighlight(Number(courseId), setHighlightedLessonId);
+    return () => unsubscribe(channel);
+  }, [courseId, access]);
+
+  async function persistHighlight(init: RequestInit) {
+    try {
+      const res = await fetch(`/api/courses/${courseId}/live/highlight`, init);
+      if (res.ok) return;
+    } catch {
+      // fall through to reconciliation below
+    }
+    const reconciled = await fetch(`/api/courses/${courseId}/live/highlight`);
+    if (reconciled.ok) {
+      const body = (await reconciled.json()) as { highlighted_lesson_id?: number | null };
+      setHighlightedLessonId(body.highlighted_lesson_id ?? null);
+    } else {
+      setHighlightedLessonId(null);
+    }
+  }
+
   function handleSetHighlight(lessonId: number) {
     setSettingHighlight(true);
-    mutateHighlight({ highlighted_lesson_id: lessonId }, false);
-    fetch(`/api/courses/${courseId}/live/highlight`, {
+    setHighlightedLessonId(lessonId);
+    void persistHighlight({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lesson_id: lessonId }),
-    })
-      .then(() => mutateHighlight())
-      .finally(() => setSettingHighlight(false));
+    }).finally(() => setSettingHighlight(false));
   }
 
   function handleClearHighlight() {
     setSettingHighlight(true);
-    mutateHighlight({ highlighted_lesson_id: null }, false);
-    fetch(`/api/courses/${courseId}/live/highlight`, {
+    setHighlightedLessonId(null);
+    void persistHighlight({
       method: "DELETE",
-    })
-      .then(() => mutateHighlight())
-      .finally(() => setSettingHighlight(false));
+    }).finally(() => setSettingHighlight(false));
   }
 
   return {
