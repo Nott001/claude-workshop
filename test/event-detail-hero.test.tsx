@@ -91,6 +91,21 @@ describe("EventDetailHero", () => {
     expect(screen.queryByText(/venue/i)).toBeNull();
   });
 
+  it("labels an online event as online rather than as a venue", () => {
+    renderHero({ event: { ...baseEvent, event_type: "online", venue_name: "Zoom", venue_address: null } });
+
+    expect(screen.getByText("Online")).toBeTruthy();
+    expect(screen.getByText("Zoom")).toBeTruthy();
+    expect(screen.queryByText("Venue")).toBeNull();
+  });
+
+  it("still calls an onsite event a venue", () => {
+    renderHero({ event: { ...baseEvent, event_type: "onsite" } });
+
+    expect(screen.getByText("Venue")).toBeTruthy();
+    expect(screen.queryByText("Online")).toBeNull();
+  });
+
   it("never mentions seats", () => {
     renderHero();
 

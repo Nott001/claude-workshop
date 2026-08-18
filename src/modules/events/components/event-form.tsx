@@ -64,12 +64,19 @@ export function EventForm({
 }: EventFormProps) {
   const creating = mode === "create";
 
-  const [values, setValues] = useState<EventFormValues>(initialValues);
+  // Merged over the empty form rather than taken as given. Every key must exist
+  // from the first render or its input mounts uncontrolled and React warns the
+  // moment a value arrives — and the fields here are conditional, so a caller
+  // that predates a column (or a dev server still holding an older module) would
+  // seed the form without it.
+  const seed = useMemo(() => ({ ...EMPTY_EVENT_FORM, ...initialValues }), [initialValues]);
+
+  const [values, setValues] = useState<EventFormValues>(seed);
   // What is currently stored, as this form understands it. Held here rather
   // than re-read from `initialValues` because the server echoes columns back in
   // its own spelling — a `time` comes back as "09:00:00" against the "09:00" an
   // <input type="time"> holds — which would leave a just-saved form dirty.
-  const [baseline, setBaseline] = useState<EventFormValues>(initialValues);
+  const [baseline, setBaseline] = useState<EventFormValues>(seed);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Outside `values` because the dirty check compares them as JSON, and a File
@@ -121,7 +128,7 @@ export function EventForm({
           one uploads on pick, from `CoverImageUpload` on its Details tab. */}
       {creating && <CoverImagePicker onChange={setCoverFile} />}
 
-      <EventFormFields values={values} set={set} />
+      <EventFormFields values={values} set={set} creating={creating} />
 
       {creating && (
         <EventTeamFields facilitatorIds={values.facilitator_ids} speakerProfileIds={values.speaker_profile_ids} set={set} />

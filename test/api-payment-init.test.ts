@@ -6,6 +6,7 @@ const {
   findEventForPayment,
   findLatestByUserAndEvent,
   findActiveTicketByUserAndEvent,
+  countByEvent,
   create,
   updateGatewayReference,
   createPayment,
@@ -14,6 +15,7 @@ const {
   findEventForPayment: vi.fn(),
   findLatestByUserAndEvent: vi.fn(),
   findActiveTicketByUserAndEvent: vi.fn(),
+  countByEvent: vi.fn(),
   create: vi.fn(),
   updateGatewayReference: vi.fn(),
   createPayment: vi.fn(),
@@ -28,13 +30,14 @@ vi.mock("@/shared/db/dao/payment.dao", () => ({
   create,
   updateGatewayReference,
 }));
-vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent }));
+vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent, countByEvent }));
 
 vi.mock("@/modules/commerce/lib/payment-gateway", () => ({
   getPaymentGateway: () => ({ createPayment }),
 }));
 
 import { POST } from "@/app/api/payments/route";
+import { SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
 
 const user = { id: 5, role: ROLES.ATTENDEE, full_name: "Jane", email: "jane@example.com" };
 const event = { id: 3, status: "active", price: 100, currency: "SGD" };
@@ -46,6 +49,7 @@ beforeEach(() => {
   findEventForPayment.mockResolvedValue(event);
   findLatestByUserAndEvent.mockResolvedValue(null);
   findActiveTicketByUserAndEvent.mockResolvedValue(null);
+  countByEvent.mockResolvedValue(0);
   create.mockResolvedValue({ id: 77 });
   updateGatewayReference.mockResolvedValue(true);
   createPayment.mockResolvedValue({ checkout_url: "https://pay.test/77", gateway_reference_id: "hp_77" });
@@ -161,5 +165,41 @@ describe("round trips on the purchase path", () => {
     await expect(res.json()).resolves.toMatchObject({ payment_id: 42 });
     expect(create).not.toHaveBeenCalled();
     expect(createPayment).toHaveBeenCalledWith(expect.objectContaining({ payment_id: 42 }));
+  });
+});
+
+/**
+ * Checkout is the last refusal that is still free for the buyer. The TICKET
+ * trigger enforces the same cap, but a ticket refused there has already been
+ * paid for.
+ */
+describe("event capacity", () => {
+  it("refuses to open a checkout for a sold-out event", async () => {
+    findEventForPayment.mockResolvedValue({ ...event, capacity: 30 });
+    countByEvent.mockResolvedValue(30);
+
+    const res = await POST(post());
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: SOLD_OUT_MESSAGE });
+    expect(create).not.toHaveBeenCalled();
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
+  it("sells the last seat", async () => {
+    findEventForPayment.mockResolvedValue({ ...event, capacity: 30 });
+    countByEvent.mockResolvedValue(29);
+
+    const res = await POST(post());
+
+    expect(res.status).toBe(200);
+    expect(createPayment).toHaveBeenCalled();
+  });
+
+  it("counts no tickets for an uncapped event", async () => {
+    const res = await POST(post());
+
+    expect(res.status).toBe(200);
+    expect(countByEvent).not.toHaveBeenCalled();
   });
 });

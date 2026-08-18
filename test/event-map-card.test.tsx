@@ -79,4 +79,20 @@ describe("EventMapCard", () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  it("renders nothing for an online event, whose venue_name is a platform", () => {
+    // The text is not empty here — it is "Zoom" — so a card that only checked
+    // for emptiness would render a confident map of an office in California.
+    const { container } = render(<EventMapCard event={{ venue_name: "Zoom", venue_address: null, event_type: "online" }} />);
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("still maps an onsite event", () => {
+    const { container } = render(
+      <EventMapCard event={{ venue_name: "Hall A", venue_address: "123 Main St", event_type: "onsite" }} />,
+    );
+
+    expect(container.firstChild).not.toBeNull();
+  });
 });

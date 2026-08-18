@@ -11,7 +11,7 @@ export type EventActor = { id: number };
 
 export type EventGuardUser = { id: number; role: UserRole };
 
-export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "attendees_manage" | "survey";
+export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "attendees_manage" | "survey" | "meeting_link";
 
 // Courses keeps its own copy: the module boundary forbids courses → events, so
 // the course-room guard (SPEC-05) cannot import this one.
@@ -35,6 +35,13 @@ const CAPABILITY_RULE: Record<EventCapability, { minRole: UserRole; assignment: 
   attendees: { minRole: ROLES.FACILITATOR, assignment: true },
   attendees_manage: { minRole: ROLES.ADMIN, assignment: false },
   survey: { minRole: ROLES.ADMIN, assignment: false },
+  // The one write a facilitator gets on the event row itself, and deliberately
+  // narrow: the meeting link is made on the day, by whoever is running the
+  // session, and waiting on an admin to paste it is how an online event starts
+  // with nobody able to get in. Assignment-scoped like the attendee read — a
+  // facilitator may set the link for their own event and no other. It is one
+  // column behind its own endpoint, not the edit form, which stays admin-only.
+  meeting_link: { minRole: ROLES.FACILITATOR, assignment: true },
 };
 
 export async function loadEventOr403(

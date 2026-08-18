@@ -9,6 +9,7 @@ import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { getPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { isSoldOut, SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
 
 export async function POST(req: Request) {
   const supabase = getServiceClient();
@@ -46,6 +47,13 @@ export async function POST(req: Request) {
   // receive a second one — nothing in the schema prevents the duplicate.
   if (activeTicket) {
     return NextResponse.json({ error: "You already have an active ticket for this event" }, { status: 409 });
+  }
+
+  // Checkout is the last point where a refusal is still free for the buyer: the
+  // TICKET trigger enforces the same cap, but by then the money has moved.
+  // Only a capped event pays for the count.
+  if (event.capacity != null && isSoldOut(event.capacity, await ticketDao.countByEvent(supabase, event_id))) {
+    return NextResponse.json({ error: SOLD_OUT_MESSAGE }, { status: 409 });
   }
 
   let payment_id: number;

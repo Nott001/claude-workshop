@@ -43,6 +43,10 @@ describe("migration replay", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
+      "00008_email_change_attempt.sql",
+      "00009_event_capacity.sql",
+      "00010_event_mode.sql",
+      "00011_event_meeting_url.sql",
     ]);
   });
 

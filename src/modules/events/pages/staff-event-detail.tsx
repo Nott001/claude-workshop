@@ -19,6 +19,7 @@ import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { EventOverviewPanel } from "@/modules/events/components/event-overview-panel";
+import { MeetingLinkPanel } from "@/modules/events/components/meeting-link-panel";
 import { EventTeamPanel } from "@/modules/events/components/event-team-panel";
 import { EventCoursePanel } from "@/modules/events/components/event-course-panel";
 import { EventSurveyPanel } from "@/modules/events/components/event-survey-panel";
@@ -134,13 +135,27 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
       </div>
 
       {currentTab === "overview" && (
-        <EventOverviewPanel
-          event={event}
-          attendeeCount={attendeesTotal}
-          canDelete={isAdmin}
-          deleteError={deleteError}
-          onDelete={handleDelete}
-        />
+        <div className="space-y-6">
+          {/* Above the summary, and only for an online event: on the day, this
+              is the one thing on the page anybody needs. Every staff role that
+              can open this page can set it — the endpoint scopes a facilitator
+              to their own events. */}
+          {event.event_type === "online" && (
+            <MeetingLinkPanel
+              eventId={eventId}
+              initialUrl={event.meeting_url}
+              onSaved={(meetingUrl) => applyEventPatch({ meeting_url: meetingUrl })}
+            />
+          )}
+
+          <EventOverviewPanel
+            event={event}
+            attendeeCount={attendeesTotal}
+            canDelete={isAdmin}
+            deleteError={deleteError}
+            onDelete={handleDelete}
+          />
+        </div>
       )}
 
       {currentTab === "details" && isAdmin && (

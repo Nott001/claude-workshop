@@ -5,6 +5,9 @@ import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 import { deleteEvent, EventServiceError, getEvent, loadEventOr403, updateEvent } from "@/modules/events/lib/event-service";
+import { canSeeMeetingLink, redactMeetingUrl } from "@/modules/events/lib/meeting-link";
+import { hasMinRole } from "@/shared/lib/role-hierarchy";
+import { ROLES } from "@/shared/lib/roles";
 
 // The 403/404s are answered with a bare string and the 400/500s with a nested
 // { message }; keeping both shapes so the wire contract does not change. 403 is
@@ -27,24 +30,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const userRole = user?.role ?? null;
 
   try {
-    const event = await getEvent(supabase, Number(id), { id: user?.id ?? null, role: userRole });
+    // The ticket and speaker lookups key on the id from the URL, not on
+    // anything the event carries, so they no longer wait behind it. They also
+    // have to be resolved before the response is built now, because whether the
+    // meeting link may be served depends on the ticket.
+    const [event, ticket, speakerProfile] = await Promise.all([
+      getEvent(supabase, Number(id), { id: user?.id ?? null, role: userRole }),
+      user ? ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, Number(id)) : null,
+      user ? speakerDao.findByUserId(supabase, user.id) : null,
+    ]);
 
-    let hasTicket = false;
-    let speakerProfileId: number | null = null;
-    let isSpeakerAssigned = false;
-    if (user) {
-      const [ticket, speakerProfile] = await Promise.all([
-        ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event.id),
-        speakerDao.findByUserId(supabase, user.id),
-      ]);
-      hasTicket = !!ticket;
-      speakerProfileId = speakerProfile?.id ?? null;
-      if (speakerProfileId !== null) {
-        isSpeakerAssigned = await speakerDao.checkSpeakerAssignment(supabase, speakerProfileId, event.id);
-      }
-    }
+    const hasTicket = !!ticket;
+    const speakerProfileId = speakerProfile?.id ?? null;
+    const isSpeakerAssigned =
+      speakerProfileId !== null ? await speakerDao.checkSpeakerAssignment(supabase, speakerProfileId, event.id) : false;
 
-    return NextResponse.json({ ...event, hasTicket, isSpeakerAssigned, speakerProfileId });
+    // A meeting link is an unauthenticated door — anyone holding it walks in,
+    // whether or not they hold a ticket or ever paid. Withheld here rather than
+    // hidden in the UI, because the JSON is the thing that is actually served.
+    const visible = canSeeMeetingLink(event, { isStaff: hasMinRole(userRole, ROLES.FACILITATOR), hasTicket });
+
+    return NextResponse.json({ ...redactMeetingUrl(event, visible), hasTicket, isSpeakerAssigned, speakerProfileId });
   } catch (err) {
     return mapError(err);
   }

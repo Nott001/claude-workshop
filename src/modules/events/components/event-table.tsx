@@ -29,6 +29,14 @@ export interface EventTableRow {
   venue_name: string;
   status: string;
   attendee_count?: number;
+  /** Seat cap, or null/absent for an uncapped event. */
+  capacity?: number | null;
+}
+
+/** "12 / 50" for a capped event, "12" for one with no cap. */
+function attendance(event: EventTableRow): string {
+  const taken = event.attendee_count ?? 0;
+  return event.capacity == null ? String(taken) : `${taken} / ${event.capacity}`;
 }
 
 interface EventTableProps {
@@ -104,7 +112,7 @@ export function EventTable({
                       endTime={event.end_time}
                     />
                   </TableCell>
-                  <TableCell className="text-muted-fg">{event.attendee_count ?? 0}</TableCell>
+                  <TableCell className="text-muted-fg">{attendance(event)}</TableCell>
                   <TableCell className="w-12">
                     <span aria-hidden className="material-symbols-rounded text-base text-muted-fg">
                       chevron_right
@@ -165,7 +173,7 @@ export function EventTable({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-fg">Attendees</span>
-              <span>{selected.attendee_count ?? 0}</span>
+              <span>{attendance(selected)}</span>
             </div>
           </div>
         )}

@@ -27,6 +27,9 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   // check covers any path that hands over the raw row, on the same local clock
   // the server's ensureRegistrable guard uses.
   const finished = event.status === "complete" || isEventFinished(event.event_date, event.end_time);
+  // Served only for a capped event, and only as a remainder — the attendee
+  // count itself stays staff-only.
+  const seatsLeft = event.seats_left ?? null;
 
   let label = "Register";
   let onAction = onRegister;
@@ -46,24 +49,43 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   } else if (!hasTicket && finished) {
     label = "Completed";
     locked = true;
+  } else if (!hasTicket && seatsLeft === 0) {
+    // The register route refuses this too; the button is here so a reader is
+    // not sent down a flow that ends in a rejection.
+    label = "Sold out";
+    locked = true;
   }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_rgba(0,0,0,.05)]">
-      {/* Price is the only row left — the venue moved to the address card, which
-          now carries the map. A ticket holder is shown no price, so the list is
-          dropped rather than rendered empty with its margin still there. */}
-      {!hasTicket && price && (
+      {/* Price and, for a capped event, what is left of it — the venue moved to
+          the address card, which now carries the map. A ticket holder is shown
+          neither, so the list is dropped rather than rendered empty with its
+          margin still there. */}
+      {!hasTicket && (price || seatsLeft !== null) && (
         <ul className="mb-5 space-y-3 text-sm">
-          <li className={ROW}>
-            <span className="flex items-center gap-2 text-muted-fg">
-              <span aria-hidden className="material-symbols-rounded text-base text-brand">
-                sell
+          {price && (
+            <li className={ROW}>
+              <span className="flex items-center gap-2 text-muted-fg">
+                <span aria-hidden className="material-symbols-rounded text-base text-brand">
+                  sell
+                </span>
+                Price
               </span>
-              Price
-            </span>
-            <span className={VALUE}>{price}</span>
-          </li>
+              <span className={VALUE}>{price}</span>
+            </li>
+          )}
+          {seatsLeft !== null && (
+            <li className={ROW}>
+              <span className="flex items-center gap-2 text-muted-fg">
+                <span aria-hidden className="material-symbols-rounded text-base text-brand">
+                  event_seat
+                </span>
+                Seats left
+              </span>
+              <span className={VALUE}>{seatsLeft > 0 ? seatsLeft.toLocaleString() : "None"}</span>
+            </li>
+          )}
         </ul>
       )}
 
