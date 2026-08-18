@@ -48,7 +48,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
 
   const user = await requireAuth(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const denied = await requireHighlightAccess(supabase, Number(courseId), user.id, user.role);
@@ -71,7 +71,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ cour
 
   const user = await requireAuth(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
   const denied = await requireHighlightAccess(supabase, Number(courseId), user.id, user.role);
