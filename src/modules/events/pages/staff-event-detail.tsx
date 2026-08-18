@@ -126,7 +126,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
             onClick={() => setActiveTab(tab.key)}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm transition-colors",
-              currentTab === tab.key ? "bg-surface-hover font-medium text-fg" : "text-muted-fg hover:bg-surface-hover",
+              currentTab === tab.key ? "bg-muted font-medium text-fg" : "text-muted-fg hover:bg-muted",
             )}
           >
             {tab.label}

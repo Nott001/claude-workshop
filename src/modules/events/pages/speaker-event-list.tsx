@@ -9,7 +9,7 @@ export function SpeakerEventListPage() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading engagements...</div>
+        <div className="text-sm text-muted-fg">Loading engagements...</div>
       </div>
     );
   }
@@ -17,7 +17,7 @@ export function SpeakerEventListPage() {
   if (error) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">{error}</div>
+        <div className="text-sm text-error">{error}</div>
       </div>
     );
   }
@@ -26,12 +26,12 @@ export function SpeakerEventListPage() {
     <div className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
         <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-foreground">Upcoming Engagements</h1>
+          <h1 className="text-2xl font-semibold text-fg">Upcoming Engagements</h1>
         </div>
 
         {events.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-8">
-            <p className="text-sm text-muted-foreground">No upcoming engagements.</p>
+            <p className="text-sm text-muted-fg">No upcoming engagements.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">

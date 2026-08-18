@@ -17,7 +17,7 @@ function ticketStatusStyle(status: string): string {
     case "cancelled":
       return "bg-muted text-muted-fg";
     default:
-      return "bg-surface text-muted-foreground";
+      return "bg-surface text-muted-fg";
   }
 }
 
@@ -125,7 +125,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
       <div className="flex w-56 shrink-0 flex-col items-center justify-center gap-3 border-l border-dashed border-border bg-muted p-6">
         {qrFailed ? (
           <div className="grid size-44 place-items-center rounded-lg bg-surface">
-            <span className="text-sm text-muted-foreground">No QR</span>
+            <span className="text-sm text-muted-fg">No QR</span>
           </div>
         ) : qrSvg ? (
           // The markup is produced locally by the qrcode library from this
@@ -138,13 +138,13 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           />
         ) : (
           <div className="grid size-44 place-items-center">
-            <span className="material-symbols-rounded animate-pulse text-5xl text-muted-foreground/50">qr_code</span>
+            <span className="material-symbols-rounded animate-pulse text-5xl text-muted-fg/50">qr_code</span>
           </div>
         )}
         {/* The code stays visible even when the image fails to render — it is
             the fallback credential for anyone whose camera cannot scan. */}
         <div className="text-center">
-          <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Check-in code</span>
+          <span className="block text-[10px] uppercase tracking-wider text-muted-fg">Check-in code</span>
           <span className="font-mono text-base font-bold tracking-widest text-fg">{ticket.qr_token}</span>
         </div>
       </div>

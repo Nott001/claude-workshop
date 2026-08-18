@@ -165,6 +165,12 @@
 
 ### Fixed
 
+- Colours that were never being applied are applied now. Sixty-two class names across eighteen files named tokens this theme does not define — `text-foreground`, `text-muted-foreground`, `text-destructive`, `bg-surface-hover`, `bg-primary`, `text-primary-foreground`, `bg-background`, `to-background`, `text-accent`, `border-border-strong` — leftovers from a different palette's naming. Tailwind emits nothing for a class it cannot resolve, and nothing is not an error: the markup looked right, the build passed, and the element simply inherited whatever surrounded it.
+
+  Some of it was cosmetic drift, but not all. Error text on eleven surfaces was rendering in the ordinary foreground colour rather than red, which is the one message on a page that must not read as body copy. The **Pay** and **Register** buttons on checkout and event registration had no background at all — a primary call to action wearing dark text on the page's own background. Muted captions sat at full contrast, so the hierarchy between a label and its value was invisible. And selected tabs on the staff event page were separated from unselected ones by font weight alone.
+
+  Each name now points at the token that was meant: `text-fg`, `text-muted-fg`, `text-error`, `bg-muted`, `bg-brand`, `text-brand-fg`, `bg-bg`, `to-bg`, `text-brand`, `border-border`.
+
 - An online event's card no longer claims to be somewhere. Every event card drew the same map pin beside its venue line, whatever the event's mode, so an online session showed a location marker next to the name of a platform — "📍 Zoom". The card now takes the camera icon for an online event and the pin for an onsite one, the pairing the event detail page and the mode picker in the create form already used.
 
   The reason it was wrong is that the pairing existed in three places and the card was not one of them: each surface that needed it had spelled it out inline, so a fourth surface simply picked whichever icon its author typed. It is one function now, and the card, the detail hero and the form read from it. Rows written before the mode column existed read as onsite, matching the default the column itself carries.
