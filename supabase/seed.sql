@@ -261,14 +261,16 @@ INSERT INTO public."COURSE" (
   2, 3, 'Rust Fundamentals', 'The course that accompanied the Rust Hack Night.'
 ) ON CONFLICT (id) DO NOTHING;
 
--- Modules — ids 1-2 (course 1), ids 3-4 (course 2)
+-- Modules — ids 1-2 (course 1), ids 3-4 (course 2). Sessions sit inside
+-- their event day: Product Summit runs 09:00-17:00, Rust Hack Night
+-- 18:30-21:00.
 INSERT INTO public."MODULE" (
-  id, course_id, module_name, sequence_order, module_type, is_locked
+  id, course_id, module_name, sequence_order, module_type, is_locked, start_time, end_time
 ) OVERRIDING SYSTEM VALUE VALUES 
-  (1, 1, 'Foundations', 1, 'lessons', false),
-  (2, 1, 'Building', 2, 'lessons', false),
-  (3, 2, 'Ownership & Safety', 1, 'lessons', false),
-  (4, 2, 'Systems Rust', 2, 'lessons', false)
+  (1, 1, 'Foundations', 1, 'lessons', false, '09:00:00', '11:30:00'),
+  (2, 1, 'Building', 2, 'lessons', false, '13:00:00', '16:30:00'),
+  (3, 2, 'Ownership & Safety', 1, 'lessons', false, '18:30:00', '19:45:00'),
+  (4, 2, 'Systems Rust', 2, 'lessons', false, '19:45:00', '21:00:00')
 ON CONFLICT (id) DO NOTHING;
 
 -- Lessons — ids 1-10 (course 1), ids 11-18 (course 2). Descriptions are
@@ -726,9 +728,12 @@ ON CONFLICT (id) DO NOTHING;
 -- Today: the live QA workshop. This event is deliberately set to
 -- CURRENT_DATE with a full-day window (00:00-23:59) so the room reads as
 -- live at any hour — realtime (QA messages + the module lock) can be
--- exercised against a room that is genuinely started. It carries a course
--- with four modules and a Q&A thread that runs through all of them,
--- plus tickets for the sign-in attendees so either can reach the room.
+-- exercised against a room that is genuinely started. Its modules carry a
+-- morning-to-early-afternoon session block (09:00-14:30) so the current
+-- topic and schedule badges render, but the room itself stays live for the
+-- whole day. It carries a course with four modules and a Q&A thread that
+-- runs through all of them, plus tickets for the sign-in attendees so
+-- either can reach the room.
 -- ---------------------------------------------------------------
 
 INSERT INTO public."EVENT" (
@@ -748,13 +753,13 @@ INSERT INTO public."COURSE" (
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public."MODULE" (
-  id, course_id, module_name, sequence_order, module_type, is_locked
+  id, course_id, module_name, sequence_order, module_type, is_locked, start_time, end_time
 ) OVERRIDING SYSTEM VALUE VALUES
-  (5, 3, 'Kickoff', 1, 'lessons', false),
-  (6, 3, 'Discussion', 2, 'lessons', false),
-  (7, 3, 'Working Session', 3, 'lessons', false),
-  (8, 3, 'Wrap-up', 4, 'lessons', false),
-  (9, 3, 'Open Q&A', 5, 'qa', false)
+  (5, 3, 'Kickoff', 1, 'lessons', false, '09:00:00', '09:45:00'),
+  (6, 3, 'Discussion', 2, 'lessons', false, '09:45:00', '10:45:00'),
+  (7, 3, 'Working Session', 3, 'lessons', false, '11:00:00', '12:30:00'),
+  (8, 3, 'Wrap-up', 4, 'lessons', false, '12:30:00', '13:00:00'),
+  (9, 3, 'Open Q&A', 5, 'qa', false, '13:00:00', '14:30:00')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public."LESSON" (
