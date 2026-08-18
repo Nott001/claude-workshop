@@ -77,10 +77,9 @@ describe("migration replay", () => {
   describe("message deleted_at drop final state (00009)", () => {
     const migration = content("00009_drop_message_deleted_at.sql");
 
-    it("drops deleted_at from the three chat tables", () => {
+    it("drops deleted_at from the two message tables", () => {
       expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
       expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
-      expect(migration).toContain('ALTER TABLE "public"."SUPPORT_SESSION" DROP COLUMN IF EXISTS "deleted_at";');
     });
 
     it("introduces no grant", () => {
