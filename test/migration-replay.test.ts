@@ -51,6 +51,7 @@ describe("migration replay", () => {
       "00013_messages_replica_identity.sql",
       "00014_drop_message_deleted_at.sql",
       "00015_live_state_realtime.sql",
+      "00016_live_state_replica_identity.sql",
     ]);
   });
 
@@ -105,6 +106,19 @@ describe("migration replay", () => {
     });
 
     it("introduces no grant", () => {
+      expect(migration).not.toMatch(/GRANT/);
+    });
+  });
+
+  describe("live-state replica identity final state (00016)", () => {
+    const migration = content("00016_live_state_replica_identity.sql");
+
+    it("sets replica identity full so realtime UPDATEs carry the highlight", () => {
+      expect(migration).toContain('ALTER TABLE "public"."LIVE_SESSION_STATE" REPLICA IDENTITY FULL;');
+    });
+
+    it("introduces nothing else", () => {
+      expect(migration).not.toMatch(/DROP/);
       expect(migration).not.toMatch(/GRANT/);
     });
   });
