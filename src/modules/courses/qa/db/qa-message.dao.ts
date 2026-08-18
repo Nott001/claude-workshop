@@ -24,11 +24,7 @@ export async function listQuestionsByModule(
     limit: number;
   },
 ): Promise<{ messages: QaMessage[]; nextCursor: string | null }> {
-  const query = supabase
-    .from("QA_MESSAGE")
-    .select("*, USER:user_id(full_name, role)")
-    .eq("module_id", moduleId)
-    .is("deleted_at", null);
+  const query = supabase.from("QA_MESSAGE").select("*, USER:user_id(full_name, role)").eq("module_id", moduleId);
 
   const { data, nextCursor } = await runCursorFeed<QaMessage>(query, "created_at", options);
   return { messages: data, nextCursor };

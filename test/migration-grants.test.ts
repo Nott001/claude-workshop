@@ -42,6 +42,7 @@ describe("migration grants", () => {
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
       "00008_messages_replica_identity.sql",
+      "00009_drop_message_deleted_at.sql",
     ]);
   });
 
@@ -57,6 +58,13 @@ describe("migration grants", () => {
   // read messages, so its absence is pinned the same way 00007's is.
   it("adds no table grant in 00008", () => {
     const migration = migrations().find((f) => f.name === "00008_messages_replica_identity.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00009 drops the vestigial soft-delete columns; a grant there would widen
+  // who can read messages, so its absence is pinned the same way as above.
+  it("adds no table grant in 00009", () => {
+    const migration = migrations().find((f) => f.name === "00009_drop_message_deleted_at.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 

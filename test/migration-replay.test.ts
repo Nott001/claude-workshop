@@ -44,6 +44,7 @@ describe("migration replay", () => {
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
       "00008_messages_replica_identity.sql",
+      "00009_drop_message_deleted_at.sql",
     ]);
   });
 
@@ -69,6 +70,20 @@ describe("migration replay", () => {
 
     it("introduces nothing else", () => {
       expect(migration).not.toMatch(/DROP/);
+      expect(migration).not.toMatch(/GRANT/);
+    });
+  });
+
+  describe("message deleted_at drop final state (00009)", () => {
+    const migration = content("00009_drop_message_deleted_at.sql");
+
+    it("drops deleted_at from the three chat tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+      expect(migration).toContain('ALTER TABLE "public"."SUPPORT_SESSION" DROP COLUMN IF EXISTS "deleted_at";');
+    });
+
+    it("introduces no grant", () => {
       expect(migration).not.toMatch(/GRANT/);
     });
   });

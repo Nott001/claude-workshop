@@ -104,14 +104,6 @@ describe("chat-message.dao listMessages", () => {
     expect(argsOf(calls, "eq")).toEqual(["support_type", "general"]);
   });
 
-  it("hides messages that were deleted", async () => {
-    const { client, calls } = stub({ data: [] });
-
-    await dao.listMessages(client, "general", options);
-
-    expect(calls.some(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toBe(true);
-  });
-
   it("walks backwards from a cursor when one is given", async () => {
     const { client, calls } = stub({ data: [] });
 

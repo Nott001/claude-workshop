@@ -26,11 +26,7 @@ export async function listMessages(
     limit: number;
   },
 ): Promise<{ messages: ChatMessage[]; nextCursor: string | null }> {
-  const query = supabase
-    .from("CHAT_MESSAGE")
-    .select("*, USER:user_id(full_name, role)")
-    .eq("support_type", supportType)
-    .is("deleted_at", null);
+  const query = supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("support_type", supportType);
 
   const { data, nextCursor } = await runCursorFeed<ChatMessage>(query, "sent_at", options);
   return { messages: data, nextCursor };
@@ -70,8 +66,7 @@ export async function countRecentByUser(
     .select("*", { count: "exact", head: true })
     .eq("support_type", supportType)
     .eq("user_id", userId)
-    .gte("sent_at", windowStart)
-    .is("deleted_at", null);
+    .gte("sent_at", windowStart);
 
   const { count } = await query;
   return count ?? 0;
@@ -121,11 +116,7 @@ export async function listSupportMessages(
   let sessionId: number | null = null;
   let session: LatestSession | null = null;
 
-  let query = supabase
-    .from("CHAT_MESSAGE")
-    .select("*, USER:user_id(full_name, role)")
-    .eq("support_type", supportType)
-    .is("deleted_at", null);
+  let query = supabase.from("CHAT_MESSAGE").select("*, USER:user_id(full_name, role)").eq("support_type", supportType);
 
   if (role !== ROLES.FACILITATOR && role !== ROLES.ADMIN && role !== ROLES.SUPER_ADMIN && userId) {
     query = query.or(`user_id.eq.${escapeOrValue(userId)},recipient_user_id.eq.${escapeOrValue(userId)}`);
@@ -163,7 +154,6 @@ export async function listRecentSupportMessages(supabase: DbClient, since: strin
     .from("CHAT_MESSAGE")
     .select("user_id, recipient_user_id, message, sent_at, session_id, support_type, USER:user_id!inner(full_name, role)")
     .gte("sent_at", since)
-    .is("deleted_at", null)
     .order("sent_at", { ascending: false })
     .limit(500);
   return data ?? [];
