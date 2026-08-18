@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { UserRole } from "@/shared/types";
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
+import { qaAuthorKind } from "@/modules/courses/qa/lib/author-kind";
 import type { QaMessageWithUser } from "@/modules/courses/qa/lib/types";
 import { subscribeToQaMessagesByModule, subscribeToModuleLock } from "@/modules/courses/qa/lib/realtime";
 import { unsubscribe } from "@/shared/integrations/realtime";
@@ -174,30 +175,45 @@ export default function QAPanel({
           <div className="flex-1 overflow-y-auto min-h-0 max-h-60 p-4">
             <div className="space-y-3">
               {sortedMessages.length === 0 && <p className="py-12 text-center text-sm text-muted-fg">No questions yet.</p>}
-              {sortedMessages.map((msg) => (
-                <div key={msg.id} className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted p-3 shadow-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                        <span className="material-symbols-rounded text-[8px] text-muted-fg">person</span>
+              {sortedMessages.map((msg) => {
+                const isSpeaker = qaAuthorKind(msg.USER?.role) === "speaker";
+                return (
+                  <div
+                    key={msg.id}
+                    className={
+                      "flex flex-col gap-1.5 rounded-xl border p-3 shadow-sm " +
+                      (isSpeaker ? "border-warning/40 bg-warning/10" : "border-border bg-muted")
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                          <span className="material-symbols-rounded text-[8px] text-muted-fg">person</span>
+                        </div>
+                        <span className="truncate text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>
+                        {isSpeaker && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+                            <span className="material-symbols-rounded text-[10px]">record_voice_over</span>
+                            Speaker
+                          </span>
+                        )}
                       </div>
-                      <span className="truncate text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
+                        {formatDateTime(msg.created_at)}
+                      </span>
                     </div>
-                    <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
-                      {formatDateTime(msg.created_at)}
-                    </span>
+                    <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
+                    {canModerate && (
+                      <button
+                        onClick={() => handleDelete(msg.id)}
+                        className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
+                      >
+                        <span className="material-symbols-rounded text-xs">delete</span>
+                      </button>
+                    )}
                   </div>
-                  <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
-                  {canModerate && (
-                    <button
-                      onClick={() => handleDelete(msg.id)}
-                      className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
-                    >
-                      <span className="material-symbols-rounded text-xs">delete</span>
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               <div ref={bottomRef} />
             </div>
           </div>

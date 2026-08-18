@@ -16,7 +16,7 @@ vi.mock("@/shared/integrations/realtime", () => ({ unsubscribe }));
 
 import QAPanel from "@/modules/courses/qa/components/qa-panel";
 
-function question(id: number, message: string) {
+function question(id: number, message: string, role: UserRole = ROLES.ATTENDEE) {
   return {
     id,
     event_id: 9,
@@ -26,7 +26,7 @@ function question(id: number, message: string) {
     created_at: "2026-08-05T09:00:00Z",
     deleted_at: null,
     updated_at: "2026-08-05T09:00:00Z",
-    USER: { full_name: "Ana", role: ROLES.ATTENDEE },
+    USER: { full_name: "Ana", role },
   };
 }
 
@@ -224,5 +224,37 @@ describe("QAPanel", () => {
 
     expect(unsubscribe).toHaveBeenCalledWith(subscription);
     expect(unsubscribe).toHaveBeenCalledWith(lockSubscription);
+  });
+
+  it("labels a speaker response with the Speaker badge", async () => {
+    stubFetch([
+      { method: "GET", url: "/api/qa/module/4", body: { messages: [question(1, "Here is my answer.", ROLES.SPEAKER)] } },
+      { method: "GET", url: "/api/qa/message/1", body: question(1, "Here is my answer.", ROLES.SPEAKER) },
+    ]);
+    render(
+      <QAPanel
+        moduleId={4}
+        userRole={ROLES.ATTENDEE}
+        isSpeakerAssigned={false}
+        eventStarted={true}
+        eventEnded={false}
+        isLocked={false}
+        onToggleLock={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("Here is my answer.");
+    const bubble = screen.getByText("Here is my answer.").closest("div");
+    expect(bubble?.className).toContain("bg-warning/10");
+    expect(screen.getByText("Speaker")).toBeTruthy();
+    expect(screen.queryByText("Staff")).toBeNull();
+  });
+
+  it("keeps an attendee question free of role badges", async () => {
+    renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+    expect(screen.getByText("Any question?").closest("div")?.className).not.toContain("bg-warning/10");
+    expect(screen.queryByText("Speaker")).toBeNull();
+    expect(screen.queryByText("Staff")).toBeNull();
   });
 });
