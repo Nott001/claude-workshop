@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { supabase } from "@/shared/db/client";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { PostLoginRedirect } from "@/modules/auth/components/post-login-redirect";
@@ -18,13 +20,16 @@ export const dynamic = "force-dynamic";
 // this query asks for. service_role would bypass RLS on a public page and,
 // now that the page renders per request, make every request depend on a
 // secret it does not need — a missing key would 500 the landing page.
-async function getUpcomingEvents(): Promise<LandingEvent[]> {
-  const data = await eventDao.getUpcomingForLanding(supabase);
-  return data.map(toLandingEvent);
+async function getUpcomingEvents(): Promise<{ events: LandingEvent[]; total: number }> {
+  const { events, total } = await eventDao.getUpcomingForLanding(supabase);
+  return { events: events.map(toLandingEvent), total };
 }
 
 export default async function HomePage() {
-  const events = await getUpcomingEvents();
+  const { events, total } = await getUpcomingEvents();
+  // Only when the strip is actually hiding something. A link promising more
+  // that lands on the same three events is worse than no link.
+  const hasMore = total > events.length;
 
   return (
     <>
@@ -32,7 +37,20 @@ export default async function HomePage() {
       <div className="flex flex-1 flex-col bg-bg text-fg">
         <LandingHero />
         <div className="px-6 py-12">
-          <h2 className="mb-6 text-lg font-bold text-fg">Upcoming Events</h2>
+          <div className="mb-6 flex items-baseline justify-between gap-4">
+            <h2 className="text-lg font-bold text-fg">Upcoming Events</h2>
+            {hasMore && (
+              <Link
+                href="/events"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-brand outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                See all events
+                <span aria-hidden className="material-symbols-rounded text-base">
+                  chevron_right
+                </span>
+              </Link>
+            )}
+          </div>
           <EventGrid events={events} backOrigin="landing" />
         </div>
       </div>

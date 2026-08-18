@@ -74,7 +74,7 @@ afterEach(() => {
 
 describe("landing page (logged out) event cards", () => {
   it("shows guests the tagline and the Join Now CTA", async () => {
-    getUpcomingForLanding.mockResolvedValue(apiRows);
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: apiRows.length });
     useSession.mockReturnValue({
       user: null,
       loading: false,
@@ -91,7 +91,7 @@ describe("landing page (logged out) event cards", () => {
   });
 
   it("shows the empty state when no events are published", async () => {
-    getUpcomingForLanding.mockResolvedValue([]);
+    getUpcomingForLanding.mockResolvedValue({ events: [], total: 0 });
     useSession.mockReturnValue({
       user: null,
       loading: false,
@@ -108,7 +108,7 @@ describe("landing page (logged out) event cards", () => {
 
 describe("merged landing page for a signed-in attendee", () => {
   it("greets by name and still lists upcoming events tagged for the landing page", async () => {
-    getUpcomingForLanding.mockResolvedValue(apiRows);
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: apiRows.length });
     useSession.mockReturnValue({
       user: attendee,
       loading: false,
@@ -144,7 +144,7 @@ describe("landing card venue row", () => {
   });
 
   it("marks an online event with the camera icon and an onsite one with the pin", async () => {
-    getUpcomingForLanding.mockResolvedValue(apiRows);
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: apiRows.length });
 
     render(await LandingPage());
 
@@ -155,10 +155,49 @@ describe("landing card venue row", () => {
   });
 
   it("falls back to onsite for a row written before the mode column existed", async () => {
-    getUpcomingForLanding.mockResolvedValue(apiRows);
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: apiRows.length });
 
     render(await LandingPage());
 
     expect(screen.getByText("Hall C").closest("p")?.textContent).toContain("location_on");
+  });
+});
+
+describe("see all events link", () => {
+  beforeEach(() => {
+    useSession.mockReturnValue({
+      user: null,
+      loading: false,
+      isLoaded: true,
+      isSignedIn: false,
+      signOut: vi.fn(),
+    });
+  });
+
+  it("offers the full listing when more upcoming events exist than the strip shows", async () => {
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: 12 });
+
+    render(await LandingPage());
+
+    expect(screen.getByRole("link", { name: /see all events/i }).getAttribute("href")).toBe("/events");
+  });
+
+  it("stays hidden when the strip is already showing every upcoming event", async () => {
+    // The link would land on the same three cards, which reads as a dead end
+    // rather than as more content.
+    getUpcomingForLanding.mockResolvedValue({ events: apiRows, total: apiRows.length });
+
+    render(await LandingPage());
+
+    expect(screen.queryByRole("link", { name: /see all events/i })).toBeNull();
+  });
+
+  it("stays hidden when there are no upcoming events at all", async () => {
+    getUpcomingForLanding.mockResolvedValue({ events: [], total: 0 });
+
+    render(await LandingPage());
+
+    expect(screen.getByText("No upcoming events.")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /see all events/i })).toBeNull();
   });
 });

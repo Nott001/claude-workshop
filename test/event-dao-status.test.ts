@@ -120,6 +120,29 @@ describe("eventDao upcoming filter", () => {
     );
   });
 
+  it("getUpcomingForLanding reports the full upcoming total, not the limited page", async () => {
+    // The landing page draws "See all events" only when the total exceeds what
+    // the strip rendered, so a count of the limited rows would always hide it.
+    const chain = chainStub({ data: [futureActive], count: 12, error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    const result = await eventDao.getUpcomingForLanding(client);
+
+    expect(chain.select).toHaveBeenCalledWith("*", { count: "exact" });
+    expect(result.total).toBe(12);
+    expect(result.events).toHaveLength(1);
+  });
+
+  it("getUpcomingForLanding reports a zero total when the query fails", async () => {
+    const chain = chainStub({ data: null, count: null, error: { message: "denied", code: "42501" } });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    const result = await eventDao.getUpcomingForLanding(client);
+
+    expect(result.events).toEqual([]);
+    expect(result.total).toBe(0);
+  });
+
   it("getUpcomingForLanding asks for one full row of the landing grid", async () => {
     // The grid is three cards wide at lg, so the query has to supply three or
     // the row is always short.

@@ -122,11 +122,20 @@ export async function list(
  *  for fewer left a ragged half-row on every desktop viewport. */
 const LANDING_EVENT_LIMIT = 3;
 
-export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
+/** The strip's rows plus how many upcoming events exist in total, so the page
+ *  can decide whether "See all events" has anything to offer. */
+export interface LandingEvents {
+  events: EventWithCourseName[];
+  total: number;
+}
+
+export async function getUpcomingForLanding(supabase: DbClient): Promise<LandingEvents> {
   const now = new Date();
-  const { data, error } = await supabase
+  // `count: "exact"` counts the whole filtered set, not the limited page, which
+  // is the only way to tell three-of-three from three-of-twelve.
+  const { data, count, error } = await supabase
     .from("EVENT")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("status", "active")
     .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
     .order("event_date", { ascending: true })
@@ -138,7 +147,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWi
   if (error) {
     console.error("event.dao.getUpcomingForLanding failed:", error.message, error.code);
   }
-  return data ?? [];
+  return { events: data ?? [], total: count ?? 0 };
 }
 
 export async function create(supabase: DbClient, data: CreateEventInput): Promise<Event | null> {
