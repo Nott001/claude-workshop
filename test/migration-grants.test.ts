@@ -41,6 +41,7 @@ describe("migration grants", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
+      "00008_messages_replica_identity.sql",
     ]);
   });
 
@@ -48,6 +49,14 @@ describe("migration grants", () => {
   // not add any grant for the roles this suite guards.
   it("adds no table grant in 00007", () => {
     const migration = migrations().find((f) => f.name === "00007_short_qr_token.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00008 only switches the realtime chat tables to replica identity full so
+  // filtered DELETE events can be routed; a grant there would widen who can
+  // read messages, so its absence is pinned the same way 00007's is.
+  it("adds no table grant in 00008", () => {
+    const migration = migrations().find((f) => f.name === "00008_messages_replica_identity.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 

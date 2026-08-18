@@ -43,6 +43,7 @@ describe("migration replay", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
+      "00008_messages_replica_identity.sql",
     ]);
   });
 
@@ -55,6 +56,20 @@ describe("migration replay", () => {
 
     it("does not restore a CREATE UNIQUE for qr_token", () => {
       expect(migration).not.toMatch(/UNIQUE.*qr_token/);
+    });
+  });
+
+  describe("messages-replica-identity final state (00008)", () => {
+    const migration = content("00008_messages_replica_identity.sql");
+
+    it("sets replica identity full on the realtime filtered chat tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" REPLICA IDENTITY FULL;');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" REPLICA IDENTITY FULL;');
+    });
+
+    it("introduces nothing else", () => {
+      expect(migration).not.toMatch(/DROP/);
+      expect(migration).not.toMatch(/GRANT/);
     });
   });
 
