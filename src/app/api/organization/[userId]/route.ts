@@ -13,7 +13,7 @@ const updateSchema = z.object({
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof OrganizationServiceError) {
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }
@@ -37,7 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const { userId } = await params;
   const targetId = parseUserId(userId);
   if (targetId === null) {
-    return NextResponse.json({ error: { message: "Invalid user" } }, { status: 400 });
+    return NextResponse.json({ error: "Invalid user" }, { status: 400 });
   }
 
   const body = await req.json();
@@ -65,7 +65,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   const { userId } = await params;
   const targetId = parseUserId(userId);
   if (targetId === null) {
-    return NextResponse.json({ error: { message: "Invalid user" } }, { status: 400 });
+    return NextResponse.json({ error: "Invalid user" }, { status: 400 });
   }
 
   const supabase = getServiceClient();

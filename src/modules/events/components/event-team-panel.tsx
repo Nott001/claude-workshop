@@ -24,7 +24,7 @@ function FacilitatorAssignments({ eventId, initialIds }: { eventId: string; init
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to update facilitators");
+      setError(body?.error ?? "Failed to update facilitators");
       setSaving(false);
       return false;
     }

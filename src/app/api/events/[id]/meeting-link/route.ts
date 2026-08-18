@@ -40,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (err.status === 404 || err.status === 403) {
         return NextResponse.json({ error: err.message }, { status: err.status });
       }
-      return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     throw err;
   }

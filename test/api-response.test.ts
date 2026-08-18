@@ -114,4 +114,17 @@ describe("route validation failures go through the helper", () => {
 
     expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
   });
+
+  // `error` holds a string. The nested `{ message }` form was the other half of
+  // the same drift, and it cost three clients their own normalizer before the
+  // shapes were reconciled. `auth/email/*` is exempt: its `retryAfter` and
+  // `code` are data a string cannot carry, and it nests under `ok: false`.
+  it("no route puts an object under the error key", () => {
+    const exempt = path.join(API_DIR, "auth", "email");
+    const offenders = files
+      .filter((f) => !f.startsWith(exempt))
+      .filter((f) => /error:\s*\{\s*message/.test(readFileSync(f, "utf8")));
+
+    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+  });
 });

@@ -10,7 +10,7 @@ import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof CommunityServiceError) {
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }

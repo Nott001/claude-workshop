@@ -13,13 +13,9 @@ import {
 } from "@/modules/courses/lib/course-module-service";
 import { badRequest } from "@/shared/lib/api-response";
 
-// The 400s are answered with a nested { message } and the 500s with a bare
-// string; keeping both shapes so the wire contract does not change.
 function mapError(err: unknown): NextResponse {
   if (err instanceof CourseModuleServiceError) {
-    return NextResponse.json(err.status === 400 ? { error: { message: err.message } } : { error: err.message }, {
-      status: err.status,
-    });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }

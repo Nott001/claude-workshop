@@ -41,7 +41,7 @@ export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormPr
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new Error(body?.error?.message ?? "Failed to update event");
+      throw new Error(body?.error ?? "Failed to update event");
     }
 
     onSaved?.(await res.json());

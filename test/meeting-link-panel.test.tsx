@@ -72,7 +72,7 @@ describe("MeetingLinkPanel", () => {
   });
 
   it("reports the nested error shape the service answers with", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: { message: "Nope" } }) }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: "Nope" }) }));
     render(<MeetingLinkPanel eventId="1" initialUrl={null} />);
 
     fireEvent.change(box(), { target: { value: LINK } });

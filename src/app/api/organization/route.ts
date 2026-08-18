@@ -18,11 +18,9 @@ const inviteSchema = z.object({
   role: z.enum(INVITABLE_ROLES),
 });
 
-// Invitation failures are all answered with a nested { message }; keeping the
-// shape the route has always used on the wire.
 function mapError(err: unknown): NextResponse {
   if (err instanceof OrganizationServiceError) {
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }
@@ -42,7 +40,7 @@ export async function GET(req: Request) {
   // Attendee is among them: promoting one means first being able to list them.
   const role = searchParams.get("role") ?? undefined;
   if (role && !(ALL_ROLES as readonly string[]).includes(role)) {
-    return NextResponse.json({ error: { message: "Invalid role" } }, { status: 400 });
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   const supabase = getServiceClient();
@@ -70,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   if (!canGrantRole(guard.user.role, parsed.data.role)) {
-    return NextResponse.json({ error: { message: "You cannot invite a role you do not outrank" } }, { status: 403 });
+    return NextResponse.json({ error: "You cannot invite a role you do not outrank" }, { status: 403 });
   }
 
   const supabase = getServiceClient();

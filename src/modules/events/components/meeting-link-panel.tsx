@@ -41,9 +41,7 @@ export function MeetingLinkPanel({ eventId, initialUrl, onSaved }: MeetingLinkPa
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      // The route answers 403/404 flat and everything else nested, the same as
-      // the event routes it sits beside.
-      setError(typeof body?.error === "string" ? body.error : (body?.error?.message ?? "Failed to save the meeting link"));
+      setError(body?.error ?? "Failed to save the meeting link");
       setSaving(false);
       return;
     }

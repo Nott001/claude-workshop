@@ -62,7 +62,7 @@ export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
     });
     if (!res.ok) {
       const body = await res.json();
-      setSettingError(body.error?.message ?? "Failed to update survey setting");
+      setSettingError(body.error ?? "Failed to update survey setting");
       setSaving(false);
       return;
     }

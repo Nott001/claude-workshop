@@ -171,7 +171,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setInviteError(data?.error?.message ?? "Failed to invite member");
+      setInviteError(data?.error ?? "Failed to invite member");
       setInviting(false);
       return;
     }
@@ -210,7 +210,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setRoleError(data?.error?.message ?? "Failed to change the role");
+      setRoleError(data?.error ?? "Failed to change the role");
       setSavingRole(false);
       return;
     }
@@ -234,7 +234,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.error?.message ?? "Failed to remove member");
+      alert(data?.error ?? "Failed to remove member");
       return;
     }
 

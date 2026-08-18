@@ -12,7 +12,7 @@ function mapError(err: unknown): NextResponse {
     if (err.status === 404) {
       return NextResponse.json({ error: err.message }, { status: 404 });
     }
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }

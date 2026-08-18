@@ -11,16 +11,10 @@ import { planDraft, planIsEmpty, type ModuleDraft } from "./module-draft";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
 
-/**
- * Routes answer with `{ error: string }` for a refusal the caller can act on and
- * `{ error: { message } }` elsewhere. Reading only the latter turned a 409 into
- * a generic failure, which told the author nothing about what to do next.
- */
+/** A refusal the author can act on carries its own message; a 500 will not. */
 async function refusalMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => null);
-  const error = body?.error;
-  if (typeof error === "string") return error;
-  return typeof error?.message === "string" ? error.message : fallback;
+  return typeof body?.error === "string" ? body.error : fallback;
 }
 
 export function useCourseCreate(eventId: string, existingCourseId?: number) {

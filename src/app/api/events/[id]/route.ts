@@ -10,15 +10,9 @@ import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { ROLES } from "@/shared/lib/roles";
 import { badRequest } from "@/shared/lib/api-response";
 
-// The 403/404s are answered with a bare string and the 400/500s with a nested
-// { message }; keeping both shapes so the wire contract does not change. 403 is
-// flat because the role guards this replaces answered "Forbidden" that way.
 function mapError(err: unknown): NextResponse {
   if (err instanceof EventServiceError) {
-    if (err.status === 404 || err.status === 403) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
   throw err;
 }
