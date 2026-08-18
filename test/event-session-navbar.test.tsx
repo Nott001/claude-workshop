@@ -43,3 +43,29 @@ describe("EventSessionNavbar live module", () => {
     expect(screen.queryByText(/Ada Lovelace/)).toBeNull();
   });
 });
+
+describe("EventSessionNavbar ended state", () => {
+  it("shows an Ended label and hides the timer once the event has ended", () => {
+    render(<EventSessionNavbar {...baseProps} hasEnded eventDate="2024-01-01" startTime="09:00:00" />);
+
+    expect(screen.getByText("Ended")).toBeTruthy();
+    expect(screen.queryByText("Elapsed")).toBeNull();
+    expect(screen.queryByText("Remaining")).toBeNull();
+  });
+
+  it("keeps the timer visible before the event ends", () => {
+    render(<EventSessionNavbar {...baseProps} eventDate="2024-01-01" startTime="09:00:00" />);
+
+    expect(screen.queryByText("Ended")).toBeNull();
+    expect(screen.getByText("Elapsed")).toBeTruthy();
+    expect(screen.getByText("Remaining")).toBeTruthy();
+  });
+
+  it("suppresses the live chip once the event has ended", () => {
+    render(<EventSessionNavbar {...baseProps} hasEnded liveModuleName="Keynote" eventDate="2024-01-01" startTime="09:00:00" />);
+
+    expect(screen.getByText("Ended")).toBeTruthy();
+    expect(screen.queryByText("Live")).toBeNull();
+    expect(screen.queryByText("Keynote")).toBeNull();
+  });
+});

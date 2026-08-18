@@ -9,6 +9,7 @@ interface EventSessionNavbarProps {
   remaining: string;
   eventDate: string;
   startTime: string;
+  hasEnded?: boolean;
   liveModuleName?: string | null;
   liveSpeakerName?: string | null;
   onExit?: () => void;
@@ -20,6 +21,7 @@ export function EventSessionNavbar({
   remaining,
   eventDate,
   startTime,
+  hasEnded = false,
   liveModuleName,
   liveSpeakerName,
   onExit,
@@ -70,7 +72,9 @@ export function EventSessionNavbar({
       </div>
 
       <div className="flex flex-1 items-center justify-center gap-4">
-        {eventStarted ? (
+        {hasEnded ? (
+          <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-muted-fg">Ended</span>
+        ) : eventStarted ? (
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-center border-r border-border pr-4">
               <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-muted-fg">Elapsed</span>
@@ -88,7 +92,7 @@ export function EventSessionNavbar({
           </div>
         ) : null}
 
-        {liveModuleName && (
+        {!hasEnded && liveModuleName && (
           <div className="flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1">
             <span className="size-2 animate-pulse rounded-full bg-brand" />
             <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-brand">Live</span>

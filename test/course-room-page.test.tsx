@@ -181,4 +181,29 @@ describe("CourseRoomPage", () => {
 
     expect(screen.queryByText(/Ada Lovelace/)).toBeNull();
   });
+
+  it("shows Ended in the navbar and hides the timer and live chip once the event has ended", () => {
+    allowRoom({
+      eventStarted: true,
+      eventEnded: true,
+      eventDate: "2024-01-01",
+      startTime: "09:00:00",
+      endTime: "17:00:00",
+      liveModule: {
+        id: 1,
+        module_name: "Keynote",
+        start_time: "09:00:00",
+        end_time: "10:00:00",
+        SPEAKER_PROFILE: { id: 7, USER: { full_name: "Ada Lovelace" } },
+      },
+    });
+
+    render(<CourseRoomPage />);
+
+    expect(screen.getAllByText("Ended").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Elapsed")).toBeNull();
+    expect(screen.queryByText("Remaining")).toBeNull();
+    expect(screen.queryByText("Live")).toBeNull();
+    expect(screen.queryByText("Keynote")).toBeNull();
+  });
 });

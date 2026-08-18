@@ -137,6 +137,7 @@ export default function CourseRoomPage() {
         remaining={remaining}
         eventDate={eventDate}
         startTime={startTime}
+        hasEnded={eventEnded}
         liveModuleName={liveModule?.module_name}
         liveSpeakerName={assignedSpeakerCount > 1 ? (liveModule?.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
         onExit={handleExit}

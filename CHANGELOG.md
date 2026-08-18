@@ -173,6 +173,10 @@
 
 ### Fixed
 
+- The course-room navbar clock runs forever past the event's end. The elapsed counter measured `now − start` with no upper bound, and the session bar only knew whether the event had started, so a finished event kept counting what should have been over — the Remaining column had long since sat at `00:00:00`, while Elapsed kept climbing and the bar looked every bit as live as a room mid-module.
+
+  The counter now clamps at the event's `end_time`: elapsed freezes at the session's full length, remaining at `00:00:00`, and the one-second clock stops picking itself back up once the end passes — there is nothing left for it to compute. The navbar also knows the end edge rather than only the start one, so in place of the two columns it shows a static **Ended** label, matching the badge the hero already carries for the same moment. It stopped telling you the event was still going, because that was the one statement the old timer was actively making wrong.
+
 - The staff survey opt-in is a labelled row now, not a bare pill in the card header. The old pill read as disabled when off and turned into a solid blue blob when on, so staff could not tell the survey state at a glance. The switch now sits beside its "Opt-in to post-event survey" label with a visible On/Off word, so the state is readable in both colours and the dimmed-grey "off" styling no longer pretends the control is disabled.
 
 - The staff survey opt-in keeps its state when an admin leaves the Surveys tab and comes back. Toggling the switch saved to the server but only into a local copy, and the page mounts the panel per tab — so leaving the tab unmounted it and returning rebuilt it from the stale event, making the switch read as if the toggle had never happened until a full refresh. The panel now folds the saved value back into the page's event, the same way the meeting link, cover upload and edit form already did.
