@@ -115,6 +115,15 @@ describe("api error bodies go through the helpers", () => {
     expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 
+  // A success body is `{ ok: true }`. `success: true` was the second spelling of
+  // the same acknowledgement, across eight routes, and a client cannot tell from
+  // the outside which of the two a given route picks.
+  it("acknowledges a write in one word", () => {
+    const offenders = files.filter((f) => /success:\s*true/.test(f.code));
+
+    expect(offenders.map((f) => f.rel)).toEqual([]);
+  });
+
   // `error` holds a string. The nested `{ message }` form was the other half of
   // the same drift, and it cost three clients their own normalizer before the
   // shapes were reconciled. `auth/email/*` is exempt: its `retryAfter` and

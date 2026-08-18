@@ -50,8 +50,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
 
   try {
-    const result = await deleteCommunityLink(supabase, Number(id));
-    return NextResponse.json(result);
+    await deleteCommunityLink(supabase, Number(id));
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return mapError(err);
   }

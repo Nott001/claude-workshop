@@ -146,6 +146,7 @@ describe("DELETE /api/organization/[userId]", () => {
     const res = await DELETE(del("9"), params("9"));
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(removeById).toHaveBeenCalledWith(expect.anything(), 9);
   });
 

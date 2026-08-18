@@ -113,5 +113,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ cour
     name: courseInfo?.course_name,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

@@ -141,9 +141,8 @@ describe("deleteModuleWithStorage", () => {
     dao.findLessonsByModule.mockResolvedValue([{ id: 22 }]);
     storage.listStorageFolder.mockResolvedValue(["courses/7/modules/11/lessons/22/slides.pdf"]);
 
-    const result = await deleteModuleWithStorage(supabase, 11, 5);
+    await deleteModuleWithStorage(supabase, 11, 5);
 
-    expect(result).toEqual({ success: true });
     expect(storage.listStorageFolder).toHaveBeenCalledWith("course_assets", "courses/7/modules/11/lessons/22");
     expect(storage.deleteFromStorage).toHaveBeenCalledWith("course_videos", expect.any(Array));
     expect(dao.deleteModule).toHaveBeenCalledWith({}, 11);

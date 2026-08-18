@@ -48,7 +48,7 @@ async function collectStoragePaths(
   return pathsByBucket;
 }
 
-export async function deleteEvent(supabase: DbClient, id: number, actor: EventActor): Promise<{ success: true }> {
+export async function deleteEvent(supabase: DbClient, id: number, actor: EventActor): Promise<void> {
   const event = await eventDao.findById(supabase, id);
 
   const pathsByBucket = await collectStoragePaths(supabase, event);
@@ -72,6 +72,4 @@ export async function deleteEvent(supabase: DbClient, id: number, actor: EventAc
   await requireAuditEvent(supabase, actor.id, "event.deleted", "event", id, {
     title: event?.title,
   });
-
-  return { success: true };
 }

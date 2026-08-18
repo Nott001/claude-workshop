@@ -171,7 +171,7 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
     const res = await del();
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ success: true });
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 
   it("records the deletion in the audit log", async () => {

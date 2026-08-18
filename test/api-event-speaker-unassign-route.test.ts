@@ -54,7 +54,7 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ success: true });
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(speakerDao.unassignFromEvent).toHaveBeenCalledWith({}, 9, 7);
     expect(courseDao.clearModuleSpeakerForEvent).toHaveBeenCalledWith({}, 9, 7);
     expect(logAuditEvent).toHaveBeenCalledWith({}, 5, "speaker.unassigned", "speaker_profile", 7, { event_id: 9 });

@@ -30,7 +30,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       event_id: Number(id),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof EventServiceError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -81,5 +81,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete speaker profile" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

@@ -59,7 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       event_id: Number(id),
     });
 
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     if (err instanceof EventServiceError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

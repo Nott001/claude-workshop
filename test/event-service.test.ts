@@ -532,7 +532,7 @@ describe("deleteEvent", () => {
     courseDao.findModulesByCourse.mockResolvedValue([{ id: 3 }]);
     courseDao.findLessonsByModule.mockResolvedValue([{ id: 5 }]);
 
-    const result = await deleteEvent(supabase, 1, actor);
+    await deleteEvent(supabase, 1, actor);
 
     const byBucket = Object.fromEntries(deleteFromStorage.mock.calls.map(([bucket, paths]) => [bucket, paths]));
     expect(byBucket.event_images).toEqual(["events/1/event_images-file"]);
@@ -540,7 +540,6 @@ describe("deleteEvent", () => {
     expect(byBucket.course_videos).toEqual(["courses/7/modules/3/lessons/5/course_videos-file"]);
     expect(eventDao.remove).toHaveBeenCalledWith(supabase, 1);
     expect(logAuditEvent).toHaveBeenCalledWith(supabase, 9, "event.deleted", "event", 1, { title: "Launch Day" });
-    expect(result).toEqual({ success: true });
   });
 });
 
@@ -556,11 +555,10 @@ describe("publishEvent", () => {
   });
 
   it("moves a draft to active and audits the publisher", async () => {
-    const result = await publishEvent(supabase, 1, actor);
+    await publishEvent(supabase, 1, actor);
 
     expect(eventDao.updateField).toHaveBeenCalledWith(supabase, 1, "status", "active");
     expect(logAuditEvent).toHaveBeenCalledWith(supabase, 9, "event.published", "event", 1);
-    expect(result).toEqual({ success: true });
   });
 });
 

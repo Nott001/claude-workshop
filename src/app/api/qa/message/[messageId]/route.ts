@@ -41,7 +41,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
 
   try {
     await deleteQuestion(supabase, Number(messageId), user);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return mapError(err);
   }

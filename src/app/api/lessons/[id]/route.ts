@@ -112,5 +112,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     module_id: lesson?.module_id,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

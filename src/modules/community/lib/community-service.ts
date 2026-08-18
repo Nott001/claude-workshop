@@ -69,7 +69,7 @@ export async function updateCommunityLink(supabase: DbClient, id: number, input:
   return link;
 }
 
-export async function deleteCommunityLink(supabase: DbClient, id: number): Promise<{ success: true }> {
+export async function deleteCommunityLink(supabase: DbClient, id: number): Promise<void> {
   const existing = await communityDao.findById(supabase, id);
   if (!existing) {
     throw new CommunityServiceError(404, "Community link not found");
@@ -79,6 +79,4 @@ export async function deleteCommunityLink(supabase: DbClient, id: number): Promi
   if (!removed) {
     throw new CommunityServiceError(500, "Failed to delete community link");
   }
-
-  return { success: true };
 }

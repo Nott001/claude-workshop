@@ -26,11 +26,16 @@ export default defineConfig({
       // rendered a Zod error inline now share one covered branch. Lower these
       // only for a denominator effect — covered code being deleted raises the
       // untouched remainder's share — and never to make a build pass.
+      //
+      // Statements and lines are down 0.01 for exactly that reason: the four
+      // `return { success: true }` lines the delete and publish services carried
+      // were covered, and dropping them took four from both halves of the ratio.
+      // No test stopped covering anything.
       thresholds: {
-        statements: 81.97,
+        statements: 81.96,
         branches: 76.72,
         functions: 81.34,
-        lines: 83.03,
+        lines: 83.02,
       },
     },
   },

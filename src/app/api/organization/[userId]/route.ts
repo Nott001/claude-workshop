@@ -72,7 +72,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
 
   try {
     await removeMember(supabase, targetId, guard.user);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return mapError(err);
   }

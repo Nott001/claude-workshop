@@ -86,8 +86,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   try {
     await loadEventOr403(supabase, Number(id), user, "delete");
-    const result = await deleteEvent(supabase, Number(id), { id: user.id });
-    return NextResponse.json(result);
+    await deleteEvent(supabase, Number(id), { id: user.id });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return mapError(err);
   }

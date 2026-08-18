@@ -280,7 +280,7 @@ export async function setMeetingLink(
   return event;
 }
 
-export async function publishEvent(supabase: DbClient, id: number, actor: EventActor): Promise<{ success: true }> {
+export async function publishEvent(supabase: DbClient, id: number, actor: EventActor): Promise<void> {
   const event = await eventDao.findById(supabase, id);
 
   if (!event) {
@@ -298,6 +298,4 @@ export async function publishEvent(supabase: DbClient, id: number, actor: EventA
   }
 
   await requireAuditEvent(supabase, actor.id, "event.published", "event", id);
-
-  return { success: true };
 }

@@ -136,7 +136,7 @@ describe("deleteCommunityLink", () => {
   });
 
   it("removes the card and reports success", async () => {
-    await expect(deleteCommunityLink(supabase, 1)).resolves.toEqual({ success: true });
+    await expect(deleteCommunityLink(supabase, 1)).resolves.toBeUndefined();
     expect(remove).toHaveBeenCalledWith(supabase, 1);
   });
 
