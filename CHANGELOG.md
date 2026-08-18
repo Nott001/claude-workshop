@@ -4,6 +4,10 @@
 
 ### Changed
 
+- The top navigation bar is taller, its links a step larger, and it is frosted rather than solid. At 64px with 14px links it read as chrome to get past; it now stands at 72px with 16px links, and the page scrolls under it through a translucent, blurred surface instead of behind an opaque band. SIGN IN keeps its 14px deliberately — it is the one control up there that is not navigation, and it was already carrying that distinction in its caps and letter-spacing rather than in its size.
+
+  The height is a token now (`--spacing-navbar`) because it was never one number: the bar sets it and the content below sets its own top padding to clear it, in a different file. Those two had been kept in step by hand, and the padding was shared with the staff bar, which is a different bar of a different height — so raising one would have pushed a band of dead space onto every staff page. Each now clears the bar that actually rendered above it.
+
 - The landing page's Upcoming Events strip shows three events instead of two. The grid it renders into is three cards wide from the `lg` breakpoint up, so asking the query for two left every desktop visitor looking at a row with a hole in it. The limit is now named after the thing that decides it rather than sitting in the query as a bare `2`, since the next person to widen the grid needs to find it.
 
   Three is still a strip rather than a listing, so the section heading now carries **See all events** through to `/events` when there are more upcoming events than fit. It appears only when it leads somewhere: the query reports how many upcoming events exist in total alongside the handful it returns, and a link that would land on the same cards the visitor is already looking at is worse than no link. Before this the strip was a dead end — publish a dozen events and nine of them were unreachable from the front page, with nothing on screen to suggest they existed.

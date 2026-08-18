@@ -47,7 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       {usesSidebar ? <StaffNavbar /> : <TopNavbar />}
       <ErrorBoundary>
-        <main className={cn("flex flex-1 flex-col pt-16", usesSidebar && "lg:pl-[72px]")}>
+        {/* The offset belongs to whichever bar rendered above: StaffNavbar is
+            still 64px, TopNavbar is the token's height. One shared `pt-16`
+            covered both only while they happened to be the same size. */}
+        <main className={cn("flex flex-1 flex-col", usesSidebar ? "pt-16 lg:pl-[72px]" : "pt-navbar")}>
           {children}
           <Footer role={role} />
         </main>
