@@ -140,8 +140,8 @@ describe("the meeting link and the event mode together", () => {
   });
 });
 
-describe("meeting link migration (00012)", () => {
-  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00012_event_meeting_url.sql"), "utf8").replace(
+describe("meeting link migration (00011)", () => {
+  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00011_event_meeting_url.sql"), "utf8").replace(
     /\r\n/g,
     "\n",
   );

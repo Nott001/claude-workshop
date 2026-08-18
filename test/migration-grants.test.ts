@@ -41,11 +41,11 @@ describe("migration grants", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
-      "00008_ticket_realtime_read.sql",
-      "00009_email_change_attempt.sql",
-      "00010_event_capacity.sql",
-      "00011_event_mode.sql",
-      "00012_event_meeting_url.sql",
+      "00008_email_change_attempt.sql",
+      "00009_event_capacity.sql",
+      "00010_event_mode.sql",
+      "00011_event_meeting_url.sql",
+      "00012_ticket_realtime_read.sql",
     ]);
   });
 

@@ -46,8 +46,8 @@ describe("SOLD_OUT_MESSAGE", () => {
  * out at once both read the same pre-insert count, so without a row lock in the
  * database the event oversells and nothing in the app can notice.
  */
-describe("capacity migration (00010)", () => {
-  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00010_event_capacity.sql"), "utf8").replace(
+describe("capacity migration (00009)", () => {
+  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00009_event_capacity.sql"), "utf8").replace(
     /\r\n/g,
     "\n",
   );
