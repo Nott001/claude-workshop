@@ -39,7 +39,7 @@ describe("DeleteAccountSection", () => {
 
     render(<DeleteAccountSection />);
 
-    expect(screen.getByRole("heading", { name: "Delete Account" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "DELETE ACCOUNT" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete my account" })).toBeTruthy();
   });
 
@@ -127,7 +127,7 @@ describe("DeleteAccountSection", () => {
 
     const input = screen.getByLabelText('Type "Delete My Account" to confirm');
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(input.getAttribute("aria-describedby")).toBe("delete-account-error");
+    expect(input.getAttribute("aria-describedby")).toBe("delete-account-phrase-error");
     expect(screen.getByRole("alert").textContent).toBe("We could not delete your account. Please try again.");
   });
 });

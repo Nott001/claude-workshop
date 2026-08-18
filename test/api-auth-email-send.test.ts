@@ -1,17 +1,23 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { requireAuth, getRouteClient, routeAuth, sendTemplatedEmail } = vi.hoisted(() => {
-  const routeAuth = { getUser: vi.fn(), updateUser: vi.fn() };
-  return {
-    requireAuth: vi.fn(),
-    getRouteClient: vi.fn(async () => ({ auth: routeAuth })),
-    routeAuth,
-    sendTemplatedEmail: vi.fn(),
-  };
-});
+const { requireAuth, getRouteClient, routeAuth, sendTemplatedEmail, checkEmailChangeSendLimit, getServiceClient } = vi.hoisted(
+  () => {
+    const routeAuth = { getUser: vi.fn(), updateUser: vi.fn() };
+    return {
+      requireAuth: vi.fn(),
+      getRouteClient: vi.fn(async () => ({ auth: routeAuth })),
+      routeAuth,
+      sendTemplatedEmail: vi.fn(),
+      checkEmailChangeSendLimit: vi.fn(),
+      getServiceClient: vi.fn(() => ({ service: true })),
+    };
+  },
+);
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/email-change-limit", () => ({ checkEmailChangeSendLimit }));
+vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
 vi.mock("@/shared/integrations/email/send-templated", () => ({ sendTemplatedEmail }));
 
@@ -26,10 +32,10 @@ const USER = {
   profile_image_url: null,
 };
 
-function send(email: unknown) {
+function send(email: unknown, headers: Record<string, string> = {}) {
   return new Request("https://app.test/api/auth/email/send", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ email }),
   });
 }
@@ -44,6 +50,7 @@ beforeEach(() => {
   routeAuth.getUser.mockResolvedValue({ data: { user: goTrueUser() }, error: null });
   routeAuth.updateUser.mockResolvedValue({ error: null, data: { user: goTrueUser() } });
   sendTemplatedEmail.mockResolvedValue({ success: true });
+  checkEmailChangeSendLimit.mockResolvedValue({ allowed: true });
 });
 
 afterEach(() => {
@@ -116,7 +123,9 @@ describe("POST /api/auth/email/send", () => {
     const res = await POST(send("new@example.com"));
 
     expect(res.status).toBe(429);
-    await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 429, message: "" } });
+    // ~50s left of the 60s window; carried so the client can name the wait.
+    await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 429, message: "", retryAfter: 50 } });
+    expect(res.headers.get("Retry-After")).toBe("50");
     expect(routeAuth.updateUser).not.toHaveBeenCalled();
     expect(sendTemplatedEmail).not.toHaveBeenCalled();
   });
@@ -183,6 +192,53 @@ describe("POST /api/auth/email/send", () => {
     );
   });
 
+  // The cooldown deliberately lets a different address through (correcting a
+  // typo should not cost a minute), which is exactly why it cannot be the only
+  // gate — the limiter is what stands behind that door.
+  it("refuses a send the limiter rejects, and spends no mail doing it", async () => {
+    checkEmailChangeSendLimit.mockResolvedValue({ allowed: false, retryAfter: 840 });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(429);
+    await expect(res.json()).resolves.toEqual({ ok: false, error: { status: 429, message: "", retryAfter: 840 } });
+    expect(res.headers.get("Retry-After")).toBe("840");
+    expect(routeAuth.updateUser).not.toHaveBeenCalled();
+    expect(sendTemplatedEmail).not.toHaveBeenCalled();
+  });
+
+  it("counts the caller and their origin, never the address they asked for", async () => {
+    await POST(send("new@example.com", { "cf-connecting-ip": "203.0.113.7" }));
+
+    expect(checkEmailChangeSendLimit).toHaveBeenCalledWith({ service: true }, USER.id, "203.0.113.7");
+  });
+
+  // Absent under `next dev` and behind any host that is not Cloudflare, where
+  // the per-user limit has to carry the whole load.
+  it("still consults the limiter when no origin header is present", async () => {
+    await POST(send("new@example.com"));
+
+    expect(checkEmailChangeSendLimit).toHaveBeenCalledWith({ service: true }, USER.id, null);
+  });
+
+  // A double-click on one address is what the cooldown is for; making it spend
+  // a ledger row would let an honest user throttle themselves.
+  it("does not reach the limiter when the cooldown already refused", async () => {
+    routeAuth.getUser.mockResolvedValue({
+      data: {
+        user: goTrueUser({
+          new_email: "new@example.com",
+          email_change_sent_at: new Date(Date.now() - 10_000).toISOString(),
+        }),
+      },
+      error: null,
+    });
+
+    await POST(send("new@example.com"));
+
+    expect(checkEmailChangeSendLimit).not.toHaveBeenCalled();
+  });
+
   it("passes a provider rejection through verbatim for the client helper to map", async () => {
     routeAuth.updateUser.mockResolvedValue({ error: { status: 422, message: "Email already in use" } });
 
@@ -194,6 +250,50 @@ describe("POST /api/auth/email/send", () => {
       error: { status: 422, message: "Email already in use" },
     });
     expect(sendTemplatedEmail).not.toHaveBeenCalled();
+  });
+
+  // GoTrue's own gates sit behind updateUser and never reach the cooldown
+  // above, which only guards a re-send of the address already pending. Its
+  // minimum-interval refusal states the wait in prose and nowhere else.
+  it("carries the wait GoTrue named in its own 429 through to the client", async () => {
+    routeAuth.updateUser.mockResolvedValue({
+      error: {
+        status: 429,
+        code: "over_email_send_rate_limit",
+        message: "For security purposes, you can only request this after 41 seconds.",
+      },
+    });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(429);
+    await expect(res.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        status: 429,
+        code: "over_email_send_rate_limit",
+        message: "For security purposes, you can only request this after 41 seconds.",
+        retryAfter: 41,
+      },
+    });
+    expect(res.headers.get("Retry-After")).toBe("41");
+  });
+
+  // The hourly budget names no number. The code is what lets the client say
+  // which limit was hit instead of implying a wait it cannot measure.
+  it("carries the rate-limit code when the hourly budget refuses with no number", async () => {
+    routeAuth.updateUser.mockResolvedValue({
+      error: { status: 429, code: "over_email_send_rate_limit", message: "email rate limit exceeded" },
+    });
+
+    const res = await POST(send("new@example.com"));
+
+    expect(res.status).toBe(429);
+    await expect(res.json()).resolves.toEqual({
+      ok: false,
+      error: { status: 429, code: "over_email_send_rate_limit", message: "email rate limit exceeded" },
+    });
+    expect(res.headers.get("Retry-After")).toBeNull();
   });
 
   it("answers ok when the send lands", async () => {

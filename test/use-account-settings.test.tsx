@@ -19,12 +19,24 @@ vi.mock("@/shared/db/browser-client", () => ({
   getBrowserClient: () => ({ auth: { updateUser, getUser } }),
 }));
 
-import { useAccountSettings } from "@/modules/user/lib/use-account-settings";
+import { useAccountSettings, type SpeakerFieldKey } from "@/modules/user/lib/use-account-settings";
 
 // The default session is an attendee, so the speaker profile fetch does not
 // fire in the general cases; speaker-only cases opt in with speakerUser.
 const user = { id: 1, role: ROLES.ATTENDEE, full_name: "Ada", email: "ada@example.com", profile_image_url: null };
 const speakerUser = { ...user, role: ROLES.SPEAKER };
+
+type Settings = ReturnType<typeof useAccountSettings>;
+
+/**
+ * The four speaker links live in one table now rather than four state pairs,
+ * so a test reaches one by the key it is stored under.
+ */
+function speakerLink(settings: Settings, key: SpeakerFieldKey) {
+  const field = settings.speaker.links.find((l) => l.key === key);
+  if (!field) throw new Error(`no speaker link named ${key}`);
+  return field;
+}
 
 type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -77,14 +89,14 @@ describe("saving the profile name", () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("New Name"));
+    act(() => result.current.profile.setName("New Name"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "New Name" });
-    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+    expect(result.current.profile.saved).toBe(true);
     expect(result.current.toast).toBeNull();
   });
 
@@ -92,9 +104,9 @@ describe("saving the profile name", () => {
     stubFetch().mockImplementation(() => response({ ...user, full_name: "Grace Hopper" }));
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Grace Hopper"));
+    act(() => result.current.profile.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     expect(sessionUpdateUser).toHaveBeenCalledWith({ full_name: "Grace Hopper" });
@@ -104,23 +116,23 @@ describe("saving the profile name", () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("  Grace Hopper  "));
+    act(() => result.current.profile.setName("  Grace Hopper  "));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
-    expect(result.current.name).toBe("Grace Hopper");
+    expect(result.current.profile.name).toBe("Grace Hopper");
   });
 
   it("leaves the session alone when the save fails", async () => {
     stubFetch().mockImplementation(() => response({ error: "boom" }, false));
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Grace Hopper"));
+    act(() => result.current.profile.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     expect(sessionUpdateUser).not.toHaveBeenCalled();
@@ -130,13 +142,13 @@ describe("saving the profile name", () => {
     stubFetch().mockImplementation(() => response({ error: "boom" }, false));
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Grace Hopper"));
+    act(() => result.current.profile.setName("Grace Hopper"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
-    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.savedSection).toBeNull();
   });
 });
 
@@ -145,16 +157,16 @@ describe("changing the email", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(fetch).toHaveBeenCalledWith(SEND_ROUTE, expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(String(fetch.mock.calls.find((c) => String(c[0]).includes(SEND_ROUTE))![1]!.body))).toEqual({
       email: "new@example.com",
     });
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
     // The row is only caught up once the link is opened, by the callback route.
     expect(fetch.mock.calls.find((c) => c[1]?.method === "PATCH")).toBeUndefined();
   });
@@ -163,9 +175,9 @@ describe("changing the email", () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.currentUser?.email).toBe(user.email);
@@ -176,28 +188,28 @@ describe("changing the email", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(user.email));
+    act(() => result.current.email.setValue(user.email));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.emailError).toBeNull();
+    expect(result.current.email.sent).toBe(false);
+    expect(result.current.email.error).toBeNull();
   });
 
   it("also quits being a change however it is capitalised or padded", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
     for (const typed of ["ADA@EXAMPLE.COM", "  Ada@Example.com  "]) {
-      act(() => result.current.setNewEmail(typed));
+      act(() => result.current.email.setValue(typed));
       await act(async () => {
-        await result.current.saveChanges(submitEvent);
+        await result.current.email.save();
       });
 
-      expect(result.current.emailError).toBeNull();
-      expect(result.current.emailSent).toBe(false);
+      expect(result.current.email.error).toBeNull();
+      expect(result.current.email.sent).toBe(false);
     }
   });
 
@@ -205,9 +217,9 @@ describe("changing the email", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("  grace@example.com  "));
+    act(() => result.current.email.setValue("  grace@example.com  "));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(JSON.parse(String(fetch.mock.calls.find((c) => String(c[0]).includes(SEND_ROUTE))![1]!.body))).toEqual({
@@ -223,25 +235,25 @@ describe("changing the email", () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@gmial.com"));
+    act(() => result.current.email.setValue("ada@gmial.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailSent).toBe(true);
-    expect(result.current.emailError).toBeNull();
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.email.error).toBeNull();
   });
 
   it("accepts an address on any well-formed looking domain", async () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@nowhere-at-all.test"));
+    act(() => result.current.email.setValue("ada@nowhere-at-all.test"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
   });
 
   it("refuses an address whose domain does not look like one", async () => {
@@ -249,14 +261,14 @@ describe("changing the email", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     for (const typed of ["ada@localhost", "ada@no-dot"]) {
-      act(() => result.current.setNewEmail(typed));
+      act(() => result.current.email.setValue(typed));
       await act(async () => {
-        await result.current.saveChanges(submitEvent);
+        await result.current.email.save();
       });
 
       expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
-      expect(result.current.emailSent).toBe(false);
-      expect(result.current.emailError).toBe("Enter a valid email address, like name@example.com.");
+      expect(result.current.email.sent).toBe(false);
+      expect(result.current.email.error).toBe("Enter a valid email address, like name@example.com.");
     }
   });
 
@@ -264,32 +276,32 @@ describe("changing the email", () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada+events@example.com"));
+    act(() => result.current.email.setValue("ada+events@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
   });
 
   it("stops showing progress after refusing a malformed address", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@localhost"));
+    act(() => result.current.email.setValue("ada@localhost"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.saving).toBe(false);
+    expect(result.current.email.saving).toBe(false);
   });
 
   it("toasts the route's refusal and skips the PATCH when the email update fails", async () => {
     const fetch = respondTo(SEND_ROUTE, { ok: false, error: { status: 422, message: "Email already in use" } }, false);
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Email already in use", type: "error" });
@@ -300,9 +312,9 @@ describe("changing the email", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: false, error: { status: 429, message: "" } }, false);
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({
@@ -312,17 +324,97 @@ describe("changing the email", () => {
     });
     // A failure must leave emailSent false so the field stays editable with the
     // typed address intact and Save Changes stays enabled after the window.
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+  });
+
+  it("counts down the wait the route reported instead of offering a doomed resend", async () => {
+    respondTo(SEND_ROUTE, { ok: false, error: { status: 429, message: "", retryAfter: 43 } }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.email.setValue("new@example.com"));
+    await act(async () => {
+      await result.current.email.save();
+    });
+
+    expect(result.current.toast).toMatchObject({ description: "Too many attempts. Try again in 43 seconds." });
+    expect(result.current.email.resendIn).toBe(43);
+  });
+
+  // GoTrue's own limit sits behind the route's cooldown and states its wait in
+  // prose. Reading it is what keeps a refusal with a known countdown from
+  // arriving as an open-ended "please wait".
+  it("counts down a wait GoTrue only spelled into its message", async () => {
+    respondTo(
+      SEND_ROUTE,
+      {
+        ok: false,
+        error: {
+          status: 429,
+          code: "over_email_send_rate_limit",
+          message: "For security purposes, you can only request this after 41 seconds.",
+        },
+      },
+      false,
+    );
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.email.setValue("new@example.com"));
+    await act(async () => {
+      await result.current.email.save();
+    });
+
+    expect(result.current.toast).toMatchObject({ description: "Too many attempts. Try again in 41 seconds." });
+    expect(result.current.email.resendIn).toBe(41);
+  });
+
+  // An hourly refusal names no wait, so there is nothing honest to count down
+  // and the button stays live. Saying which limit was hit is the whole point:
+  // the generic copy reads as a short cooldown that waiting a minute clears.
+  it("names the hourly budget and leaves the resend live when no wait was given", async () => {
+    respondTo(
+      SEND_ROUTE,
+      { ok: false, error: { status: 429, code: "over_email_send_rate_limit", message: "email rate limit exceeded" } },
+      false,
+    );
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.email.setValue("new@example.com"));
+    await act(async () => {
+      await result.current.email.save();
+    });
+
+    expect(result.current.toast).toMatchObject({
+      description:
+        "The app has reached its hourly limit for sending emails, which every account shares. Please try again later.",
+    });
+    expect(result.current.email.resendIn).toBe(0);
+  });
+
+  // Neither the object shape nor the bare-string convention: a body that
+  // carries no usable error at all must still reach the caller's fallback
+  // rather than rendering as nothing.
+  it("falls back when the refusal carries no readable error", async () => {
+    respondTo(SEND_ROUTE, { ok: false, error: 42 }, false);
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.email.setValue("new@example.com"));
+    await act(async () => {
+      await result.current.email.save();
+    });
+
+    expect(result.current.toast).toMatchObject({
+      description: "We could not send the verification link. Please try again.",
+    });
   });
 
   it("maps the bare 401 error convention the auth routes use", async () => {
     respondTo(SEND_ROUTE, { error: "Unauthenticated" }, false);
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({
@@ -330,16 +422,16 @@ describe("changing the email", () => {
       description: "Unauthenticated",
       type: "error",
     });
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
   });
 
   it("uses the email fallback when a {} error carries no status", async () => {
     respondTo(SEND_ROUTE, { ok: false, error: { message: "{}" } }, false);
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({
@@ -347,16 +439,16 @@ describe("changing the email", () => {
       description: "We could not send the verification link. Please try again.",
       type: "error",
     });
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
   });
 
   it("shows the same-address refusal copy the route returns and keeps the sent box down", async () => {
     respondTo(SEND_ROUTE, { ok: false, error: { status: 400, message: "This is already your email address." } }, false);
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("other@example.com"));
+    act(() => result.current.email.setValue("other@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({
@@ -364,7 +456,7 @@ describe("changing the email", () => {
       description: "This is already your email address.",
       type: "error",
     });
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
   });
 
   it("uses the email fallback when the route answers something that is not JSON", async () => {
@@ -374,9 +466,9 @@ describe("changing the email", () => {
     );
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("new@example.com"));
+    act(() => result.current.email.setValue("new@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(result.current.toast).toMatchObject({
@@ -384,7 +476,7 @@ describe("changing the email", () => {
       description: "We could not send the verification link. Please try again.",
       type: "error",
     });
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
   });
 });
 
@@ -392,20 +484,20 @@ describe("the prefilled email field", () => {
   it("mounts with the session address in the field and saveChanges disabled", () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    expect(result.current.newEmail).toBe(user.email);
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.email.value).toBe(user.email);
+    expect(result.current.email.dirty).toBe(false);
   });
 
   it("counts a genuinely different address as a change and sends it", async () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.email.dirty).toBe(false);
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
 
-    expect(result.current.dirty).toBe(true);
+    expect(result.current.email.dirty).toBe(true);
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(true);
@@ -415,14 +507,14 @@ describe("the prefilled email field", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("GRACE@EXAMPLE.COM"));
-    expect(result.current.dirty).toBe(true);
+    act(() => result.current.email.setValue("GRACE@EXAMPLE.COM"));
+    expect(result.current.email.dirty).toBe(true);
 
-    act(() => result.current.setNewEmail("  ada@example.com  "));
-    expect(result.current.dirty).toBe(false);
+    act(() => result.current.email.setValue("  ada@example.com  "));
+    expect(result.current.email.dirty).toBe(false);
 
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
@@ -433,19 +525,19 @@ describe("the prefilled email field", () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
-    expect(result.current.dirty).toBe(true);
+    act(() => result.current.email.setValue("grace@example.com"));
+    expect(result.current.email.dirty).toBe(true);
 
-    act(() => result.current.setNewEmail(""));
-    expect(result.current.dirty).toBe(false);
+    act(() => result.current.email.setValue(""));
+    expect(result.current.email.dirty).toBe(false);
 
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
-    expect(result.current.emailError).toBeNull();
+    expect(result.current.email.error).toBeNull();
   });
 });
 
@@ -462,9 +554,9 @@ describe("restoring an in-flight email change", () => {
     });
     const { result } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(result.current.emailSent).toBe(true));
-    expect(result.current.newEmail).toBe("grace@example.com");
-    expect(result.current.resendIn).toBe(50);
+    await waitFor(() => expect(result.current.email.sent).toBe(true));
+    expect(result.current.email.value).toBe("grace@example.com");
+    expect(result.current.email.resendIn).toBe(50);
   });
 
   it("restores the sent state with the cooldown spent once the window elapsed", async () => {
@@ -479,9 +571,33 @@ describe("restoring an in-flight email change", () => {
     });
     const { result } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(result.current.emailSent).toBe(true));
-    expect(result.current.newEmail).toBe("grace@example.com");
-    expect(result.current.resendIn).toBe(0);
+    await waitFor(() => expect(result.current.email.sent).toBe(true));
+    expect(result.current.email.value).toBe("grace@example.com");
+    expect(result.current.email.resendIn).toBe(0);
+  });
+
+  // The send time is optional on the GoTrue user. Reading a missing one as
+  // "just sent" re-armed the whole cooldown on every mount, and only a cancel
+  // clears the pending record it keys on — so a reload always beat the
+  // countdown and the resend stayed locked however long the user had waited.
+  it("offers the resend straight away when the pending change has no recorded send time", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: 1, new_email: "grace@example.com" } },
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(result.current.email.sent).toBe(true));
+    expect(result.current.email.resendIn).toBe(0);
+  });
+
+  it("offers the resend straight away when the recorded send time cannot be parsed", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: 1, new_email: "grace@example.com", email_change_sent_at: "not-a-date" } },
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    await waitFor(() => expect(result.current.email.sent).toBe(true));
+    expect(result.current.email.resendIn).toBe(0);
   });
 
   it("leaves the form untouched when GoTrue reports no pending change", async () => {
@@ -489,8 +605,8 @@ describe("restoring an in-flight email change", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await waitFor(() => expect(getUser).toHaveBeenCalled());
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.newEmail).toBe(user.email);
+    expect(result.current.email.sent).toBe(false);
+    expect(result.current.email.value).toBe(user.email);
   });
 
   it("ignores a pending change that only re-states the address the account owns", async () => {
@@ -500,8 +616,8 @@ describe("restoring an in-flight email change", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await waitFor(() => expect(getUser).toHaveBeenCalled());
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.newEmail).toBe(user.email);
+    expect(result.current.email.sent).toBe(false);
+    expect(result.current.email.value).toBe(user.email);
   });
 
   it("waits for the session to resolve before restoring", async () => {
@@ -518,15 +634,15 @@ describe("restoring an in-flight email change", () => {
     const { result, rerender } = renderHook(() => useAccountSettings());
 
     await act(async () => {});
-    expect(result.current.emailSent).toBe(false);
+    expect(result.current.email.sent).toBe(false);
     expect(getUser).not.toHaveBeenCalled();
 
     sessionValue.mockReturnValue({ user, updateUser: sessionUpdateUser });
     await act(async () => {
       rerender();
     });
-    expect(result.current.emailSent).toBe(true);
-    expect(result.current.newEmail).toBe("grace@example.com");
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.email.value).toBe("grace@example.com");
   });
 
   it("does not clobber a value typed since the restore, but adopts a genuinely new pending address", async () => {
@@ -540,15 +656,15 @@ describe("restoring an in-flight email change", () => {
       },
     });
     const { result, rerender } = renderHook(() => useAccountSettings());
-    await waitFor(() => expect(result.current.emailSent).toBe(true));
+    await waitFor(() => expect(result.current.email.sent).toBe(true));
 
-    act(() => result.current.setNewEmail("ada@typed.io"));
-    expect(result.current.newEmail).toBe("ada@typed.io");
+    act(() => result.current.email.setValue("ada@typed.io"));
+    expect(result.current.email.value).toBe("ada@typed.io");
 
     await act(async () => {
       rerender();
     });
-    expect(result.current.newEmail).toBe("ada@typed.io");
+    expect(result.current.email.value).toBe("ada@typed.io");
 
     getUser.mockResolvedValue({
       data: { user: { id: 1, new_email: "second@example.com", email_change_sent_at: null } },
@@ -556,8 +672,8 @@ describe("restoring an in-flight email change", () => {
     await act(async () => {
       rerender();
     });
-    await waitFor(() => expect(result.current.newEmail).toBe("second@example.com"));
-    expect(result.current.emailSent).toBe(true);
+    await waitFor(() => expect(result.current.email.value).toBe("second@example.com"));
+    expect(result.current.email.sent).toBe(true);
   });
 });
 
@@ -566,11 +682,11 @@ describe("when the pending email change is confirmed", () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result, rerender } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
 
     // The confirmation link was opened in another tab, so auth-js re-broadcast
     // puts the new address on the session — the pending banner must not survive
@@ -580,21 +696,21 @@ describe("when the pending email change is confirmed", () => {
       rerender();
     });
 
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.resendIn).toBe(0);
-    expect(result.current.newEmail).toBe("grace@example.com");
-    expect(result.current.emailVerified).toBe("grace@example.com");
+    expect(result.current.email.sent).toBe(false);
+    expect(result.current.email.resendIn).toBe(0);
+    expect(result.current.email.value).toBe("grace@example.com");
+    expect(result.current.email.verified).toBe("grace@example.com");
   });
 
   it("leaves the banner alone for a session repaint that is not the confirmation", async () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result, rerender } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
 
     // A profile save re-emits the session under the old address; the change is
     // still in flight, so the banner stays until the session actually reaches
@@ -604,28 +720,28 @@ describe("when the pending email change is confirmed", () => {
       rerender();
     });
 
-    expect(result.current.emailSent).toBe(true);
-    expect(result.current.newEmail).toBe("grace@example.com");
-    expect(result.current.emailVerified).toBeNull();
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.email.value).toBe("grace@example.com");
+    expect(result.current.email.verified).toBeNull();
   });
 
   it("clears the verified notice when dismissed", async () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result, rerender } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
     sessionValue.mockReturnValue({ user: { ...user, email: "grace@example.com" }, updateUser: sessionUpdateUser });
     await act(async () => {
       rerender();
     });
-    expect(result.current.emailVerified).toBe("grace@example.com");
+    expect(result.current.email.verified).toBe("grace@example.com");
 
-    act(() => result.current.dismissEmailVerified());
+    act(() => result.current.email.dismissVerified());
 
-    expect(result.current.emailVerified).toBeNull();
+    expect(result.current.email.verified).toBeNull();
   });
 });
 
@@ -650,15 +766,15 @@ describe("the speaker profile inside the unified hook", () => {
     fetch.mockImplementation(() => response(speakerData));
     const { result } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+    await waitFor(() => expect(result.current.speaker.loading).toBe(false));
     expect(fetch).toHaveBeenCalledWith("/api/auth/me");
-    expect(result.current.isSpeaker).toBe(true);
-    expect(result.current.designation).toBe("CTO");
-    expect(result.current.bio).toBe("Leads the team.");
-    expect(result.current.linkedinUrl).toBe("https://linkedin.com/in/ada");
-    expect(result.current.twitterUrl).toBe("");
-    expect(result.current.githubUrl).toBe("https://github.com/ada");
-    expect(result.current.websiteUrl).toBe("https://ada.dev");
+    expect(result.current.speaker.isSpeaker).toBe(true);
+    expect(result.current.speaker.designation).toBe("CTO");
+    expect(result.current.speaker.bio).toBe("Leads the team.");
+    expect(speakerLink(result.current, "linkedin").value).toBe("https://linkedin.com/in/ada");
+    expect(speakerLink(result.current, "twitter").value).toBe("");
+    expect(speakerLink(result.current, "github").value).toBe("https://github.com/ada");
+    expect(speakerLink(result.current, "website").value).toBe("https://ada.dev");
   });
 
   it("does nothing for any non-speaker role", () => {
@@ -670,8 +786,8 @@ describe("the speaker profile inside the unified hook", () => {
       sessionValue.mockReturnValue({ user: { ...user, role }, updateUser: sessionUpdateUser });
       const { result } = renderHook(() => useAccountSettings());
 
-      expect(result.current.isSpeaker).toBe(false);
-      expect(result.current.speakerProfileId).toBeUndefined();
+      expect(result.current.speaker.isSpeaker).toBe(false);
+      expect(result.current.speaker.loading).toBe(true);
 
       cleanup();
     }
@@ -690,8 +806,8 @@ describe("the speaker profile inside the unified hook", () => {
     resolve(response(speakerData));
     await act(async () => {});
 
-    expect(result.current.speakerProfileId).toBeUndefined();
-    expect(result.current.designation).toBe("");
+    expect(result.current.speaker.loading).toBe(true);
+    expect(result.current.speaker.designation).toBe("");
   });
 
   it("waits for the speaker fetch before the seeded values count as clean", async () => {
@@ -702,9 +818,9 @@ describe("the speaker profile inside the unified hook", () => {
 
     // Before the fetch answers, the empty seeds would look dirty against empty
     // saved originals; only after both land together is the group clean.
-    expect(result.current.dirty).toBe(false);
-    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.speaker.dirty).toBe(false);
+    await waitFor(() => expect(result.current.speaker.loading).toBe(false));
+    expect(result.current.speaker.dirty).toBe(false);
   });
 
   // A speaker with no profile row yet: /api/auth/me can omit the speaker block
@@ -715,27 +831,27 @@ describe("the speaker profile inside the unified hook", () => {
     fetch.mockImplementation(() => response({}));
     const { result } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(result.current.speakerProfileId).toBeNull());
-    expect(result.current.designation).toBe("");
-    expect(result.current.bio).toBe("");
-    expect(result.current.linkedinUrl).toBe("");
-    expect(result.current.twitterUrl).toBe("");
-    expect(result.current.githubUrl).toBe("");
-    expect(result.current.websiteUrl).toBe("");
-    expect(result.current.speakerDirty).toBe(false);
+    await waitFor(() => expect(result.current.speaker.loading).toBe(false));
+    expect(result.current.speaker.designation).toBe("");
+    expect(result.current.speaker.bio).toBe("");
+    expect(speakerLink(result.current, "linkedin").value).toBe("");
+    expect(speakerLink(result.current, "twitter").value).toBe("");
+    expect(speakerLink(result.current, "github").value).toBe("");
+    expect(speakerLink(result.current, "website").value).toBe("");
+    expect(result.current.speaker.dirty).toBe(false);
   });
 });
 
-describe("saveChanges dirty-only submission", () => {
+describe("each card saving on its own", () => {
   const STRONG = "the quiet kettle sings";
 
-  it("sends only the changed name when nothing else is dirty", async () => {
+  it("sends only the columns the profile card owns", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
@@ -745,76 +861,80 @@ describe("saveChanges dirty-only submission", () => {
     expect(verifyPassword).not.toHaveBeenCalled();
   });
 
-  it("sends nothing when the form is untouched", async () => {
+  // The whole point of the split: one card's button cannot reach another
+  // card's fields, so a name save can never spend a mail or touch a password.
+  it("leaves the other cards alone when one saves", async () => {
+    updateUser.mockResolvedValue({ error: null });
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
+    act(() => {
+      result.current.profile.setName("Grace Hopper");
+      result.current.email.setValue("grace@example.com");
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
+    });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
-    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
+    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
     expect(updateUser).not.toHaveBeenCalled();
-    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(result.current.password.next).toBe(STRONG);
   });
 
   it("flags an emptied name and aborts before any request", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("  "));
+    act(() => result.current.profile.setName("  "));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
-    expect(result.current.nameError).toBe("Name is required.");
+    expect(result.current.profile.nameError).toBe("Name is required.");
     expect(fetch).not.toHaveBeenCalled();
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it("treats the account's own prefilled address as no change and writes nothing", async () => {
-    const fetch = stubFetch();
+  it("treats the account's own prefilled address as no change, so the card is not dirty", () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail(user.email));
-    await act(async () => {
-      await result.current.saveChanges(submitEvent);
-    });
+    act(() => result.current.email.setValue(user.email));
 
-    expect(result.current.emailError).toBeNull();
-    expect(updateUser).not.toHaveBeenCalled();
-    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    expect(result.current.email.dirty).toBe(false);
   });
 
   it("refuses a malformed address inline and writes nothing", async () => {
     const fetch = stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("ada@localhost"));
+    act(() => result.current.email.setValue("ada@localhost"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailError).toBe("Enter a valid email address, like name@example.com.");
-    expect(updateUser).not.toHaveBeenCalled();
-    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
+    expect(result.current.email.error).toBe("Enter a valid email address, like name@example.com.");
+    expect(fetch.mock.calls.some((c) => String(c[0]).includes(SEND_ROUTE))).toBe(false);
   });
 
-  it("changes the password through saveChanges and clears the fields", async () => {
+  it("changes the password from its own card and clears the fields", async () => {
     updateUser.mockResolvedValue({ error: null });
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
-    expect(result.current.currentPassword).toBe("");
-    expect(result.current.newPassword).toBe("");
+    expect(result.current.password.current).toBe("");
+    expect(result.current.password.next).toBe("");
   });
 
   // The submit button's `disabled` is a DOM attribute, and a browser extension
@@ -823,25 +943,49 @@ describe("saveChanges dirty-only submission", () => {
   it("ignores a second submit while the first is still verifying the password", async () => {
     updateUser.mockResolvedValue({ error: null });
     // Held open on purpose: this is the window a `saving` state flag misses,
-    // since setSaving does not run until after this call resolves.
+    // since the flag does not paint until after this call resolves.
     let releaseVerify: (ok: boolean) => void = () => {};
     verifyPassword.mockImplementation(() => new Promise<boolean>((resolve) => (releaseVerify = resolve)));
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
 
     await act(async () => {
-      const first = result.current.saveChanges(submitEvent);
-      const second = result.current.saveChanges(submitEvent);
+      const first = result.current.password.save();
+      const second = result.current.password.save();
       releaseVerify(true);
       await Promise.all([first, second]);
     });
 
     expect(verifyPassword).toHaveBeenCalledTimes(1);
     expect(updateUser).toHaveBeenCalledTimes(1);
+  });
+
+  // One guard across every card, so two sections cannot race the same session.
+  it("holds a second card's save off while one is already running", async () => {
+    updateUser.mockResolvedValue({ error: null });
+    const fetch = stubFetch();
+    let releaseVerify: (ok: boolean) => void = () => {};
+    verifyPassword.mockImplementation(() => new Promise<boolean>((resolve) => (releaseVerify = resolve)));
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => {
+      result.current.profile.setName("Grace Hopper");
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
+    });
+
+    await act(async () => {
+      const password = result.current.password.save();
+      const profile = result.current.profile.save();
+      releaseVerify(true);
+      await Promise.all([password, profile]);
+    });
+
+    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
   });
 
   it("accepts a fresh submit after a validation failure releases the guard", async () => {
@@ -851,97 +995,93 @@ describe("saveChanges dirty-only submission", () => {
     // A weak new password fails before any write, on the path that returns
     // early rather than through the try/finally.
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("short");
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext("short");
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
     expect(updateUser).not.toHaveBeenCalled();
 
-    act(() => result.current.setNewPassword(STRONG));
+    act(() => result.current.password.setNext(STRONG));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
   });
 
-  it("batches name and password changes, leaving the untouched email alone", async () => {
-    updateUser.mockResolvedValue({ error: null });
-    const fetch = stubFetch();
-    const { result } = renderHook(() => useAccountSettings());
-
-    act(() => {
-      result.current.setName("Grace Hopper");
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
-    });
-    await act(async () => {
-      await result.current.saveChanges(submitEvent);
-    });
-
-    const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
-    expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
-    expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(1);
-    expect(updateUser).toHaveBeenCalledWith({ password: STRONG });
-    expect(result.current.savedNotice).toBe("Your settings have been updated.");
-  });
-
-  it("flips dirty back to false once the dirty groups have been saved", async () => {
+  it("flips a card's dirty flag back once its own save lands", async () => {
     const fetch = stubFetch();
     fetch.mockImplementation(() => response({ ...user, full_name: "Ada Lovelace" }));
     const { result, rerender } = renderHook(() => useAccountSettings());
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.profile.dirty).toBe(false);
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
     rerender();
-    expect(result.current.dirty).toBe(true);
+    expect(result.current.profile.dirty).toBe(true);
 
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
     rerender();
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.profile.dirty).toBe(false);
   });
 
-  it("keeps an untouched password group from counting as dirty", async () => {
+  it("keeps an untouched password card from counting as dirty", () => {
     const { result } = renderHook(() => useAccountSettings());
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.password.dirty).toBe(false);
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
 
-    expect(result.current.dirty).toBe(true);
+    expect(result.current.password.dirty).toBe(false);
+    expect(result.current.profile.dirty).toBe(true);
   });
 });
 
-describe("the in-form save confirmation", () => {
-  it("leaves savedNotice untouched by an email-only save, which confirms in the sent-box", async () => {
+describe("the per-card save confirmation", () => {
+  it("confirms nothing for an email save, which says so in the card instead", async () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailSent).toBe(true);
-    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.savedSection).toBeNull();
   });
 
-  it("clears a live confirmation when a field is edited", async () => {
+  // A confirmation belongs to the card that earned it and to no other, which
+  // the single notice could not express.
+  it("confirms only on the card that saved", async () => {
     stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
-    expect(result.current.savedNotice).toBe("Your profile has been updated.");
 
-    act(() => result.current.setName("Ada"));
+    expect(result.current.profile.saved).toBe(true);
+    expect(result.current.password.saved).toBe(false);
+    expect(result.current.speaker.saved).toBe(false);
+  });
 
-    expect(result.current.savedNotice).toBeNull();
+  it("clears a live confirmation when the field behind it is edited", async () => {
+    stubFetch();
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.profile.setName("Ada Lovelace"));
+    await act(async () => {
+      await result.current.profile.save();
+    });
+    expect(result.current.profile.saved).toBe(true);
+
+    act(() => result.current.profile.setName("Ada"));
+
+    expect(result.current.profile.saved).toBe(false);
   });
 
   it("clears a live confirmation when a speaker field is edited", async () => {
@@ -950,66 +1090,51 @@ describe("the in-form save confirmation", () => {
     const fetch = stubFetch();
     fetch.mockImplementation(() => response(speaker));
     const { result } = renderHook(() => useAccountSettings());
-    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+    await waitFor(() => expect(result.current.speaker.loading).toBe(false));
 
-    act(() => result.current.setLinkedinUrl("https://linkedin.com/in/grace"));
+    act(() => speakerLink(result.current, "linkedin").onChange("https://linkedin.com/in/grace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
-    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+    expect(result.current.speaker.saved).toBe(true);
 
-    act(() => result.current.setBio("Fresh bio."));
+    act(() => result.current.speaker.setBio("Fresh bio."));
 
-    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.speaker.saved).toBe(false);
   });
 
   it("drops the confirmation at the start of the next attempt, before validation", async () => {
     stubFetch();
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
-    expect(result.current.savedNotice).toBe("Your profile has been updated.");
+    expect(result.current.profile.saved).toBe(true);
 
     // A new attempt that dies in validation must not leave the old
     // confirmation on screen as if the last save were the one that landed.
-    act(() => result.current.setName(""));
+    act(() => result.current.profile.setName(""));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
-    expect(result.current.nameError).toBe("Name is required.");
-    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.profile.nameError).toBe("Name is required.");
+    expect(result.current.profile.saved).toBe(false);
   });
 
-  it("never sets savedNotice when the profile PATCH fails", async () => {
+  it("never confirms when the profile PATCH fails", async () => {
     stubFetch().mockImplementation(() => response({ error: "boom" }, false));
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setName("Ada Lovelace"));
+    act(() => result.current.profile.setName("Ada Lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
-    expect(result.current.savedNotice).toBeNull();
+    expect(result.current.profile.saved).toBe(false);
     expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile.", type: "error" });
-  });
-
-  it("dismisses the confirmation on demand", async () => {
-    const fetch = stubFetch();
-    const { result } = renderHook(() => useAccountSettings());
-
-    act(() => result.current.setName("Ada Lovelace"));
-    await act(async () => {
-      await result.current.saveChanges(submitEvent);
-    });
-    expect(result.current.savedNotice).toBe("Your profile has been updated.");
-
-    act(() => result.current.dismissSavedNotice());
-
-    expect(result.current.savedNotice).toBeNull();
   });
 });
 
@@ -1029,7 +1154,7 @@ describe("speaker PATCH through saveChanges", () => {
   }
 
   async function loadSpeaker(result: { current: ReturnType<typeof useAccountSettings> }) {
-    await waitFor(() => expect(result.current.speakerProfileId).toBe(5));
+    await waitFor(() => expect(result.current.speaker.loading).toBe(false));
   }
 
   it("sends only the dirty speaker fields in the shared PATCH", async () => {
@@ -1039,10 +1164,10 @@ describe("speaker PATCH through saveChanges", () => {
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setDesignation("CTO Emeritus"));
-    act(() => result.current.setGithubUrl("https://github.com/ada-lovelace"));
+    act(() => result.current.speaker.setDesignation("CTO Emeritus"));
+    act(() => speakerLink(result.current, "github").onChange("https://github.com/ada-lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
@@ -1063,10 +1188,10 @@ describe("speaker PATCH through saveChanges", () => {
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setLinkedinUrl(""));
-    act(() => result.current.setWebsiteUrl(""));
+    act(() => speakerLink(result.current, "linkedin").onChange(""));
+    act(() => speakerLink(result.current, "website").onChange(""));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
@@ -1087,12 +1212,12 @@ describe("speaker PATCH through saveChanges", () => {
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setDesignation(""));
-    act(() => result.current.setBio(""));
-    act(() => result.current.setGithubUrl(""));
-    act(() => result.current.setTwitterUrl("https://twitter.com/ada_lovelace"));
+    act(() => result.current.speaker.setDesignation(""));
+    act(() => result.current.speaker.setBio(""));
+    act(() => speakerLink(result.current, "github").onChange(""));
+    act(() => speakerLink(result.current, "twitter").onChange("https://twitter.com/ada_lovelace"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
@@ -1113,30 +1238,57 @@ describe("speaker PATCH through saveChanges", () => {
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setGithubUrl("not a url"));
+    act(() => speakerLink(result.current, "github").onChange("not a url"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
 
-    expect(result.current.speakerFieldErrors).toEqual({ github: "Enter a valid full URL (https://…)." });
+    expect(result.current.speaker.errors).toEqual({ github: "Enter a valid full URL (https://…)." });
     expect(fetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it("lets a name change through when a speaker URL is fine", async () => {
+  // The two cards share the /api/auth/me route but not a submit, so a link the
+  // speaker card would refuse cannot hold up a rename — and the rename sends
+  // only its own column rather than blanking the speaker's.
+  it("saves a name while a speaker link is invalid, sending only the name", async () => {
     useAsSpeaker();
     const fetch = stubFetch();
     fetch.mockImplementation(() => response({ ...speakerData, full_name: "Grace Hopper" }));
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setName("Grace Hopper"));
+    act(() => {
+      speakerLink(result.current, "github").onChange("not-a-url");
+      result.current.profile.setName("Grace Hopper");
+    });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.profile.save();
     });
 
     const patch = fetch.mock.calls.find((c) => c[1]?.method === "PATCH");
     expect(JSON.parse(patch![1]!.body as string)).toEqual({ full_name: "Grace Hopper" });
+    expect(result.current.profile.saved).toBe(true);
+  });
+
+  it("confirms nothing and says so when the speaker PATCH fails", async () => {
+    useAsSpeaker();
+    const fetch = stubFetch();
+    fetch.mockImplementation(() => response(speakerData));
+    const { result } = renderHook(() => useAccountSettings());
+    await loadSpeaker(result);
+
+    fetch.mockImplementation(() => response({ error: "boom" }, false));
+    act(() => result.current.speaker.setDesignation("Principal"));
+    await act(async () => {
+      await result.current.speaker.save();
+    });
+
+    expect(result.current.speaker.saved).toBe(false);
+    // The baseline must not move, or the card would go clean on a write that
+    // never landed and the change would vanish on the next render.
+    expect(result.current.speaker.dirty).toBe(true);
+    expect(result.current.toast).toMatchObject({ title: "Error", description: "Failed to update profile." });
   });
 
   it("sends no PATCH when a speaker has nothing to save", async () => {
@@ -1147,11 +1299,11 @@ describe("speaker PATCH through saveChanges", () => {
     await loadSpeaker(result);
 
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
 
     expect(fetch.mock.calls.filter((c) => c[1]?.method === "PATCH")).toHaveLength(0);
-    expect(result.current.dirty).toBe(false);
+    expect(result.current.speaker.dirty).toBe(false);
   });
 
   it("clears the field error when the offending link is edited again", async () => {
@@ -1160,15 +1312,15 @@ describe("speaker PATCH through saveChanges", () => {
     const { result } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
 
-    act(() => result.current.setGithubUrl("not a url"));
+    act(() => speakerLink(result.current, "github").onChange("not a url"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
-    expect(result.current.speakerFieldErrors?.github).toBeTruthy();
+    expect(result.current.speaker.errors?.github).toBeTruthy();
 
-    act(() => result.current.setGithubUrl("https://github.com/ada"));
+    act(() => speakerLink(result.current, "github").onChange("https://github.com/ada"));
 
-    expect(result.current.speakerFieldErrors?.github).toBeUndefined();
+    expect(result.current.speaker.errors?.github).toBeUndefined();
   });
 
   it("flips speakerDirty back to clean once saved", async () => {
@@ -1177,17 +1329,17 @@ describe("speaker PATCH through saveChanges", () => {
     fetch.mockImplementation(() => response(speakerData));
     const { result, rerender } = renderHook(() => useAccountSettings());
     await loadSpeaker(result);
-    expect(result.current.speakerDirty).toBe(false);
+    expect(result.current.speaker.dirty).toBe(false);
 
-    act(() => result.current.setBio("Fresh bio."));
+    act(() => result.current.speaker.setBio("Fresh bio."));
     rerender();
-    expect(result.current.speakerDirty).toBe(true);
+    expect(result.current.speaker.dirty).toBe(true);
 
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.speaker.save();
     });
     rerender();
-    expect(result.current.speakerDirty).toBe(false);
+    expect(result.current.speaker.dirty).toBe(false);
   });
 });
 
@@ -1196,26 +1348,26 @@ describe("the sent state", () => {
     respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
-    expect(result.current.emailSent).toBe(true);
-    expect(result.current.resendIn).toBe(60);
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.email.resendIn).toBe(60);
   });
 
   it("ignores a resend while the cooldown is running", async () => {
     const fetch = respondTo(SEND_ROUTE, { ok: true });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
 
     await act(async () => {
-      await result.current.resendVerification();
+      await result.current.email.resend();
     });
 
     expect(fetch.mock.calls.filter((c) => String(c[0]).includes(SEND_ROUTE))).toHaveLength(1);
@@ -1227,9 +1379,9 @@ describe("the sent state", () => {
       respondTo(SEND_ROUTE, { ok: true });
       const { result } = renderHook(() => useAccountSettings());
 
-      act(() => result.current.setNewEmail("grace@example.com"));
+      act(() => result.current.email.setValue("grace@example.com"));
       await act(async () => {
-        await result.current.saveChanges(submitEvent);
+        await result.current.email.save();
       });
       // Walk the countdown down (one tick per scheduled second) so the resend is
       // actually allowed to fire.
@@ -1238,7 +1390,7 @@ describe("the sent state", () => {
           await vi.advanceTimersByTimeAsync(1000);
         });
       }
-      expect(result.current.resendIn).toBe(0);
+      expect(result.current.email.resendIn).toBe(0);
 
       vi.stubGlobal(
         "fetch",
@@ -1247,14 +1399,14 @@ describe("the sent state", () => {
         ),
       );
       await act(async () => {
-        await result.current.resendVerification();
+        await result.current.email.resend();
       });
 
       expect(result.current.toast?.title).toBe("Error");
-      expect(result.current.emailSent).toBe(true);
+      expect(result.current.email.sent).toBe(true);
       // A refused send must not start a fresh countdown, or the wait it
       // advertises would be a lie.
-      expect(result.current.resendIn).toBe(0);
+      expect(result.current.email.resendIn).toBe(0);
     } finally {
       vi.unstubAllGlobals();
       vi.useRealTimers();
@@ -1267,9 +1419,9 @@ describe("the sent state", () => {
       respondTo(SEND_ROUTE, { ok: true });
       const { result } = renderHook(() => useAccountSettings());
 
-      act(() => result.current.setNewEmail("grace@example.com"));
+      act(() => result.current.email.setValue("grace@example.com"));
       await act(async () => {
-        await result.current.saveChanges(submitEvent);
+        await result.current.email.save();
       });
 
       // Each second is scheduled by the render the previous one caused, so the
@@ -1279,14 +1431,14 @@ describe("the sent state", () => {
           await vi.advanceTimersByTimeAsync(1000);
         });
       }
-      expect(result.current.resendIn).toBe(0);
+      expect(result.current.email.resendIn).toBe(0);
 
       await act(async () => {
-        await result.current.resendVerification();
+        await result.current.email.resend();
       });
 
       expect(result.current.toast?.title).toBe("Link sent again");
-      expect(result.current.resendIn).toBe(60);
+      expect(result.current.email.resendIn).toBe(60);
     } finally {
       vi.unstubAllGlobals();
       vi.useRealTimers();
@@ -1315,9 +1467,9 @@ describe("dismissing an email change", () => {
 
   async function getSentState() {
     const { result } = renderHook(() => useAccountSettings());
-    act(() => result.current.setNewEmail("grace@example.com"));
+    act(() => result.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.email.save();
     });
     return result;
   }
@@ -1325,19 +1477,19 @@ describe("dismissing an email change", () => {
   it("cancels through the route, returning the field to the account email", async () => {
     const fetch = stubRoutes({ ok: true });
     const result = await getSentState();
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
 
     await act(async () => {
-      await result.current.cancelEmailChange();
+      await result.current.email.cancel();
     });
 
     expect(fetch.mock.calls.some((c) => String(c[0]).includes(CANCEL_ROUTE))).toBe(true);
-    expect(result.current.emailSent).toBe(false);
-    expect(result.current.resendIn).toBe(0);
+    expect(result.current.email.sent).toBe(false);
+    expect(result.current.email.resendIn).toBe(0);
     // The field is bound to the stored address, not the attempted one: cancel
     // snaps it back, so what is on screen is plainly the original email.
-    expect(result.current.newEmail).toBe("ada@example.com");
-    expect(result.current.emailVerified).toBeNull();
+    expect(result.current.email.value).toBe("ada@example.com");
+    expect(result.current.email.verified).toBeNull();
     expect(result.current.toast).toBeNull();
   });
 
@@ -1348,16 +1500,16 @@ describe("dismissing an email change", () => {
   it("keeps the banner down after a reload once the change was voided", async () => {
     stubRoutes({ ok: true });
     const { result: first, unmount } = renderHook(() => useAccountSettings());
-    act(() => first.current.setNewEmail("grace@example.com"));
+    act(() => first.current.email.setValue("grace@example.com"));
     await act(async () => {
-      await first.current.saveChanges(submitEvent);
+      await first.current.email.save();
     });
-    expect(first.current.emailSent).toBe(true);
+    expect(first.current.email.sent).toBe(true);
 
     await act(async () => {
-      await first.current.cancelEmailChange();
+      await first.current.email.cancel();
     });
-    expect(first.current.emailSent).toBe(false);
+    expect(first.current.email.sent).toBe(false);
 
     unmount();
     getUser.mockResolvedValue({
@@ -1370,20 +1522,53 @@ describe("dismissing an email change", () => {
     });
     const { result: reloaded } = renderHook(() => useAccountSettings());
 
-    await waitFor(() => expect(reloaded.current.emailSent).toBe(false));
-    expect(reloaded.current.newEmail).toBe("ada@example.com");
+    await waitFor(() => expect(reloaded.current.email.sent).toBe(false));
+    expect(reloaded.current.email.value).toBe("ada@example.com");
+  });
+
+  // A cancel that answers with something unparseable is a cancel that did not
+  // happen, so the pending banner has to stay up rather than clearing on a
+  // reply nobody could read.
+  it("keeps the banner up when the cancel route answers unreadable JSON", async () => {
+    const fetch = stubFetch();
+    fetch.mockImplementation((input: string | URL | Request) => {
+      if (String(input).includes(CANCEL_ROUTE)) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.reject(new Error("not json")),
+        } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true }) } as Response);
+    });
+    const { result } = renderHook(() => useAccountSettings());
+
+    act(() => result.current.email.setValue("grace@example.com"));
+    await act(async () => {
+      await result.current.email.save();
+    });
+    expect(result.current.email.sent).toBe(true);
+
+    await act(async () => {
+      await result.current.email.cancel();
+    });
+
+    expect(result.current.email.sent).toBe(true);
+    expect(result.current.toast).toMatchObject({
+      title: "Error",
+      description: "We could not cancel the pending change. Please try again.",
+    });
   });
 
   it("keeps the banner and toasts when the cancel route fails", async () => {
     stubRoutes({ ok: false, error: { status: 500, message: "boom" } });
     const result = await getSentState();
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
 
     await act(async () => {
-      await result.current.cancelEmailChange();
+      await result.current.email.cancel();
     });
 
-    expect(result.current.emailSent).toBe(true);
+    expect(result.current.email.sent).toBe(true);
     expect(result.current.toast?.type).toBe("error");
   });
 });
@@ -1392,13 +1577,13 @@ describe("changing the password", () => {
   it("refuses a weak one before asking the provider, naming the rule", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewPassword("short"));
+    act(() => result.current.password.setNext("short"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.newPasswordError).toBe("At least 12 characters");
+    expect(result.current.password.nextError).toBe("At least 12 characters");
     expect(result.current.toast).toBeNull();
   });
 
@@ -1406,13 +1591,13 @@ describe("changing the password", () => {
   it("refuses a decorated common password", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewPassword("password1234"));
+    act(() => result.current.password.setNext("password1234"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.newPasswordError).toBe("Not built on a commonly used password");
+    expect(result.current.password.nextError).toBe("Not built on a commonly used password");
   });
 
   it("refuses one built from the account's own name", async () => {
@@ -1422,13 +1607,13 @@ describe("changing the password", () => {
     });
     const { result } = renderHook(() => useAccountSettings());
 
-    act(() => result.current.setNewPassword("adalovelace2026"));
+    act(() => result.current.password.setNext("adalovelace2026"));
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.newPasswordError).toBe("Not mostly your name or email address");
+    expect(result.current.password.nextError).toBe("Not mostly your name or email address");
   });
 
   it("passes a strong one through and clears the fields", async () => {
@@ -1436,16 +1621,16 @@ describe("changing the password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("the quiet kettle sings");
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext("the quiet kettle sings");
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).toHaveBeenCalledWith({ password: "the quiet kettle sings" });
-    expect(result.current.newPassword).toBe("");
-    expect(result.current.savedNotice).toBe("Your password has been updated.");
+    expect(result.current.password.next).toBe("");
+    expect(result.current.password.saved).toBe(true);
   });
 });
 
@@ -1457,16 +1642,16 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("not-my-password");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("not-my-password");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.currentPasswordError).toBe("That is not your current password.");
-    expect(result.current.newPasswordError).toBeNull();
+    expect(result.current.password.currentError).toBe("That is not your current password.");
+    expect(result.current.password.nextError).toBeNull();
     expect(result.current.toast).toBeNull();
   });
 
@@ -1475,27 +1660,27 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("not-my-password");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("not-my-password");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
-    expect(result.current.currentPassword).toBe("not-my-password");
-    expect(result.current.newPassword).toBe(STRONG);
-    expect(result.current.saving).toBe(false);
+    expect(result.current.password.current).toBe("not-my-password");
+    expect(result.current.password.next).toBe(STRONG);
+    expect(result.current.password.saving).toBe(false);
   });
 
   it("checks the password against the signed-in account", async () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(verifyPassword).toHaveBeenCalledWith(user.email, "old-pass");
@@ -1507,11 +1692,11 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword("short");
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext("short");
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(verifyPassword).not.toHaveBeenCalled();
@@ -1523,16 +1708,16 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
     expect(verifyPassword).not.toHaveBeenCalled();
     expect(updateUser).not.toHaveBeenCalled();
-    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+    expect(result.current.password.currentError).toBe("That is not your current password.");
   });
 
   it("clears the message as soon as the field is edited, so it never outlives the input it describes", async () => {
@@ -1540,17 +1725,17 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("not-my-password");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("not-my-password");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
-    expect(result.current.currentPasswordError).toBe("That is not your current password.");
+    expect(result.current.password.currentError).toBe("That is not your current password.");
 
-    act(() => result.current.setCurrentPassword("not-my-passwordX"));
+    act(() => result.current.password.setCurrent("not-my-passwordX"));
 
-    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.password.currentError).toBeNull();
   });
 
   it("puts a provider rejection on the new password field rather than in a toast", async () => {
@@ -1558,15 +1743,15 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
-    expect(result.current.newPasswordError).toBe("New password should be different from the old password.");
-    expect(result.current.currentPasswordError).toBeNull();
+    expect(result.current.password.nextError).toBe("New password should be different from the old password.");
+    expect(result.current.password.currentError).toBeNull();
     expect(result.current.toast).toBeNull();
   });
 
@@ -1575,18 +1760,18 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("old-pass");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("old-pass");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
-    expect(result.current.newPasswordError).toBe("Too many attempts. Please wait, then try again.");
+    expect(result.current.password.nextError).toBe("Too many attempts. Please wait, then try again.");
     // A refusal over the rate limit is not a verdict on the password itself,
     // so nothing the user typed should be discarded.
-    expect(result.current.currentPassword).toBe("old-pass");
-    expect(result.current.newPassword).toBe(STRONG);
+    expect(result.current.password.current).toBe("old-pass");
+    expect(result.current.password.next).toBe(STRONG);
     expect(result.current.toast).toBeNull();
   });
 
@@ -1595,22 +1780,22 @@ describe("proving the current password", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     act(() => {
-      result.current.setCurrentPassword("not-my-password");
-      result.current.setNewPassword(STRONG);
+      result.current.password.setCurrent("not-my-password");
+      result.current.password.setNext(STRONG);
     });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
-    expect(result.current.currentPasswordError).not.toBeNull();
+    expect(result.current.password.currentError).not.toBeNull();
 
     verifyPassword.mockResolvedValue(true);
     updateUser.mockResolvedValue({ error: null });
     await act(async () => {
-      await result.current.saveChanges(submitEvent);
+      await result.current.password.save();
     });
 
-    expect(result.current.currentPasswordError).toBeNull();
-    expect(result.current.savedNotice).toBe("Your password has been updated.");
+    expect(result.current.password.currentError).toBeNull();
+    expect(result.current.password.saved).toBe(true);
   });
 });
 
@@ -1619,10 +1804,10 @@ describe("profile photo", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await act(async () => {
-      await result.current.changeProfilePhoto({ target: { files: [] } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      await result.current.photo.change({ target: { files: [] } } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
 
-    expect(result.current.uploading).toBe(false);
+    expect(result.current.photo.uploading).toBe(false);
   });
 
   it("uploads the photo and updates the session user's profile_image_url", async () => {
@@ -1634,7 +1819,7 @@ describe("profile photo", () => {
 
     const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
     await act(async () => {
-      await result.current.changeProfilePhoto({
+      await result.current.photo.change({
         target: { files: [file] },
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
@@ -1659,7 +1844,7 @@ describe("profile photo", () => {
 
     const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
     await act(async () => {
-      await result.current.changeProfilePhoto({
+      await result.current.photo.change({
         target: { files: [file] },
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
@@ -1674,7 +1859,7 @@ describe("profile photo", () => {
 
     const file = new File(["x"], "x.jpg", { type: "image/jpeg" });
     await act(async () => {
-      await result.current.changeProfilePhoto({
+      await result.current.photo.change({
         target: { files: [file] },
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
@@ -1688,7 +1873,7 @@ describe("profile photo", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await act(async () => {
-      await result.current.deleteProfilePhoto();
+      await result.current.photo.remove();
     });
 
     const del = fetch.mock.calls.find((c) => c[1]?.method === "DELETE");
@@ -1708,7 +1893,7 @@ describe("profile photo", () => {
     const { result, rerender } = renderHook(() => useAccountSettings());
 
     await act(async () => {
-      await result.current.deleteProfilePhoto();
+      await result.current.photo.remove();
     });
 
     rerender();
@@ -1720,7 +1905,7 @@ describe("profile photo", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await act(async () => {
-      await result.current.deleteProfilePhoto();
+      await result.current.photo.remove();
     });
 
     expect(sessionUpdateUser).not.toHaveBeenCalled();
@@ -1737,7 +1922,7 @@ describe("profile photo", () => {
     const { result } = renderHook(() => useAccountSettings());
 
     await act(async () => {
-      await result.current.deleteProfilePhoto();
+      await result.current.photo.remove();
     });
 
     expect(sessionUpdateUser).not.toHaveBeenCalled();

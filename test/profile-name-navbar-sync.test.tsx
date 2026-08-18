@@ -56,10 +56,10 @@ function harness() {
     return (
       <ProfilePhotoSection
         previewUrl={settings.currentUser?.profile_image_url}
-        uploading={settings.uploading}
-        deleting={settings.deleting}
-        onChange={settings.changeProfilePhoto}
-        onDelete={settings.deleteProfilePhoto}
+        uploading={settings.photo.uploading}
+        deleting={settings.photo.deleting}
+        onChange={settings.photo.change}
+        onDelete={settings.photo.remove}
       />
     );
   }
@@ -113,10 +113,10 @@ describe("saving a profile name", () => {
     const meCallsBefore = fetchMock.mock.calls.filter((c) => c[1]?.method !== "PATCH").length;
 
     await act(async () => {
-      settings.current!.setName("Grace Hopper");
+      settings.current!.profile.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveChanges(submitEvent);
+      await settings.current!.profile.save();
     });
 
     expect(navbarName()).toContain("Grace Hopper");
@@ -132,10 +132,10 @@ describe("saving a profile name", () => {
     expect(screen.getByText("AL")).toBeTruthy();
 
     await act(async () => {
-      settings.current!.setName("Grace Hopper");
+      settings.current!.profile.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveChanges(submitEvent);
+      await settings.current!.profile.save();
     });
 
     expect(screen.getByText("GH")).toBeTruthy();
@@ -150,10 +150,10 @@ describe("saving a profile name", () => {
     );
 
     await act(async () => {
-      settings.current!.setName("Grace Hopper");
+      settings.current!.profile.setName("Grace Hopper");
     });
     await act(async () => {
-      await settings.current!.saveChanges(submitEvent);
+      await settings.current!.profile.save();
     });
 
     expect(navbarName()).toContain("Ada Lovelace");
@@ -175,7 +175,7 @@ async function upload(settings: { current: Settings | null }, url: string) {
   );
 
   await act(async () => {
-    await settings.current!.changeProfilePhoto({
+    await settings.current!.photo.change({
       target: { files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] },
     } as unknown as React.ChangeEvent<HTMLInputElement>);
   });
@@ -214,7 +214,7 @@ describe("uploading a profile photo", () => {
       } as Response),
     );
     await act(async () => {
-      await settings.current!.changeProfilePhoto({
+      await settings.current!.photo.change({
         target: { files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] },
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     });
@@ -229,22 +229,22 @@ describe("the name field against a session that arrives late", () => {
     const settings = harness();
 
     // The settings page does not gate on isLoaded, so the hook mounts first.
-    expect(settings.current!.name).toBe("");
+    expect(settings.current!.profile.name).toBe("");
 
-    await waitFor(() => expect(settings.current!.name).toBe("Ada Lovelace"));
+    await waitFor(() => expect(settings.current!.profile.name).toBe("Ada Lovelace"));
   });
 
   it("does not clobber an edit in progress on unrelated re-renders", async () => {
     const settings = harness();
-    await waitFor(() => expect(settings.current!.name).toBe("Ada Lovelace"));
+    await waitFor(() => expect(settings.current!.profile.name).toBe("Ada Lovelace"));
 
     await act(async () => {
-      settings.current!.setName("Grace");
+      settings.current!.profile.setName("Grace");
     });
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    expect(settings.current!.name).toBe("Grace");
+    expect(settings.current!.profile.name).toBe("Grace");
   });
 });

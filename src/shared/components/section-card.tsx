@@ -8,6 +8,8 @@ interface SectionCardProps {
   description?: string;
   /** Rendered opposite the title: the section's own control, where it has one. */
   actions?: ReactNode;
+  /** Anchors the panel, so a link can point at one section of a long page. */
+  id?: string;
   className?: string;
   children: ReactNode;
 }
@@ -20,9 +22,12 @@ interface SectionCardProps {
  * then drifted apart in padding and heading weight, and made a form embedded in
  * a panel look like a second page pasted into the first.
  */
-export function SectionCard({ title, icon, description, actions, className, children }: SectionCardProps) {
+export function SectionCard({ title, icon, description, actions, id, className, children }: SectionCardProps) {
   return (
-    <section className={cn("rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]", className)}>
+    <section
+      id={id}
+      className={cn("rounded-xl border border-border bg-surface p-6 shadow-[0_4px_20px_0_rgba(0,0,0,0.05)]", className)}
+    >
       <div className="mb-5 flex items-start justify-between gap-4 border-b border-border pb-3">
         <div className="flex items-center gap-2.5">
           <div className="rounded-lg bg-info/10 p-2">
