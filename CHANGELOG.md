@@ -4,6 +4,8 @@
 
 ### Changed
 
+- The landing page's Upcoming Events strip shows three events instead of two. The grid it renders into is three cards wide from the `lg` breakpoint up, so asking the query for two left every desktop visitor looking at a row with a hole in it. The limit is now named after the thing that decides it rather than sitting in the query as a bare `2`, since the next person to widen the grid needs to find it.
+
 - Account settings is one card per concern, each with its own save, on the same wide column every staff page uses. It was a single 896px form with one **Save Changes** at the foot, which meant the button did whatever happened to be dirty — a press could rename the account, mail a verification link and change the password in one go, and the confirmation afterwards had to work backwards from which combination had landed to decide what to say. Nothing on screen told you which of the three a press was about to do.
 
   Each card now owns its action and says what it does: **Save profile**, **Send verification link**, **Update password**, **Save professional info**. A card is its own `<form>`, so Enter saves the section the cursor is in and nothing else, its button lights only when that card is dirty, and the confirmation appears in the card that earned it. One guard still spans them all, so two sections cannot race the same session. This is the shape GitHub, Stripe and Vercel settle on, and the reason is the same: these are different operations with different consequences, and one is not a batch of the others.

@@ -119,4 +119,15 @@ describe("eventDao upcoming filter", () => {
       expect.stringMatching(/^event_date\.gt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.gte\.15:00:00\)$/),
     );
   });
+
+  it("getUpcomingForLanding asks for one full row of the landing grid", async () => {
+    // The grid is three cards wide at lg, so the query has to supply three or
+    // the row is always short.
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.getUpcomingForLanding(client);
+
+    expect(chain.limit).toHaveBeenCalledWith(3);
+  });
 });

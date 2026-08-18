@@ -118,6 +118,10 @@ export async function list(
   };
 }
 
+/** One full row of the landing grid, which is three cards wide at `lg`. Asking
+ *  for fewer left a ragged half-row on every desktop viewport. */
+const LANDING_EVENT_LIMIT = 3;
+
 export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWithCourseName[]> {
   const now = new Date();
   const { data, error } = await supabase
@@ -126,7 +130,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<EventWi
     .eq("status", "active")
     .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
     .order("event_date", { ascending: true })
-    .limit(2);
+    .limit(LANDING_EVENT_LIMIT);
   // Without this the landing page renders "No upcoming events" identically
   // whether there are none or the query failed. It reads as anon, which is
   // granted SELECT on EVENT and nothing else — an embed here (COURSE used to

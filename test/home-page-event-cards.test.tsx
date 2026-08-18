@@ -40,6 +40,17 @@ const apiRows = [
     cover_image_url: null,
     COURSE: null,
   },
+  {
+    id: 43,
+    title: "Gamma",
+    event_date: "2026-08-28",
+    start_time: "13:00:00",
+    end_time: "16:00:00",
+    venue_name: "Hall C",
+    status: "active",
+    cover_image_url: null,
+    COURSE: null,
+  },
 ];
 
 const attendee = {
@@ -115,6 +126,6 @@ describe("merged landing page for a signed-in attendee", () => {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"))
       .filter((href) => href?.startsWith("/events/"));
-    expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing"]);
+    expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing", "/events/43?from=landing"]);
   });
 });
