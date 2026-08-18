@@ -111,7 +111,7 @@ export default function StaffEmailsPage() {
         </TableToolbar>
 
         {error && logs.length > 0 && (
-          <p className="mt-2 text-sm text-destructive">Failed to refresh email logs — showing last loaded results.</p>
+          <p className="mt-2 text-sm text-error">Failed to refresh email logs — showing last loaded results.</p>
         )}
 
         <TableContainer>

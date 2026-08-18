@@ -13,6 +13,7 @@ const rows: EventTableRow[] = [
     venue_name: "Main Hall",
     status: "active",
     attendee_count: 12,
+    capacity: 50,
   },
   {
     id: 8,
@@ -95,10 +96,17 @@ describe("EventTable", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("renders the attendee count per row", () => {
+  it("renders the attendee count against the cap for a capped event", () => {
     render(<EventTable events={rows} />);
 
-    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("12 / 50")).toBeTruthy();
+  });
+
+  it("renders the bare count for an uncapped event, with no empty divider", () => {
+    render(<EventTable events={rows} />);
+
+    // The second row has no capacity; "0 /" would read as a cap of nothing.
+    expect(screen.getByText("0")).toBeTruthy();
   });
 
   it("renders the empty message when there are no events", () => {

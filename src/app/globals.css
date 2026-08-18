@@ -29,6 +29,12 @@
      staff event pages are one journey that must not change shape halfway. */
   --container-page: 1360px;
 
+  /* The top bar's height, and the padding the content below it clears itself
+     with. Two files have to agree on this number or the bar either overlaps the
+     first thing on the page or leaves a band of dead space above it; a token is
+     what stops the next change to one from forgetting the other. */
+  --spacing-navbar: 4.5rem;
+
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;

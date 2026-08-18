@@ -1,140 +1,77 @@
 "use client";
 
-import { Input } from "@/shared/components/input";
-import { FormField, FormLabel, FormMessage } from "@/shared/components/form";
-
-export type SpeakerFieldKey = "linkedin" | "twitter" | "github" | "website";
-export type SpeakerFieldErrors = Partial<Record<SpeakerFieldKey, string>>;
+import { TextField } from "@/shared/components/text-field";
+import { SettingsCard } from "@/modules/user/components/settings-card";
+import type { useAccountSettings } from "@/modules/user/lib/use-account-settings";
 
 interface SpeakerProfileSectionProps {
-  loading: boolean;
-  designation: string;
-  onDesignationChange: (value: string) => void;
-  bio: string;
-  onBioChange: (value: string) => void;
-  linkedinUrl: string;
-  onLinkedinUrlChange: (value: string) => void;
-  twitterUrl: string;
-  onTwitterUrlChange: (value: string) => void;
-  githubUrl: string;
-  onGithubUrlChange: (value: string) => void;
-  websiteUrl: string;
-  onWebsiteUrlChange: (value: string) => void;
-  errors?: SpeakerFieldErrors;
+  speaker: ReturnType<typeof useAccountSettings>["speaker"];
 }
 
-interface LinkField {
-  key: SpeakerFieldKey;
-  id: string;
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-}
-
-export function SpeakerProfileSection({
-  loading,
-  designation,
-  onDesignationChange,
-  bio,
-  onBioChange,
-  linkedinUrl,
-  onLinkedinUrlChange,
-  twitterUrl,
-  onTwitterUrlChange,
-  githubUrl,
-  onGithubUrlChange,
-  websiteUrl,
-  onWebsiteUrlChange,
-  errors,
-}: SpeakerProfileSectionProps) {
-  const links: LinkField[] = [
-    {
-      key: "linkedin",
-      id: "linkedin-url",
-      label: "LinkedIn",
-      placeholder: "https://linkedin.com/in/username",
-      value: linkedinUrl,
-      onChange: onLinkedinUrlChange,
-    },
-    {
-      key: "twitter",
-      id: "twitter-url",
-      label: "X (Twitter)",
-      placeholder: "https://x.com/username",
-      value: twitterUrl,
-      onChange: onTwitterUrlChange,
-    },
-    {
-      key: "github",
-      id: "github-url",
-      label: "GitHub",
-      placeholder: "https://github.com/username",
-      value: githubUrl,
-      onChange: onGithubUrlChange,
-    },
-    {
-      key: "website",
-      id: "website-url",
-      label: "Website",
-      placeholder: "https://yoursite.com",
-      value: websiteUrl,
-      onChange: onWebsiteUrlChange,
-    },
-  ];
-
+export function SpeakerProfileSection({ speaker }: SpeakerProfileSectionProps) {
   return (
-    <>
-      <h2 className="text-sm font-bold text-fg">Professional Info</h2>
-      <p className="mt-1 text-xs text-muted-fg">Speaker designation, bio, and links.</p>
-      {loading ? (
-        <p className="mt-4 text-xs text-muted-fg">Loading...</p>
+    <SettingsCard
+      id="speaker"
+      icon="record_voice_over"
+      title="Professional Info"
+      description="Shown to attendees on the sessions you speak at."
+      footer={{
+        onSave: speaker.save,
+        label: "Save professional info",
+        dirty: speaker.dirty,
+        saving: speaker.saving,
+        saved: speaker.saved ? "Professional info saved" : null,
+      }}
+    >
+      {speaker.loading ? (
+        <p className="text-xs text-muted-fg">Loading…</p>
       ) : (
-        <div className="mt-4 space-y-3">
-          <FormField>
-            <FormLabel htmlFor="designation">Designation</FormLabel>
-            <Input
+        <div className="space-y-4">
+          {/* Designation is a short single line; the bio is a paragraph. Side
+              by side they had to share a baseline neither wanted, so the bio
+              gets its own row and the full width of the card. */}
+          <div className="sm:max-w-md">
+            <TextField
               id="designation"
-              value={designation}
-              onChange={(e) => onDesignationChange(e.target.value)}
+              label="Designation"
               placeholder="e.g. Senior Developer"
+              value={speaker.designation}
+              onChange={speaker.setDesignation}
             />
-          </FormField>
-          <FormField>
-            <FormLabel htmlFor="bio">Bio</FormLabel>
-            <textarea
-              id="bio"
-              value={bio}
-              onChange={(e) => onBioChange(e.target.value)}
-              placeholder="Tell attendees about yourself..."
-              rows={3}
-              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring/20"
-            />
-          </FormField>
-          {links.map(({ key, id, label, placeholder, value, onChange }) => {
-            const error = errors?.[key];
-            return (
-              <FormField key={key}>
-                <FormLabel htmlFor={id}>{label}</FormLabel>
-                <Input
-                  id={id}
-                  type="url"
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  placeholder={placeholder}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? `${id}-error` : undefined}
-                />
-                {error && (
-                  <FormMessage id={`${id}-error`} role="alert">
-                    {error}
-                  </FormMessage>
-                )}
-              </FormField>
-            );
-          })}
+          </div>
+          <TextField
+            id="bio"
+            label="Bio"
+            value={speaker.bio}
+            onChange={speaker.setBio}
+            render={(control) => (
+              <textarea
+                {...control}
+                rows={4}
+                placeholder="Tell attendees about yourself..."
+                className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+            )}
+          />
+          {/* Four across where there is room: the links are short, same-shaped
+              values, and a single column of them pushed the save out of sight
+              on a laptop. */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {speaker.links.map((link) => (
+              <TextField
+                key={link.key}
+                id={link.id}
+                label={link.label}
+                type="url"
+                placeholder={link.placeholder}
+                value={link.value}
+                onChange={link.onChange}
+                error={speaker.errors[link.key]}
+              />
+            ))}
+          </div>
         </div>
       )}
-    </>
+    </SettingsCard>
   );
 }

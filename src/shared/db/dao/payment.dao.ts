@@ -153,10 +153,17 @@ export async function findByIdWithEvent(supabase: DbClient, id: number): Promise
 export async function findEventForPayment(
   supabase: DbClient,
   eventId: number,
-): Promise<{ title: string; price: number; currency: string; status: string; event_date: string } | null> {
+): Promise<{
+  title: string;
+  price: number;
+  currency: string;
+  status: string;
+  event_date: string;
+  capacity: number | null;
+} | null> {
   const { data, error } = await supabase
     .from("EVENT")
-    .select("title, price, currency, status, event_date")
+    .select("title, price, currency, status, event_date, capacity")
     .eq("id", eventId)
     .maybeSingle();
   throwOnDbError(error, "payment.dao.findEventForPayment");

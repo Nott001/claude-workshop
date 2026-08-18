@@ -72,3 +72,27 @@ export function subscribeToCheckins(eventId: number, onCheckin: TicketCallback):
 
   return sub;
 }
+
+export function subscribeToTicket(ticketId: number, onTicket: TicketCallback): RealtimeChannel {
+  const channelName = `ticket-${ticketId}-${++counter}`;
+  const sub = getBrowserClient()
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "TICKET",
+        filter: `id=eq.${ticketId}`,
+      },
+      (payload) => {
+        const ticket = payload.new as Ticket;
+        if (ticket.status === "checked_in" || ticket.status === "cancelled") {
+          onTicket(ticket);
+        }
+      },
+    )
+    .subscribe();
+
+  return sub;
+}

@@ -30,6 +30,18 @@ describe("toLandingEvent", () => {
     expect(toLandingEvent(withoutCourse).event_id).toBe(41);
   });
 
+  it("carries the event's mode, so a card can pick its own venue icon", () => {
+    expect(toLandingEvent({ ...row, event_type: "online" }).event_type).toBe("online");
+    expect(toLandingEvent({ ...row, event_type: "onsite" }).event_type).toBe("onsite");
+  });
+
+  it("defaults a row with no mode to onsite rather than leaving it undefined", () => {
+    // Same default the column carries, so a row from before the migration and
+    // a payload that simply omitted the field render identically.
+    expect(toLandingEvent(row).event_type).toBe("onsite");
+    expect(toLandingEvent({ ...row, event_type: null }).event_type).toBe("onsite");
+  });
+
   it("gives every row in a list a distinct, defined key", () => {
     const rows: EventRow[] = [row, { ...row, id: 42, title: "Beta" }];
 

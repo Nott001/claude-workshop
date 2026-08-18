@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { eventModeIcon } from "@/shared/lib/event-format";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
+import type { EventMode } from "@/shared/types";
 
 const ACCENT_CLASSES = [
   "from-sky-500 via-cyan-400 to-teal-300",
@@ -22,6 +24,8 @@ interface EventCardProps {
   startTime: string;
   endTime: string;
   venueName: string;
+  /** Decides the venue row's icon. `venueName` is the platform when online. */
+  eventType?: EventMode | null;
   coverImageUrl?: string | null;
   accentIndex?: number;
   showEdit?: boolean;
@@ -37,6 +41,7 @@ export function EventCard({
   startTime,
   endTime,
   venueName,
+  eventType,
   coverImageUrl,
   accentIndex = 0,
   showEdit,
@@ -81,7 +86,13 @@ export function EventCard({
               {formatTime(endTime)}
             </p>
             <p className="flex items-center gap-2">
-              <span className="material-symbols-rounded text-base text-brand">location_on</span> {venueName}
+              {/* The mode is carried by the icon alone, which a screen reader
+                  would otherwise read out as the ligature text "videocam". */}
+              <span aria-hidden className="material-symbols-rounded text-base text-brand">
+                {eventModeIcon(eventType)}
+              </span>
+              <span className="sr-only">{eventType === "online" ? "Online:" : "Venue:"}</span>
+              <span>{venueName}</span>
             </p>
           </div>
           <div className="mt-6 flex items-center justify-between">

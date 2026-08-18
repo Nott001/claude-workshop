@@ -5,6 +5,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { checkinSchema, formatTicketPreview } from "@/modules/kiosk/lib/checkin";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.FACILITATOR);
@@ -25,6 +26,17 @@ export async function GET(req: Request) {
 
   if (!ticket) {
     return NextResponse.json({ error: "Invalid QR token" }, { status: 404 });
+  }
+
+  // The lookup is half of the kiosk flow, so it is gated the same way as the
+  // mutating POST: an unassigned facilitator must not learn a ticket's state.
+  try {
+    await loadEventOr403(supabase, ticket.event_id, guard.user, "attendees");
+  } catch (err) {
+    if ((err as { status?: number })?.status === 403) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    throw err;
   }
 
   // Lookup only: the kiosk shows who this is and lets the operator decide

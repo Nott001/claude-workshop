@@ -3,13 +3,21 @@
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
-import { formatDuration, formatVenue } from "@/shared/lib/event-format";
+import { eventModeIcon, formatDuration, formatVenue } from "@/shared/lib/event-format";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
 interface EventDetailHeroProps {
   event: Pick<
     EventWithCourse,
-    "title" | "event_date" | "start_time" | "end_time" | "cover_image_url" | "venue_name" | "venue_address" | "status"
+    | "title"
+    | "event_date"
+    | "start_time"
+    | "end_time"
+    | "cover_image_url"
+    | "venue_name"
+    | "venue_address"
+    | "status"
+    | "event_type"
   >;
 }
 
@@ -27,14 +35,20 @@ function FactRow({ icon, label, value }: { icon: string; label: string; value: s
 
 export function EventDetailHero({ event }: EventDetailHeroProps) {
   const duration = formatDuration(event.start_time, event.end_time);
-  const venue = formatVenue(event.venue_name, event.venue_address);
+  const online = event.event_type === "online";
+  // An online event has no address to fold in, and its venue_name is the
+  // platform. formatVenue would still be correct, but going through it implies
+  // there is an address that simply happens to be missing.
+  const venue = online ? (event.venue_name?.trim() ?? "") : formatVenue(event.venue_name, event.venue_address);
 
   const facts: { icon: string; label: string; value: string }[] = [
     { icon: "calendar_today", label: "Date", value: formatEventDate(event.event_date) },
     { icon: "schedule", label: "Time", value: `${formatTime(event.start_time)} – ${formatTime(event.end_time)}` },
   ];
   if (duration) facts.push({ icon: "hourglass_empty", label: "Duration", value: duration });
-  if (venue) facts.push({ icon: "location_on", label: "Venue", value: venue });
+  // The fact that used to be the only hint an event was online, back when the
+  // hint had to be smuggled into the venue text a human wrote.
+  if (venue) facts.push({ icon: eventModeIcon(event.event_type), label: online ? "Online" : "Venue", value: venue });
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">

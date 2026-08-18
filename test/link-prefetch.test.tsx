@@ -196,6 +196,7 @@ describe("Chrome and card prefetching", () => {
           end_time: "12:00",
           venue_name: "Startup Lab",
           status: "published",
+          event_type: "onsite",
           course_name: null,
           cover_image_url: null,
         }}

@@ -334,7 +334,7 @@ export default function StaffOrganizationPage() {
           </DialogContent>
         </Dialog>
 
-        {error && members.length > 0 && <p className="mb-3 text-sm text-destructive">{error}</p>}
+        {error && members.length > 0 && <p className="mb-3 text-sm text-error">{error}</p>}
 
         <TableContainer>
           <Table>

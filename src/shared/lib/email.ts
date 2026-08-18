@@ -24,6 +24,33 @@ export function isSameEmail(a?: string | null, b?: string | null): boolean {
 export const RESEND_COOLDOWN_SECONDS = 60;
 
 /**
+ * Whole seconds still owed on that cooldown for a change last sent at `sentAt`,
+ * or 0 when it may be re-sent now. Sharing the constant was not enough: the
+ * route and the client each derived this, and each got it wrong on its own
+ * schedule, so the reading lives here with them.
+ *
+ * A send time we do not have, or cannot parse, reads as no wait. GoTrue leaves
+ * `email_change_sent_at` unset often enough that the alternative — calling an
+ * unknown time "just sent" — locked the address for good: nothing but a cancel
+ * clears the pending record the cooldown keys on, so the window never widened
+ * and waiting could not help.
+ */
+export function resendCooldownRemaining(sentAt?: string | null, now: number = Date.now()): number {
+  const sentAtMs = new Date(sentAt ?? "").getTime();
+  if (!Number.isFinite(sentAtMs)) return 0;
+
+  const elapsed = (now - sentAtMs) / 1000;
+  if (elapsed >= RESEND_COOLDOWN_SECONDS) return 0;
+
+  // Rounded up, so a part-second remainder is never reported as no wait at all
+  // and offered as a retry the gate still refuses. Clamped to the window
+  // because the browser measures a server timestamp against its own clock: a
+  // skewed or future `sentAt` must not be able to ask for a longer wait than
+  // the cooldown itself.
+  return Math.min(RESEND_COOLDOWN_SECONDS, Math.max(1, Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed)));
+}
+
+/**
  * How long an email-change confirmation link stays valid, mirroring
  * `otp_expiry` in `supabase/config.toml`. Kept separate from the smaller
  * cooldown above so the copy can name the link's lifetime without falling into

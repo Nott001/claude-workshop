@@ -54,6 +54,9 @@ export interface Lesson {
 
 export type EventStatus = "draft" | "active" | "complete";
 
+/** Where an event happens. `venue_name` names the hall or the platform. */
+export type EventMode = "onsite" | "online";
+
 export interface Event {
   id: number;
   title: string;
@@ -67,6 +70,11 @@ export interface Event {
   currency: string;
   cover_image_url: string | null;
   status: EventStatus;
+  event_type: EventMode;
+  /** Only an online event carries one, and only once staff have made it. */
+  meeting_url: string | null;
+  /** Seat cap, or null for an uncapped event. */
+  capacity: number | null;
   survey_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -217,6 +225,7 @@ export interface LandingEvent {
   end_time: string;
   venue_name: string;
   status: string;
+  event_type: EventMode;
   course_name: string | null;
   cover_image_url: string | null;
 }

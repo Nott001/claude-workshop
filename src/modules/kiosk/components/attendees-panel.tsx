@@ -157,7 +157,7 @@ export function AttendeesPanel({ eventId }: { eventId: string }) {
         </Select>
       </TableToolbar>
 
-      {error && attendees.length > 0 && <p className="mb-3 text-sm text-destructive">{error}</p>}
+      {error && attendees.length > 0 && <p className="mb-3 text-sm text-error">{error}</p>}
 
       <TableContainer className="flex-1 overflow-auto">
         <Table>

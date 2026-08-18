@@ -5,13 +5,38 @@ import { useSession } from "@/modules/auth/components/session-context";
 import type { AuthUser } from "@/modules/auth/lib/types";
 import { ROLES } from "@/shared/lib/roles";
 import { getBrowserClient } from "@/shared/db/browser-client";
-import { emailDomain, isSameEmail, RESEND_COOLDOWN_SECONDS } from "@/shared/lib/email";
-import { authErrorMessage } from "@/shared/lib/auth-error-message";
+import { emailDomain, isSameEmail, resendCooldownRemaining, RESEND_COOLDOWN_SECONDS } from "@/shared/lib/email";
+import { authErrorMessage, rateLimitSecondsFrom } from "@/shared/lib/auth-error-message";
 import { evaluatePassword } from "@/shared/lib/password-policy";
 import { verifyPassword } from "@/modules/auth/lib/verify-password";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 
 export type ToastData = { title: string; description: string; type: "success" | "error" };
+
+/** The cards that save. One key per `<form>` on the page. */
+export type SettingsSection = "profile" | "email" | "password" | "speaker";
+
+export type SpeakerFieldKey = "linkedin" | "twitter" | "github" | "website";
+export type SpeakerFieldErrors = Partial<Record<SpeakerFieldKey, string>>;
+
+/** One speaker link, carrying everything the card needs to render and save it. */
+export interface SpeakerLinkField {
+  key: SpeakerFieldKey;
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  /** The last value written, so the card knows whether it is dirty. */
+  saved: string;
+  onChange: (value: string) => void;
+}
+
+/**
+ * What an auth route reports when it refuses. `retryAfter` and `code` are only
+ * present on a rate limit, and between them decide whether the wait can be
+ * named — see `authErrorMessage`.
+ */
+type RouteErrorBody = { status?: number; message?: string; retryAfter?: number; code?: string };
 
 // `id` is assigned here rather than by callers, who have no reason to care: it
 // exists so the rendered Toast can be re-keyed per message. Without it a second
@@ -30,11 +55,12 @@ export function useAccountSettings() {
   // — it is keyed on `onClose` — and leave the message on screen indefinitely.
   const dismissToast = useCallback(() => setToast(null), []);
 
-  // A save that the user may miss if it only reached the auto-dismissing toast.
-  // Declared before the field editors (which clear it on a keystroke) so a
-  // stale confirmation never outlives the input it matched.
-  const [savedNotice, setSavedNotice] = useState<string | null>(null);
-  const dismissSavedNotice = useCallback(() => setSavedNotice(null), []);
+  // Which card is mid-save, and which one last landed. Declared before the
+  // field editors, which clear the confirmation on a keystroke so it never
+  // outlives the input it matched.
+  const [savingSection, setSavingSection] = useState<SettingsSection | null>(null);
+  const [savedSection, setSavedSection] = useState<SettingsSection | null>(null);
+  const savingRef = useRef<SettingsSection | null>(null);
 
   // The page renders before the session resolves, so the field cannot simply be
   // seeded once at mount — it would stay empty and Save would then write that
@@ -60,7 +86,6 @@ export function useAccountSettings() {
   const [newEmail, setNewEmail] = useState(sessionEmail);
   const [lastSessionEmail, setLastSessionEmail] = useState(sessionEmail);
   const [emailSent, setEmailSent] = useState(false);
-  const [savingEmail, setSavingEmail] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [emailError, setEmailError] = useState<string | null>(null);
   // The address the open pending change belongs to: the adoption effect clears
@@ -92,7 +117,7 @@ export function useAccountSettings() {
   const editName = useCallback((value: string) => {
     setName(value);
     setNameError(null);
-    setSavedNotice(null);
+    setSavedSection(null);
   }, []);
 
   // Editing the field is the retry, so the message clears with the keystroke
@@ -100,7 +125,7 @@ export function useAccountSettings() {
   const editEmail = useCallback((value: string) => {
     setNewEmail(value);
     setEmailError(null);
-    setSavedNotice(null);
+    setSavedSection(null);
     setEmailVerified(null);
   }, []);
 
@@ -134,9 +159,9 @@ export function useAccountSettings() {
         setPendingEmail(pending);
         setNewEmail(pending);
         setEmailSent(true);
-        const sentAt = data.user?.email_change_sent_at ?? null;
-        const elapsed = sentAt ? (Date.now() - new Date(sentAt).getTime()) / 1000 : 0;
-        setResendIn(elapsed < RESEND_COOLDOWN_SECONDS ? Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed) : 0);
+        // Read through the same helper the route gates on, so the countdown on
+        // screen cannot outlast — or undercut — the window actually enforced.
+        setResendIn(resendCooldownRemaining(data.user?.email_change_sent_at));
       })
       .catch(() => {});
     return () => {
@@ -153,28 +178,24 @@ export function useAccountSettings() {
   const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
   const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
 
-  // Full-form submission state: the unified form (sheet 04) paints one button
-  // off this, while the per-section flags above keep the current cards working.
-  const [saving, setSaving] = useState(false);
-
   // Editing the field is the retry, so the message clears with the keystroke
   // rather than lingering over input it no longer describes.
   const editCurrentPassword = useCallback((value: string) => {
     setCurrentPassword(value);
     setCurrentPasswordError(null);
-    setSavedNotice(null);
+    setSavedSection(null);
   }, []);
 
   const editNewPassword = useCallback((value: string) => {
     setNewPassword(value);
     setNewPasswordError(null);
-    setSavedNotice(null);
+    setSavedSection(null);
   }, []);
 
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // The speaker block lives in the same form and saves with the same button, so
+  // The speaker block is a card of this page rather than a page of its own, so
   // its state stays in this hook rather than a sibling one (the old
   // useSpeakerProfile is gone). `speakerProfileId` doubles as the loading seam:
   // it stays undefined until the profile fetch has answered.
@@ -192,9 +213,7 @@ export function useAccountSettings() {
   const [savedTwitterUrl, setSavedTwitterUrl] = useState("");
   const [savedGithubUrl, setSavedGithubUrl] = useState("");
   const [savedWebsiteUrl, setSavedWebsiteUrl] = useState("");
-  const [speakerFieldErrors, setSpeakerFieldErrors] = useState<
-    Partial<Record<"linkedin" | "twitter" | "github" | "website", string>>
-  >({});
+  const [speakerFieldErrors, setSpeakerFieldErrors] = useState<SpeakerFieldErrors>({});
 
   useEffect(() => {
     if (!isSpeaker) return;
@@ -234,100 +253,106 @@ export function useAccountSettings() {
 
   const editSpeakerDesignation = useCallback((value: string) => {
     setDesignation(value);
-    setSavedNotice(null);
+    setSavedSection(null);
   }, []);
   const editSpeakerBio = useCallback((value: string) => {
     setBio(value);
-    setSavedNotice(null);
+    setSavedSection(null);
   }, []);
-  // Editing a field is the retry for its own rejection, so the message clears
-  // with the keystroke rather than lingering under input it no longer describes.
-  const editSpeakerLinkedin = useCallback((value: string) => {
-    setLinkedinUrl(value);
-    setSpeakerFieldErrors((prev) => ({ ...prev, linkedin: undefined }));
-    setSavedNotice(null);
-  }, []);
-  const editSpeakerTwitter = useCallback((value: string) => {
-    setTwitterUrl(value);
-    setSpeakerFieldErrors((prev) => ({ ...prev, twitter: undefined }));
-    setSavedNotice(null);
-  }, []);
-  const editSpeakerGithub = useCallback((value: string) => {
-    setGithubUrl(value);
-    setSpeakerFieldErrors((prev) => ({ ...prev, github: undefined }));
-    setSavedNotice(null);
-  }, []);
-  const editSpeakerWebsite = useCallback((value: string) => {
-    setWebsiteUrl(value);
-    setSpeakerFieldErrors((prev) => ({ ...prev, website: undefined }));
-    setSavedNotice(null);
-  }, []);
+
+  /**
+   * The four link fields, described once.
+   *
+   * Each had its own state pair, its own editor and its own entry in the
+   * validation loop and the rendered list — four near-identical copies of the
+   * same field, and the only thing that actually differed between them was a
+   * label and a placeholder. Editing one is the retry for its own rejection,
+   * so the message clears with the keystroke.
+   */
+  const speakerLinkSources: Array<Omit<SpeakerLinkField, "onChange"> & { set: (value: string) => void }> = [
+    {
+      key: "linkedin",
+      id: "linkedin-url",
+      label: "LinkedIn",
+      placeholder: "https://linkedin.com/in/username",
+      value: linkedinUrl,
+      set: setLinkedinUrl,
+      saved: savedLinkedinUrl,
+    },
+    {
+      key: "twitter",
+      id: "twitter-url",
+      label: "X (Twitter)",
+      placeholder: "https://x.com/username",
+      value: twitterUrl,
+      set: setTwitterUrl,
+      saved: savedTwitterUrl,
+    },
+    {
+      key: "github",
+      id: "github-url",
+      label: "GitHub",
+      placeholder: "https://github.com/username",
+      value: githubUrl,
+      set: setGithubUrl,
+      saved: savedGithubUrl,
+    },
+    {
+      key: "website",
+      id: "website-url",
+      label: "Website",
+      placeholder: "https://yoursite.com",
+      value: websiteUrl,
+      set: setWebsiteUrl,
+      saved: savedWebsiteUrl,
+    },
+  ];
+
+  const speakerLinks: SpeakerLinkField[] = speakerLinkSources.map(({ set, ...field }) => ({
+    ...field,
+    onChange: (value: string) => {
+      set(value);
+      setSpeakerFieldErrors((prev) => ({ ...prev, [field.key]: undefined }));
+      setSavedSection(null);
+    },
+  }));
 
   function validateFullName(fullName: string): string | null {
     if (fullName.trim() === "") return "Name is required.";
     return null;
   }
 
-  async function persistProfileChange(): Promise<boolean> {
+  /**
+   * Writes one card's worth of profile fields and hands back the stored row.
+   *
+   * The body is the caller's, so a card sends only what it owns — the two that
+   * use this route write different columns and must not blank each other's by
+   * sending them empty.
+   */
+  async function patchProfile(body: Record<string, unknown>): Promise<Partial<AuthUser> | null> {
     try {
-      // One PATCH for the whole profile — name and speaker fields together, so
-      // the merged form's Save Changes writes everything it owns in a single
-      // round trip instead of one call per section.
-      const body: Record<string, unknown> = {};
-      if (nameDirty) body.full_name = name.trim();
-      if (speakerDirty) {
-        body.designation = designation.trim() || null;
-        body.bio = bio.trim() || null;
-        body.linkedin_url = linkedinUrl.trim() || null;
-        body.twitter_url = twitterUrl.trim() || null;
-        body.github_url = githubUrl.trim() || null;
-        body.website_url = websiteUrl.trim() || null;
-      }
-
       const res = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("PATCH /api/auth/me failed");
-
-      // The route echoes the stored row, so the session is refreshed from what
-      // was actually written rather than from what we hoped to write. This is
-      // what repaints the navbar, which renders the name off the session.
-      const saved: Partial<AuthUser> = await res.json();
-      if (nameDirty) {
-        const persisted = saved.full_name ?? name.trim();
-        updateUser({ full_name: persisted });
-        setName(persisted);
-        setSavedName(persisted);
-      }
-      if (speakerDirty) {
-        // The values actually sent become the new clean baseline, so the
-        // form stops counting the speaker group as dirty once it lands.
-        setSavedDesignation(designation.trim());
-        setSavedBio(bio.trim());
-        setSavedLinkedinUrl(linkedinUrl.trim());
-        setSavedTwitterUrl(twitterUrl.trim());
-        setSavedGithubUrl(githubUrl.trim());
-        setSavedWebsiteUrl(websiteUrl.trim());
-      }
-
-      return true;
+      return (await res.json()) as Partial<AuthUser>;
     } catch {
       notify({ title: "Error", description: "Failed to update profile.", type: "error" });
-      return false;
+      return null;
     }
   }
 
   // The route failure shape is `{ ok: false, error: { status, message } }`, with
   // the auth-route 401 convention (`{ error: "Unauthenticated" }`) as the one
   // bare variant. Fold either into the object the mapping helper expects.
-  function routeError(data: { error?: unknown }): { status?: number; message: string } {
+  function routeError(data: { error?: unknown }): { status?: number; message: string; retryAfter?: number; code?: string } {
     const error = data.error;
     if (typeof error === "string") return { message: error };
     if (error && typeof error === "object") {
-      const { status, message } = error as { status?: number; message?: string };
-      return { status, message: typeof message === "string" ? message : "" };
+      const { status, message, retryAfter, code } = error as RouteErrorBody;
+      return { status, message: typeof message === "string" ? message : "", retryAfter, code };
     }
     return { message: "" };
   }
@@ -342,11 +367,18 @@ export function useAccountSettings() {
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: unknown };
 
     if (!data.ok) {
+      const error = routeError(data);
       notify({
         title: "Error",
-        description: authErrorMessage(routeError(data), "We could not send the verification link. Please try again."),
+        description: authErrorMessage(error, "We could not send the verification link. Please try again."),
         type: "error",
       });
+      // Whenever the refusal named a wait — ours outright, GoTrue's in prose —
+      // the resend button counts that same number down rather than offering a
+      // press already known to fail. An hourly refusal names none, and the
+      // button stays live because there is nothing honest to count.
+      const seconds = error.retryAfter ?? rateLimitSecondsFrom(error.message);
+      if (error.status === 429 && seconds) setResendIn(seconds);
       return false;
     }
     setPendingEmail(email.trim());
@@ -360,14 +392,16 @@ export function useAccountSettings() {
    * sent state has to offer a way forward. Sending again is rate limited at the
    * provider, and the countdown says so rather than letting the press fail.
    */
-  async function resendVerification() {
-    if (resendIn > 0 || savingEmail) return;
-
-    setSavingEmail(true);
-    if (await sendVerification(newEmail.trim())) {
-      notify({ title: "Link sent again", description: `Sent to ${newEmail.trim()}.`, type: "success" });
-    }
-    setSavingEmail(false);
+  function resendVerification() {
+    if (resendIn > 0) return;
+    // Through the same gate as the first send, so a resend cannot run beside a
+    // password change or a second press of its own.
+    void runSave("email", async () => {
+      if (await sendVerification(newEmail.trim())) {
+        notify({ title: "Link sent again", description: `Sent to ${newEmail.trim()}.`, type: "success" });
+      }
+      return false;
+    });
   }
 
   /**
@@ -416,22 +450,6 @@ export function useAccountSettings() {
     return { ok: true };
   }
 
-  async function persistEmailChange(email: string) {
-    setSavingEmail(true);
-    try {
-      if (await sendVerification(email)) {
-        // Nothing is written here on purpose. The address is a claim until the
-        // link in the message is opened; the app row is caught up at that
-        // point, by the callback route. Writing it now would put an unverified
-        // address on every surface that reads the session, and leave it there
-        // for good if the link were never opened.
-        setEmailSent(true);
-      }
-    } finally {
-      setSavingEmail(false);
-    }
-  }
-
   async function validatePassword(
     current: string,
     next: string,
@@ -475,7 +493,7 @@ export function useAccountSettings() {
     return true;
   }
 
-  const nameDirty = name.trim() !== savedName.trim();
+  const profileDirty = name.trim() !== savedName.trim();
   // Prefilled against the session address, the field is only a change when it
   // differs from it — the address already on file, or a blank, is never
   // resubmitted as if it were one.
@@ -489,110 +507,153 @@ export function useAccountSettings() {
       twitterUrl.trim() !== savedTwitterUrl.trim() ||
       githubUrl.trim() !== savedGithubUrl.trim() ||
       websiteUrl.trim() !== savedWebsiteUrl.trim());
-  const dirty = nameDirty || emailDirty || passwordDirty || speakerDirty;
 
-  async function saveChanges(e: React.FormEvent) {
-    e.preventDefault();
-    setNameError(null);
-    setEmailError(null);
-    setCurrentPasswordError(null);
-    setNewPasswordError(null);
-    setSpeakerFieldErrors({});
-    // A new attempt must not leave a stale confirmation on screen; it is set
-    // again, only for what actually landed, after the persists below.
-    setSavedNotice(null);
+  /**
+   * Runs one section's save, alone.
+   *
+   * The ref rather than `savingSection` gates re-entry, because the state flag
+   * is set too late to help: validating a password change awaits a full
+   * sign-in round trip before any render happens, and a second submit inside
+   * that window used to pass straight through — re-running the password change
+   * against the password the first pass had just set, and spending another of
+   * the hourly auth-mail sends. It also holds every other card's button down
+   * while one is in flight, so two sections cannot race the same session.
+   */
+  async function runSave(section: SettingsSection, work: () => Promise<boolean>, when = true) {
+    // A card with nothing to save writes nothing, whatever asked it to. Its
+    // button is disabled too, but `disabled` is a DOM attribute an extension
+    // can strip — the same reason the re-entry guard below is a ref.
+    if (!when || savingRef.current) return;
+    savingRef.current = section;
+    setSavingSection(section);
+    // A new attempt must not leave a stale confirmation on screen.
+    setSavedSection(null);
 
-    // Validate only the groups that changed; an untouched field's stale value
-    // must not block saving something else, and any failure aborts the whole
-    // batch before anything is written.
-    let failed = false;
-
-    if (nameDirty) {
-      const problem = validateFullName(name);
-      if (problem) {
-        setNameError(problem);
-        failed = true;
-      }
-    }
-
-    if (emailDirty) {
-      const verdict = await validateEmailAddress(newEmail.trim());
-      if (!verdict.ok) {
-        setEmailError(verdict.message);
-        failed = true;
-      }
-    }
-
-    if (passwordDirty) {
-      const verdict = await validatePassword(currentPassword, newPassword);
-      if (!verdict.ok) {
-        if (verdict.field === "current") setCurrentPasswordError(verdict.message);
-        else setNewPasswordError(verdict.message);
-        failed = true;
-      }
-    }
-
-    if (speakerDirty) {
-      // Name and bio are free text; only the four links can be malformed. One
-      // field's bad value must not block the rest of the save, but anything
-      // malformed still aborts the whole batch — a half-written profile would
-      // leave the links pointing nowhere and vanish on the next render.
-      const linkFields: Array<{ field: "linkedin" | "twitter" | "github" | "website"; value: string; saved: string }> = [
-        { field: "linkedin", value: linkedinUrl, saved: savedLinkedinUrl },
-        { field: "twitter", value: twitterUrl, saved: savedTwitterUrl },
-        { field: "github", value: githubUrl, saved: savedGithubUrl },
-        { field: "website", value: websiteUrl, saved: savedWebsiteUrl },
-      ];
-      for (const { field, value, saved } of linkFields) {
-        const trimmed = value.trim();
-        if (trimmed === saved.trim()) continue;
-        if (trimmed === "") continue;
-        try {
-          new URL(trimmed);
-        } catch {
-          setSpeakerFieldErrors((prev) => ({ ...prev, [field]: "Enter a valid full URL (https://…)." }));
-          failed = true;
-        }
-      }
-    }
-
-    if (failed) return;
-
-    let savedProfile = false;
-    let savedPassword = false;
-
-    setSaving(true);
     try {
-      if (nameDirty || speakerDirty) {
-        // persistProfileChange writes the dirty profile groups and resets their
-        // saved originals to what was stored, which is what flips them clean
-        // once the write lands. It answers whether the write actually landed.
-        savedProfile = await persistProfileChange();
-      }
-
-      if (emailDirty) {
-        await persistEmailChange(newEmail.trim());
-      }
-
-      if (passwordDirty) {
-        savedPassword = await persistPasswordChange(newPassword);
-      }
+      if (await work()) setSavedSection(section);
     } finally {
-      setSaving(false);
+      savingRef.current = null;
+      setSavingSection(null);
     }
-
-    // The email section confirms in place with its own green sent-box, so only
-    // profile and password saves announce themselves here — one surface per save.
-    setSavedNotice(
-      savedProfile && savedPassword
-        ? "Your settings have been updated."
-        : savedProfile
-          ? "Your profile has been updated."
-          : savedPassword
-            ? "Your password has been updated."
-            : null,
-    );
   }
+
+  const saveProfile = () =>
+    runSave(
+      "profile",
+      async () => {
+        setNameError(null);
+        const problem = validateFullName(name);
+        if (problem) {
+          setNameError(problem);
+          return false;
+        }
+
+        const saved = await patchProfile({ full_name: name.trim() });
+        if (!saved) return false;
+
+        // The route echoes the stored row, so the session is refreshed from what
+        // was actually written rather than from what we hoped to write. This is
+        // what repaints the navbar, which renders the name off the session.
+        const persisted = saved.full_name ?? name.trim();
+        updateUser({ full_name: persisted });
+        setName(persisted);
+        setSavedName(persisted);
+        return true;
+      },
+      profileDirty,
+    );
+
+  const saveEmail = () =>
+    runSave(
+      "email",
+      async () => {
+        setEmailError(null);
+        const verdict = validateEmailAddress(newEmail.trim());
+        if (!verdict.ok) {
+          setEmailError(verdict.message);
+          return false;
+        }
+
+        // Nothing is written to the app row here on purpose. The address is a
+        // claim until the link in the message is opened; the callback route
+        // catches the row up at that point. Writing it now would put an
+        // unverified address on every surface that reads the session, and leave
+        // it there for good if the link were never opened.
+        if (!(await sendVerification(newEmail.trim()))) return false;
+        setEmailSent(true);
+        // The card says "check your inbox" in place of the field, which is a
+        // clearer confirmation than a tick in the footer would be.
+        return false;
+      },
+      emailDirty,
+    );
+
+  const savePassword = () =>
+    runSave(
+      "password",
+      async () => {
+        setCurrentPasswordError(null);
+        setNewPasswordError(null);
+
+        const verdict = await validatePassword(currentPassword, newPassword);
+        if (!verdict.ok) {
+          if (verdict.field === "current") setCurrentPasswordError(verdict.message);
+          else setNewPasswordError(verdict.message);
+          return false;
+        }
+
+        return persistPasswordChange(newPassword);
+      },
+      passwordDirty,
+    );
+
+  const saveSpeaker = () =>
+    runSave(
+      "speaker",
+      async () => {
+        setSpeakerFieldErrors({});
+
+        // Designation and bio are free text; only the four links can be
+        // malformed. Every bad one is named at once rather than one per attempt,
+        // and any of them aborts the write — a half-saved profile would leave
+        // the rest pointing nowhere and vanish on the next render.
+        const problems: SpeakerFieldErrors = {};
+        for (const { key, value } of speakerLinks) {
+          const trimmed = value.trim();
+          if (trimmed === "") continue;
+          try {
+            new URL(trimmed);
+          } catch {
+            problems[key] = "Enter a valid full URL (https://…).";
+          }
+        }
+        if (Object.keys(problems).length > 0) {
+          setSpeakerFieldErrors(problems);
+          return false;
+        }
+
+        const saved = await patchProfile({
+          designation: designation.trim() || null,
+          bio: bio.trim() || null,
+          linkedin_url: linkedinUrl.trim() || null,
+          twitter_url: twitterUrl.trim() || null,
+          github_url: githubUrl.trim() || null,
+          website_url: websiteUrl.trim() || null,
+        });
+        if (!saved) return false;
+
+        // The values actually sent become the new clean baseline, so the card
+        // stops counting itself dirty once the write lands.
+        setSavedDesignation(designation.trim());
+        setSavedBio(bio.trim());
+        setSavedLinkedinUrl(linkedinUrl.trim());
+        setSavedTwitterUrl(twitterUrl.trim());
+        setSavedGithubUrl(githubUrl.trim());
+        setSavedWebsiteUrl(websiteUrl.trim());
+        return true;
+      },
+      speakerDirty,
+    );
 
   async function changeProfilePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -644,49 +705,66 @@ export function useAccountSettings() {
     dismissToast,
     notify,
     currentUser,
-    savedNotice,
-    dismissSavedNotice,
-    name,
-    setName: editName,
-    nameError,
-    newEmail,
-    setNewEmail: editEmail,
-    emailError,
-    emailSent,
-    emailVerified,
-    dismissEmailVerified,
-    savingEmail,
-    resendIn,
-    resendVerification,
-    cancelEmailChange,
-    currentPassword,
-    setCurrentPassword: editCurrentPassword,
-    currentPasswordError,
-    newPassword,
-    setNewPassword: editNewPassword,
-    newPasswordError,
-    dirty,
-    saving,
-    saveChanges,
-    uploading,
-    changeProfilePhoto,
-    deleting,
-    deleteProfilePhoto,
-    isSpeaker,
-    speakerProfileId,
-    designation,
-    setDesignation: editSpeakerDesignation,
-    bio,
-    setBio: editSpeakerBio,
-    linkedinUrl,
-    setLinkedinUrl: editSpeakerLinkedin,
-    twitterUrl,
-    setTwitterUrl: editSpeakerTwitter,
-    githubUrl,
-    setGithubUrl: editSpeakerGithub,
-    websiteUrl,
-    setWebsiteUrl: editSpeakerWebsite,
-    speakerFieldErrors,
-    speakerDirty,
+    // One flag apiece, derived rather than stored, so a card asks about itself
+    // instead of every card reading the same pair of section keys.
+    savingSection,
+    savedSection,
+
+    profile: {
+      name,
+      setName: editName,
+      nameError,
+      dirty: profileDirty,
+      saving: savingSection === "profile",
+      saved: savedSection === "profile",
+      save: saveProfile,
+    },
+    email: {
+      value: newEmail,
+      setValue: editEmail,
+      error: emailError,
+      sent: emailSent,
+      verified: emailVerified,
+      dismissVerified: dismissEmailVerified,
+      resendIn,
+      resend: resendVerification,
+      cancel: cancelEmailChange,
+      dirty: emailDirty,
+      saving: savingSection === "email",
+      save: saveEmail,
+    },
+    password: {
+      current: currentPassword,
+      setCurrent: editCurrentPassword,
+      currentError: currentPasswordError,
+      next: newPassword,
+      setNext: editNewPassword,
+      nextError: newPasswordError,
+      dirty: passwordDirty,
+      saving: savingSection === "password",
+      saved: savedSection === "password",
+      save: savePassword,
+    },
+    speaker: {
+      isSpeaker,
+      loading: speakerProfileId === undefined,
+      designation,
+      setDesignation: editSpeakerDesignation,
+      bio,
+      setBio: editSpeakerBio,
+      links: speakerLinks,
+      errors: speakerFieldErrors,
+      dirty: speakerDirty,
+      saving: savingSection === "speaker",
+      saved: savedSection === "speaker",
+      save: saveSpeaker,
+    },
+    photo: {
+      url: currentUser?.profile_image_url,
+      uploading,
+      deleting,
+      change: changeProfilePhoto,
+      remove: deleteProfilePhoto,
+    },
   };
 }

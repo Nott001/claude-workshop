@@ -41,8 +41,13 @@ describe("migration grants", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
-      "00008_messages_replica_identity.sql",
-      "00009_drop_message_deleted_at.sql",
+      "00008_email_change_attempt.sql",
+      "00009_event_capacity.sql",
+      "00010_event_mode.sql",
+      "00011_event_meeting_url.sql",
+      "00012_ticket_realtime_read.sql",
+      "00013_messages_replica_identity.sql",
+      "00014_drop_message_deleted_at.sql",
     ]);
   });
 
@@ -53,18 +58,18 @@ describe("migration grants", () => {
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 
-  // 00008 only switches the realtime chat tables to replica identity full so
+  // 00013 only switches the realtime chat tables to replica identity full so
   // filtered DELETE events can be routed; a grant there would widen who can
   // read messages, so its absence is pinned the same way 00007's is.
-  it("adds no table grant in 00008", () => {
-    const migration = migrations().find((f) => f.name === "00008_messages_replica_identity.sql")!;
+  it("adds no table grant in 00013", () => {
+    const migration = migrations().find((f) => f.name === "00013_messages_replica_identity.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 
-  // 00009 drops the vestigial soft-delete columns; a grant there would widen
+  // 00014 drops the vestigial soft-delete columns; a grant there would widen
   // who can read messages, so its absence is pinned the same way as above.
-  it("adds no table grant in 00009", () => {
-    const migration = migrations().find((f) => f.name === "00009_drop_message_deleted_at.sql")!;
+  it("adds no table grant in 00014", () => {
+    const migration = migrations().find((f) => f.name === "00014_drop_message_deleted_at.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 
@@ -91,23 +96,34 @@ describe("migration grants", () => {
     expect(all).toContain('GRANT ALL ON SCHEMA "public" TO "service_role";');
   });
 
-  // The counterpart risk: a limiter table recording who asked for a reset must
-  // not become readable by the browser-facing roles.
-  it("does not expose the reset limiter to anon or authenticated", () => {
-    const exposed = new RegExp(
-      `GRANT[^;]+ON\\s+\\"?public\\"?\\."PASSWORD_RESET_ATTEMPT"[^;]*TO[^;]*(anon|authenticated)`,
-      "i",
-    );
+  // The counterpart risk: a limiter table recording who asked for something
+  // must not become readable by the browser-facing roles. Worse than a leak —
+  // a ledger the limited party can reach is a ledger they can pad, which is
+  // the failure the email-change limiter (00008) was written to end.
+  it.each(["PASSWORD_RESET_ATTEMPT", "EMAIL_CHANGE_ATTEMPT"])("does not expose the %s limiter", (table) => {
+    const exposed = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\."${table}"[^;]*TO[^;]*(anon|authenticated)`, "i");
     expect(exposed.test(all)).toBe(false);
+  });
+
+  // RLS off would make the grant above the only thing standing between a
+  // limiter row and any role that later gains a blanket table grant.
+  it.each(["PASSWORD_RESET_ATTEMPT", "EMAIL_CHANGE_ATTEMPT"])("keeps row level security on for %s", (table) => {
+    expect(all).toMatch(new RegExp(`ALTER TABLE "public"\\."${table}" ENABLE ROW LEVEL SECURITY`, "i"));
   });
 
   // The QA read policy used to subquery TICKET inline, which raised 42501 for
   // authenticated and killed realtime delivery. 00004 routes the check through
   // a SECURITY DEFINER helper instead; a grant on TICKET would make that read a
-  // public surface again, so its absence is pinned.
-  it("keeps TICKET unreadable by anon and authenticated", () => {
-    const exposed = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\.\\"TICKET\\"[^;]*TO[^;]*(anon|authenticated)`, "i");
-    expect(exposed.test(all)).toBe(false);
+  // public surface again, so its absence was pinned. The kiosk and the ticket
+  // pass are the opposite: they need the browser role to read the rows realtime
+  // will deliver, so 00008 grants authenticated a scoped read. The pin becomes:
+  // anon stays locked out, and the grant is scoped by the ticket_visible helper
+  // rather than blanket.
+  it("keeps TICKET unreadable by anon but grants authenticated a scoped read", () => {
+    const anon = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\.\\"TICKET\\"[^;]*TO[^;]*anon`, "i");
+    expect(anon.test(all)).toBe(false);
+    expect(all).toContain('GRANT SELECT ON TABLE "public"."TICKET" TO "authenticated";');
+    expect(all).toContain("ticket_visible");
   });
 
   it("routes the QA read policy through the SECURITY DEFINER helper", () => {

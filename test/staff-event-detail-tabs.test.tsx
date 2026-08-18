@@ -161,6 +161,9 @@ describe("Staff event detail tabs", () => {
 
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Launch");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
+    // The same cover section the create form carries, stated once so the two
+    // cannot drift into two sections doing the same thing in different words.
+    expect(screen.getByText("COVER IMAGE")).toBeTruthy();
     expect(screen.getByText("Upload image")).toBeTruthy();
 
     // The form used to bring its own page shell in here, back link and all.
