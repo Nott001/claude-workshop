@@ -12,7 +12,7 @@ export function LoadMoreButton({ loading, onLoadMore, label = "Load more" }: Loa
   if (loading) {
     return (
       <div className="flex justify-center py-4">
-        <span className="text-sm text-muted-foreground">Loading...</span>
+        <span className="text-sm text-muted-fg">Loading...</span>
       </div>
     );
   }

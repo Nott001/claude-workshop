@@ -138,7 +138,7 @@ export default function StaffAuditLogsPage() {
           </Select>
         </TableToolbar>
 
-        {error && filteredLogs.length > 0 && <p className="mb-3 text-sm text-destructive">{error}</p>}
+        {error && filteredLogs.length > 0 && <p className="mb-3 text-sm text-error">{error}</p>}
 
         <TableContainer>
           <Table>

@@ -56,7 +56,7 @@ export function AssignedEventListPage() {
       </TableToolbar>
 
       {error && events.length > 0 && (
-        <p className="mt-2 text-sm text-destructive">Failed to refresh events — showing last loaded results.</p>
+        <p className="mt-2 text-sm text-error">Failed to refresh events — showing last loaded results.</p>
       )}
 
       <EventTable events={filteredEvents} showKiosk loading={loading} />

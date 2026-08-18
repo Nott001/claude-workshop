@@ -6,6 +6,7 @@ import { deleteByUser as deleteQaRows } from "@/modules/courses/qa/db/qa-message
 import { deleteResponsesByUser } from "@/modules/surveys/db/survey.dao";
 import { deleteByUser as deleteEmailLogRows } from "@/shared/db/dao/email.dao";
 import { deleteByEmail } from "@/shared/db/dao/password-reset.dao";
+import { deleteByUser as deleteEmailChangeAttempts } from "@/shared/db/dao/email-change-attempt.dao";
 import { removeByUserId } from "@/shared/db/dao/speaker.dao";
 import { updateUser } from "@/shared/db/dao/user.dao";
 import { getServiceClient } from "@/shared/db/client";
@@ -54,6 +55,12 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<void> {
   // attempt rows only carry the string, so this must run before anonymization.
   if (!(await deleteByEmail(supabase, input.email))) {
     throw new Error("Failed to delete the user's password-reset attempts");
+  }
+  // Keyed on the user id rather than the address, but the same reasoning: the
+  // rows outlive their rate-limit window and tie an account to an IP, and no
+  // foreign key removes them on the account's behalf.
+  if (!(await deleteEmailChangeAttempts(supabase, input.userId))) {
+    throw new Error("Failed to delete the user's email-change attempts");
   }
   // Harmless when the user is not a speaker; cascades EVENT_SPEAKER and nulls
   // MODULE.speaker_profile_id.

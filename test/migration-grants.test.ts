@@ -41,7 +41,11 @@ describe("migration grants", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
-      "00008_ticket_realtime_read.sql",
+      "00008_email_change_attempt.sql",
+      "00009_event_capacity.sql",
+      "00010_event_mode.sql",
+      "00011_event_meeting_url.sql",
+      "00012_ticket_realtime_read.sql",
     ]);
   });
 
@@ -75,14 +79,19 @@ describe("migration grants", () => {
     expect(all).toContain('GRANT ALL ON SCHEMA "public" TO "service_role";');
   });
 
-  // The counterpart risk: a limiter table recording who asked for a reset must
-  // not become readable by the browser-facing roles.
-  it("does not expose the reset limiter to anon or authenticated", () => {
-    const exposed = new RegExp(
-      `GRANT[^;]+ON\\s+\\"?public\\"?\\."PASSWORD_RESET_ATTEMPT"[^;]*TO[^;]*(anon|authenticated)`,
-      "i",
-    );
+  // The counterpart risk: a limiter table recording who asked for something
+  // must not become readable by the browser-facing roles. Worse than a leak —
+  // a ledger the limited party can reach is a ledger they can pad, which is
+  // the failure the email-change limiter (00008) was written to end.
+  it.each(["PASSWORD_RESET_ATTEMPT", "EMAIL_CHANGE_ATTEMPT"])("does not expose the %s limiter", (table) => {
+    const exposed = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\."${table}"[^;]*TO[^;]*(anon|authenticated)`, "i");
     expect(exposed.test(all)).toBe(false);
+  });
+
+  // RLS off would make the grant above the only thing standing between a
+  // limiter row and any role that later gains a blanket table grant.
+  it.each(["PASSWORD_RESET_ATTEMPT", "EMAIL_CHANGE_ATTEMPT"])("keeps row level security on for %s", (table) => {
+    expect(all).toMatch(new RegExp(`ALTER TABLE "public"\\."${table}" ENABLE ROW LEVEL SECURITY`, "i"));
   });
 
   // The QA read policy used to subquery TICKET inline, which raised 42501 for

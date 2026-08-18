@@ -26,10 +26,18 @@ export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormPr
   }, []);
 
   async function saveEvent(payload: EventPayload) {
+    // The meeting link is not this form's to write once the event exists: the
+    // Overview panel owns it, and every staff role that can open the event can
+    // reach that one. Sending the value this form was seeded with would let a
+    // save here silently revert a link a facilitator posted in the meantime.
+    // Turning the event back to onsite still clears it, in `updateEvent`.
+    const body: Partial<EventPayload> = { ...payload };
+    delete body.meeting_url;
+
     const res = await fetch(`/api/events/${eventId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
@@ -42,7 +50,7 @@ export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormPr
 
   return (
     <EventForm
-      editing
+      mode="edit"
       submitLabel="Save changes"
       submittingLabel="Saving..."
       statusMessage={saved ? "Changes saved." : null}

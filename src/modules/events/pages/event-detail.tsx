@@ -11,6 +11,7 @@ import { EventSchedule } from "@/modules/events/components/event-schedule";
 import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card";
 import { EventRegisterCard } from "@/modules/events/components/event-register-card";
 import { EventMapCard } from "@/modules/events/components/event-map-card";
+import { EventJoinCard } from "@/modules/events/components/event-join-card";
 import { EventShare } from "@/modules/events/components/event-share";
 import { BackLink } from "@/shared/components/back-link";
 
@@ -89,6 +90,9 @@ export function EventDetailPage({ from }: { from?: string }) {
           </div>
           <aside className="space-y-6 self-start lg:sticky lg:top-24">
             <EventRegisterCard event={event} hasTicket={hasTicket} isSignedIn={isSignedIn} onRegister={handleRegister} />
+            {/* Exactly one of these renders: the map card is empty for an online
+                event, the join card for an onsite one. */}
+            <EventJoinCard event={event} />
             <EventMapCard event={event} />
             <EventShare />
           </aside>

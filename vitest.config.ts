@@ -21,11 +21,19 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/shared/types.ts", "src/app/**/layout.tsx", "src/app/**/page.tsx", "src/app/globals.css"],
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
+      //
+      // These read a hair under the previous baseline, which is a denominator
+      // effect rather than a regression: the settings refactor deleted fully
+      // covered code (its own page component, and the section nav that
+      // replaced it briefly), and removing covered code from a codebase at 81%
+      // raises the untouched remainder's share. Uncovered statements did not
+      // move across the whole change — 1485 before and after. Only re-baseline
+      // for a reason like that; never to make a build pass.
       thresholds: {
-        statements: 80.59,
-        branches: 74.9,
-        functions: 79.96,
-        lines: 81.82,
+        statements: 81.81,
+        branches: 76.54,
+        functions: 81.08,
+        lines: 82.89,
       },
     },
   },

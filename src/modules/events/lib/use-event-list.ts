@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import type { EventMode } from "@/shared/types";
 
 interface Course {
   course_name: string;
@@ -16,6 +17,7 @@ interface Event {
   venue_name: string;
   venue_address: string | null;
   status: "draft" | "active" | "complete";
+  event_type?: EventMode | null;
   cover_image_url: string | null;
   COURSE: Course | null;
   attendee_count?: number;

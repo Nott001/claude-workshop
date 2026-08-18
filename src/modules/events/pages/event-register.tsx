@@ -19,7 +19,7 @@ export function EventRegisterPage({ from }: { from?: string }) {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-fg">Loading...</div>
       </div>
     );
   }
@@ -27,7 +27,7 @@ export function EventRegisterPage({ from }: { from?: string }) {
   if (error && !data) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">{error}</div>
+        <div className="text-sm text-error">{error}</div>
       </div>
     );
   }
@@ -35,7 +35,7 @@ export function EventRegisterPage({ from }: { from?: string }) {
   if (!data) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-destructive">Not found</div>
+        <div className="text-sm text-error">Not found</div>
       </div>
     );
   }
@@ -45,21 +45,21 @@ export function EventRegisterPage({ from }: { from?: string }) {
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="mx-auto max-w-sm text-center">
           <span className="material-symbols-rounded text-4xl text-info">confirmation_number</span>
-          <h1 className="mt-4 text-lg font-bold text-foreground">Already Registered</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            You already have a ticket for <strong className="text-foreground">{data.event.title}</strong>.
+          <h1 className="mt-4 text-lg font-bold text-fg">Already Registered</h1>
+          <p className="mt-2 text-sm text-muted-fg">
+            You already have a ticket for <strong className="text-fg">{data.event.title}</strong>.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={() => router.push("/tickets")}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-fg transition-colors hover:bg-brand/90"
             >
               <span className="material-symbols-rounded text-sm">confirmation_number</span>
               View my tickets
             </button>
             <button
               onClick={() => router.push(eventHref)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-hover"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-fg transition-colors hover:bg-muted"
             >
               Back to event
             </button>
@@ -89,7 +89,7 @@ export function EventRegisterPage({ from }: { from?: string }) {
               </div>
             </div>
             <div className="space-y-6 p-6">
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="space-y-2 text-sm text-muted-fg">
                 <p className="flex items-center gap-2">
                   <span className="material-symbols-rounded text-base text-info">calendar_today</span>
                   {formatEventDate(data.event.event_date)}
@@ -105,15 +105,15 @@ export function EventRegisterPage({ from }: { from?: string }) {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h2 className="text-sm font-semibold text-foreground">Your Information</h2>
+                <h2 className="text-sm font-semibold text-fg">Your Information</h2>
                 <div className="mt-3 space-y-3">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-rounded text-sm text-muted-foreground">person</span>
-                    <span className="text-sm text-foreground">{data.user.full_name}</span>
+                    <span className="material-symbols-rounded text-sm text-muted-fg">person</span>
+                    <span className="text-sm text-fg">{data.user.full_name}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-rounded text-sm text-muted-foreground">mail</span>
-                    <span className="text-sm text-foreground">{data.user.email}</span>
+                    <span className="material-symbols-rounded text-sm text-muted-fg">mail</span>
+                    <span className="text-sm text-fg">{data.user.email}</span>
                   </div>
                 </div>
               </div>
@@ -130,7 +130,7 @@ export function EventRegisterPage({ from }: { from?: string }) {
                     onChange={(e) => setAgreed(e.target.checked)}
                     className="mt-0.5 size-4 rounded border-border text-info focus:ring-info"
                   />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-fg">
                     I agree to the{" "}
                     <button className="font-medium text-info underline underline-offset-2 hover:text-info">
                       Terms of Service

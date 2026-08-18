@@ -3,6 +3,7 @@ import type { DbClient } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { isEventFinished } from "@/shared/lib/date-utils";
+import { isSoldOut, SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
 import * as eventDao from "@/modules/events/db/event.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as paymentDao from "@/shared/db/dao/payment.dao";
@@ -13,6 +14,22 @@ import { EventServiceError } from "@/modules/events/lib/event-errors";
 function ensureRegistrable(event: Event): void {
   if (isEventFinished(event.event_date, event.end_time)) {
     throw new EventServiceError(400, "Registration is closed — this event has ended");
+  }
+}
+
+/**
+ * Refuse a seat that no longer exists, before the buyer is sent to a checkout.
+ *
+ * Only reached for a capped event, so an uncapped one costs no ticket count.
+ * The database enforces the same rule on the TICKET insert — this is the half
+ * that can say so in words, not the half that makes it true.
+ */
+async function ensureSeatAvailable(supabase: DbClient, event: Event): Promise<void> {
+  if (event.capacity == null) return;
+
+  const attendeeCount = await eventDao.getAttendeeCount(supabase, event.id);
+  if (isSoldOut(event.capacity, attendeeCount)) {
+    throw new EventServiceError(409, SOLD_OUT_MESSAGE);
   }
 }
 
@@ -63,6 +80,10 @@ export async function registerForEvent(
   if (activeTicket) {
     throw new EventServiceError(409, "You already have an active ticket for this event");
   }
+
+  // After the duplicate-ticket check, so someone who already holds a seat is
+  // told they are registered rather than that the event is full.
+  await ensureSeatAvailable(supabase, event);
 
   const existingPending = await paymentDao.findPendingByUserAndEvent(supabase, user.id, id);
 

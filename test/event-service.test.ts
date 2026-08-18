@@ -1,4 +1,5 @@
 import { ROLES } from "@/shared/lib/roles";
+import { SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
 import type { Event } from "@/shared/types";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -20,6 +21,8 @@ const {
     findById: vi.fn(),
     findByIdWithCourse: vi.fn(),
     getAttendeeCount: vi.fn(),
+    getAttendeeCounts: vi.fn(),
+    list: vi.fn(),
     update: vi.fn(),
     updateField: vi.fn(),
     remove: vi.fn(),
@@ -61,9 +64,11 @@ import {
   getEventRegistrationState,
   listAdminEventAttendees,
   listEventAttendees,
+  listEvents,
   loadEventOr403,
   publishEvent,
   registerForEvent,
+  setMeetingLink,
   updateEvent,
 } from "@/modules/events/lib/event-service";
 
@@ -84,6 +89,7 @@ beforeEach(() => {
   eventDao.findById.mockResolvedValue({ id: 1, title: "Launch Day", status: "draft" });
   eventDao.findByIdWithCourse.mockResolvedValue({ id: 1, status: "active", EVENT_FACILITATOR: [], EVENT_SPEAKER: [] });
   eventDao.getAttendeeCount.mockResolvedValue(3);
+  eventDao.getAttendeeCounts.mockResolvedValue({});
   eventDao.update.mockResolvedValue({ id: 1, title: "Launch Day", status: "active" });
   eventDao.updateField.mockResolvedValue(true);
   eventDao.remove.mockResolvedValue(true);
@@ -156,7 +162,15 @@ describe("loadEventOr403", () => {
   });
 
   it("admits an admin for every capability without checking assignments", async () => {
-    for (const capability of ["edit", "delete", "publish", "attendees", "attendees_manage", "survey"] as const) {
+    for (const capability of [
+      "edit",
+      "delete",
+      "publish",
+      "attendees",
+      "attendees_manage",
+      "survey",
+      "meeting_link",
+    ] as const) {
       await expect(loadEventOr403(supabase, 1, { id: 1, role: ROLES.ADMIN }, capability)).resolves.toMatchObject({ id: 1 });
     }
     expect(facilitatorDao.isAssigned).not.toHaveBeenCalled();
@@ -166,17 +180,39 @@ describe("loadEventOr403", () => {
     await expect(loadEventOr403(supabase, 1, { id: 1, role: ROLES.SUPER_ADMIN }, "delete")).resolves.toMatchObject({ id: 1 });
   });
 
-  it("admits an assigned facilitator only for the attendee read", async () => {
+  it("admits an assigned facilitator only for the attendee read and the meeting link", async () => {
     for (const capability of ["edit", "publish", "attendees_manage", "survey"] as const) {
       await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, capability)).rejects.toMatchObject({
         status: 403,
         message: "Forbidden",
       });
     }
-    await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, "attendees")).resolves.toMatchObject({
-      id: 1,
-    });
+    for (const capability of ["attendees", "meeting_link"] as const) {
+      await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, capability)).resolves.toMatchObject({
+        id: 1,
+      });
+    }
     expect(facilitatorDao.isAssigned).toHaveBeenCalled();
+  });
+
+  it("scopes the meeting link to the facilitator's own events", async () => {
+    // The link is the one event column a facilitator may write, and only for
+    // the event they are actually running.
+    facilitatorDao.isAssigned.mockResolvedValue(false);
+
+    await expect(loadEventOr403(supabase, 1, { id: 7, role: ROLES.FACILITATOR }, "meeting_link")).rejects.toMatchObject({
+      status: 403,
+      message: "Forbidden",
+    });
+  });
+
+  it("refuses the meeting link to a speaker and an attendee", async () => {
+    for (const role of [ROLES.SPEAKER, ROLES.ATTENDEE] as const) {
+      await expect(loadEventOr403(supabase, 1, { id: 7, role }, "meeting_link")).rejects.toMatchObject({
+        status: 403,
+        message: "Forbidden",
+      });
+    }
   });
 
   it("throws 403 for an unassigned facilitator", async () => {
@@ -221,6 +257,30 @@ describe("createEvent", () => {
     expect(result).toEqual({ id: 1, title: "Launch Day", status: "draft" });
   });
 
+  it("stores the capacity an admin set", async () => {
+    await createEvent(supabase, { ...validEvent, capacity: 40 }, actor);
+
+    expect(eventDao.create).toHaveBeenCalledWith(supabase, expect.objectContaining({ capacity: 40 }));
+  });
+
+  it("stores an uncapped event as a null capacity, not as an absent column", async () => {
+    await createEvent(supabase, { ...validEvent }, actor);
+
+    expect(eventDao.create).toHaveBeenCalledWith(supabase, expect.objectContaining({ capacity: null }));
+  });
+
+  it("defaults a new event to onsite when the caller names no mode", async () => {
+    await createEvent(supabase, { ...validEvent }, actor);
+
+    expect(eventDao.create).toHaveBeenCalledWith(supabase, expect.objectContaining({ event_type: "onsite" }));
+  });
+
+  it("stores an online event as such", async () => {
+    await createEvent(supabase, { ...validEvent, event_type: "online", venue_name: "Zoom" }, actor);
+
+    expect(eventDao.create).toHaveBeenCalledWith(supabase, expect.objectContaining({ event_type: "online" }));
+  });
+
   it("throws the write-failure error rather than returning null", async () => {
     eventDao.create.mockResolvedValue(null);
 
@@ -254,6 +314,38 @@ describe("getEvent", () => {
 
     expect(facilitatorDao.isAssigned).toHaveBeenCalledWith(supabase, 1, 9);
     expect(result).toMatchObject({ attendee_count: 3, facilitator_ids: [9], speaker_profile_ids: [4] });
+  });
+
+  it("serves the remaining seats of a capped event to a signed-out reader", async () => {
+    eventDao.findByIdWithCourse.mockResolvedValue({ id: 1, status: "active", capacity: 10, EVENT_SPEAKER: [] });
+
+    const result = await getEvent(supabase, 1, { id: null, role: null });
+
+    // Seats left, not the attendee count: how full an event is stays staff-only.
+    expect(result).toMatchObject({ seats_left: 7 });
+    expect(result).not.toHaveProperty("attendee_count");
+  });
+
+  it("counts no tickets at all for an uncapped event a reader opens", async () => {
+    const result = await getEvent(supabase, 1, { id: null, role: null });
+
+    expect(eventDao.getAttendeeCount).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ seats_left: null });
+  });
+
+  it("reuses the staff attendee count for the seat remainder", async () => {
+    eventDao.findByIdWithCourse.mockResolvedValue({
+      id: 1,
+      status: "active",
+      capacity: 4,
+      EVENT_FACILITATOR: [],
+      EVENT_SPEAKER: [],
+    });
+
+    const result = await getEvent(supabase, 1, { id: 9, role: ROLES.ADMIN });
+
+    expect(eventDao.getAttendeeCount).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ attendee_count: 3, seats_left: 1 });
   });
 
   it("hides an event a facilitator is not assigned to", async () => {
@@ -293,6 +385,139 @@ describe("updateEvent", () => {
 
     expect(speakerDao.replaceEventAssignments).toHaveBeenCalledWith(supabase, 3, [4]);
     expect(eventDao.update).toHaveBeenCalledWith(supabase, 3, {});
+  });
+});
+
+describe("updateEvent and the online/address pair", () => {
+  it("clears the stored address when an event is switched online", async () => {
+    // The form disables that input rather than emptying it, so the old street
+    // address is still on the row. chk_event_online_has_no_address would reject
+    // the write, turning a 400 into a 500 for the caller.
+    await updateEvent(supabase, 1, { event_type: "online" }, actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, expect.objectContaining({ venue_address: null }));
+  });
+
+  it("refuses an address added to an event that is already online", async () => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "online" });
+
+    await expect(updateEvent(supabase, 1, { venue_address: "123 Rizal St" }, actor)).rejects.toMatchObject({
+      status: 400,
+      message: "An online event cannot have a venue address",
+    });
+    expect(eventDao.update).not.toHaveBeenCalled();
+  });
+
+  it("allows an address on an event that is onsite", async () => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "onsite" });
+
+    await updateEvent(supabase, 1, { venue_address: "123 Rizal St" }, actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, expect.objectContaining({ venue_address: "123 Rizal St" }));
+  });
+
+  it("allows an address in the same patch that turns the event onsite", async () => {
+    await updateEvent(supabase, 1, { event_type: "onsite", venue_address: "123 Rizal St" }, actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, expect.objectContaining({ venue_address: "123 Rizal St" }));
+  });
+
+  it("clears the meeting link when an event is switched back to onsite", async () => {
+    await updateEvent(supabase, 1, { event_type: "onsite" }, actor);
+
+    // Otherwise a working meeting URL stays on a row nothing renders it from.
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, expect.objectContaining({ meeting_url: null }));
+  });
+
+  it("refuses a link added to an event that is not online", async () => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "onsite" });
+
+    await expect(updateEvent(supabase, 1, { meeting_url: "https://meet.google.com/abc" }, actor)).rejects.toMatchObject({
+      status: 400,
+      message: "Only an online event can have a meeting link",
+    });
+  });
+
+  it("allows a link on an event that is already online", async () => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "online" });
+
+    await updateEvent(supabase, 1, { meeting_url: "https://meet.google.com/abc" }, actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(
+      supabase,
+      1,
+      expect.objectContaining({ meeting_url: "https://meet.google.com/abc" }),
+    );
+  });
+
+  it("reads no stored row for a patch that touches neither times nor address", async () => {
+    await updateEvent(supabase, 1, { title: "Renamed" }, actor);
+
+    expect(eventDao.findById).not.toHaveBeenCalled();
+  });
+});
+
+describe("listEvents and the meeting link", () => {
+  it("strips the link from every row, whoever is listing", async () => {
+    // The list selects * and feeds the public listing and the landing page, so
+    // a link left on a row reaches anyone who can see the event at all.
+    eventDao.list.mockResolvedValue({
+      data: [{ id: 1, status: "active", event_type: "online", meeting_url: "https://meet.google.com/abc" }],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+
+    const result = await listEvents(supabase, { role: ROLES.ADMIN, userId: 9, filter: null });
+
+    expect(result.data[0].meeting_url).toBeNull();
+  });
+});
+
+describe("setMeetingLink", () => {
+  beforeEach(() => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "online" });
+    eventDao.update.mockResolvedValue({ id: 1, meeting_url: "https://meet.google.com/abc" });
+  });
+
+  it("writes only the link, never the rest of the row", async () => {
+    await setMeetingLink(supabase, 1, "https://meet.google.com/abc", actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, { meeting_url: "https://meet.google.com/abc" });
+  });
+
+  it("clears the link when handed null", async () => {
+    await setMeetingLink(supabase, 1, null, actor);
+
+    expect(eventDao.update).toHaveBeenCalledWith(supabase, 1, { meeting_url: null });
+  });
+
+  it("refuses an onsite event rather than letting the constraint answer", async () => {
+    eventDao.findById.mockResolvedValue({ id: 1, status: "active", event_type: "onsite" });
+
+    await expect(setMeetingLink(supabase, 1, "https://meet.google.com/abc", actor)).rejects.toMatchObject({
+      status: 400,
+      message: "Only an online event can have a meeting link",
+    });
+    expect(eventDao.update).not.toHaveBeenCalled();
+  });
+
+  it("404s for an event that does not exist", async () => {
+    eventDao.findById.mockResolvedValue(null);
+
+    await expect(setMeetingLink(supabase, 1, null, actor)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("audits the change without writing the URL into the audit row", async () => {
+    // An audit row is readable by every admin, which is exactly the sort of
+    // place a working door gets left lying around.
+    await setMeetingLink(supabase, 1, "https://meet.google.com/abc", actor);
+
+    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 9, "event.updated", "event", 1, {
+      changes: ["meeting_url"],
+      cleared: false,
+    });
+    expect(JSON.stringify(logAuditEvent.mock.calls)).not.toContain("meet.google.com");
   });
 });
 
@@ -369,6 +594,42 @@ describe("registerForEvent", () => {
       eligible: true,
       pending_payment_id: 77,
     });
+  });
+
+  it("refuses a seat on a sold-out event before any payment is opened", async () => {
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: "2099-01-01",
+      end_time: "10:00",
+      capacity: 3,
+    });
+
+    await expect(registerForEvent(supabase, 1, { id: 5, role: ROLES.ATTENDEE })).rejects.toMatchObject({
+      status: 409,
+      message: SOLD_OUT_MESSAGE,
+    });
+    expect(paymentDao.findPendingByUserAndEvent).not.toHaveBeenCalled();
+  });
+
+  it("admits the last seat rather than refusing it", async () => {
+    eventDao.findById.mockResolvedValue({
+      id: 1,
+      title: "Launch Day",
+      status: "active",
+      event_date: "2099-01-01",
+      end_time: "10:00",
+      capacity: 4,
+    });
+
+    await expect(registerForEvent(supabase, 1, { id: 5, role: ROLES.ATTENDEE })).resolves.toEqual({ eligible: true });
+  });
+
+  it("counts no tickets for an uncapped event", async () => {
+    await expect(registerForEvent(supabase, 1, { id: 5, role: ROLES.ATTENDEE })).resolves.toEqual({ eligible: true });
+
+    expect(eventDao.getAttendeeCount).not.toHaveBeenCalled();
   });
 
   it("refuses registration once the event has ended", async () => {
@@ -473,6 +734,9 @@ describe("listAdminEventAttendees", () => {
     currency: "PHP",
     cover_image_url: null,
     status: "complete",
+    capacity: null,
+    event_type: "onsite",
+    meeting_url: null,
     survey_enabled: true,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",

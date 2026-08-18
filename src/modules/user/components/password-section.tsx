@@ -1,83 +1,69 @@
 "use client";
 
 import Link from "next/link";
-import { Input } from "@/shared/components/input";
-import { FormField, FormLabel, FormMessage } from "@/shared/components/form";
+import { TextField } from "@/shared/components/text-field";
+import { SettingsCard } from "@/modules/user/components/settings-card";
 import { PasswordRequirements } from "@/modules/auth/components/password-requirements";
 import { MIN_PASSWORD_LENGTH, type PasswordContext } from "@/shared/lib/password-policy";
+import type { useAccountSettings } from "@/modules/user/lib/use-account-settings";
 
 interface PasswordSectionProps {
-  currentPassword: string;
-  onCurrentPasswordChange: (value: string) => void;
-  /** Why the current password was rejected, shown against that field. */
-  currentPasswordError?: string | null;
-  newPassword: string;
-  onNewPasswordChange: (value: string) => void;
-  /** Why the new password was rejected, shown against that field. */
-  newPasswordError?: string | null;
+  password: ReturnType<typeof useAccountSettings>["password"];
   /** The account's own details, which the new password may not be built from. */
   context?: PasswordContext;
 }
 
-export function PasswordSection({
-  currentPassword,
-  onCurrentPasswordChange,
-  currentPasswordError,
-  newPassword,
-  onNewPasswordChange,
-  newPasswordError,
-  context,
-}: PasswordSectionProps) {
+export function PasswordSection({ password, context }: PasswordSectionProps) {
   return (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-fg">Password</h2>
-        {/* A forgotten password cannot be typed into the field below, so the
-            reset flow is offered here rather than only on the sign-in screen. */}
+    <SettingsCard
+      id="password"
+      icon="lock"
+      title="Password"
+      description="Changing this signs you in again everywhere else."
+      aside={
+        // A forgotten password cannot be typed into the field below, so the
+        // reset flow is offered here rather than only on the sign-in screen.
         <Link
           href="/forgot-password"
           prefetch={false}
-          className="text-sm font-medium tracking-wider text-brand transition-colors hover:text-brand/80"
+          className="text-sm font-medium text-brand transition-colors hover:text-brand/80"
         >
-          Forgot Password?
+          Forgot password?
         </Link>
-      </div>
-      <FormField className="mt-4">
-        <FormLabel htmlFor="current-password">Current password</FormLabel>
-        <Input
+      }
+      footer={{
+        onSave: password.save,
+        label: "Update password",
+        savingLabel: "Updating…",
+        dirty: password.dirty,
+        saving: password.saving,
+        saved: password.saved ? "Password updated" : null,
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
           id="current-password"
+          label="Current password"
           type="password"
+          autoComplete="current-password"
           placeholder="Enter current password"
-          value={currentPassword}
-          onChange={(e) => onCurrentPasswordChange(e.target.value)}
-          aria-invalid={!!currentPasswordError}
-          aria-describedby={currentPasswordError ? "current-password-error" : undefined}
+          value={password.current}
+          onChange={password.setCurrent}
+          error={password.currentError}
         />
-        {currentPasswordError && (
-          <FormMessage id="current-password-error" role="alert">
-            {currentPasswordError}
-          </FormMessage>
-        )}
-      </FormField>
-      <FormField>
-        <FormLabel htmlFor="new-password">New password</FormLabel>
-        <Input
+        <TextField
           id="new-password"
+          label="New password"
           type="password"
+          autoComplete="new-password"
           placeholder="Enter new password"
-          value={newPassword}
-          onChange={(e) => onNewPasswordChange(e.target.value)}
           minLength={MIN_PASSWORD_LENGTH}
-          aria-invalid={!!newPasswordError}
-          aria-describedby={newPasswordError ? "new-password-error" : undefined}
+          value={password.next}
+          onChange={password.setNext}
+          error={password.nextError}
         />
-        {newPasswordError && (
-          <FormMessage id="new-password-error" role="alert">
-            {newPasswordError}
-          </FormMessage>
-        )}
-        <PasswordRequirements password={newPassword} context={context} />
-      </FormField>
-    </>
+      </div>
+      <PasswordRequirements password={password.next} context={context} />
+    </SettingsCard>
   );
 }
