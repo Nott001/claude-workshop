@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "fs";
-import path from "path";
 import { z } from "zod";
 import { badRequest } from "@/shared/lib/api-response";
+import { apiResponders } from "./helpers/api-surface";
 
 /**
  * The 23 validating routes each answered a failed parse with
@@ -90,41 +89,41 @@ describe("badRequest", () => {
   });
 });
 
-describe("route validation failures go through the helper", () => {
-  const API_DIR = path.resolve(__dirname, "../src/app/api");
+describe("api error bodies go through the helpers", () => {
+  const files = apiResponders();
 
-  function routeFiles(dir: string): string[] {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) return routeFiles(full);
-      return entry.name === "route.ts" ? [full] : [];
-    });
-  }
-
-  const files = routeFiles(API_DIR);
-
-  it("finds the route files it means to check", () => {
+  // The routes are not the whole error surface: a route can hand back a helper's
+  // response untouched, so a scan that stops at `src/app/api` watches the copies
+  // and not the original.
+  it("finds the routes and the helpers that answer for them", () => {
     expect(files.length).toBeGreaterThan(40);
+    expect(files.map((f) => f.rel)).toEqual(
+      expect.arrayContaining([
+        "middleware.ts",
+        "shared/lib/api-response.ts",
+        "modules/auth/lib/guard-response.ts",
+        "modules/courses/lib/course-access.ts",
+      ]),
+    );
   });
 
   // Centralising the rendering is the fix; this keeps a new route from
   // reintroducing the object body, and `flatten()` is deprecated in Zod 4 too.
-  it("no route renders a Zod error itself", () => {
-    const offenders = files.filter((f) => /\.(flatten|format)\(\)|treeifyError/.test(readFileSync(f, "utf8")));
+  it("nothing renders a Zod error itself", () => {
+    const offenders = files.filter((f) => /\.(flatten|format)\(\)|treeifyError/.test(f.code));
 
-    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+    expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 
   // `error` holds a string. The nested `{ message }` form was the other half of
   // the same drift, and it cost three clients their own normalizer before the
   // shapes were reconciled. `auth/email/*` is exempt: its `retryAfter` and
   // `code` are data a string cannot carry, and it nests under `ok: false`.
-  it("no route puts an object under the error key", () => {
-    const exempt = path.join(API_DIR, "auth", "email");
+  it("nothing puts an object under the error key", () => {
     const offenders = files
-      .filter((f) => !f.startsWith(exempt))
-      .filter((f) => /error:\s*\{\s*message/.test(readFileSync(f, "utf8")));
+      .filter((f) => !f.rel.startsWith("app/api/auth/email/"))
+      .filter((f) => /error:\s*\{\s*message/.test(f.code));
 
-    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+    expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 });

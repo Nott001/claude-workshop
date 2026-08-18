@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, globSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-
-const API_DIR = path.resolve(__dirname, "../src/app/api");
+import { API_DIR, routeFiles } from "./helpers/api-surface";
 
 /**
  * Routes that are reachable without a session, each for a stated reason.
@@ -46,12 +45,6 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
  * test then holds the fix in place.
  */
 const KNOWN_UNGUARDED: Record<string, string> = {};
-
-function routeFiles(): string[] {
-  return globSync("**/route.ts", { cwd: API_DIR })
-    .sort()
-    .map((f) => f.replace(/\\/g, "/"));
-}
 
 const guarded = (rel: string) => /requireAuth|requireMinRole|requireRole/.test(readFileSync(path.join(API_DIR, rel), "utf8"));
 
