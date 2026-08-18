@@ -6,6 +6,7 @@ import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { Button, buttonStyles } from "@/shared/components/button";
 import { SectionCard, StatGrid } from "@/shared/components/section-card";
 import { useSurveyStatus } from "@/modules/surveys/lib/use-survey-status";
+import { cn } from "@/shared/lib/utils";
 
 interface SurveyEvent {
   id: number;
@@ -38,7 +39,7 @@ function RatingBars({ counts }: { counts: number[] }) {
   );
 }
 
-export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
+export function EventSurveyPanel({ event, onSaved }: { event: SurveyEvent; onSaved?: (surveyEnabled: boolean) => void }) {
   const eventId = String(event.id);
   const [enabled, setEnabled] = useState(event.survey_enabled);
   const { status, loading, error, mutate } = useSurveyStatus(eventId, enabled);
@@ -67,6 +68,7 @@ export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
       return;
     }
     setEnabled(next);
+    onSaved?.(next);
     setSaving(false);
   }
 
@@ -131,32 +133,32 @@ export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
   const sendDisabled = sending || surveyComplete || surveyExpired;
   const respondedCount = status?.results.counts.reduce((sum, count) => sum + count, 0) ?? 0;
 
-  const toggle = (
-    <button
-      onClick={() => handleToggle(!enabled)}
-      disabled={saving}
-      role="switch"
-      aria-checked={enabled}
-      aria-label="Enable post-event survey"
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${enabled ? "bg-brand" : "bg-muted"}`}
-    >
-      <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${enabled ? "translate-x-[22px]" : "translate-x-0.5"}`}
-      />
-    </button>
-  );
-
   return (
-    <SectionCard
-      title="Surveys"
-      icon="poll"
-      description="Turning this on only enables the form — no email goes out until you send it."
-      actions={toggle}
-    >
+    <SectionCard title="Surveys" icon="poll">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted p-3">
+        <div>
+          <p className="text-sm font-medium text-fg">Opt-in to post-event survey</p>
+          <p className="text-xs text-muted-fg">Turning this on only enables the form — no email goes out until you send it.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-xs font-semibold", enabled ? "text-fg" : "text-muted-fg")}>{enabled ? "On" : "Off"}</span>
+          <button
+            onClick={() => handleToggle(!enabled)}
+            disabled={saving}
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Enable post-event survey"
+            className={`flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50 ${enabled ? "bg-brand" : "bg-border"}`}
+          >
+            <span
+              className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`}
+            />
+          </button>
+        </div>
+      </div>
+
       {settingError && <p className="mb-3 text-sm text-error">{settingError}</p>}
       {error && <p className="mb-3 text-sm text-error">{error}</p>}
-
-      {!enabled && <p className="text-sm text-muted-fg">Surveys are off for this event.</p>}
 
       {enabled && loading && <p className="text-sm text-muted-fg">Loading survey...</p>}
 

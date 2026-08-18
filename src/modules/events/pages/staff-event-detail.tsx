@@ -182,7 +182,9 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         </SectionCard>
       )}
 
-      {currentTab === "surveys" && isAdmin && <EventSurveyPanel event={event} />}
+      {currentTab === "surveys" && isAdmin && (
+        <EventSurveyPanel event={event} onSaved={(surveyEnabled) => applyEventPatch({ survey_enabled: surveyEnabled })} />
+      )}
     </StaffPage>
   );
 }

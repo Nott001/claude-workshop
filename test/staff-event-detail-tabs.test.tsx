@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import type { UserRole } from "@/shared/types";
 import { StaffEventDetailPage } from "@/modules/events/pages/staff-event-detail";
 import { expectStaffColumn } from "./helpers/staff-column";
@@ -67,7 +67,13 @@ function emptyBuilder() {
   };
 }
 
-function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Partial<typeof event>) {
+function renderDetail(
+  role: UserRole,
+  initialTab?: string,
+  eventOverride?: Partial<typeof event>,
+  applyEventPatch: (patch: Record<string, unknown>) => void = noop,
+) {
+  const liveEvent = { ...event, ...eventOverride };
   (useSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 1, role },
     loading: false,
@@ -75,7 +81,7 @@ function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Parti
     isSignedIn: true,
   });
   (useEventDetail as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-    event: { ...event, ...eventOverride },
+    event: liveEvent,
     loading: false,
     error: null,
     publishing: false,
@@ -84,7 +90,10 @@ function renderDetail(role: UserRole, initialTab?: string, eventOverride?: Parti
     attendeesTotal: 0,
     handlePublish: noop,
     handleDelete: noop,
-    applyEventPatch: noop,
+    applyEventPatch: (patch: Record<string, unknown>) => {
+      Object.assign(liveEvent, patch);
+      applyEventPatch(patch);
+    },
   });
   (useEventSpeakers as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     assignments: [],
@@ -209,6 +218,42 @@ describe("Staff event detail tabs", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Surveys" }));
     expect(screen.getByRole("switch", { name: "Enable post-event survey" })).toBeTruthy();
+  });
+
+  it("keeps the survey opt-in when leaving and returning to the Surveys tab", async () => {
+    const patches: Record<string, unknown>[] = [];
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: false }, (p) => patches.push(p));
+
+    const toggle = screen.getByRole("switch", { name: "Enable post-event survey" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(toggle);
+
+    // The PATCH mock resolves ok:true, so handleToggle calls onSaved and the
+    // page's event now carries the new value.
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+    expect(patches).toEqual([{ survey_enabled: true }]);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Surveys" }));
+
+    const remounted = screen.getByRole("switch", { name: "Enable post-event survey" });
+    await waitFor(() => expect(remounted.getAttribute("aria-checked")).toBe("true"));
+  });
+
+  it("shows the survey opt-in as a labelled row with a visible Off state", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: false });
+
+    expect(screen.getByText("Opt-in to post-event survey")).toBeTruthy();
+    expect(screen.getByText("Off")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Enable post-event survey" })).toBeTruthy();
+    expect(screen.queryByText("Surveys are off for this event.")).toBeNull();
+  });
+
+  it("shows an On status once the survey opt-in is enabled", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: true });
+
+    expect(screen.getByText("On")).toBeTruthy();
   });
 
   it("shows a facilitator only Overview and Course, with no admin actions", () => {
