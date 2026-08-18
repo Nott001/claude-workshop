@@ -216,6 +216,15 @@ describe("QAPanel", () => {
     await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
   });
 
+  it("removes a row a soft-delete UPDATE arrives with", async () => {
+    renderPanel(ROLES.ATTENDEE);
+    await screen.findByText("Any question?");
+
+    callbacks.onUpdate?.({ ...rawQuestion(1, "Any question?"), deleted_at: "2026-08-05T10:00:00Z" });
+
+    await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
+  });
+
   it("tears both subscriptions down through the shared unsubscribe", async () => {
     const view = renderPanel(ROLES.ATTENDEE);
     await screen.findByText("Any question?");

@@ -81,7 +81,10 @@ export default function QAPanel({
           // A failed enrichment fetch drops the row until the next REST load.
         }
       },
-      onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
+      onUpdate: (msg) =>
+        setMessages((prev) =>
+          msg.deleted_at ? prev.filter((m) => m.id !== msg.id) : prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)),
+        ),
       onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
     });
 
