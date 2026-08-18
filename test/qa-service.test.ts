@@ -10,7 +10,7 @@ const {
   sendQuestion,
   findById,
   findByIdWithUser,
-  softDelete,
+  deleteByIds,
   facilitatorIsAssigned,
   speakerIsAssignedByUserId,
 } = vi.hoisted(() => ({
@@ -22,7 +22,7 @@ const {
   sendQuestion: vi.fn(),
   findById: vi.fn(),
   findByIdWithUser: vi.fn(),
-  softDelete: vi.fn(),
+  deleteByIds: vi.fn(),
   facilitatorIsAssigned: vi.fn(),
   speakerIsAssignedByUserId: vi.fn(),
 }));
@@ -38,7 +38,7 @@ vi.mock("@/modules/courses/qa/db/qa-message.dao", () => ({
   sendQuestion,
   findById,
   findByIdWithUser,
-  softDelete,
+  deleteByIds,
 }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isAssignedByUserId: speakerIsAssignedByUserId }));
@@ -83,7 +83,7 @@ beforeEach(() => {
   sendQuestion.mockResolvedValue({ id: 88, message: "Hi" });
   findById.mockResolvedValue({ id: 42, module_id: 4, user_id: 5 });
   findByIdWithUser.mockResolvedValue({ id: 42, module_id: 4, user_id: 5, message: "Hi" });
-  softDelete.mockResolvedValue(true);
+  deleteByIds.mockResolvedValue(true);
   facilitatorIsAssigned.mockResolvedValue(false);
   speakerIsAssignedByUserId.mockResolvedValue(false);
 });
@@ -219,7 +219,7 @@ describe("deleteQuestion", () => {
     const message = await rejectStatus(deleteQuestion(supabase, 42, { id: 5, role: ROLES.ATTENDEE }), 404);
 
     expect(message).toBe("Message not found");
-    expect(softDelete).not.toHaveBeenCalled();
+    expect(deleteByIds).not.toHaveBeenCalled();
   });
 
   it("lets the asker take their own question down without an access check", async () => {
@@ -228,7 +228,7 @@ describe("deleteQuestion", () => {
     await deleteQuestion(supabase, 42, { id: 5, role: ROLES.ATTENDEE });
 
     expect(findCourseByModule).not.toHaveBeenCalled();
-    expect(softDelete).toHaveBeenCalledWith(supabase, [42]);
+    expect(deleteByIds).toHaveBeenCalledWith(supabase, [42]);
   });
 
   it("lets an admin remove someone else's question without consulting the team tables", async () => {
@@ -237,7 +237,7 @@ describe("deleteQuestion", () => {
     expect(findCourseByModule).toHaveBeenCalledWith(supabase, 4);
     expect(facilitatorIsAssigned).not.toHaveBeenCalled();
     expect(speakerIsAssignedByUserId).not.toHaveBeenCalled();
-    expect(softDelete).toHaveBeenCalledWith(supabase, [42]);
+    expect(deleteByIds).toHaveBeenCalledWith(supabase, [42]);
   });
 
   it("lets a speaker assigned to the event's team remove it", async () => {
@@ -246,7 +246,7 @@ describe("deleteQuestion", () => {
     await deleteQuestion(supabase, 42, { id: 9, role: ROLES.SPEAKER });
 
     expect(speakerIsAssignedByUserId).toHaveBeenCalledWith(supabase, 9, 9);
-    expect(softDelete).toHaveBeenCalledWith(supabase, [42]);
+    expect(deleteByIds).toHaveBeenCalledWith(supabase, [42]);
   });
 
   it("lets a facilitator assigned to the event's team remove it", async () => {
@@ -255,14 +255,14 @@ describe("deleteQuestion", () => {
     await deleteQuestion(supabase, 42, { id: 9, role: ROLES.FACILITATOR });
 
     expect(facilitatorIsAssigned).toHaveBeenCalledWith(supabase, 9, 9);
-    expect(softDelete).toHaveBeenCalledWith(supabase, [42]);
+    expect(deleteByIds).toHaveBeenCalledWith(supabase, [42]);
   });
 
   it("refuses someone who is neither the asker nor on the course's team", async () => {
     const message = await rejectStatus(deleteQuestion(supabase, 42, { id: 9, role: ROLES.SPEAKER }), 403);
 
     expect(message).toBe("Forbidden");
-    expect(softDelete).not.toHaveBeenCalled();
+    expect(deleteByIds).not.toHaveBeenCalled();
   });
 
   it("answers 404 when the message's module has no course", async () => {
@@ -271,11 +271,11 @@ describe("deleteQuestion", () => {
     const message = await rejectStatus(deleteQuestion(supabase, 42, { id: 9, role: ROLES.ADMIN }), 404);
 
     expect(message).toBe("Module not found");
-    expect(softDelete).not.toHaveBeenCalled();
+    expect(deleteByIds).not.toHaveBeenCalled();
   });
 
   it("reports a deletion that did not save", async () => {
-    softDelete.mockResolvedValue(false);
+    deleteByIds.mockResolvedValue(false);
 
     const message = await rejectStatus(deleteQuestion(supabase, 42, { id: 5, role: ROLES.ATTENDEE }), 500);
 

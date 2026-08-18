@@ -68,7 +68,6 @@ describe("QaMessage type", () => {
       module_id: 5,
       user_id: 5,
       message: "Question?",
-      deleted_at: null,
       created_at: "2026-07-10T12:00:00Z",
       updated_at: "2026-07-10T12:00:00Z",
     };

@@ -171,7 +171,6 @@ describe("support-session.dao listCases", () => {
       { count: "exact" },
     ]);
     expect(argsOf(callsList[1], "in")).toEqual(["session_id", [1, 2]]);
-    expect(callsList[1].filter(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toHaveLength(1);
   });
 
   it("returns an empty queue when there are no open cases", async () => {

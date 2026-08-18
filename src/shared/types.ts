@@ -131,7 +131,6 @@ export interface ChatMessage {
   recipient_user_id: number | null;
   message: string;
   sent_at: string;
-  deleted_at: string | null;
   updated_at: string;
 }
 
@@ -141,7 +140,6 @@ export interface QaMessage {
   module_id: number;
   user_id: number;
   message: string;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

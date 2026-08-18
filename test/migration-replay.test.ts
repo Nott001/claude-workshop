@@ -48,6 +48,8 @@ describe("migration replay", () => {
       "00010_event_mode.sql",
       "00011_event_meeting_url.sql",
       "00012_ticket_realtime_read.sql",
+      "00013_messages_replica_identity.sql",
+      "00014_drop_message_deleted_at.sql",
     ]);
   });
 
@@ -76,6 +78,33 @@ describe("migration replay", () => {
 
     it("does not restore a CREATE UNIQUE for qr_token", () => {
       expect(migration).not.toMatch(/UNIQUE.*qr_token/);
+    });
+  });
+
+  describe("messages-replica-identity final state (00013)", () => {
+    const migration = content("00013_messages_replica_identity.sql");
+
+    it("sets replica identity full on the realtime filtered chat tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" REPLICA IDENTITY FULL;');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" REPLICA IDENTITY FULL;');
+    });
+
+    it("introduces nothing else", () => {
+      expect(migration).not.toMatch(/DROP/);
+      expect(migration).not.toMatch(/GRANT/);
+    });
+  });
+
+  describe("message deleted_at drop final state (00014)", () => {
+    const migration = content("00014_drop_message_deleted_at.sql");
+
+    it("drops deleted_at from the two message tables", () => {
+      expect(migration).toContain('ALTER TABLE "public"."QA_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+      expect(migration).toContain('ALTER TABLE "public"."CHAT_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";');
+    });
+
+    it("introduces no grant", () => {
+      expect(migration).not.toMatch(/GRANT/);
     });
   });
 

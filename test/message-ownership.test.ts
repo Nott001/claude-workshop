@@ -9,7 +9,6 @@ const {
   getQuestion,
   deleteQuestion,
   findMessageWithUser,
-  updateMessage,
   sessionFindById,
   speakerFindById,
   speakerUpdate,
@@ -23,7 +22,6 @@ const {
   getQuestion: vi.fn(),
   deleteQuestion: vi.fn(),
   findMessageWithUser: vi.fn(),
-  updateMessage: vi.fn(),
   sessionFindById: vi.fn(),
   speakerFindById: vi.fn(),
   speakerUpdate: vi.fn(),
@@ -36,7 +34,6 @@ vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({
   findMessageWithUser,
-  updateMessage,
 }));
 vi.mock("@/modules/courses/qa/lib/service", async () => {
   const actual = await vi.importActual<typeof import("@/modules/courses/qa/lib/service")>("@/modules/courses/qa/lib/service");
@@ -52,7 +49,7 @@ vi.mock("@/shared/db/dao/speaker.dao", () => ({
 vi.mock("@/shared/integrations/storage/service", () => ({ deleteFromStorage }));
 
 import { GET as GET_QA, DELETE as DELETE_QA } from "@/app/api/qa/message/[messageId]/route";
-import { GET as GET_SUPPORT, DELETE as DELETE_SUPPORT } from "@/app/api/support/[messageId]/route";
+import { GET as GET_SUPPORT } from "@/app/api/support/[messageId]/route";
 import { PATCH as PATCH_SPEAKER, DELETE as DELETE_SPEAKER } from "@/app/api/speakers/[id]/route";
 import { QaServiceError } from "@/modules/courses/qa/lib/service";
 
@@ -125,90 +122,6 @@ describe("DELETE /api/qa/message/[messageId]", () => {
   });
 });
 
-describe("DELETE /api/support/[messageId]", () => {
-  const supportMessage = (
-    over: Partial<{ user_id: number; recipient_user_id: number | null; session_id: number | null }> = {},
-  ) => ({
-    id: 42,
-    user_id: 5,
-    recipient_user_id: 9,
-    session_id: 11,
-    ...over,
-    USER: { full_name: "U", role: ROLES.ATTENDEE },
-  });
-
-  it("answers 401 before any lookups", async () => {
-    requireAuth.mockResolvedValue(null);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(401);
-    expect(findMessageWithUser).not.toHaveBeenCalled();
-  });
-
-  it("answers 404 for a message that does not exist", async () => {
-    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
-    findMessageWithUser.mockResolvedValue(null);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(404);
-  });
-
-  it("lets the sender delete their own message", async () => {
-    requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
-    findMessageWithUser.mockResolvedValue(supportMessage());
-    updateMessage.mockResolvedValue(true);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(200);
-    expect(sessionFindById).not.toHaveBeenCalled();
-  });
-
-  it("lets the recipient of the conversation delete it", async () => {
-    requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
-    findMessageWithUser.mockResolvedValue(supportMessage());
-    updateMessage.mockResolvedValue(true);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(200);
-  });
-
-  it("lets an admin delete any message", async () => {
-    requireAuth.mockResolvedValue(user(12, ROLES.ADMIN));
-    findMessageWithUser.mockResolvedValue(supportMessage());
-    updateMessage.mockResolvedValue(true);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(200);
-  });
-
-  it("lets the facilitator assigned to the case delete it", async () => {
-    requireAuth.mockResolvedValue(user(15, ROLES.FACILITATOR));
-    findMessageWithUser.mockResolvedValue(supportMessage());
-    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
-    updateMessage.mockResolvedValue(true);
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(200);
-  });
-
-  it("refuses a bystander who is not on the conversation and not assigned", async () => {
-    requireAuth.mockResolvedValue(user(99, ROLES.FACILITATOR));
-    findMessageWithUser.mockResolvedValue(supportMessage());
-    sessionFindById.mockResolvedValue({ id: 11, user_id: 5, assigned_to: 15 });
-
-    const res = await DELETE_SUPPORT(req(), msgParams);
-
-    expect(res.status).toBe(403);
-    expect(updateMessage).not.toHaveBeenCalled();
-  });
-});
-
 describe("GET /api/qa/message/[messageId]", () => {
   const joinedQuestion = (over: Partial<{ user_id: number }> = {}) => ({
     id: 42,
@@ -217,7 +130,6 @@ describe("GET /api/qa/message/[messageId]", () => {
     user_id: 5,
     message: "Question?",
     created_at: "2026-08-05T09:00:00Z",
-    deleted_at: null,
     updated_at: "2026-08-05T09:00:00Z",
     ...over,
     USER: { full_name: "Ana", role: ROLES.ATTENDEE },
@@ -268,7 +180,6 @@ describe("GET /api/support/[messageId]", () => {
     event_id: null,
     message: "Need help",
     sent_at: "2026-08-05T09:00:00Z",
-    deleted_at: null,
     updated_at: "2026-08-05T09:00:00Z",
     ...over,
     USER: { full_name: "U", role: ROLES.ATTENDEE },

@@ -95,6 +95,7 @@ export default function GlobalSupportChat({ isOpen, onClose }: GlobalSupportChat
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       }),
+    onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
   });
 
   function formatTime(sentAt: string) {

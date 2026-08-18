@@ -20,6 +20,7 @@ vi.mock("@/modules/chat/lib/use-realtime-messages", () => ({
 
 import { CHAT_CLAIMED_MESSAGE, CHAT_ENDED_MESSAGE, CHAT_UNCLAIMED_MESSAGE } from "@/modules/chat/lib/support-notices";
 import GlobalSupportChat from "@/modules/support/components/global-support-chat";
+import { useRealtimeMessages } from "@/modules/chat/lib/use-realtime-messages";
 
 const USER = { id: 7, role: ROLES.ATTENDEE, full_name: "Grace", email: "grace@example.com" };
 
@@ -197,5 +198,26 @@ describe("GlobalSupportChat signed in", () => {
     expect(await screen.findByText("Thanks")).toBeTruthy();
     expect(screen.getByText("This conversation has ended.")).toBeTruthy();
     expect(screen.getByText("This conversation has ended. Send a message to start a new one.")).toBeTruthy();
+  });
+
+  it("removes a message when a DELETE event arrives", async () => {
+    mockFetch(() => ({
+      messages: [
+        { id: 1, user_id: 7, message: "Help please", sent_at: "2026-08-05T09:00:00Z", USER: { role: ROLES.ATTENDEE } },
+      ],
+      session_active: true,
+      session: { case_number: null, assigned_to: null, assigned_staff_name: null },
+    }));
+    subscribeToSupportSessions.mockReturnValue({ id: "sessions" });
+
+    renderChat({ user: USER, isLoaded: true, isSignedIn: true });
+    await screen.findByText("Help please");
+
+    const realtimeOptions = (useRealtimeMessages as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      onDelete?: (msg: { id: number }) => void;
+    };
+    realtimeOptions.onDelete?.({ id: 1 });
+
+    await waitFor(() => expect(screen.queryByText("Help please")).toBeNull());
   });
 });
