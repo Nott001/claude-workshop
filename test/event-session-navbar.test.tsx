@@ -5,12 +5,13 @@ import { EventSessionNavbar } from "@/modules/events/components/event-session-na
 
 const baseProps = {
   eventName: "Demo Day",
-  elapsed: "00:12:00",
-  remaining: "01:48:00",
   eventDate: "",
   startTime: "",
+  endTime: null,
   onExit: vi.fn(),
 };
+
+const PAST_WINDOW = { eventDate: "2024-01-01", startTime: "09:00:00", endTime: "17:00:00" };
 
 afterEach(() => {
   cleanup();
@@ -46,7 +47,7 @@ describe("EventSessionNavbar live module", () => {
 
 describe("EventSessionNavbar ended state", () => {
   it("shows an Ended label and hides the timer once the event has ended", () => {
-    render(<EventSessionNavbar {...baseProps} hasEnded eventDate="2024-01-01" startTime="09:00:00" />);
+    render(<EventSessionNavbar {...baseProps} {...PAST_WINDOW} />);
 
     expect(screen.getByText("Ended")).toBeTruthy();
     expect(screen.queryByText("Elapsed")).toBeNull();
@@ -54,7 +55,7 @@ describe("EventSessionNavbar ended state", () => {
   });
 
   it("keeps the timer visible before the event ends", () => {
-    render(<EventSessionNavbar {...baseProps} eventDate="2024-01-01" startTime="09:00:00" />);
+    render(<EventSessionNavbar {...baseProps} eventDate="2024-01-01" startTime="09:00:00" endTime="" />);
 
     expect(screen.queryByText("Ended")).toBeNull();
     expect(screen.getByText("Elapsed")).toBeTruthy();
@@ -62,7 +63,7 @@ describe("EventSessionNavbar ended state", () => {
   });
 
   it("suppresses the live chip once the event has ended", () => {
-    render(<EventSessionNavbar {...baseProps} hasEnded liveModuleName="Keynote" eventDate="2024-01-01" startTime="09:00:00" />);
+    render(<EventSessionNavbar {...baseProps} {...PAST_WINDOW} liveModuleName="Keynote" />);
 
     expect(screen.getByText("Ended")).toBeTruthy();
     expect(screen.queryByText("Live")).toBeNull();

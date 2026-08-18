@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import useSWR from "swr";
 import { fetcher } from "@/shared/lib/fetcher";
-import { useEventTimer } from "@/shared/lib/use-event-timer";
 import { findLiveModule } from "@/shared/lib/live-module";
 import { isEventStarted, parseLocalDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -29,14 +28,21 @@ export function useCourseRoomAccess(courseId: string) {
   const [isSpeakerAssigned, setIsSpeakerAssigned] = useState(false);
   const [settingHighlight, setSettingHighlight] = useState(false);
 
+  // Edge-state flips (start / end / live module) only need coarse granularity;
+  // SessionHero already refreshes on this cadence. The navbar's per-second
+  // countdown lives in the navbar itself, not here.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
   const eventStarted = isEventStarted(eventDate, startTime);
   const eventEnd = eventDate && endTime ? parseLocalDateTime(eventDate, endTime) : null;
-  const eventEnded = !!eventEnd && eventEnd <= new Date();
+  const eventEnded = !!eventEnd && eventEnd <= now;
 
-  const liveModule = findLiveModule(course?.MODULE ?? [], eventDate);
-
-  const { elapsed, remaining } = useEventTimer(eventDate, startTime, endTime);
+  const liveModule = findLiveModule(course?.MODULE ?? [], eventDate, now);
 
   const { data: highlightData, mutate: mutateHighlight } = useSWR(
     courseId ? `/api/courses/${courseId}/live/highlight` : null,
@@ -140,8 +146,6 @@ export function useCourseRoomAccess(courseId: string) {
     isSpeakerAssigned,
     eventStarted,
     eventEnded,
-    elapsed,
-    remaining,
     highlightedLessonId,
     settingHighlight,
     handleSetHighlight,

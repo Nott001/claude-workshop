@@ -173,6 +173,8 @@
 
 ### Fixed
 
+- The course-room clock no longer redraws the whole room every second. The old countdown lived in the room-access hook as a one-second interval's worth of state, so each tick re-rendered every card beneath it — the profiler showed the timer and its dependants as the room's biggest consumers, a session hero, a current-topic card and a list of lessons rebuilding sixty times a minute on a page that was otherwise still. The ticking now sits in the navbar leaf and redraws only its own elapsed and remaining numbers, while the room-level edge states (started, ended, live module) flip on a coarse 30-second heartbeat matching the hero's existing clock. A start or end is noticed within half a minute instead of within a second, and nothing else on the page re-renders in between.
+
 - The course-room navbar clock runs forever past the event's end. The elapsed counter measured `now − start` with no upper bound, and the session bar only knew whether the event had started, so a finished event kept counting what should have been over — the Remaining column had long since sat at `00:00:00`, while Elapsed kept climbing and the bar looked every bit as live as a room mid-module.
 
   The counter now clamps at the event's `end_time`: elapsed freezes at the session's full length, remaining at `00:00:00`, and the one-second clock stops picking itself back up once the end passes — there is nothing left for it to compute. The navbar also knows the end edge rather than only the start one, so in place of the two columns it shows a static **Ended** label, matching the badge the hero already carries for the same moment. It stopped telling you the event was still going, because that was the one statement the old timer was actively making wrong.

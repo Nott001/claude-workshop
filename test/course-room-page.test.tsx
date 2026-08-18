@@ -26,8 +26,6 @@ function allowRoom(overrides: Record<string, unknown> = {}) {
     assignedSpeakerCount: 0,
     eventStarted: false,
     eventEnded: false,
-    elapsed: "00:00",
-    remaining: "00:00",
     highlightedLessonId: null,
     settingHighlight: false,
     handleSetHighlight: vi.fn(),
@@ -104,46 +102,52 @@ describe("CourseRoomPage", () => {
   });
 
   it("marks the live module and its speaker when the course has several speakers", () => {
-    allowRoom({
-      liveModule: {
-        id: 1,
-        module_name: "Keynote",
-        start_time: "09:00:00",
-        end_time: "10:00:00",
-        SPEAKER_PROFILE: { id: 7, USER: { full_name: "Ada Lovelace" } },
-      },
-      assignedSpeakerCount: 2,
-      eventStarted: true,
-      eventDate: "2026-01-01",
-      startTime: "09:00:00",
-      endTime: "17:00:00",
-      course: {
-        id: 4,
-        course_name: "Intro",
-        course_description: null,
-        MODULE: [
-          {
-            id: 1,
-            module_name: "Keynote",
-            sequence_order: 1,
-            module_type: "lessons",
-            is_locked: false,
-            start_time: "09:00:00",
-            end_time: "10:00:00",
-            speaker_profile_id: 7,
-            SPEAKER_PROFILE: { id: 7, designation: null, USER: { full_name: "Ada Lovelace" } },
-            LESSONS: [],
-          },
-        ],
-      },
-    });
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-01T10:00:00"));
+      allowRoom({
+        liveModule: {
+          id: 1,
+          module_name: "Keynote",
+          start_time: "09:00:00",
+          end_time: "10:00:00",
+          SPEAKER_PROFILE: { id: 7, USER: { full_name: "Ada Lovelace" } },
+        },
+        assignedSpeakerCount: 2,
+        eventStarted: true,
+        eventDate: "2026-09-01",
+        startTime: "09:00:00",
+        endTime: "17:00:00",
+        course: {
+          id: 4,
+          course_name: "Intro",
+          course_description: null,
+          MODULE: [
+            {
+              id: 1,
+              module_name: "Keynote",
+              sequence_order: 1,
+              module_type: "lessons",
+              is_locked: false,
+              start_time: "09:00:00",
+              end_time: "10:00:00",
+              speaker_profile_id: 7,
+              SPEAKER_PROFILE: { id: 7, designation: null, USER: { full_name: "Ada Lovelace" } },
+              LESSONS: [],
+            },
+          ],
+        },
+      });
 
-    render(<CourseRoomPage />);
+      render(<CourseRoomPage />);
 
-    expect(screen.getByText("Live")).toBeTruthy();
-    expect(screen.getAllByText("Keynote").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Live now").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
+      expect(screen.getByText("Live")).toBeTruthy();
+      expect(screen.getAllByText("Keynote").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Live now").length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hides speaker names when the course has a single assigned speaker", () => {

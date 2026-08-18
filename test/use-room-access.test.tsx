@@ -11,9 +11,6 @@ const { sessionValue, fetchCourseRoomAccess, mutateHighlight } = vi.hoisted(() =
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: () => sessionValue() }));
 vi.mock("@/modules/courses/lib/fetch-course-room-access", () => ({ fetchCourseRoomAccess }));
-vi.mock("@/shared/lib/use-event-timer", () => ({
-  useEventTimer: () => ({ elapsed: "00:10", remaining: "00:50" }),
-}));
 vi.mock("swr", () => ({
   default: () => ({ data: { highlighted_lesson_id: 7 }, mutate: mutateHighlight }),
 }));
