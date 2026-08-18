@@ -153,6 +153,14 @@
 
 ### Fixed
 
+- An online event's card no longer claims to be somewhere. Every event card drew the same map pin beside its venue line, whatever the event's mode, so an online session showed a location marker next to the name of a platform — "📍 Zoom". The card now takes the camera icon for an online event and the pin for an onsite one, the pairing the event detail page and the mode picker in the create form already used.
+
+  The reason it was wrong is that the pairing existed in three places and the card was not one of them: each surface that needed it had spelled it out inline, so a fourth surface simply picked whichever icon its author typed. It is one function now, and the card, the detail hero and the form read from it. Rows written before the mode column existed read as onsite, matching the default the column itself carries.
+
+  The same fix reached the speaker's Upcoming Engagements list by way of a related problem: `/api/speakers/me/events` had its own hand-copied version of the converter every other producer of that shape goes through, and it had been quietly falling behind — it still flattened a `COURSE` embed its consumer had stopped expecting, and it dropped each new column as the shape gained one. It now goes through the shared converter, which also means those cards show their cover images rather than always falling back to the gradient.
+
+  While the icon was the only thing saying where an event happens, it was also the only thing saying it to a screen reader — and Material Symbols renders through ligature text, so the venue line announced itself as "videocam Zoom". The icon is hidden from assistive technology now and the line carries a real label.
+
 - Requesting an email change is rate limited for real now. What stood in for one was a 60-second cooldown that fired only when the address being asked for was the one already pending, and that measured `email_change_sent_at` — the column `cancel_pending_email_change` sets to NULL. So either naming a different address each time or pressing Cancel between attempts walked straight past it, both from the settings form, no tooling required. That matters more than a stray extra email: auth mail is metered per project, not per account, so anyone signed in could exhaust the hourly budget and leave every other user's signup confirmation and password reset undeliverable — which is exactly how a brand-new account ends up being told it has sent too many emails.
 
   A limiter cannot key on state the limited party can clear, nor on the value they are asking about. Attempts are now counted per caller and per origin in a table of the app's own (`EMAIL_CHANGE_ATTEMPT`), on the pattern password reset has always used, and neither trick moves the count. The per-origin allowance is deliberately loose, because a venue's wifi can put a whole audience behind one address.

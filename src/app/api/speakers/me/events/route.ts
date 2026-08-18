@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
+import { toLandingEvent } from "@/modules/events/lib/landing-event";
 
 export async function GET() {
   const supabase = getServiceClient();
@@ -26,16 +27,8 @@ export async function GET() {
 
   const events = await eventDao.findByIds(supabase, eventIds);
 
-  const mapped = events.map((e) => ({
-    event_id: e.id,
-    title: e.title,
-    event_date: e.event_date,
-    start_time: e.start_time,
-    end_time: e.end_time,
-    venue_name: e.venue_name,
-    status: e.status,
-    course_name: e.COURSE?.course_name ?? null,
-  }));
-
-  return NextResponse.json(mapped);
+  // A hand-rolled copy of toLandingEvent used to live here, and it silently
+  // fell behind every column the shape gained — event_type most recently, so
+  // an online engagement showed the onsite pin on its card.
+  return NextResponse.json(events.map(toLandingEvent));
 }

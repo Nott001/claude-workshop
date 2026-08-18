@@ -3,7 +3,7 @@
 import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
-import { formatDuration, formatVenue } from "@/shared/lib/event-format";
+import { eventModeIcon, formatDuration, formatVenue } from "@/shared/lib/event-format";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
 interface EventDetailHeroProps {
@@ -48,7 +48,7 @@ export function EventDetailHero({ event }: EventDetailHeroProps) {
   if (duration) facts.push({ icon: "hourglass_empty", label: "Duration", value: duration });
   // The fact that used to be the only hint an event was online, back when the
   // hint had to be smuggled into the venue text a human wrote.
-  if (venue) facts.push({ icon: online ? "videocam" : "location_on", label: online ? "Online" : "Venue", value: venue });
+  if (venue) facts.push({ icon: eventModeIcon(event.event_type), label: online ? "Online" : "Venue", value: venue });
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)]">

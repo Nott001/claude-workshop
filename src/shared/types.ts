@@ -227,6 +227,7 @@ export interface LandingEvent {
   end_time: string;
   venue_name: string;
   status: string;
+  event_type: EventMode;
   course_name: string | null;
   cover_image_url: string | null;
 }

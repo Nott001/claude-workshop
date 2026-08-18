@@ -22,6 +22,7 @@ export function EventGrid({ events, backOrigin }: { events: LandingEvent[]; back
           startTime={event.start_time}
           endTime={event.end_time}
           venueName={event.venue_name}
+          eventType={event.event_type}
           coverImageUrl={event.cover_image_url}
           accentIndex={i}
         />

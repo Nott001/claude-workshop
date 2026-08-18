@@ -26,6 +26,7 @@ const apiRows = [
     end_time: "17:00:00",
     venue_name: "Hall A",
     status: "active",
+    event_type: "onsite",
     cover_image_url: null,
     COURSE: { course_name: "AI for Business" },
   },
@@ -35,8 +36,9 @@ const apiRows = [
     event_date: "2026-08-20",
     start_time: "10:00:00",
     end_time: "18:00:00",
-    venue_name: "Hall B",
+    venue_name: "Zoom",
     status: "active",
+    event_type: "online",
     cover_image_url: null,
     COURSE: null,
   },
@@ -127,5 +129,36 @@ describe("merged landing page for a signed-in attendee", () => {
       .map((link) => link.getAttribute("href"))
       .filter((href) => href?.startsWith("/events/"));
     expect(cardHrefs).toEqual(["/events/41?from=landing", "/events/42?from=landing", "/events/43?from=landing"]);
+  });
+});
+
+describe("landing card venue row", () => {
+  beforeEach(() => {
+    useSession.mockReturnValue({
+      user: null,
+      loading: false,
+      isLoaded: true,
+      isSignedIn: false,
+      signOut: vi.fn(),
+    });
+  });
+
+  it("marks an online event with the camera icon and an onsite one with the pin", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+
+    render(await LandingPage());
+
+    // The icon is the ligature text of the span, so the rendered glyph name is
+    // what distinguishes the two modes on the card.
+    expect(screen.getByText("Hall A").closest("p")?.textContent).toContain("location_on");
+    expect(screen.getByText("Zoom").closest("p")?.textContent).toContain("videocam");
+  });
+
+  it("falls back to onsite for a row written before the mode column existed", async () => {
+    getUpcomingForLanding.mockResolvedValue(apiRows);
+
+    render(await LandingPage());
+
+    expect(screen.getByText("Hall C").closest("p")?.textContent).toContain("location_on");
   });
 });

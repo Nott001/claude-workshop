@@ -45,6 +45,7 @@ export function SpeakerEventListPage() {
                 startTime={event.start_time}
                 endTime={event.end_time}
                 venueName={event.venue_name}
+                eventType={event.event_type}
                 // TODO: Speakers should be the one creating courses
                 // courseName={event.COURSE?.course_name ?? undefined}
                 accentIndex={index}

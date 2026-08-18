@@ -80,6 +80,7 @@ export function EventListPage() {
                 startTime={event.start_time}
                 endTime={event.end_time}
                 venueName={event.venue_name}
+                eventType={event.event_type}
                 coverImageUrl={event.cover_image_url}
                 accentIndex={index}
               />
