@@ -6,6 +6,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { communityLinkSchema } from "@/modules/community/lib/community-schemas";
 import { CommunityServiceError, createCommunityLink, listCommunityLinks } from "@/modules/community/lib/community-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof CommunityServiceError) {
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = communityLinkSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

@@ -11,6 +11,7 @@ import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { afterResponse } from "@/shared/lib/after-response";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function POST(req: Request) {
   const guard = await requireMinRole(ROLES.FACILITATOR);
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = checkinSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

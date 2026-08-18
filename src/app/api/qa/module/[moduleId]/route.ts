@@ -7,6 +7,7 @@ import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 import { getServiceClient } from "@/shared/db/client";
 import { qaMessageSchema } from "@/modules/courses/qa/lib/schemas";
 import { findQaModule, listQuestions, sendQuestion, setModuleLock, QaServiceError } from "@/modules/courses/qa/lib/service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof QaServiceError) {
@@ -42,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
   const body = await req.json();
   const parsed = qaMessageSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

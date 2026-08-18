@@ -8,6 +8,7 @@ import { deleteEvent, EventServiceError, getEvent, loadEventOr403, updateEvent }
 import { canSeeMeetingLink, redactMeetingUrl } from "@/modules/events/lib/meeting-link";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { ROLES } from "@/shared/lib/roles";
+import { badRequest } from "@/shared/lib/api-response";
 
 // The 403/404s are answered with a bare string and the 400/500s with a nested
 // { message }; keeping both shapes so the wire contract does not change. 403 is
@@ -68,7 +69,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = eventPartialSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   try {

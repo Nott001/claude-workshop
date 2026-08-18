@@ -5,6 +5,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { communityLinkPartialSchema } from "@/modules/community/lib/community-schemas";
 import { CommunityServiceError, deleteCommunityLink, updateCommunityLink } from "@/modules/community/lib/community-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof CommunityServiceError) {
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = communityLinkPartialSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

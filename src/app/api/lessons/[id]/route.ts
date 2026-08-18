@@ -8,6 +8,7 @@ import { lessonSchema } from "@/modules/courses/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireLessonAccess } from "@/modules/courses/lib/course-access";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -43,7 +44,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = lessonSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

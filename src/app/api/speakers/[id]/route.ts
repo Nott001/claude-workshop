@@ -7,6 +7,7 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { AuthUser } from "@/modules/auth/lib/types";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   // Staff may edit any profile; a speaker is held to their own. Requiring both
@@ -28,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = speakerProfileUpdateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

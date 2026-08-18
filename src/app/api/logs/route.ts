@@ -5,6 +5,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as emailDao from "@/shared/db/dao/email.dao";
 import { emailLogFilterSchema } from "@/shared/integrations/email/log-filter-schema";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.ADMIN);
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
 
   const parsed = emailLogFilterSchema.safeParse(filters);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

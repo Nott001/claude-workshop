@@ -11,6 +11,7 @@ import {
   sendSupportMessage,
   SupportServiceError,
 } from "@/modules/chat/lib/support-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof SupportServiceError) {
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = sendMessageSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

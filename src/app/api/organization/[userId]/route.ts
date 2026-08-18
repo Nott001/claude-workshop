@@ -5,6 +5,7 @@ import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { changeMemberRole, OrganizationServiceError, removeMember } from "@/modules/auth/lib/organization-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 const updateSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
@@ -42,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

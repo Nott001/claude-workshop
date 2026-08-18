@@ -22,18 +22,15 @@ export default defineConfig({
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
       //
-      // These read a hair under the previous baseline, which is a denominator
-      // effect rather than a regression: the settings refactor deleted fully
-      // covered code (its own page component, and the section nav that
-      // replaced it briefly), and removing covered code from a codebase at 81%
-      // raises the untouched remainder's share. Uncovered statements did not
-      // move across the whole change — 1485 before and after. Only re-baseline
-      // for a reason like that; never to make a build pass.
+      // Raised with the shared `badRequest` helper: the 23 routes that each
+      // rendered a Zod error inline now share one covered branch. Lower these
+      // only for a denominator effect — covered code being deleted raises the
+      // untouched remainder's share — and never to make a build pass.
       thresholds: {
-        statements: 81.81,
-        branches: 76.54,
-        functions: 81.08,
-        lines: 82.89,
+        statements: 81.97,
+        branches: 76.72,
+        functions: 81.34,
+        lines: 83.03,
       },
     },
   },

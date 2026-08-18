@@ -11,6 +11,7 @@ import {
   setModuleLock,
   updateModule,
 } from "@/modules/courses/lib/course-module-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 // The 400s are answered with a nested { message } and the 500s with a bare
 // string; keeping both shapes so the wire contract does not change.
@@ -47,7 +48,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = moduleSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

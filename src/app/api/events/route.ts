@@ -6,6 +6,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { eventSchema } from "@/modules/events/lib/schemas";
 import { createEvent, EventServiceError, listEvents } from "@/modules/events/lib/event-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof EventServiceError) {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = eventSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

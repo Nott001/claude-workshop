@@ -3,6 +3,7 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { EventServiceError, getEventRegistrationState, registerForEvent } from "@/modules/events/lib/event-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof EventServiceError) {
@@ -44,7 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const parsed = paymentInitSchema.safeParse({ event_id: id });
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   try {

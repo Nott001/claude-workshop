@@ -8,6 +8,7 @@ import * as userDao from "@/shared/db/dao/user.dao";
 import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES } from "@/modules/auth/lib/invited-role";
 import { inviteUser, OrganizationServiceError } from "@/modules/auth/lib/organization-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 const PAGE_SIZE = 10;
 
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = inviteSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   if (!canGrantRole(guard.user.role, parsed.data.role)) {

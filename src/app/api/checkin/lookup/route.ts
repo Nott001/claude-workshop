@@ -6,6 +6,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { checkinSchema, formatTicketPreview } from "@/modules/kiosk/lib/checkin";
 import { loadEventOr403 } from "@/modules/events/lib/event-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.FACILITATOR);
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
 
   const parsed = checkinSchema.safeParse({ qr_token: token });
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

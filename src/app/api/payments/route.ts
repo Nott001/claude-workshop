@@ -10,6 +10,7 @@ import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { getPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { isSoldOut, SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function POST(req: Request) {
   const supabase = getServiceClient();
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = paymentInitSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const { event_id } = parsed.data;
