@@ -17,7 +17,7 @@ function renderStaff(role = "admin") {
     isSignedIn: true,
     signOut: vi.fn(),
   });
-  render(<StaffNavbar />);
+  return render(<StaffNavbar />);
 }
 
 beforeEach(() => {
@@ -41,5 +41,25 @@ describe("StaffNavbar", () => {
     renderStaff("admin");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Events/ })).toBeTruthy();
+  });
+
+  it("wears the same frosted surface as the attendee bar", () => {
+    const { container } = renderStaff();
+
+    const header = container.querySelector("header");
+
+    expect(header?.className).toContain("bg-surface/75");
+    expect(header?.className).toContain("backdrop-blur-xl");
+    expect(header?.className).toContain("fixed");
+  });
+
+  // Frosting was all it took from the attendee bar. Growing to match would
+  // have left the rail pinned 8px above where the bar now ends.
+  it("keeps its 64px height, which the rail below is pinned to", () => {
+    const { container } = renderStaff();
+
+    expect(container.querySelector("header > div")?.className).toContain("h-16");
+    expect(container.querySelector("header > div")?.className).not.toContain("h-navbar");
+    expect(container.querySelector("aside")?.className).toContain("top-16");
   });
 });

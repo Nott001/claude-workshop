@@ -7,6 +7,7 @@ import { useSession } from "@/modules/auth/components/session-context";
 import { cn } from "@/shared/lib/utils";
 import type { UserRole } from "@/shared/types";
 import { getNavItems } from "@/modules/shell/lib/nav-items";
+import { NAV_BAR_SURFACE } from "@/modules/shell/lib/nav-surface";
 import { Brand } from "@/modules/shell/components/brand";
 import { originFromPathname, withBackLink } from "@/shared/lib/back-link";
 import { ProfileMenu } from "@/modules/shell/components/profile-menu";
@@ -33,12 +34,8 @@ export function TopNavbar({ minimal = false }: { minimal?: boolean }) {
 
   return (
     // Frosted rather than solid: the bar sits over content that scrolls beneath
-    // it, and letting that read through is what tells you the page moved. The
-    // blur is what keeps it legible — at this alpha alone, text crossing under
-    // the bar would show through as noise behind the links.
-    <header
-      className={cn("inset-x-0 top-0 z-20 border-b border-border bg-surface/75 backdrop-blur-xl", minimal ? "sticky" : "fixed")}
-    >
+    // it, and letting that read through is what tells you the page moved.
+    <header className={cn(NAV_BAR_SURFACE, minimal ? "sticky" : "fixed")}>
       {/* Minimal keeps the mark over the content column it sits above, which is
           inset further than the app's own gutter. */}
       <div className={cn("h-navbar flex items-center gap-6 px-6", minimal && "lg:px-16")}>
