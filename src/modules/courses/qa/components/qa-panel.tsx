@@ -33,6 +33,39 @@ export default function QAPanel({
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A row keeps its op for exactly as long as it exists: "deleting" holds the
+  // bubble muted until the realtime DELETE event drops the row (the orphan
+  // entry is cleaned there), "failed" marks a refused delete until it clears
+  // itself after two seconds, and any other result clears it.
+  const [ops, setOps] = useState<Record<number, "deleting" | "failed">>({});
+  const failTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timers = failTimersRef.current;
+    return () => {
+      for (const id of Object.keys(timers)) clearTimeout(timers[Number(id)]);
+    };
+  }, []);
+
+  function clearOp(messageId: number) {
+    setOps((prev) => {
+      const next = { ...prev };
+      delete next[messageId];
+      return next;
+    });
+  }
+
+  function markFailed(messageId: number) {
+    setOps((prev) => ({ ...prev, [messageId]: "failed" }));
+    clearTimeout(failTimersRef.current[messageId]);
+    failTimersRef.current[messageId] = setTimeout(() => {
+      setOps((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+    }, 2000);
+  }
   // The lock is broadcast by realtime; the prop only seeds it, so a toggle by
   // any moderator lands here live instead of surviving only for the one who
   // reloaded. React's "adjust state during render" pattern keeps the seed
@@ -82,7 +115,10 @@ export default function QAPanel({
         }
       },
       onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
-      onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
+      onDelete: (msg) => {
+        setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+        clearOp(msg.id);
+      },
     });
 
     return () => unsubscribe(sub);
@@ -122,7 +158,22 @@ export default function QAPanel({
   }
 
   async function handleDelete(messageId: number) {
-    await fetch(`/api/qa/message/${messageId}`, { method: "DELETE" });
+    if (ops[messageId] === "deleting") return;
+    setOps((prev) => ({ ...prev, [messageId]: "deleting" }));
+    try {
+      const res = await fetch(`/api/qa/message/${messageId}`, { method: "DELETE" });
+      // Success leaves the op in place: the realtime DELETE event drops the
+      // row and clears the linger there. A 404 means the row was already
+      // deleted elsewhere, so nothing has failed — just restore. Anything
+      // else is a refusal and gets the visible failure mark.
+      if (!res.ok && res.status !== 404) {
+        markFailed(messageId);
+      } else if (res.status === 404) {
+        clearOp(messageId);
+      }
+    } catch {
+      markFailed(messageId);
+    }
   }
 
   function formatDateTime(sentAt: string) {
@@ -179,6 +230,7 @@ export default function QAPanel({
                 const kind = qaAuthorKind(msg.USER?.role);
                 const isSpeaker = kind === "speaker";
                 const isStaff = kind === "staff";
+                const deleting = ops[msg.id] === "deleting";
                 return (
                   <div
                     key={msg.id}
@@ -188,7 +240,8 @@ export default function QAPanel({
                         ? "border-warning/40 bg-warning/10"
                         : isStaff
                           ? "border-info/40 bg-info/10"
-                          : "border-border bg-muted")
+                          : "border-border bg-muted") +
+                      (deleting ? " opacity-50 pointer-events-none transition-opacity" : "")
                     }
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -215,14 +268,27 @@ export default function QAPanel({
                       </span>
                     </div>
                     <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
-                    {canModerate && (
-                      <button
-                        onClick={() => handleDelete(msg.id)}
-                        className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
-                      >
-                        <span className="material-symbols-rounded text-xs">delete</span>
-                      </button>
-                    )}
+                    {canModerate &&
+                      (deleting ? (
+                        <span className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg">
+                          <span className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                          Deleting...
+                        </span>
+                      ) : (
+                        <div className="ml-auto flex items-center gap-2">
+                          {ops[msg.id] === "failed" && (
+                            <span role="status" className="text-[10px] font-semibold text-error">
+                              Deleting failed
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(msg.id)}
+                            className="flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
+                          >
+                            <span className="material-symbols-rounded text-xs">delete</span>
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 );
               })}
