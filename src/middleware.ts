@@ -99,7 +99,7 @@ export async function middleware(req: NextRequest) {
 
   if (isProtectedRoute(req) && !user) {
     const denied = req.nextUrl.pathname.startsWith("/api/")
-      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      ? NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
       : redirectToSignIn(req);
 
     // Refusing the request must not discard what Supabase just wrote — an
