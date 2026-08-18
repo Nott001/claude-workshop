@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createCodeGate } from "@/modules/kiosk/lib/code-gate";
 
 interface QrScannerProps {
   onScan: (token: string) => void;
   active: boolean;
   paused?: boolean;
   onError?: (message: string) => void;
+  /** Bumping this starts a fresh scan session (e.g. the kiosk card was cleared). */
+  resetSignal?: number;
 }
 
 // `active` owns the camera lifecycle (start, error). `paused` only stops
@@ -14,23 +17,28 @@ interface QrScannerProps {
 // down and re-acquire getUserMedia a few hundred ms later. A session counter
 // keeps one lifecycle's async start/stop from clobbering the next camera's
 // state when the two overlap.
-export function QrScanner({ onScan, active, paused = false, onError }: QrScannerProps) {
+export function QrScanner({ onScan, active, paused = false, onError, resetSignal = 0 }: QrScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<InstanceType<typeof import("html5-qrcode").Html5Qrcode> | null>(null);
   const sessionRef = useRef(0);
   // The library refires the same decoded text ~10x/sec while a QR stays in
-  // frame. Mirrors keep the effect and the camera stable; identical-token
-  // dedupe stops the spam at its source.
+  // frame. Mirrors keep the effect and the camera stable; the gate stops the
+  // identical-token spam at its source, while still admitting a re-scan after
+  // the operator clears the card.
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
   const pausedRef = useRef(paused);
-  const lastTokenRef = useRef<string | null>(null);
+  const gateRef = useRef(createCodeGate());
 
   useEffect(() => {
     onScanRef.current = onScan;
     onErrorRef.current = onError;
     pausedRef.current = paused;
   });
+
+  useEffect(() => {
+    if (resetSignal > 0) gateRef.current.reset();
+  }, [resetSignal]);
 
   useEffect(() => {
     if (!active) return;
@@ -63,8 +71,7 @@ export function QrScanner({ onScan, active, paused = false, onError }: QrScanner
             // case-insensitive, so dedupe and forwarding agree with the server
             // on one canonical form.
             const token = decodedText.trim().toLowerCase();
-            if (token === lastTokenRef.current) return;
-            lastTokenRef.current = token;
+            if (!gateRef.current.shouldForward(token)) return;
             onScanRef.current(token);
           },
           () => {
@@ -84,7 +91,7 @@ export function QrScanner({ onScan, active, paused = false, onError }: QrScanner
       // the next camera's refs, and stop the exact instance this effect owns.
       mounted = false;
       sessionRef.current += 1;
-      lastTokenRef.current = null;
+      gateRef.current.reset();
       const scanner = scannerRef.current;
       scannerRef.current = null;
       if (scanner) {

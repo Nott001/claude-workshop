@@ -41,10 +41,11 @@ describe("migration grants", () => {
       "00005_qa_message_policy_staff.sql",
       "00006_cancel_pending_email_change.sql",
       "00007_short_qr_token.sql",
-      "00008_email_change_attempt.sql",
-      "00009_event_capacity.sql",
-      "00010_event_mode.sql",
-      "00011_event_meeting_url.sql",
+      "00008_ticket_realtime_read.sql",
+      "00009_email_change_attempt.sql",
+      "00010_event_capacity.sql",
+      "00011_event_mode.sql",
+      "00012_event_meeting_url.sql",
     ]);
   });
 
@@ -96,10 +97,16 @@ describe("migration grants", () => {
   // The QA read policy used to subquery TICKET inline, which raised 42501 for
   // authenticated and killed realtime delivery. 00004 routes the check through
   // a SECURITY DEFINER helper instead; a grant on TICKET would make that read a
-  // public surface again, so its absence is pinned.
-  it("keeps TICKET unreadable by anon and authenticated", () => {
-    const exposed = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\.\\"TICKET\\"[^;]*TO[^;]*(anon|authenticated)`, "i");
-    expect(exposed.test(all)).toBe(false);
+  // public surface again, so its absence was pinned. The kiosk and the ticket
+  // pass are the opposite: they need the browser role to read the rows realtime
+  // will deliver, so 00008 grants authenticated a scoped read. The pin becomes:
+  // anon stays locked out, and the grant is scoped by the ticket_visible helper
+  // rather than blanket.
+  it("keeps TICKET unreadable by anon but grants authenticated a scoped read", () => {
+    const anon = new RegExp(`GRANT[^;]+ON\\s+\\"?public\\"?\\.\\"TICKET\\"[^;]*TO[^;]*anon`, "i");
+    expect(anon.test(all)).toBe(false);
+    expect(all).toContain('GRANT SELECT ON TABLE "public"."TICKET" TO "authenticated";');
+    expect(all).toContain("ticket_visible");
   });
 
   it("routes the QA read policy through the SECURITY DEFINER helper", () => {

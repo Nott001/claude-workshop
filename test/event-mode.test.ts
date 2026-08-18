@@ -92,8 +92,8 @@ describe("event mode in the form", () => {
  * The form clears the address and the API refuses the pair, but neither is
  * where the rule can be made true — a direct write reaches neither.
  */
-describe("event mode migration (00010)", () => {
-  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00010_event_mode.sql"), "utf8").replace(
+describe("event mode migration (00011)", () => {
+  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/00011_event_mode.sql"), "utf8").replace(
     /\r\n/g,
     "\n",
   );

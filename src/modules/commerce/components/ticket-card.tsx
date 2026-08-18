@@ -103,7 +103,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-2">
             <Link
               href={withBackLink(`/events/${ticket.event_id}`, "tickets")}
               // One per ticket in the list. `/tickets` was already the page
@@ -116,13 +116,24 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
               Go to event
               <span className="material-symbols-rounded text-[14px]">arrow_forward</span>
             </Link>
+            <Link
+              href={`/tickets/${ticket.id}`}
+              prefetch={false}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-xs font-bold text-fg transition-colors hover:border-brand hover:text-brand"
+            >
+              View pass
+            </Link>
           </div>
         </div>
       </div>
 
       <div className="hidden w-px self-stretch bg-[linear-gradient(to_bottom,transparent_8px,_#d0d5dd_8px,_#d0d5dd_12px,transparent_12px)] bg-[length:1px_20px] sm:block" />
 
-      <div className="flex w-56 shrink-0 flex-col items-center justify-center gap-3 border-l border-dashed border-border bg-muted p-6">
+      <Link
+        href={`/tickets/${ticket.id}`}
+        prefetch={false}
+        className="flex w-56 shrink-0 flex-col items-center justify-center gap-3 border-l border-dashed border-border bg-muted p-6 transition-colors hover:bg-muted/80"
+      >
         {qrFailed ? (
           <div className="grid size-44 place-items-center rounded-lg bg-surface">
             <span className="text-sm text-muted-fg">No QR</span>
@@ -147,7 +158,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           <span className="block text-[10px] uppercase tracking-wider text-muted-fg">Check-in code</span>
           <span className="font-mono text-base font-bold tracking-widest text-fg">{ticket.qr_token}</span>
         </div>
-      </div>
+      </Link>
     </div>
   );
 }

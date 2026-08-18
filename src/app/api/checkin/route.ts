@@ -7,6 +7,7 @@ import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
 import { checkinSchema, formatCheckinResult } from "@/modules/kiosk/lib/checkin";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { sendEmailNotification } from "@/shared/integrations/email/send-notification";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { afterResponse } from "@/shared/lib/after-response";
@@ -29,6 +30,18 @@ export async function POST(req: Request) {
 
   if (!ticket) {
     return NextResponse.json({ error: "Invalid QR token" }, { status: 404 });
+  }
+
+  // Role-only gating let any facilitator check any event in. The realtime read
+  // (sheet 01) is scoped to the event's team, and the mutating routes must not
+  // be wider: enforce the same `attendees` capability here.
+  try {
+    await loadEventOr403(supabase, ticket.event_id, guard.user, "attendees");
+  } catch (err) {
+    if ((err as { status?: number })?.status === 403) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    throw err;
   }
 
   if (ticket.status === "checked_in") {

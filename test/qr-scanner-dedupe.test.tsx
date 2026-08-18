@@ -39,6 +39,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 describe("QrScanner dedupe", () => {
@@ -78,7 +79,8 @@ describe("QrScanner dedupe", () => {
     expect(onScan).toHaveBeenNthCalledWith(2, "tok-b");
   });
 
-  it("allows the same token again after the scanner restarts", async () => {
+  it("allows the same token again after the scanner restarts once the cooldown elapses", async () => {
+    vi.useFakeTimers();
     const onScan = vi.fn();
     const { rerender } = render(<QrScanner onScan={onScan} active />);
     await act(async () => {
@@ -94,6 +96,12 @@ describe("QrScanner dedupe", () => {
       await Promise.resolve();
     });
 
+    // A restart is a fresh scan session, but the gate still holds the previous
+    // token for the cooldown so a still-in-frame QR cannot re-trigger.
+    await fireDecoded("tok-a");
+    expect(onScan).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(600);
     await fireDecoded("tok-a");
 
     expect(onScan).toHaveBeenCalledTimes(2);
@@ -151,7 +159,8 @@ describe("QrScanner dedupe", () => {
     expect(onScan).toHaveBeenNthCalledWith(2, "tok-c");
   });
 
-  it("accepts the same token again after the camera lifecycle restarts", async () => {
+  it("accepts the same token again after the camera lifecycle restarts once the cooldown elapses", async () => {
+    vi.useFakeTimers();
     const onScan = vi.fn();
     const { rerender } = render(<QrScanner onScan={onScan} active />);
     await act(async () => {
@@ -166,6 +175,10 @@ describe("QrScanner dedupe", () => {
       await Promise.resolve();
     });
 
+    await fireDecoded("tok-a");
+    expect(onScan).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(600);
     await fireDecoded("tok-a");
 
     expect(onScan).toHaveBeenCalledTimes(2);

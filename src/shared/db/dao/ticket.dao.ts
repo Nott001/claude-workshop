@@ -149,6 +149,12 @@ export async function findWithEvent(supabase: DbClient, paymentId: number): Prom
   return data;
 }
 
+export async function findByIdWithEvent(supabase: DbClient, ticketId: number): Promise<TicketWithEvent | null> {
+  const { data, error } = await supabase.from("TICKET").select(TICKET_CARD_SELECT).eq("id", ticketId).maybeSingle();
+  throwOnDbError(error, "ticket.dao.findByIdWithEvent");
+  return data;
+}
+
 export async function create(
   supabase: DbClient,
   data: {
