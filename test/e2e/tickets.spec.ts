@@ -1,6 +1,15 @@
 import { ROLES } from "../../src/shared/lib/roles";
 import { test, expect } from "@playwright/test";
-import { serviceClient, createUser, createEvent, signIn, cleanup, type SeededUser, type SeededEvent } from "./fixtures";
+import {
+  serviceClient,
+  createUser,
+  createEvent,
+  assignFacilitator,
+  signIn,
+  cleanup,
+  type SeededUser,
+  type SeededEvent,
+} from "./fixtures";
 
 /**
  * The purchase path, against a real database.
@@ -88,6 +97,10 @@ test("a facilitator checks in a ticket, and a replay is reported as duplicate", 
   const attendee = await createUser(db, ROLES.ATTENDEE);
   const facilitator = await createUser(db, ROLES.FACILITATOR);
   const event = await createEvent(db);
+  // /api/checkin is scoped to the event's own team, not to the facilitator
+  // role at large: it resolves the ticket first, then refuses anyone who is
+  // not on that event's staff. Without this the check-in below is a 403.
+  await assignFacilitator(db, facilitator.userId, event.eventId);
   users.push(attendee, facilitator);
   events.push(event);
 
