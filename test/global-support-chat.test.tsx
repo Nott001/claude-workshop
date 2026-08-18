@@ -200,7 +200,7 @@ describe("GlobalSupportChat signed in", () => {
     expect(screen.getByText("This conversation has ended. Send a message to start a new one.")).toBeTruthy();
   });
 
-  it("removes a message a soft-delete UPDATE arrives with", async () => {
+  it("removes a message when a DELETE event arrives", async () => {
     mockFetch(() => ({
       messages: [
         { id: 1, user_id: 7, message: "Help please", sent_at: "2026-08-05T09:00:00Z", USER: { role: ROLES.ATTENDEE } },
@@ -214,9 +214,9 @@ describe("GlobalSupportChat signed in", () => {
     await screen.findByText("Help please");
 
     const realtimeOptions = (useRealtimeMessages as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
-      onUpdate?: (msg: { id: number; deleted_at?: string | null }) => void;
+      onDelete?: (msg: { id: number }) => void;
     };
-    realtimeOptions.onUpdate?.({ id: 1, deleted_at: "2026-08-05T10:00:00Z" });
+    realtimeOptions.onDelete?.({ id: 1 });
 
     await waitFor(() => expect(screen.queryByText("Help please")).toBeNull());
   });

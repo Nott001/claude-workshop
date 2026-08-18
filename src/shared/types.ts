@@ -123,7 +123,6 @@ export interface ChatMessage {
   recipient_user_id: number | null;
   message: string;
   sent_at: string;
-  deleted_at: string | null;
   updated_at: string;
 }
 

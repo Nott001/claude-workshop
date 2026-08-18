@@ -83,14 +83,8 @@ export async function findMessageById(supabase: DbClient, messageId: number): Pr
   return data;
 }
 
-export async function updateMessage(supabase: DbClient, messageId: number, updates: Record<string, unknown>): Promise<boolean> {
-  const { error } = await supabase.from("CHAT_MESSAGE").update(updates).eq("id", messageId);
-  return !error;
-}
-
-export async function softDeleteMessages(supabase: DbClient, ids: number[]): Promise<boolean> {
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("CHAT_MESSAGE").update({ deleted_at: now, updated_at: now }).in("id", ids);
+export async function deleteMessagesByIds(supabase: DbClient, ids: number[]): Promise<boolean> {
+  const { error } = await supabase.from("CHAT_MESSAGE").delete().in("id", ids);
   return !error;
 }
 

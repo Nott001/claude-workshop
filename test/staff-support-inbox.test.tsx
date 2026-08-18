@@ -73,7 +73,6 @@ const MESSAGE = (id: number, user_id: number, message: string) => ({
   recipient_user_id: user_id === 20 ? null : 20,
   message,
   sent_at: "2026-08-05T09:00:00Z",
-  deleted_at: null,
   updated_at: "2026-08-05T09:00:00Z",
   support_type: "general",
   event_id: null,
