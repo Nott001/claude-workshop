@@ -42,9 +42,12 @@ export default async function HomePage() {
             {hasMore && (
               <Link
                 href="/events"
-                className="inline-flex items-center gap-1 text-sm font-semibold text-brand outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+                // `group`, so the underline is the label's alone. On the link
+                // it also ran under the chevron, where a ligature glyph sitting
+                // on the baseline made it read as a stray dash.
+                className="group inline-flex items-center gap-1 text-sm font-semibold text-muted-fg outline-none transition-colors hover:text-fg focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                See all events
+                <span className="group-hover:underline">See all events</span>
                 <span aria-hidden className="material-symbols-rounded text-base">
                   chevron_right
                 </span>

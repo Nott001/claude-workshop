@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Role and status pills are legible. The label had been the same hue as its own fill at a different strength, which on white measured 1.97:1 for `warning` and 2.73:1 for `success` against the 4.5:1 that text this size needs — the pill read as a solid lozenge with something written in it. Labels now take the muted foreground the surrounding secondary text already uses, over a fill at double the tint, which clears the line on every variant.
+
+  Dark mode takes the full foreground instead. Its muted foreground clears AA against the bare surface by 4.81:1 and has nothing left to give, so the same tint underneath put all four variants back under the line — the fix for one theme was a regression in the other. A pill also no longer wraps: `Super Admin` is the only role name of two words, and in the organization table it broke across two lines, which turned the rounded pill into a lozenge that sat crooked against its row.
+
 - The top navigation bar is taller, its links a step larger, and it is frosted rather than solid. At 64px with 14px links it read as chrome to get past; it now stands at 72px with 16px links, and the page scrolls under it through a translucent, blurred surface instead of behind an opaque band. SIGN IN keeps its 14px deliberately — it is the one control up there that is not navigation, and it was already carrying that distinction in its caps and letter-spacing rather than in its size.
 
   The staff bar matches it — same height, same frosted surface — which meant moving the collapsible rail down with it, since the rail hangs off the bar's bottom edge and sizing one without the other opens a gap down the left of every staff page. Both now read the height from the token instead of naming a number, and the content offset went back to being one value rather than one per bar. The surface itself is shared between the two bars rather than spelled out twice: the alpha and the blur are one decision, since translucency is what lets the page through and the blur is the only reason the links stay readable over it, and half that pair copied into a second bar is a bar you cannot read.
