@@ -241,6 +241,21 @@ describe("Staff event detail tabs", () => {
     await waitFor(() => expect(remounted.getAttribute("aria-checked")).toBe("true"));
   });
 
+  it("shows the survey opt-in as a labelled row with a visible Off state", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: false });
+
+    expect(screen.getByText("Opt-in to post-event survey")).toBeTruthy();
+    expect(screen.getByText("Off")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Enable post-event survey" })).toBeTruthy();
+    expect(screen.queryByText("Surveys are off for this event.")).toBeNull();
+  });
+
+  it("shows an On status once the survey opt-in is enabled", () => {
+    renderDetail(ROLES.ADMIN, "surveys", { survey_enabled: true });
+
+    expect(screen.getByText("On")).toBeTruthy();
+  });
+
   it("shows a facilitator only Overview and Course, with no admin actions", () => {
     renderDetail(ROLES.FACILITATOR);
 

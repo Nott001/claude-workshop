@@ -173,6 +173,8 @@
 
 ### Fixed
 
+- The staff survey opt-in is a labelled row now, not a bare pill in the card header. The old pill read as disabled when off and turned into a solid blue blob when on, so staff could not tell the survey state at a glance. The switch now sits beside its "Opt-in to post-event survey" label with a visible On/Off word, so the state is readable in both colours and the dimmed-grey "off" styling no longer pretends the control is disabled.
+
 - The staff survey opt-in keeps its state when an admin leaves the Surveys tab and comes back. Toggling the switch saved to the server but only into a local copy, and the page mounts the panel per tab — so leaving the tab unmounted it and returning rebuilt it from the stale event, making the switch read as if the toggle had never happened until a full refresh. The panel now folds the saved value back into the page's event, the same way the meeting link, cover upload and edit form already did.
 
 - Colours that were never being applied are applied now. Sixty-two class names across eighteen files named tokens this theme does not define — `text-foreground`, `text-muted-foreground`, `text-destructive`, `bg-surface-hover`, `bg-primary`, `text-primary-foreground`, `bg-background`, `to-background`, `text-accent`, `border-border-strong` — leftovers from a different palette's naming. Tailwind emits nothing for a class it cannot resolve, and nothing is not an error: the markup looked right, the build passed, and the element simply inherited whatever surrounded it.
