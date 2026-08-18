@@ -148,10 +148,10 @@ export function EventSurveyPanel({ event, onSaved }: { event: SurveyEvent; onSav
             role="switch"
             aria-checked={enabled}
             aria-label="Enable post-event survey"
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${enabled ? "bg-brand" : "bg-muted"}`}
+            className={`flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50 ${enabled ? "bg-brand" : "bg-border"}`}
           >
             <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${enabled ? "translate-x-[22px]" : "translate-x-0.5"}`}
+              className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`}
             />
           </button>
         </div>
