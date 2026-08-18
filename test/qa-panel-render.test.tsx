@@ -24,7 +24,6 @@ function question(id: number, message: string, role: UserRole = ROLES.ATTENDEE) 
     user_id: 2,
     message,
     created_at: "2026-08-05T09:00:00Z",
-    deleted_at: null,
     updated_at: "2026-08-05T09:00:00Z",
     USER: { full_name: "Ana", role },
   };
@@ -38,7 +37,6 @@ function rawQuestion(id: number, message: string): QaMessage {
     user_id: 2,
     message,
     created_at: "2026-08-05T09:00:00Z",
-    deleted_at: null,
     updated_at: "2026-08-05T09:00:00Z",
   };
 }
@@ -212,15 +210,6 @@ describe("QAPanel", () => {
     await screen.findByText("Any question?");
 
     callbacks.onDelete?.(rawQuestion(1, "Any question?"));
-
-    await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
-  });
-
-  it("removes a row a soft-delete UPDATE arrives with", async () => {
-    renderPanel(ROLES.ATTENDEE);
-    await screen.findByText("Any question?");
-
-    callbacks.onUpdate?.({ ...rawQuestion(1, "Any question?"), deleted_at: "2026-08-05T10:00:00Z" });
 
     await waitFor(() => expect(screen.queryByText("Any question?")).toBeNull());
   });

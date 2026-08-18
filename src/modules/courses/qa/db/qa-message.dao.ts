@@ -59,14 +59,8 @@ export async function findById(supabase: DbClient, id: number): Promise<QaMessag
   return data;
 }
 
-export async function updateMessage(supabase: DbClient, id: number, updates: Record<string, unknown>): Promise<boolean> {
-  const { error } = await supabase.from("QA_MESSAGE").update(updates).eq("id", id);
-  return !error;
-}
-
-export async function softDelete(supabase: DbClient, ids: number[]): Promise<boolean> {
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("QA_MESSAGE").update({ deleted_at: now, updated_at: now }).in("id", ids);
+export async function deleteByIds(supabase: DbClient, ids: number[]): Promise<boolean> {
+  const { error } = await supabase.from("QA_MESSAGE").delete().in("id", ids);
   return !error;
 }
 

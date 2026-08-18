@@ -130,7 +130,7 @@ export async function deleteQuestion(
     }
   }
 
-  const ok = await qaMessageDao.softDelete(supabase, [messageId]);
+  const ok = await qaMessageDao.deleteByIds(supabase, [messageId]);
   if (!ok) {
     throw new QaServiceError(500, "Failed to delete message");
   }
