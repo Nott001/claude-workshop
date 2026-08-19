@@ -10,17 +10,10 @@ import { postUpload } from "@/shared/integrations/storage/upload-client";
 import { planDraft, planIsEmpty, type ModuleDraft } from "./module-draft";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 
-/**
- * Routes answer with `{ error: string }` for a refusal the caller can act on and
- * `{ error: { message } }` elsewhere. Reading only the latter turned a 409 into
- * a generic failure, which told the author nothing about what to do next.
- */
 async function refusalMessage(res: Response, fallback: string): Promise<string> {
-  const body = await res.json().catch(() => null);
-  const error = body?.error;
-  if (typeof error === "string") return error;
-  return typeof error?.message === "string" ? error.message : fallback;
+  return apiErrorMessage(await res.json().catch(() => null), fallback);
 }
 
 export function useCourseCreate(eventId: string, existingCourseId?: number) {
