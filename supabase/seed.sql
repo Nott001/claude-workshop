@@ -211,14 +211,14 @@ ON CONFLICT (auth_user_id) DO NOTHING;
 -- draft Community Meetup.
 INSERT INTO public."EVENT" (
   id, title, event_date, start_time, end_time, venue_name, venue_address,
-  description, price, currency, status, survey_enabled
+  description, price, currency, status, survey_enabled, capacity
 ) OVERRIDING SYSTEM VALUE VALUES
   (1, 'Product Summit 2026', CURRENT_DATE + 14, '09:00:00', '17:00:00',
    'StartupLab HQ', '123 Innovation Drive, Manila',
    'A day of product thinking, workshops, and talks.',
-   500.00, 'PHP', 'active', false),
+   500.00, 'PHP', 'active', false, 10),
   (2, 'Community Meetup (Draft)', CURRENT_DATE + 30, '18:00:00', '20:30:00',
-   'TBD', NULL, 'A casual evening for the community.', 0.00, 'PHP', 'draft', false)
+   'TBD', NULL, 'A casual evening for the community.', 0.00, 'PHP', 'draft', false, NULL)
 ON CONFLICT (id) DO NOTHING;
 
 -- Past events
@@ -237,14 +237,16 @@ INSERT INTO public."EVENT" (
    'A conference on tokens, component libraries, and accessibility at scale.', 800.00, 'PHP', 'active', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Upcoming events (id 1 stays the nearest upcoming; see landing query limit)
+-- Upcoming events (id 1 stays the nearest upcoming; see landing query limit).
+-- AI/ML Meetup is capped at 3, exactly its seeded seat count, so it reads as
+-- sold out and can exercise the capacity refusal.
 INSERT INTO public."EVENT" (
   id, title, event_date, start_time, end_time, venue_name, venue_address,
-  description, price, currency, status, survey_enabled
+  description, price, currency, status, survey_enabled, capacity
 ) OVERRIDING SYSTEM VALUE VALUES
   (6, 'AI/ML Meetup', CURRENT_DATE + 60, '18:30:00', '21:00:00',
    'Edge Labs', 'Commonwealth Avenue, Quezon City',
-   'A casual meetup on applied machine learning with local practitioners.', 0.00, 'PHP', 'active', false)
+   'A casual meetup on applied machine learning with local practitioners.', 0.00, 'PHP', 'active', false, 3)
 ON CONFLICT (id) DO NOTHING;
 
 -- Course owned by the active event (COURSE.event_id is UNIQUE) — course id 1
