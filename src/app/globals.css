@@ -123,6 +123,46 @@
   }
 }
 
+/* The hero's lines arrive in the order they are read, rather than the whole
+   panel appearing at once. Each is offset from the one above it, which is what
+   makes it read as a greeting settling into place instead of four things
+   animating simultaneously.
+
+   The rest state is the visible one, and the animation is added only where
+   motion is welcome. Written the other way round — hidden by default, revealed
+   by an animation — a reader who has asked their system for reduced motion gets
+   a hero that never appears at all, which is the usual way this effect breaks
+   accessibility. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-rise {
+    animation: hero-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  /* `backwards` above is what holds each line at its start frame through its
+     own delay; without it every line paints first and then jumps back to
+     animate. */
+  .hero-rise-1 {
+    animation-delay: 0.08s;
+  }
+  .hero-rise-2 {
+    animation-delay: 0.16s;
+  }
+  .hero-rise-3 {
+    animation-delay: 0.26s;
+  }
+}
+
 /* Briefly glows the row or module that just moved in the curriculum builder so
    the reorder registers even when the target is off-screen. */
 @keyframes curriculum-flash {
