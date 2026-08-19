@@ -10,6 +10,19 @@ type UpdateEventInput = Partial<CreateEventInput>;
 
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
+/**
+ * End-edged bound: an event is still upcoming while its end edge is in the
+ * future, on the same local clock as isEventFinished.
+ */
+function upcomingBounds(now: Date): string {
+  return `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`;
+}
+
+/** The exact complement: every event whose end edge has passed. */
+function pastBounds(now: Date): string {
+  return `event_date.lt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.lt.${localTimeString(now)})`;
+}
+
 type EventSpeakerJoin = {
   speaker_profile_id: number;
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email" | "profile_image_url"> };
@@ -82,19 +95,13 @@ export async function list(
     // merely while its date has not passed — otherwise a session that ended
     // an hour ago keeps a seat on the landing page until midnight. Same
     // local-clock convention as isEventFinished.
-    const now = new Date();
-    query = query.or(
-      `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`,
-    );
+    query = query.or(upcomingBounds(new Date()));
   } else if (filter === "past") {
     // The exact complement of "upcoming", on the same local clock. Comparing
     // `event_date` against a UTC day boundary disagreed with isEventFinished
     // twice over: it kept a session that ended this morning out of the archive
     // until midnight, and west of UTC it dropped in a day early.
-    const now = new Date();
-    query = query.or(
-      `event_date.lt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.lt.${localTimeString(now)})`,
-    );
+    query = query.or(pastBounds(new Date()));
   }
 
   // Title/venue search, only when a term is present. ilikePattern quotes and
@@ -137,7 +144,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<Landing
     .from("EVENT")
     .select("*", { count: "exact" })
     .eq("status", "active")
-    .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
+    .or(upcomingBounds(now))
     .order("event_date", { ascending: true })
     .limit(LANDING_EVENT_LIMIT);
   // Without this the landing page renders "No upcoming events" identically
@@ -241,12 +248,34 @@ export async function getAttendeeCounts(supabase: DbClient, eventIds: number[]):
   return counts;
 }
 
-export async function findByIds(supabase: DbClient, ids: number[]): Promise<EventWithCourseName[]> {
+export type SpeakerEventFilter = "upcoming" | "completed" | "drafts";
+
+export async function findByIds(
+  supabase: DbClient,
+  ids: number[],
+  options?: { filter?: SpeakerEventFilter | null },
+): Promise<EventWithCourseName[]> {
   if (ids.length === 0) return [];
-  const { data } = await supabase
-    .from("EVENT")
-    .select("*, COURSE!event_id(course_name)")
-    .in("id", ids)
-    .order("event_date", { ascending: true });
-  return data ?? [];
+  const { filter } = options ?? {};
+  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").in("id", ids);
+
+  if (filter === "upcoming") {
+    // A live event is still an active engagement whose end edge has not passed,
+    // so it belongs under Upcoming; the bound includes it.
+    const now = new Date();
+    query = query.eq("status", "active").or(upcomingBounds(now));
+  } else if (filter === "completed") {
+    // The effective status derives complete from a past active row, so "active"
+    // or "complete" inside the past bound is the column-level spelling of it.
+    const now = new Date();
+    query = query.in("status", ["active", "complete"]).or(pastBounds(now));
+  } else if (filter === "drafts") {
+    query = query.eq("status", "draft");
+  }
+
+  // An archive reads backwards from the most recent session; every other
+  // listing reads forwards from the next one.
+  query = query.order("event_date", { ascending: filter !== "completed" });
+  const { data } = await query;
+  return (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) }));
 }

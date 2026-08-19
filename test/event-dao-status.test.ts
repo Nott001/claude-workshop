@@ -65,6 +65,93 @@ describe("eventDao effective status", () => {
   });
 });
 
+describe("eventDao findByIds effective status", () => {
+  it("serves a past active event as complete", async () => {
+    const events = await eventDao.findByIds(clientWith([pastActive]), [1]);
+
+    expect(events[0].status).toBe("complete");
+  });
+
+  it("leaves a future active event as active", async () => {
+    const events = await eventDao.findByIds(clientWith([futureActive]), [2]);
+
+    expect(events[0].status).toBe("active");
+  });
+
+  it("leaves a past draft event as draft", async () => {
+    const events = await eventDao.findByIds(clientWith([pastDraft]), [3]);
+
+    expect(events[0].status).toBe("draft");
+  });
+});
+
+describe("eventDao findByIds filter", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("filter=upcoming keeps only active events whose end edge is in the future", async () => {
+    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.findByIds(client, [1, 2], { filter: "upcoming" });
+
+    expect(chain.eq).toHaveBeenCalledWith("status", "active");
+    expect(chain.or).toHaveBeenCalledWith(
+      expect.stringMatching(/^event_date\.gt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.gte\.15:00:00\)$/),
+    );
+  });
+
+  it("filter=completed asks for active/complete rows inside the past bound", async () => {
+    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.findByIds(client, [1, 2], { filter: "completed" });
+
+    expect(chain.in).toHaveBeenCalledWith("status", ["active", "complete"]);
+    expect(chain.or).toHaveBeenCalledWith(
+      expect.stringMatching(/^event_date\.lt\.2026-08-12,and\(event_date\.eq\.2026-08-12,end_time\.lt\.15:00:00\)$/),
+    );
+  });
+
+  it("filter=drafts asks for draft rows with no time bound", async () => {
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.findByIds(client, [3], { filter: "drafts" });
+
+    expect(chain.eq).toHaveBeenCalledWith("status", "draft");
+    expect(chain.or).not.toHaveBeenCalled();
+  });
+
+  it("orders completed newest first and every other filter oldest first", async () => {
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.findByIds(client, [1, 2], { filter: "completed" });
+    expect(chain.order).toHaveBeenCalledWith("event_date", { ascending: false });
+
+    await eventDao.findByIds(client, [1, 2], { filter: "drafts" });
+    expect(chain.order).toHaveBeenCalledWith("event_date", { ascending: true });
+  });
+
+  it("with no filter keeps the plain id lookup in ascending date order", async () => {
+    const chain = chainStub({ data: [], error: null });
+    const client = { from: vi.fn(() => chain) } as unknown as DbClient;
+
+    await eventDao.findByIds(client, [1, 2]);
+
+    expect(chain.in).toHaveBeenCalledWith("id", [1, 2]);
+    expect(chain.eq).not.toHaveBeenCalled();
+    expect(chain.or).not.toHaveBeenCalled();
+    expect(chain.order).toHaveBeenCalledWith("event_date", { ascending: true });
+  });
+});
+
 describe("eventDao upcoming filter", () => {
   afterEach(() => {
     vi.useRealTimers();
