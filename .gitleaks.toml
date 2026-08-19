@@ -1,0 +1,24 @@
+# Gitleaks configuration.
+#
+# The action scans the commits a pull request contains, not the working tree,
+# so a finding in an already-pushed commit cannot be answered by editing the
+# file today — the exception has to be named here to be seen at all.
+#
+# `[allowlist]` singular: 8.24.3 does not apply the `[[allowlists]]` array form,
+# and silently finds the leak anyway.
+
+[extend]
+useDefault = true
+
+# The synthetic check-in code in test/ticket-code-overflow.test.tsx. Tickets
+# issued before #240 carried 64 hex characters in one unbroken run, and the
+# test renders that worst case to prove the ticket layout wraps it rather than
+# spilling out of the card. The value is a 32-character pattern written twice
+# rather than anything ever issued, but it is long enough and high-entropy
+# enough to read as a generic API key.
+#
+# Matched against the line rather than the captured secret, which for this rule
+# includes the assignment and so never equals the token on its own.
+[allowlist]
+regexTarget = "line"
+regexes = ['''a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90''']

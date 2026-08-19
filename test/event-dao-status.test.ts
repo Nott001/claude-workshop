@@ -92,7 +92,7 @@ describe("eventDao findByIds filter", () => {
   });
 
   it("filter=upcoming keeps only active events whose end edge is in the future", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;
@@ -106,7 +106,7 @@ describe("eventDao findByIds filter", () => {
   });
 
   it("filter=completed asks for active/complete rows inside the past bound", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;

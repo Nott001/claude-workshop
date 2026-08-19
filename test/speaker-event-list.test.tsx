@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { SpeakerEventListPage } from "@/modules/events/pages/speaker-event-list";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const liveTalk = {
   event_id: 12,
@@ -95,7 +96,7 @@ function stubBuckets(buckets: Partial<typeof defaultBuckets> = {}) {
 }
 
 beforeEach(() => {
-  vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+  vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
   stubBuckets();
 });
 
