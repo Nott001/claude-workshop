@@ -4,6 +4,12 @@
 
 ### Changed
 
+- `/events` and `/community` render their first screen on the server. Both routes were a one-line re-export of a client component, so a visitor waited out four steps before seeing anything — the HTML, the JS bundle, hydration, and only then the request for the rows. The landing page has always fetched its events server-side, and that was the whole of why it felt faster than the other two for the same data. Each route now fetches through the same service call its API route uses, session included, so the seed is scoped exactly as the endpoint would have scoped it.
+
+  `/community` was the slower of the two because it fired two independent requests and could not finish painting until the slower one landed. They are one `Promise.all` on the server now. Its memories strip also gets placeholder cards while it loads, rather than a gap that pushes the footer down when the real ones arrive.
+
+  The hooks still own everything after the first paint: a tab, a search or a reload fetches exactly as before, and a hook handed no seed behaves as it always did — which is what the staff pages rely on. The skip is keyed on which query the state currently answers rather than on a first-run flag, because React mounts a tree twice in development and a one-shot flag is spent by the pass it throws away, leaving the real one to refetch everything the server had just sent.
+
 - Each tab of the events list fetches its own events. The tabs were a filter applied in the browser to a single page of fifty rows, so a tab showed only the events of its kind that happened to fall in those fifty — put fifty upcoming events on the books and Completed rendered empty with the entire archive sitting behind it, reachable by nothing on screen. Every tab is now its own query, with its own pagination, and Load More walks that tab rather than the undifferentiated list.
 
   Upcoming and Completed ask for a window on the calendar rather than a status, because a past event that nobody has published as finished still reads as complete — the status column is only advanced by hand, and the read path derives the truth from the end time. Asking for `status=complete` would have missed exactly those. Drafts is the one tab that really is a status, since a draft sits on either side of today.

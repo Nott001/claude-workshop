@@ -9,7 +9,7 @@ import { EventListSkeleton } from "@/modules/events/components/event-list-skelet
 import { useSession } from "@/modules/auth/components/session-context";
 import { roleHome } from "@/modules/auth/lib/role-home";
 import { useEventList } from "@/modules/events/lib/use-event-list";
-import type { FilterTab } from "@/modules/events/lib/use-event-list";
+import type { EventListSeed, FilterTab } from "@/modules/events/lib/use-event-list";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { TableSearch } from "@/shared/components/table-toolbar";
 
@@ -18,7 +18,7 @@ const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 
-export function EventListPage() {
+export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
   const router = useRouter();
   const { user } = useSession();
   const {
@@ -34,7 +34,7 @@ export function EventListPage() {
     total,
     search,
     setSearch,
-  } = useEventList();
+  } = useEventList({ initial });
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EventPhoto, LandingEvent } from "@/shared/types";
 import { toLandingEvent, type EventRow } from "./landing-event";
 
@@ -28,10 +28,18 @@ interface MemoryResponse {
  * contract as the feed it sits beside: a supporting strip on a page with other
  * reasons to exist never trades its silence for a page-wide error.
  */
-export function useEventMemories(limit: number) {
-  const [memories, setMemories] = useState<EventMemoryCardData[]>([]);
+export function useEventMemories(limit: number, initial?: EventMemoryCardData[]) {
+  const [memories, setMemories] = useState<EventMemoryCardData[]>(initial ?? []);
+  // Seeded on the server, so the strip is in the first paint rather than
+  // arriving a round trip later. Keyed on the limit rather than counted down:
+  // development mounts the tree twice, and a one-shot flag is spent by the pass
+  // React throws away, leaving the real one to fetch what it was already given.
+  const seededLimitRef = useRef(initial ? limit : null);
+  const [loading, setLoading] = useState(!initial);
 
   useEffect(() => {
+    if (seededLimitRef.current === limit) return;
+
     let cancelled = false;
 
     fetch(`/api/events/memories?limit=${limit}`)
@@ -51,12 +59,15 @@ export function useEventMemories(limit: number) {
           })),
         );
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [limit]);
 
-  return { memories };
+  return { memories, loading };
 }

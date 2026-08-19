@@ -8,7 +8,7 @@ interface Course {
   course_name: string;
 }
 
-interface Event {
+export interface EventListItem {
   id: number;
   title: string;
   event_date: string;
@@ -19,7 +19,7 @@ interface Event {
   status: "draft" | "active" | "complete";
   event_type?: EventMode | null;
   cover_image_url: string | null;
-  COURSE: Course | null;
+  COURSE?: Course | null;
   attendee_count?: number;
   /** Seat cap, or null when uncapped. Read by the staff table's attendance cell. */
   capacity?: number | null;
@@ -27,7 +27,9 @@ interface Event {
 
 export type FilterTab = "upcoming" | "completed" | "drafts";
 
-const PAGE_SIZE = 50;
+/** Exported so the server component that seeds the first page asks the
+ *  database for exactly the page this hook would otherwise have fetched. */
+export const PAGE_SIZE = 50;
 
 /**
  * What each tab asks the server for.
@@ -56,6 +58,11 @@ function tabQuery(tab: FilterTab, includeDrafts: boolean): { filter?: string; st
       return { status: "draft" };
   }
 }
+export interface EventListSeed {
+  rows: EventListItem[];
+  total: number;
+}
+
 interface UseEventListOptions {
   /**
    * Include drafts under Upcoming. The general listing keeps drafts in their
@@ -63,16 +70,27 @@ interface UseEventListOptions {
    * event they have been assigned to run.
    */
   upcomingIncludesDrafts?: boolean;
+  /**
+   * The first page, already fetched on the server.
+   *
+   * Without it the page renders empty, hydrates, and only then asks for its
+   * rows — three round trips before anything appears, which is why /events felt
+   * slower than the landing page for the same data. The seed only answers the
+   * query this hook opens on (Upcoming, no search); every tab and every
+   * keystroke after that is fetched as before.
+   */
+  initial?: EventListSeed;
 }
 
 export function useEventList(options?: UseEventListOptions) {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
+  const seed = options?.initial;
+  const [events, setEvents] = useState<EventListItem[]>(seed?.rows ?? []);
+  const [loading, setLoading] = useState(!seed);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState((seed?.total ?? 0) > PAGE_SIZE);
+  const [total, setTotal] = useState(seed?.total ?? 0);
   const [activeTab, setActiveTab] = useState<FilterTab>("upcoming");
   const [search, setSearch] = useState("");
   const pageRef = useRef(1);
@@ -82,7 +100,7 @@ export function useEventList(options?: UseEventListOptions) {
   // and reports itself through `refreshing` instead. Not derived from
   // `events.length`, or a search matching nothing would arm the skeleton for
   // the next keystroke.
-  const loadedOnceRef = useRef(false);
+  const loadedOnceRef = useRef(!!seed);
 
   // Trimmed so a trailing space doesn't change the query and trigger a
   // spurious refetch; the raw value still shows in the input.
@@ -93,8 +111,22 @@ export function useEventList(options?: UseEventListOptions) {
   // dependency with a new identity on every render.
   const includeDrafts = options?.upcomingIncludesDrafts === true;
 
+  // Which query the state currently holds the answer to. The effect below skips
+  // itself while that is still the query being asked, which is what stops the
+  // seeded first page from being fetched a second time on hydration.
+  //
+  // Deliberately keyed on the query rather than counted down on first run: in
+  // development React mounts, unmounts and remounts, so a "skip once" flag is
+  // spent by the discarded pass and the real one refetches anyway — which is
+  // exactly what this looked like it was doing until the network was checked.
+  //
+  // Cleared the moment a different query is asked, so returning to Upcoming
+  // later refetches rather than re-showing rows another tab has since replaced.
+  const queryKey = `${activeTab}|${debouncedSearch}|${includeDrafts}`;
+  const seededKeyRef = useRef(seed ? `upcoming||${includeDrafts}` : null);
+
   const load = useCallback(
-    async (page: number): Promise<{ rows: Event[]; hasMore: boolean; ok: boolean; total: number }> => {
+    async (page: number): Promise<{ rows: EventListItem[]; hasMore: boolean; ok: boolean; total: number }> => {
       try {
         const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
         const scope = tabQuery(activeTab, includeDrafts);
@@ -104,7 +136,7 @@ export function useEventList(options?: UseEventListOptions) {
         const res = await fetch(`/api/events?${params}`);
         if (!res.ok) return { rows: [], hasMore: false, ok: false, total: 0 };
         const data = await res.json();
-        const rows = (Array.isArray(data.data) ? data.data : []) as Event[];
+        const rows = (Array.isArray(data.data) ? data.data : []) as EventListItem[];
         const total = data.total ?? 0;
         return { rows, hasMore: total > page * PAGE_SIZE, ok: true, total };
       } catch {
@@ -117,6 +149,9 @@ export function useEventList(options?: UseEventListOptions) {
   );
 
   useEffect(() => {
+    if (seededKeyRef.current === queryKey) return;
+    seededKeyRef.current = null;
+
     let cancelled = false;
     pageRef.current = 1;
 
@@ -149,7 +184,7 @@ export function useEventList(options?: UseEventListOptions) {
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, queryKey]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -163,7 +198,7 @@ export function useEventList(options?: UseEventListOptions) {
     setLoadingMore(false);
   }, [load, loadingMore]);
 
-  const isUpcoming = (event: Event) => event.status === "active" || (includeDrafts && event.status === "draft");
+  const isUpcoming = (event: EventListItem) => event.status === "active" || (includeDrafts && event.status === "draft");
 
   const filteredEvents = events.filter((event) => {
     switch (activeTab) {
