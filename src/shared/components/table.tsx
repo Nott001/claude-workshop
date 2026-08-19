@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactNode, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "@/shared/lib/utils";
+import { Skeleton } from "@/shared/components/skeleton";
 
 function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return <table className={cn("w-full table-fixed text-left text-sm", className)} {...props} />;
@@ -79,26 +80,38 @@ interface TableBodyStateProps {
   /** Column count, used to span the loading/empty row across the header width. */
   colSpan: number;
   empty: { icon?: string; title: string; hint?: string };
+  /**
+   * How many placeholder rows to hold open while loading.
+   *
+   * Eleven is what the staff pages measured: it is the height five of the seven
+   * settle at, so it is right for most and the two that list more say so.
+   */
+  loadingRows?: number;
   children: ReactNode;
 }
 
 // The body's state handled without ever unmounting the header: rows render
 // as-is (dimmed by TableBody's busy while a refetch is in flight), otherwise
 // loading and empty become single rows spanning the full header width.
-function TableBodyState({ ready, loading, colSpan, empty, children }: TableBodyStateProps) {
+function TableBodyState({ ready, loading, colSpan, empty, loadingRows = 11, children }: TableBodyStateProps) {
   if (ready) return <>{children}</>;
 
   if (loading) {
+    // Placeholder rows rather than one centred spinner. A spinner row is about
+    // a tenth the height of the rows it stands in for, so every staff table
+    // grew by some four hundred pixels when its data landed and pushed the
+    // whole page down with it — one shared cause behind a layout shift on all
+    // six of them. Rows of roughly the right height move nothing.
     return (
-      <tr>
-        <td colSpan={colSpan} className="px-5 py-12">
-          <div className="flex items-center justify-center">
-            <span aria-hidden className="material-symbols-rounded animate-spin text-2xl text-brand">
-              progress_activity
-            </span>
-          </div>
-        </td>
-      </tr>
+      <>
+        {Array.from({ length: loadingRows }, (_, i) => (
+          <tr key={i}>
+            <td colSpan={colSpan} className="px-5 py-3">
+              <Skeleton className="h-5" />
+            </td>
+          </tr>
+        ))}
+      </>
     );
   }
 

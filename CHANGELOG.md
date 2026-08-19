@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- Staff pages no longer jump as they load. The content sat full-width on the first paint and then slid 72px right when the collapsible rail appeared, because the shell decides whether to reserve that space from the signed-in role — and the role arrives a round trip after the page is already on screen. That one shift measured 0.047 on every staff route and was the largest single source on all seven. The width is now held open by the route: these prefixes are staff surfaces, so the space a rail will occupy is reserved before the session answers. Reserving it is not the same as rendering it — the rail itself still waits for the role, so a visitor without it is never shown the console's navigation on their way to being redirected.
+
+  Underneath that, two loading states were standing in for far more than they occupied. A staff page waiting on its role guard showed one centred line, and a table waiting on its rows showed a single spinner about a tenth the height of the rows it replaced — so the page grew twice, once by roughly 250px and again by roughly 430px. Both now hold open something close to the height that is coming: eleven rows, which is measured rather than guessed, being what five of the seven staff pages settle at exactly. The tickets list had the same one-line loading state and is fixed the same way.
+
+  Measured per route, before and after: `/staff/audit-logs` 0.138 → 0.001, the other six 0.082–0.093 → 0.001–0.007, and `/tickets` 0.057 → 0.024.
+
 - The event detail page no longer jumps as it loads. It rendered one line of centred text while its data was in flight, which let the app shell's `mt-auto` footer sit mid-viewport; the arriving page then pushed it back down in a single 0.425 layout shift — four times the 0.1 the Lighthouse budget allows, and effectively the whole of that page's CLS. It now reserves the page's actual shape while it waits: the same `max-w-page` gutters, the same two-column split, the same cover height, and an aside roughly the height of the register card that decides where the footer lands. Measured 0.426 before, 0.001 after.
 
   The course library had a milder version of the same thing at 0.062, and is fixed the same way. Both loading states are now built from one shared `Skeleton`, which is also what the events list skeleton is made of — the fill and the pulse are one decision rather than a shape copied between modules, and the layouts stay next to the pages whose height they have to match.

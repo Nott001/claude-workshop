@@ -130,11 +130,15 @@ describe("EventTable", () => {
     expect(document.querySelector("tbody")?.getAttribute("aria-busy")).toBe("true");
   });
 
-  it("shows the loading row under the headers, not the empty message, while the first load is pending", () => {
-    render(<EventTable events={[]} loading />);
+  // A single centred spinner stood about a tenth as tall as the rows it was
+  // standing in for, so the table grew some four hundred pixels when its data
+  // arrived and pushed the page down with it.
+  it("holds the rows' height under the headers, not the empty message, while the first load is pending", () => {
+    const { container } = render(<EventTable events={[]} loading />);
 
     expect(screen.getByText("Date")).toBeTruthy();
-    expect(screen.getByText("progress_activity")).toBeTruthy();
     expect(screen.queryByText("No events found")).toBeNull();
+    expect(screen.queryByText("progress_activity")).toBeNull();
+    expect(container.querySelectorAll("tbody tr").length).toBeGreaterThan(1);
   });
 });

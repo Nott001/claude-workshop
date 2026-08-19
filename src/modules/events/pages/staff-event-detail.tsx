@@ -13,7 +13,7 @@ import type { EventWithCourse } from "@/modules/events/lib/types";
 import { BackLink } from "@/shared/components/back-link";
 import { Button, buttonStyles } from "@/shared/components/button";
 import { SectionCard } from "@/shared/components/section-card";
-import { StaffPage, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
@@ -73,7 +73,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(initialTab) ? initialTab : "overview");
 
   if (pending || loading) {
-    return <StaffPageState>Loading event...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   if (error || !event) {

@@ -46,7 +46,8 @@ describe("ManageCoursePage", () => {
   it("shows the loading gate instead of the screen while loading", () => {
     render(<ManageCoursePage loading backHref="/staff/events/4" builder={builder([])} speakers={[]} />);
 
-    expect(screen.getByText("Loading...")).toBeTruthy();
+    expect(screen.getByLabelText("Loading page")).toBeTruthy();
+    expect(screen.queryByText("Loading...")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Manage Course" })).toBeNull();
   });
 

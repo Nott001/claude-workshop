@@ -61,14 +61,16 @@ describe("TableBodyState", () => {
     expect(body?.getAttribute("aria-busy")).toBe("true");
   });
 
-  it("spans a loading row under a header that stays mounted", () => {
+  it("spans loading rows under a header that stays mounted", () => {
     renderHarness({ ready: false, loading: true });
 
     expect(screen.getByText("Name")).toBeTruthy();
     expect(screen.getByText("Status")).toBeTruthy();
     const cells = screen.getAllByRole("cell");
-    expect(cells).toHaveLength(1);
-    expect(cells[0].getAttribute("colspan")).toBe("2");
+    // Enough rows to stand in for the ones being fetched, rather than the one
+    // spinner row the table used to grow out of.
+    expect(cells.length).toBeGreaterThan(1);
+    for (const cell of cells) expect(cell.getAttribute("colspan")).toBe("2");
   });
 
   it("renders the empty state under the header instead of replacing it", () => {

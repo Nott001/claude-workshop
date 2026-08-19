@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useTickets } from "@/modules/commerce/lib/use-tickets";
 import { TicketCard } from "@/modules/commerce/components/ticket-card";
+import { TicketListSkeleton } from "@/modules/commerce/components/ticket-list-skeleton";
 import { LoadMoreButton } from "@/shared/components/load-more";
 
 export default function TicketsPage() {
@@ -11,11 +12,7 @@ export default function TicketsPage() {
   const { tickets, loading, loadingMore, error, hasMore, loadMore } = useTickets();
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading tickets...</div>
-      </div>
-    );
+    return <TicketListSkeleton />;
   }
 
   if (error) {

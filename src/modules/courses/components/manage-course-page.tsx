@@ -1,7 +1,7 @@
 "use client";
 
 import { BackLink } from "@/shared/components/back-link";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { CourseBuilderSection, type CourseBuilder } from "./course-builder-section";
 import type { CourseSpeaker } from "../lib/types";
 
@@ -35,7 +35,7 @@ export function ManageCoursePage({
   eventEndTime?: string | null;
 }) {
   if (loading) {
-    return <StaffPageState>Loading...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   return (
