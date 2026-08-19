@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { expectStaffColumn } from "./helpers/staff-column";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }) }));
 
@@ -72,6 +73,23 @@ describe("ManageCoursePage", () => {
     render(<ManageCoursePage backHref="/staff/events/4" builder={builder([])} speakers={[]} />);
 
     expect(screen.getByRole("button", { name: "Create Course" })).toBeTruthy();
+  });
+
+  // It measured its own column before this — `px-16 pt-24` and no maximum
+  // width — so the curriculum ran the full width of a wide display while the
+  // event page it is reached from stopped at 1360px.
+  it("sits in the one column every staff page shares", () => {
+    const { container } = render(
+      <ManageCoursePage backHref="/staff/events/4" builder={builder([mod("Week one")])} speakers={[]} />,
+    );
+
+    expectStaffColumn(container);
+  });
+
+  it("keeps that column when the event has no course yet", () => {
+    const { container } = render(<ManageCoursePage backHref="/staff/events/4" builder={builder([])} speakers={[]} />);
+
+    expectStaffColumn(container);
   });
 
   // The staff route used to wrap the builder in a card of its own, so the page

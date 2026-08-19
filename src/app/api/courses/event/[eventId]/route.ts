@@ -1,8 +1,7 @@
-import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
+import { resolveCourseGrant } from "@/modules/courses/lib/course-entitlement";
 import * as courseDao from "@/shared/db/dao/course.dao";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
@@ -22,9 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   // The room admits ticket holders, assigned speakers and staff; the course
   // feed must honour the same gate. A role check alone kept the room empty for
   // the attendees it let in.
-  const entitled =
-    hasMinRole(user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, user.id, course.id));
-  if (!entitled) {
+  if (!(await resolveCourseGrant(supabase, user, course.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

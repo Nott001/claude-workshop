@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 
 const baseEvent = {
@@ -47,6 +47,85 @@ describe("EventDetailHero", () => {
 
     expect(tracks).toBe("lg:grid-cols-[65fr_35fr]");
     expect(tracks).not.toMatch(/%/);
+  });
+
+  it("opens the cover in an overlay when the panel is clicked", () => {
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "View the cover image for Launch Day" }));
+
+    // Two now: the one in the hero, and the one the overlay shows.
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("img").getAttribute("src")).toBe("/cover.jpg");
+  });
+
+  it("closes the overlay from its own X", () => {
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+    fireEvent.click(screen.getByRole("button", { name: /View the cover image/ }));
+
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("gives that X its own contrast rather than the shared ghost one", () => {
+    // The shared close button is drawn in the foreground colour, which over a
+    // dark cover is invisible — and which cover gets uploaded is not something
+    // this component gets to know.
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+    fireEvent.click(screen.getByRole("button", { name: /View the cover image/ }));
+
+    const close = within(screen.getByRole("dialog")).getByRole("button", { name: "Close" });
+
+    expect(close.className).toContain("bg-black/60");
+    expect(close.className).toContain("text-white");
+  });
+
+  it("shows nothing until it is clicked", () => {
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("names the overlay for assistive tech without drawing over the picture", () => {
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /View the cover image/ }));
+
+    expect(within(screen.getByRole("dialog")).getByText("Launch Day").className).toContain("sr-only");
+  });
+
+  it("carries the cursor on a real button, so the cover opens from the keyboard too", () => {
+    // A div with an onClick would look identical to the pointer and be
+    // unreachable without one; the element is what makes Enter and Space work,
+    // so that is what this pins rather than a synthesized key event.
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+    const trigger = screen.getByRole("button", { name: /View the cover image/ });
+
+    expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger.getAttribute("type")).toBe("button");
+  });
+
+  it("marks the panel clickable with the cursor and nothing that moves", () => {
+    // The affordance the change asked for: a cursor, no hover animation. At
+    // this size anything that shifts or recolours reads as a glitch.
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+    const trigger = screen.getByRole("button", { name: /View the cover image/ });
+
+    expect(trigger.className).toContain("cursor-pointer");
+    expect(trigger.className).not.toMatch(/hover:|transition|duration-|animate-/);
+  });
+
+  it("leaves the panel inert when there is no cover to enlarge", () => {
+    renderHero();
+
+    expect(screen.queryByRole("button", { name: /cover image/i })).toBeNull();
+  });
+
+  it("lets a click through the badge, which covers a corner of the panel", () => {
+    renderHero({ event: { ...baseEvent, cover_image_url: "/cover.jpg" } });
+
+    expect(screen.getByText("Upcoming").parentElement!.className).toContain("pointer-events-none");
   });
 
   it("renders the gradient fallback when there is no cover image", () => {

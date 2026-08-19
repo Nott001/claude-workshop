@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
-import * as courseDao from "@/shared/db/dao/course.dao";
+import { resolveCourseGrant } from "@/modules/courses/lib/course-entitlement";
 import * as eventDao from "@/modules/events/db/event.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { isStorageBucket, COURSE_CONTENT_BUCKETS } from "@/shared/integrations/storage/policy";
@@ -123,7 +123,9 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
   const courseId = courseIdFromPath(segments);
   if (courseId === null) return DENY;
 
-  return { allowed: await courseDao.userHasCourseAccess(supabase, user.id, courseId), cacheable: false };
+  // The same gate the course feeds use, so material a bundle unlocked is
+  // downloadable rather than a curriculum of dead links.
+  return { allowed: (await resolveCourseGrant(supabase, user, courseId)) !== null, cacheable: false };
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ bucket: string; path: string[] }> }) {

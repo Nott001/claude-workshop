@@ -42,7 +42,11 @@ export interface CourseWithModules extends Course {
 }
 
 export interface CourseWithDetails extends CourseWithModules {
-  EVENT: { id: number; title: string; event_date: string; status: string } | null;
+  // The window comes along because whoever reads a curriculum has to know
+  // which of it has been released, and that is a question about the event's
+  // edges — fetching the event again to answer it is a second round trip for
+  // two columns this query is already positioned to return.
+  EVENT: { id: number; title: string; event_date: string; start_time: string; end_time: string; status: string } | null;
 }
 
 // PostgREST keys an embedded relation by table name, so a `LESSON (*)` embed
@@ -73,6 +77,8 @@ export async function findCourseWithDetails(supabase: DbClient, id: number): Pro
         id,
         title,
         event_date,
+        start_time,
+        end_time,
         status
       )
     `,
@@ -365,4 +371,79 @@ export async function userHasCourseAccess(supabase: DbClient, userId: number, co
   throwOnDbError(speakingError, "course.dao.userHasCourseAccess.speaking");
 
   return !!speaking && speaking.length > 0;
+}
+
+/** A course as a catalogue entry: enough to list it, not enough to teach it. */
+export interface CourseSummary {
+  id: number;
+  course_name: string;
+  course_description: string | null;
+  EVENT: { id: number; title: string; event_date: string } | null;
+  MODULE: { id: number; LESSON: { id: number }[] }[];
+}
+
+/**
+ * Courses for a listing surface — the attendee's released-material library.
+ *
+ * The module and lesson embeds select ids only: the counts are all a card
+ * shows, and pulling whole rows for a list is how a catalogue page ends up
+ * carrying an entire curriculum it never renders. An empty filter returns
+ * nothing without a round trip, which is the common case for a reader whose
+ * events have released nothing yet.
+ */
+export async function listCourseSummaries(
+  supabase: DbClient,
+  options?: { ids?: number[]; eventIds?: number[] },
+): Promise<CourseSummary[]> {
+  if (options?.ids?.length === 0 || options?.eventIds?.length === 0) return [];
+
+  let query = supabase
+    .from("COURSE")
+    .select("id, course_name, course_description, EVENT!event_id(id, title, event_date), MODULE(id, LESSON(id))")
+    .order("course_name", { ascending: true });
+
+  if (options?.ids) query = query.in("id", options.ids);
+  if (options?.eventIds) query = query.in("event_id", options.eventIds);
+
+  const { data, error } = await query;
+  throwOnDbError(error, "course.dao.listCourseSummaries");
+  return (data ?? []) as unknown as CourseSummary[];
+}
+
+/** A module as the release picker shows it: named, placed, and nothing more. */
+export interface ModuleChoice {
+  id: number;
+  module_name: string;
+  module_type: string;
+  sequence_order: number;
+  start_time: string | null;
+  end_time: string | null;
+}
+
+/**
+ * The modules of the course this event owns, in curriculum order.
+ *
+ * Reached through an inner embed on COURSE rather than by fetching the course
+ * tree first: the picker needs the module rows and nothing under them, and the
+ * event owns at most one course, so this is one query with no lessons in it.
+ */
+export async function listModulesByEvent(supabase: DbClient, eventId: number): Promise<ModuleChoice[]> {
+  const { data, error } = await supabase
+    .from("MODULE")
+    .select("id, module_name, module_type, sequence_order, start_time, end_time, COURSE!inner(event_id)")
+    .eq("COURSE.event_id", eventId)
+    .order("sequence_order", { ascending: true });
+  throwOnDbError(error, "course.dao.listModulesByEvent");
+
+  // Mapped field by field rather than destructured: the `COURSE` embed exists
+  // only to filter on, and shipping it would put the join key in the picker's
+  // payload for nobody to read.
+  return ((data ?? []) as unknown as ModuleChoice[]).map((mod) => ({
+    id: mod.id,
+    module_name: mod.module_name,
+    module_type: mod.module_type,
+    sequence_order: mod.sequence_order,
+    start_time: mod.start_time,
+    end_time: mod.end_time,
+  }));
 }

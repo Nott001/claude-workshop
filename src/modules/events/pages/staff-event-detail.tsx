@@ -22,6 +22,7 @@ import { EventOverviewPanel } from "@/modules/events/components/event-overview-p
 import { MeetingLinkPanel } from "@/modules/events/components/meeting-link-panel";
 import { EventTeamPanel } from "@/modules/events/components/event-team-panel";
 import { EventCoursePanel } from "@/modules/events/components/event-course-panel";
+import { AfterEventModulesPanel } from "@/modules/courses/components/after-event-modules-panel";
 import { EventSurveyPanel } from "@/modules/events/components/event-survey-panel";
 import { EventPhotoManager } from "@/modules/events/components/event-photo-manager";
 
@@ -179,7 +180,12 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         <EventTeamPanel eventId={eventId} facilitatorIds={staffEvent.facilitator_ids ?? []} />
       )}
 
-      {currentTab === "course" && <EventCoursePanel eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
+      {currentTab === "course" && (
+        <div className="space-y-6">
+          <EventCoursePanel eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
+          {canManageCourse && <AfterEventModulesPanel eventId={eventId} />}
+        </div>
+      )}
 
       {currentTab === "photos" && <EventPhotoManager eventId={eventId} />}
 

@@ -266,3 +266,41 @@ export async function deleteByUser(supabase: DbClient, userId: number): Promise<
   const { error } = await supabase.from("TICKET").delete().eq("user_id", userId);
   return !error;
 }
+
+/** An event's closing edge, keyed by id — the whole of what an unlock needs. */
+export interface TicketedEventWindow {
+  id: number;
+  event_date: string;
+  end_time: string;
+}
+
+/**
+ * The windows of the events this user holds a live ticket to, narrowed to
+ * `eventIds`.
+ *
+ * "Ended" is deliberately not expressed in SQL. The app already decides that
+ * in one place, against the app timezone (`isEventFinished`), and a `.lt()`
+ * here would compare a `time` column against whatever zone the runtime sits
+ * in — a second, quietly different answer to the same question. The narrowing
+ * keeps the row count to the events that could matter, and the clock stays
+ * where it is defined.
+ */
+export async function listEventWindowsByUser(
+  supabase: DbClient,
+  userId: number,
+  eventIds: number[],
+): Promise<TicketedEventWindow[]> {
+  if (eventIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("TICKET")
+    .select("EVENT!inner(id, event_date, end_time)")
+    .eq("user_id", userId)
+    .neq("status", "cancelled")
+    .in("event_id", eventIds);
+  throwOnDbError(error, "ticket.dao.listEventWindowsByUser");
+
+  return ((data ?? []) as unknown as { EVENT: TicketedEventWindow | null }[])
+    .map((row) => row.EVENT)
+    .filter((event): event is TicketedEventWindow => event !== null);
+}
