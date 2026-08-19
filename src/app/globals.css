@@ -207,3 +207,25 @@
     animation: card-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 }
+
+/* Holds a progress indicator back until the wait is worth reporting.
+
+   A refetch the server answers in under a couple of hundred milliseconds needs
+   no indicator at all, and showing one anyway is what made the events search
+   flicker: every keystroke drew a signal and erased it. `backwards` keeps the
+   element at its start frame through the delay, so a fast answer arrives before
+   it has ever been painted. */
+@keyframes settle-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .settle-in {
+    animation: settle-in 0.15s ease-out 0.25s backwards;
+  }
+}

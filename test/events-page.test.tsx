@@ -359,19 +359,20 @@ describe("events page card transitions", () => {
     expect(delays[delays.length - 1]).toBe("320ms");
   });
 
-  // A refetch that answers quickly used to pulse the whole grid: the dim faded
-  // in and straight back out, so the indicator was itself the flicker.
-  it("delays the dim on the way in and drops it on the way out", async () => {
+  // The grid used to dim while a refetch was in flight, which meant fading it
+  // down and back up on every keystroke — a flicker across the whole page, and
+  // a worse one the slower the answer. The rows are now left alone entirely and
+  // the wait is reported beside the cursor instead.
+  it("leaves the rows untouched while a refetch is in flight", async () => {
     vi.useFakeTimers();
     let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
-        if (String(url).includes("search=")) {
-          await new Promise<void>((resolve) => {
-            release = resolve;
-          });
-        }
+        if (String(url).includes("search=")) await gate;
         return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
       }),
     );
@@ -382,28 +383,69 @@ describe("events page card transitions", () => {
     });
 
     const grid = () => screen.getByText("Alpha").closest("[aria-busy]") as HTMLElement;
-    expect(grid().className).not.toContain("opacity-60");
+    const settled = grid().className;
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "a" } });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);
     });
 
-    // In flight: the rows stay, and the dim carries the delay that keeps a
-    // faster answer from ever starting it.
     expect(grid().getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(grid().className).toContain("opacity-60");
-    expect(grid().className).toContain("delay-150");
+    expect(grid().className).toBe(settled);
+    expect(grid().className).not.toContain("opacity-");
+    // The wait shows on the search box, and only after a quarter second, so a
+    // fast answer never draws an indicator at all.
+    const spinner = document.querySelector(".animate-spin");
+    expect(spinner).toBeTruthy();
+    expect(spinner?.className).toContain("settle-in");
 
     await act(async () => {
       release!();
+    });
+
+    expect(grid().getAttribute("aria-busy")).toBe("false");
+    expect(document.querySelector(".animate-spin")).toBeNull();
+
+    vi.useRealTimers();
+  });
+
+  // Typing only ever removes cards; the flicker was on the way back. Deleting a
+  // character re-matches events, React mounts their cards afresh, and a mount is
+  // what starts a CSS animation — so every backspace replayed the rise across
+  // the grid.
+  it("does not replay the entry animation when a search widens again", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const rows = String(url).includes("search=Alpha") ? [events[0]] : events;
+        return { ok: true, json: async () => ({ data: rows, total: rows.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    const { container } = render(<EventListPage />);
+    await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    // Back to full brightness with no delay, so the rows land the moment they arrive.
-    expect(grid().className).not.toContain("opacity-60");
-    expect(grid().className).not.toContain("delay-150");
+    // The list arriving is the one time the cards are animated in.
+    expect(container.querySelectorAll("a.card-rise")).toHaveLength(2);
+
+    const box = screen.getByRole("textbox", { name: "Search events" });
+    fireEvent.change(box, { target: { value: "Alpha" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.queryByText("Beta")).toBeNull();
+
+    fireEvent.change(box, { target: { value: "" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // Beta is back, and nothing on screen is carrying the entry animation.
+    expect(screen.getByText("Beta")).toBeTruthy();
+    expect(container.querySelectorAll("a.card-rise")).toHaveLength(0);
 
     vi.useRealTimers();
   });

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Searching the events list no longer flickers on every keystroke. Two things were moving that should not have been. The rows dimmed while a refetch was in flight and undimmed when it landed, so each character faded the whole grid down and back up — and the slower the answer, the more of it, which is backwards for a progress signal; the rows are now left alone entirely and a spinner appears in the search box instead, a quarter second in, so a fast search draws no indicator at all. And the entry animation replayed on the way back: typing only removes cards, but deleting a character re-matches events, React mounts their cards afresh, and mounting is what starts a CSS animation — so every backspace rose the grid again, and returning from a term that matched nothing rose all of it. The animation now belongs to the list's first arrival and ends the moment the reader touches the search box or the tabs.
+
 ### Changed
 
 - Paging the events list no longer collides with searching it. A Load More still in flight when a search or a tab landed appended its rows underneath the new results, so a page of events nobody had asked for sat below the ones they had — and the totals came back describing a listing that was no longer on screen. Every request now carries the listing it was sent for and is discarded if that listing has been replaced, which covers pagination and the first page alike; the first page had been guarded, but the guard lived in an effect's cleanup and pagination has no cleanup to hang one on.
@@ -10,7 +14,7 @@
 
 - Switching tabs on the events list stops flashing "No events found." The rows on screen were filtered again in the browser by status, left from when the tabs were one page of fifty split three ways. The tab changes on the click while its events are still being fetched, so every row on screen failed the new tab's test at once and the grid emptied for a round trip before the archive arrived. Each tab has been its own query for a while now, which makes that second filter redundant as well as destructive — the previous tab's rows now stay up and dim, exactly as a search's do.
 
-- Cards on the events list settle rather than snap. Three things moved that should not have. A card's accent gradient was picked by its position in the grid, so a search that removed the rows above one recoloured it — the card that survived the search was the only thing on screen that moved; the accent now follows the event's own id and stays put. Rows that genuinely are new fade and rise in, staggered, and only they do: a card is keyed by its event, so one that survives a refetch keeps its element and is left alone. And the dim that marks a refetch in flight now waits 150ms before it starts, so a search the server answers quickly never fades at all — on a fast connection the progress indicator had become the flicker it was added to prevent.
+- Cards on the events list settle rather than snap. Three things moved that should not have. A card's accent gradient was picked by its position in the grid, so a search that removed the rows above one recoloured it — the card that survived the search was the only thing on screen that moved; the accent now follows the event's own id and stays put. Rows that genuinely are new fade and rise in, staggered, and only they do: a card is keyed by its event, so one that survives a refetch keeps its element and is left alone. And the grid is left entirely alone while a refetch runs, down to its opacity; the wait is reported by a spinner in the search box instead, held back a quarter second so a search the server answers quickly draws nothing at all.
 
   The motion is behind `prefers-reduced-motion`, with the visible state as the rest state: written the other way round, a reader who has asked their system for less movement gets cards that never arrive.
 
