@@ -64,7 +64,6 @@ import {
   getEventRegistrationState,
   listAdminEventAttendees,
   listEventAttendees,
-  listEvents,
   loadEventOr403,
   publishEvent,
   registerForEvent,
@@ -457,22 +456,10 @@ describe("updateEvent and the online/address pair", () => {
   });
 });
 
-describe("listEvents and the meeting link", () => {
-  it("strips the link from every row, whoever is listing", async () => {
-    // The list selects * and feeds the public listing and the landing page, so
-    // a link left on a row reaches anyone who can see the event at all.
-    eventDao.list.mockResolvedValue({
-      data: [{ id: 1, status: "active", event_type: "online", meeting_url: "https://meet.google.com/abc" }],
-      total: 1,
-      page: 1,
-      limit: 50,
-    });
-
-    const result = await listEvents(supabase, { role: ROLES.ADMIN, userId: 9, filter: null });
-
-    expect(result.data[0].meeting_url).toBeNull();
-  });
-});
+// The listing used to select * and strip the link back off each row here. The
+// query now never asks for the column, so the guarantee moved down a layer with
+// it — event-dao-list-columns pins it, and it holds by construction rather than
+// by this service remembering to redact.
 
 describe("setMeetingLink", () => {
   beforeEach(() => {

@@ -24,13 +24,14 @@ export function EventListPage() {
   const {
     filteredEvents,
     loading,
+    refreshing,
     loadingMore,
     error,
     hasMore,
     loadMore,
     activeTab,
     setActiveTab,
-    tabCounts,
+    total,
     search,
     setSearch,
   } = useEventList();
@@ -61,15 +62,17 @@ export function EventListPage() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              // The counts are of what the search matched, not of the whole
-              // calendar, so a term that hits the other tab says where it went
-              // rather than leaving this one blank and unexplained.
               className={cn(
                 "rounded-md px-2.5 py-1 text-xs transition-colors",
                 activeTab === tab.key ? "bg-muted font-medium text-fg" : "text-muted-fg hover:bg-muted hover:text-fg",
               )}
             >
-              {tab.label} ({tabCounts[tab.key]})
+              {/* Only the open tab carries a count, and it is the server's total
+                  for that tab rather than a tally of the page on screen. Each
+                  tab is its own query now, so a count beside the closed one
+                  would be a number nothing had been asked for. */}
+              {tab.label}
+              {activeTab === tab.key ? ` (${total})` : ""}
             </button>
           ))}
         </div>
@@ -83,6 +86,11 @@ export function EventListPage() {
         <p className="mb-3 text-sm text-error">Failed to refresh events — showing the last results loaded.</p>
       )}
 
+      {/* Stale-while-revalidate: a search keeps the rows it is replacing on
+          screen and dims them, rather than dropping to the skeleton and back.
+          The skeleton is only ever the cold start — swapping it in over results
+          unmounts the grid, and with a fixed six placeholders against a varying
+          result count it resized the page on every keystroke. */}
       {loading ? (
         <EventListSkeleton />
       ) : error && filteredEvents.length === 0 ? (
@@ -90,11 +98,23 @@ export function EventListPage() {
           <p className="text-sm text-error">{error}</p>
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center p-8">
+        <div
+          aria-busy={refreshing}
+          className={cn(
+            "flex flex-1 items-center justify-center p-8 transition-opacity duration-200",
+            refreshing && "opacity-60",
+          )}
+        >
           <p className="text-sm text-muted-fg">{term ? `No ${tabLabel} events match “${term}”.` : "No events found."}</p>
         </div>
       ) : (
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          aria-busy={refreshing}
+          className={cn(
+            "mb-8 grid grid-cols-1 gap-4 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3",
+            refreshing && "opacity-60",
+          )}
+        >
           {filteredEvents.map((event, index) => (
             <EventCard
               key={event.id}

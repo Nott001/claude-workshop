@@ -4,6 +4,20 @@
 
 ### Changed
 
+- Each tab of the events list fetches its own events. The tabs were a filter applied in the browser to a single page of fifty rows, so a tab showed only the events of its kind that happened to fall in those fifty — put fifty upcoming events on the books and Completed rendered empty with the entire archive sitting behind it, reachable by nothing on screen. Every tab is now its own query, with its own pagination, and Load More walks that tab rather than the undifferentiated list.
+
+  Upcoming and Completed ask for a window on the calendar rather than a status, because a past event that nobody has published as finished still reads as complete — the status column is only advanced by hand, and the read path derives the truth from the end time. Asking for `status=complete` would have missed exactly those. Drafts is the one tab that really is a status, since a draft sits on either side of today.
+
+  The count beside a tab now comes from the server's total for that tab, so it counts the whole of it rather than the page that happens to be loaded. Only the open tab carries one: each tab is a separate query, so a number beside a closed tab would be a count of something nobody had asked for.
+
+- Searching the events list no longer flickers. Each keystroke replaced the results with six skeleton cards and then put results back, so the grid unmounted and remounted on every search and the page resized as it went — the skeleton is a fixed six placeholders and a result set is whatever matched. The rows a search is replacing now stay on screen and dim while the new ones load, which is the treatment the staff tables already gave their rows through `TableBody busy`. The skeleton is the cold start only, where there genuinely is nothing to show yet.
+
+  The distinction is a first page having ever landed, not the list being non-empty — keyed off row count, a search that matched nothing would arm the skeleton again for the very next keystroke, putting the flicker back exactly where the search gets narrowest.
+
+- The events listing stopped fetching columns nothing renders. The query behind `/api/events` selected `*` and the whole row went to Postgres to serialise, the Worker to parse and re-serialise, and the client to discard — `description`, `price`, `currency`, `survey_enabled` and the timestamps among them. It names its columns now.
+
+  `meeting_url` is one of the columns it no longer asks for, which turns a redaction into a structural guarantee. The listing feeds the public event list and the landing page, so a link selected there reaches anyone who can see an event at all; the service used to strip it off each row on the way out, and that held only while everyone remembered it was there. The row type has no such field now, so nothing downstream can read one.
+
 - Role and status pills are legible. The label had been the same hue as its own fill at a different strength, which on white measured 1.97:1 for `warning` and 2.73:1 for `success` against the 4.5:1 that text this size needs — the pill read as a solid lozenge with something written in it. Labels now take the muted foreground the surrounding secondary text already uses, over a fill at double the tint, which clears the line on every variant.
 
   Dark mode takes the full foreground instead. Its muted foreground clears AA against the bare surface by 4.81:1 and has nothing left to give, so the same tint underneath put all four variants back under the line — the fix for one theme was a regression in the other. A pill also no longer wraps: `Super Admin` is the only role name of two words, and in the organization table it broke across two lines, which turned the rounded pill into a lozenge that sat crooked against its row.

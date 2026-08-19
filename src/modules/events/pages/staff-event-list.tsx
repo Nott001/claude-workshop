@@ -20,8 +20,20 @@ const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
 
 export function StaffEventListPage() {
   const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
-  const { events, filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
-    useEventList();
+  const {
+    events,
+    filteredEvents,
+    loading,
+    refreshing,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore,
+    activeTab,
+    setActiveTab,
+    search,
+    setSearch,
+  } = useEventList();
 
   if (pending) {
     return <StaffPageState>Loading events...</StaffPageState>;
@@ -67,7 +79,7 @@ export function StaffEventListPage() {
         <p className="mt-2 text-sm text-error">Failed to refresh events — showing last loaded results.</p>
       )}
 
-      <EventTable events={filteredEvents} showEdit loading={loading} />
+      <EventTable events={filteredEvents} showEdit loading={loading || refreshing} />
 
       {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
     </StaffPage>

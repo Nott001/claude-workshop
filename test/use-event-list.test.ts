@@ -46,7 +46,7 @@ describe("useEventList debounced search", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active");
     expect(result.current.search).toBe("");
   });
 

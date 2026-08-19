@@ -10,6 +10,42 @@ type UpdateEventInput = Partial<CreateEventInput>;
 
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
 
+/**
+ * The columns the listing actually renders.
+ *
+ * `select("*")` here shipped the whole row to every caller — description, price,
+ * currency, survey_enabled and the timestamps among them — for Postgres to
+ * serialise, the Worker to parse and re-serialise, and the client to discard.
+ * This is the widest read in the app, so it is the one place that saving is
+ * worth naming columns for.
+ *
+ * `meeting_url` is deliberately absent, and must stay absent: the listing feeds
+ * the public event list and the landing page, so a link selected here would
+ * reach anyone who can see an event at all. Leaving it unselected makes that
+ * structural — `EventListRow` has no such field for a caller to read — where a
+ * redaction step after the fact only held while someone remembered it.
+ */
+const LIST_SELECT =
+  "id, title, event_date, start_time, end_time, venue_name, venue_address, status, event_type, cover_image_url, capacity, COURSE!event_id(course_name)";
+
+// Spelled out rather than derived from LIST_SELECT: the generated client parses
+// the select string as a type literal, so it has to stay one. event-dao-list-columns
+// asserts the two agree, which is the guard against them drifting apart.
+type EventListRow = Pick<
+  Event,
+  | "id"
+  | "title"
+  | "event_date"
+  | "start_time"
+  | "end_time"
+  | "venue_name"
+  | "venue_address"
+  | "status"
+  | "event_type"
+  | "cover_image_url"
+  | "capacity"
+> & { COURSE?: { course_name: string } | null };
+
 type EventSpeakerJoin = {
   speaker_profile_id: number;
   SPEAKER_PROFILE: SpeakerProfile & { USER: Pick<User, "full_name" | "email" | "profile_image_url"> };
@@ -50,15 +86,17 @@ export async function list(
     role?: string | null;
     userId?: number | null;
     filter?: string | null;
+    /** The `status` column values a listing accepts, narrowing the role guard below. */
+    statuses?: string[] | null;
     search?: string | null;
     page?: number;
     limit?: number;
   },
-): Promise<PaginatedResult<EventWithCourseName>> {
-  const { role, userId, filter, search } = options ?? {};
+): Promise<PaginatedResult<EventListRow>> {
+  const { role, userId, filter, statuses, search } = options ?? {};
   const { from, to, page, limit } = pageBounds(options);
 
-  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)", { count: "exact" });
+  let query = supabase.from("EVENT").select(LIST_SELECT, { count: "exact" });
 
   // A facilitator's dashboard shows only the events they are assigned to;
   // admins and every other role keep the full listing.
@@ -75,6 +113,12 @@ export async function list(
   // create one.
   if (!hasMinRole((role ?? null) as UserRole | null, ROLES.FACILITATOR)) {
     query = query.in("status", ["active", "complete"]);
+  }
+
+  // Applied after the role guard above, so a caller who may not see drafts asking
+  // for them narrows an already-draftless set to nothing rather than widening it.
+  if (statuses && statuses.length > 0) {
+    query = query.in("status", statuses);
   }
 
   if (filter === "upcoming") {
@@ -111,7 +155,13 @@ export async function list(
 
   const { data, count } = await query;
   return {
-    data: (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) })),
+    // COURSE.event_id carries a UNIQUE constraint, so the embed answers with one
+    // course or null — but the generated types model only the foreign key and
+    // infer an array. Every consumer reads `COURSE.course_name` directly and has
+    // always been right to; naming the columns is what made the parser confident
+    // enough to disagree. The cast keeps that reading, and the shape it asserts
+    // is the one `EventListRow` declares.
+    data: (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) })) as unknown as EventListRow[],
     total: count ?? 0,
     page,
     limit,

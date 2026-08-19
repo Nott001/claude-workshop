@@ -4,7 +4,6 @@ import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { seatsLeft } from "@/shared/lib/event-capacity";
-import { redactMeetingUrl } from "@/modules/events/lib/meeting-link";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { eventSchema, eventPartialSchema } from "@/modules/events/lib/schemas";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -21,16 +20,13 @@ export async function listEvents(
     role: string | null;
     userId: number | null;
     filter: string | null;
+    statuses?: string[] | null;
     search?: string | null;
     page?: number;
     limit?: number;
   },
 ): Promise<PaginatedResult<EventListRow>> {
   const result = await eventDao.list(supabase, options);
-  // The list selects * and feeds the public listing and the landing page, so
-  // the link would reach anyone who can see an event at all. No listing surface
-  // renders it; the detail route serves it under `canSeeMeetingLink`.
-  result.data = result.data.map((row) => redactMeetingUrl(row, false));
 
   // Only the staff table renders the Attendees column, and the same endpoint
   // feeds the public list and the landing page. Counting every caller's tickets

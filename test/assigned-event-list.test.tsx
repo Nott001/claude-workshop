@@ -115,7 +115,7 @@ describe("AssignedEventListPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/events?page=2&limit=50");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/events?page=2&limit=50&filter=upcoming&status=active%2Cdraft");
     expect(screen.getByText("Beta")).toBeTruthy();
   });
 
@@ -134,7 +134,7 @@ describe("AssignedEventListPage", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active%2Cdraft");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), {
       target: { value: "hall" },
@@ -146,6 +146,6 @@ describe("AssignedEventListPage", () => {
       await vi.advanceTimersByTimeAsync(300);
     });
 
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=hall");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active%2Cdraft&search=hall");
   });
 });

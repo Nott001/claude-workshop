@@ -18,6 +18,10 @@ function mapError(err: unknown): NextResponse {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter");
+  // Comma-separated so one listing can accept several: the completed tab wants
+  // active and complete both, since a past event's column is only advanced when
+  // someone gets round to it and the read path compensates for that.
+  const statuses = searchParams.get("status")?.split(",").filter(Boolean) ?? null;
   const search = searchParams.get("search");
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
@@ -26,8 +30,22 @@ export async function GET(req: Request) {
   const user = await requireAuth(supabase);
   const userRole = user?.role ?? null;
 
-  const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter, search, page, limit });
+  const events = await listEvents(supabase, {
+    role: userRole,
+    userId: user?.id ?? null,
+    filter,
+    statuses,
+    search,
+    page,
+    limit,
+  });
 
+  // Deliberately uncached. The anonymous listing is identical for every caller
+  // and would sit in a shared cache happily, but Cloudflare honours `Vary` for
+  // `Accept-Encoding` alone — so the header that keeps a signed-in caller off
+  // the anonymous copy does not survive the CDN. A cache rule here has to
+  // bypass on the session cookie itself; until one does, caching this would
+  // hand a facilitator the public list in place of their own assignments.
   return NextResponse.json(events);
 }
 

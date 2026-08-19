@@ -174,7 +174,7 @@ describe("events page search", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "summit" } });
     expect(urls).toHaveLength(1);
@@ -182,7 +182,7 @@ describe("events page search", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=summit");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active&search=summit");
 
     vi.useRealTimers();
   });
@@ -261,25 +261,45 @@ describe("events page tabs", () => {
     }
   });
 
-  it("counts what the search matched, so a term hitting the other tab says so", async () => {
-    vi.useFakeTimers();
+  // The tabs were a client-side filter over one unscoped page of fifty, so a
+  // tab could only ever show the events of its kind that happened to fall in
+  // those fifty rows. Fifty upcoming events on the books and Completed rendered
+  // empty with the whole archive sitting behind it.
+  it("asks the server for each tab's own set rather than filtering one page", async () => {
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        url.includes("filter=past")
+          ? { data: [{ ...events[0], id: 99, title: "Archived summit", status: "complete" }], total: 1, page: 1, limit: 50 }
+          : { data: [], total: 0, page: 1, limit: 50 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<EventListPage />);
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Completed/ })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+
+    await waitFor(() => expect(screen.getByText("Archived summit")).toBeTruthy());
+    // Drafts are staff-only and have a tab of their own, so the archive asks
+    // for the two statuses that can legitimately read as finished.
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("filter=past"))).toBe(true);
+  });
+
+  it("counts the whole of the open tab, not the page that happens to be loaded", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
         ok: true,
-        json: async () => ({ data: [{ ...events[0], status: "complete" }], total: 1, page: 1, limit: 50 }),
+        json: async () => ({ data: [events[0]], total: 137, page: 1, limit: 50 }),
       })),
     );
 
     render(<EventListPage />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Upcoming/ }).textContent).toBe("Upcoming (137)"));
 
-    // Sitting on Upcoming with the only match filed under Completed.
-    expect(screen.getByRole("tab", { name: /Upcoming/ }).textContent).toBe("Upcoming (0)");
-    expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed (1)");
-
-    vi.useRealTimers();
+    // The closed tab is a query nobody has run, so it carries no number rather
+    // than a stale or invented one.
+    expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed");
   });
 });
