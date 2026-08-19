@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
@@ -20,10 +20,22 @@ import { cn } from "@/shared/lib/utils";
  * their titles and metadata are nothing alike. A component with a slot for each
  * of those differences would be harder to read than either card is.
  */
-export function CardLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
+export function CardLink({
+  href,
+  className,
+  style,
+  children,
+}: {
+  href: string;
+  className?: string;
+  /** Only for values that cannot be a class, such as a per-card animation delay. */
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
   return (
     <Link
       href={href}
+      style={style}
       // One card is one prefetch, and a grid scrolls several into view at once
       // — each a full render of a detail page nobody has opened. This was the
       // largest single source of speculative load in the app.

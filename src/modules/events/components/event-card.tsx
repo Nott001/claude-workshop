@@ -3,6 +3,7 @@ import { eventModeIcon } from "@/shared/lib/event-format";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
 import { CardCta } from "@/shared/components/card-cta";
 import { CardLink } from "@/shared/components/card-link";
+import type { CSSProperties } from "react";
 import type { EventMode } from "@/shared/types";
 
 const ACCENT_CLASSES = [
@@ -31,6 +32,10 @@ interface EventCardProps {
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
   detailHref?: string;
+  /** Merged onto the card shell, for the grid to hand a card its entry animation. */
+  className?: string;
+  /** Carries that animation's per-card delay, which has to be a computed value. */
+  style?: CSSProperties;
 }
 
 export function EventCard({
@@ -47,9 +52,11 @@ export function EventCard({
   showEdit,
   onDelete,
   detailHref,
+  className,
+  style,
 }: EventCardProps) {
   return (
-    <CardLink href={detailHref ?? `/events/${eventId}`}>
+    <CardLink href={detailHref ?? `/events/${eventId}`} className={className} style={style}>
       <article>
         <div className="relative h-48 overflow-hidden p-6 text-white">
           <div

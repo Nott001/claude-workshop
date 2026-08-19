@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Cards on the events list settle rather than snap. Three things moved that should not have. A card's accent gradient was picked by its position in the grid, so a search that removed the rows above one recoloured it — the card that survived the search was the only thing on screen that moved; the accent now follows the event's own id and stays put. Rows that genuinely are new fade and rise in, staggered, and only they do: a card is keyed by its event, so one that survives a refetch keeps its element and is left alone. And the dim that marks a refetch in flight now waits 150ms before it starts, so a search the server answers quickly never fades at all — on a fast connection the progress indicator had become the flicker it was added to prevent.
+
+  The motion is behind `prefers-reduced-motion`, with the visible state as the rest state: written the other way round, a reader who has asked their system for less movement gets cards that never arrive.
+
 - `/events` and `/community` render their first screen on the server. Both routes were a one-line re-export of a client component, so a visitor waited out four steps before seeing anything — the HTML, the JS bundle, hydration, and only then the request for the rows. The landing page has always fetched its events server-side, and that was the whole of why it felt faster than the other two for the same data. Each route now fetches through the same service call its API route uses, session included, so the seed is scoped exactly as the endpoint would have scoped it.
 
   `/community` was the slower of the two because it fired two independent requests and could not finish painting until the slower one landed. They are one `Promise.all` on the server now. Its memories strip also gets placeholder cards while it loads, rather than a gap that pushes the footer down when the real ones arrive.

@@ -13,6 +13,26 @@ import type { EventListSeed, FilterTab } from "@/modules/events/lib/use-event-li
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { TableSearch } from "@/shared/components/table-toolbar";
 
+/**
+ * The stale-while-revalidate dim, delayed.
+ *
+ * The delay rides on the dimmed class alone, so it applies on the way in and
+ * not on the way out: a refetch that answers inside 150ms never starts fading,
+ * and one that takes longer fades back to full the instant its rows land.
+ * Without it a fast search pulsed the whole grid on every keystroke — the
+ * progress indicator itself became the flicker it was added to prevent.
+ */
+const DIM_WHILE_REFRESHING = "opacity-60 delay-150";
+
+/** Cards enter in sequence rather than all at once, capped so a full page of
+ *  fifty does not spend two seconds arriving. */
+const MAX_STAGGERED_CARDS = 8;
+const STAGGER_MS = 40;
+
+function riseDelay(index: number): { animationDelay: string } {
+  return { animationDelay: `${Math.min(index, MAX_STAGGERED_CARDS) * STAGGER_MS}ms` };
+}
+
 const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
@@ -102,7 +122,7 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
           aria-busy={refreshing}
           className={cn(
             "flex flex-1 items-center justify-center p-8 transition-opacity duration-200",
-            refreshing && "opacity-60",
+            refreshing && DIM_WHILE_REFRESHING,
           )}
         >
           <p className="text-sm text-muted-fg">{term ? `No ${tabLabel} events match “${term}”.` : "No events found."}</p>
@@ -112,12 +132,14 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
           aria-busy={refreshing}
           className={cn(
             "mb-8 grid grid-cols-1 gap-4 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3",
-            refreshing && "opacity-60",
+            refreshing && DIM_WHILE_REFRESHING,
           )}
         >
           {filteredEvents.map((event, index) => (
             <EventCard
               key={event.id}
+              className="card-rise"
+              style={riseDelay(index)}
               eventId={event.id}
               title={event.title}
               status={event.status}
@@ -127,7 +149,11 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
               venueName={event.venue_name}
               eventType={event.event_type}
               coverImageUrl={event.cover_image_url}
-              accentIndex={index}
+              // The event's own id, not its position. Keyed on position, a card
+              // that survived a search changed colour under the reader because
+              // the rows above it had gone — the one thing on screen that was
+              // supposed to be standing still.
+              accentIndex={event.id}
             />
           ))}
         </div>

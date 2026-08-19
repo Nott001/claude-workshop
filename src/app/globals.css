@@ -179,3 +179,31 @@
 .curriculum-flash {
   animation: curriculum-flash 1s ease-out;
 }
+
+/* The entry of a card that has just arrived in a results grid.
+
+   Same shape as hero-rise, and for the same reason: the rest state is the
+   visible one, so a reader who has asked for reduced motion gets the card
+   rather than nothing. The stagger is an inline animation-delay from the
+   caller, which is why the delay is not written here.
+
+   Scoped to genuinely new cards by React rather than by CSS — a keyed card that
+   survives a refetch keeps its DOM node, and a CSS animation only runs when an
+   element is inserted. So a search that narrows a list animates in what is new
+   and leaves what was already on screen alone. */
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-rise {
+    animation: card-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+}

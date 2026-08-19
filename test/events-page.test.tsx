@@ -303,3 +303,108 @@ describe("events page tabs", () => {
     expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed");
   });
 });
+
+describe("events page card transitions", () => {
+  // Keyed on position, the accent gradient was a function of how many rows sat
+  // above a card. A search that removed those rows recoloured every card that
+  // had survived it — the cards standing still were the ones that moved.
+  it("keeps a surviving card's accent when a search removes the rows above it", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () =>
+          String(url).includes("search=Beta")
+            ? { data: [events[1]], total: 1, page: 1, limit: 50 }
+            : { data: events, total: events.length, page: 1, limit: 50 },
+      })),
+    );
+
+    const { container } = render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const accentOf = (title: string) =>
+      Array.from(container.querySelectorAll("a"))
+        .find((link) => link.textContent?.includes(title))
+        ?.querySelector('[class*="bg-gradient-to-br"]')?.className;
+    const before = accentOf("Beta");
+    expect(before).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "Beta" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.queryByText("Alpha")).toBeNull();
+    expect(accentOf("Beta")).toBe(before);
+
+    vi.useRealTimers();
+  });
+
+  it("staggers each card's entry, capped so a full page does not trickle in", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ ...events[0], id: 100 + i, title: `Event ${i}` }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: many, total: many.length, page: 1, limit: 50 }) })),
+    );
+
+    const { container } = render(<EventListPage />);
+    await waitFor(() => expect(screen.getByText("Event 0")).toBeTruthy());
+
+    const delays = Array.from(container.querySelectorAll<HTMLElement>("a.card-rise")).map((card) => card.style.animationDelay);
+    expect(delays.slice(0, 3)).toEqual(["0ms", "40ms", "80ms"]);
+    expect(delays[delays.length - 1]).toBe("320ms");
+  });
+
+  // A refetch that answers quickly used to pulse the whole grid: the dim faded
+  // in and straight back out, so the indicator was itself the flicker.
+  it("delays the dim on the way in and drops it on the way out", async () => {
+    vi.useFakeTimers();
+    let release: (() => void) | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("search=")) {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const grid = () => screen.getByText("Alpha").closest("[aria-busy]") as HTMLElement;
+    expect(grid().className).not.toContain("opacity-60");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "a" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // In flight: the rows stay, and the dim carries the delay that keeps a
+    // faster answer from ever starting it.
+    expect(grid().getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(grid().className).toContain("opacity-60");
+    expect(grid().className).toContain("delay-150");
+
+    await act(async () => {
+      release!();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Back to full brightness with no delay, so the rows land the moment they arrive.
+    expect(grid().className).not.toContain("opacity-60");
+    expect(grid().className).not.toContain("delay-150");
+
+    vi.useRealTimers();
+  });
+});
