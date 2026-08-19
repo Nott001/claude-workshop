@@ -34,12 +34,7 @@ export function CourseLibraryPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-fg">My Courses</h1>
-            {/* The second clause is for the reader who has courses here and is
-                looking for one that never arrived: the empty state carries the
-                same caveat, but they will never see it. */}
-            <p className="mt-0.5 text-sm text-muted-fg">
-              Material your events released once they finished &mdash; not every event does.
-            </p>
+            <p className="mt-0.5 text-sm text-muted-fg">Material your events released once they finished.</p>
           </div>
         </div>
 

@@ -181,7 +181,7 @@ describe("SelfPacedCoursePage", () => {
     expect(screen.queryByText("Ownership")).toBeNull();
   });
 
-  it("says an event may release nothing, in both states of the page", () => {
+  it("says an event may release nothing after it ends", () => {
     // "Material appears here once an event has finished and released it" reads
     // as a promise on its own, and the reader who is owed nothing cannot tell a
     // broken page from one that is still waiting.
@@ -190,8 +190,5 @@ describe("SelfPacedCoursePage", () => {
     render(<CourseLibraryPage />);
 
     expect(screen.getByText(/Not every event has material to release after it ends/)).toBeTruthy();
-    // The header carries it too, for the reader who has courses and is looking
-    // for one that never arrived — they never see the empty state.
-    expect(screen.getByText(/not every event does/)).toBeTruthy();
   });
 });
