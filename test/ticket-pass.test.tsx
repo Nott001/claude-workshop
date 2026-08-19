@@ -90,6 +90,12 @@ describe("TicketPassPage", () => {
 
     expect(await screen.findByText("Registered")).toBeTruthy();
 
+    // "Registered" being on screen says the ticket loaded, not that the page has
+    // subscribed — the subscription runs in an effect that may not have fired
+    // yet, and reading the callback before it does yields `undefined` and fails
+    // with "onTicket is not a function" on roughly two runs in five.
+    await waitFor(() => expect(subscribeToTicketCb()).toBeInstanceOf(Function));
+
     const onTicket = subscribeToTicketCb(); // the callback the page registered
     const checkedInAt = "2026-08-14T11:30:00.000Z";
     const expectedTime = new Date(checkedInAt).toLocaleTimeString("en-US", {
