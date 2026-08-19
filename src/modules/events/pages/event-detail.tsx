@@ -13,7 +13,9 @@ import { EventRegisterCard } from "@/modules/events/components/event-register-ca
 import { EventMapCard } from "@/modules/events/components/event-map-card";
 import { EventJoinCard } from "@/modules/events/components/event-join-card";
 import { EventShare } from "@/modules/events/components/event-share";
+import { EventGalleryPreview } from "@/modules/events/components/event-gallery-preview";
 import { BackLink } from "@/shared/components/back-link";
+import { isEventFinished } from "@/shared/lib/date-utils";
 
 export function EventDetailPage({ from }: { from?: string }) {
   const router = useRouter();
@@ -86,6 +88,13 @@ export function EventDetailPage({ from }: { from?: string }) {
                   ))}
                 </div>
               </div>
+            )}
+            {/* Only after the event has ended, and only then is the request
+                made at all. Before that there is nothing to show, and the
+                schedule above is what the page is for. A strip rather than the
+                gallery: the archive has its own page. */}
+            {isEventFinished(event.event_date, event.end_time) && (
+              <EventGalleryPreview eventId={eventId} backOrigin={backOrigin} />
             )}
           </div>
           <aside className="space-y-6 self-start lg:sticky lg:top-24">

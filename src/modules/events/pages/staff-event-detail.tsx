@@ -23,14 +23,19 @@ import { MeetingLinkPanel } from "@/modules/events/components/meeting-link-panel
 import { EventTeamPanel } from "@/modules/events/components/event-team-panel";
 import { EventCoursePanel } from "@/modules/events/components/event-course-panel";
 import { EventSurveyPanel } from "@/modules/events/components/event-survey-panel";
+import { EventPhotoManager } from "@/modules/events/components/event-photo-manager";
 
-type TabKey = "overview" | "details" | "team" | "course" | "attendees" | "surveys";
+type TabKey = "overview" | "details" | "team" | "course" | "photos" | "attendees" | "surveys";
 
 const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: "overview", label: "Overview" },
   { key: "details", label: "Details", adminOnly: true },
   { key: "team", label: "Team", adminOnly: true },
   { key: "course", label: "Course" },
+  // Not adminOnly. Photos are the one thing a facilitator holds that an admin
+  // does not — they were in the room — so the capability matrix admits an
+  // assigned facilitator and this tab has to be reachable by one.
+  { key: "photos", label: "Photos" },
   { key: "attendees", label: "Attendees", adminOnly: true },
   { key: "surveys", label: "Surveys", adminOnly: true },
 ];
@@ -175,6 +180,8 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
       )}
 
       {currentTab === "course" && <EventCoursePanel eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
+
+      {currentTab === "photos" && <EventPhotoManager eventId={eventId} />}
 
       {currentTab === "attendees" && isAdmin && (
         <SectionCard title="Attendees" icon="group">

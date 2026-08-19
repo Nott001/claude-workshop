@@ -7,12 +7,12 @@ import { CommunityHero } from "@/modules/community/components/community-hero";
 import { CommunityJoinDialog, type JoinTarget } from "@/modules/community/components/community-join-dialog";
 import { EventMemoryCard } from "@/modules/community/components/event-memory-card";
 import { useCommunityLinks } from "@/modules/community/lib/use-community-links";
-import { useEventFeed } from "@/modules/events/lib/use-event-feed";
+import { useEventMemories } from "@/modules/events/lib/use-event-memories";
 
 export function CommunityListPage() {
   const { links, loading, error } = useCommunityLinks();
   // Three finished events fills the grid's one row without a second.
-  const { events } = useEventFeed("past", 3);
+  const { memories } = useEventMemories(3);
   const [joinTarget, setJoinTarget] = useState<JoinTarget | null>(null);
 
   return (
@@ -62,14 +62,14 @@ export function CommunityListPage() {
 
         {/* Hidden entirely until there is an archive to show: an empty-state
             card here would advertise a section the app cannot fill yet. */}
-        {events.length > 0 && (
+        {memories.length > 0 && (
           <section>
             <h2 className="text-xl font-bold">Event Memories</h2>
             <p className="mt-1 text-sm text-muted-fg">Revisit the workshops and sessions this community has already run.</p>
 
             <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((event) => (
-                <EventMemoryCard key={event.event_id} event={event} />
+              {memories.map(({ event, photos, photoCount }) => (
+                <EventMemoryCard key={event.event_id} event={event} photos={photos} photoCount={photoCount} />
               ))}
             </div>
           </section>

@@ -12,6 +12,7 @@ const {
   paymentDao,
   listStorageFolder,
   deleteFromStorage,
+  listPhotoStoragePaths,
   logAuditEvent,
   requireAuditEvent,
   getAttendeeSurveyFlags,
@@ -38,6 +39,7 @@ const {
   paymentDao: { findPendingByUserAndEvent: vi.fn() },
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
+  listPhotoStoragePaths: vi.fn(),
   logAuditEvent: vi.fn(),
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
   getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, hasSurvey: true, byUser: new Map() })),
@@ -50,6 +52,7 @@ vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/payment.dao", () => paymentDao);
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
+vi.mock("@/modules/events/db/event-photo.dao", () => ({ listStoragePathsByEvent: listPhotoStoragePaths }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent, requireAuditEvent }));
 vi.mock("@/modules/surveys/lib/survey-service", () => ({ getAttendeeSurveyFlags }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
@@ -97,6 +100,7 @@ beforeEach(() => {
   speakerDao.replaceEventAssignments.mockResolvedValue(true);
   speakerDao.isAssignedByUserId.mockResolvedValue(true);
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
+  listPhotoStoragePaths.mockResolvedValue([]);
   deleteFromStorage.mockResolvedValue(undefined);
   logAuditEvent.mockResolvedValue(undefined);
 });
@@ -522,7 +526,9 @@ describe("deleteEvent", () => {
     await deleteEvent(supabase, 1, actor);
 
     const byBucket = Object.fromEntries(deleteFromStorage.mock.calls.map(([bucket, paths]) => [bucket, paths]));
-    expect(byBucket.event_images).toEqual(["events/1/event_images-file"]);
+    // Two folders are listed now — the event's own and its photos' — because
+    // `storage.list()` does not recurse into the second.
+    expect(byBucket.event_images).toEqual(["events/1/event_images-file", "events/1/photos/event_images-file"]);
     expect(byBucket.course_assets).toEqual(["courses/7/modules/3/lessons/5/course_assets-file"]);
     expect(byBucket.course_videos).toEqual(["courses/7/modules/3/lessons/5/course_videos-file"]);
     expect(eventDao.remove).toHaveBeenCalledWith(supabase, 1);

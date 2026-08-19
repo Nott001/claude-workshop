@@ -27,6 +27,10 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
     "Public course schedule for guests — module name, window and speaker name only. " +
     "Lesson content stays behind the authenticated /api/courses/event/[id] route, so there is " +
     "no credential and no session required.",
+  "events/memories/route.ts":
+    "Finished events with the head of their photo archive, for the /community strip. " +
+    "Published events only, and the read carries no per-caller scoping — a session would " +
+    "change nothing about the answer, and the page renders to visitors who have none.",
   "payments/webhook/route.ts":
     "Payment provider webhook. The provider HMAC-signs the raw body with its salt and the " +
     "adapter verifies it before touching anything, so the signature — not a session — is the " +
@@ -63,7 +67,7 @@ describe("api route authorization sweep", () => {
 
   it("keeps the public list minimal", () => {
     // A guard rail on the guard rail: if this list grows, someone should notice.
-    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(9);
+    expect(Object.keys(PUBLIC_BY_DESIGN)).toHaveLength(10);
   });
 
   it.each(Object.keys(PUBLIC_BY_DESIGN))("%s is genuinely unguarded, so the list stays honest", (rel) => {

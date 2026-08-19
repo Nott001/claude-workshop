@@ -30,13 +30,28 @@ const cards = [
   },
 ];
 
+/** What `/api/events/memories` answers with: the event, plus the head of its
+ *  photo archive and the archive's real size. */
 const pastEvents = [
   {
-    id: 7,
-    title: "Prompt Engineering Workshop",
-    event_date: "2026-06-21",
-    venue_name: "StartupLab Hub",
-    COURSE: { course_name: "AI Workshop" },
+    event: {
+      id: 7,
+      title: "Prompt Engineering Workshop",
+      event_date: "2026-06-21",
+      venue_name: "StartupLab Hub",
+      COURSE: { course_name: "AI Workshop" },
+    },
+    photos: [
+      {
+        id: 1,
+        event_id: 7,
+        image_url: "/api/storage/event_images/events/7/photos/1.jpg",
+        caption: null,
+        sequence_order: 0,
+        created_at: "2026-06-21T00:00:00Z",
+      },
+    ],
+    photo_count: 12,
   },
 ];
 
@@ -160,26 +175,41 @@ describe("CommunityListPage", () => {
     expect(await screen.findByText("Failed to load community groups.")).toBeTruthy();
   });
 
-  it("lists events that have already finished, linking each back to its detail page", async () => {
+  it("lists events that have already finished, opening each one's archive", async () => {
     stubFetch({ events: pastEvents });
 
     render(<CommunityListPage />);
 
     const memory = await screen.findByRole("link", { name: /Prompt Engineering Workshop/ });
-    // Tagged with the origin so the detail page's back link returns here.
-    expect(memory.getAttribute("href")).toBe("/events/7?from=community");
+    // Straight to the photographs, and tagged with the origin so that page's
+    // back link returns here. Landing on the event's own page is what made a
+    // memory a link to a registration form for a session that already happened.
+    expect(memory.getAttribute("href")).toBe("/events/7/memories?from=community");
     expect(screen.getByText("AI Workshop")).toBeTruthy();
-    expect(screen.getByText("StartupLab Hub")).toBeTruthy();
   });
 
-  it("asks the events API only for past events", async () => {
+  it("reads the memories endpoint, which carries the photos the strip renders", async () => {
     const fetchMock = stubFetch({ events: pastEvents });
 
     render(<CommunityListPage />);
     await screen.findByRole("heading", { name: "Event Memories" });
 
+    // Not the general listing: that one has no archive behind it, and every
+    // other caller of it would pay for the photo query to feed this strip.
     const eventCall = fetchMock.mock.calls.map(([url]) => url as string).find((url) => url.startsWith("/api/events"));
-    expect(eventCall).toContain("filter=past");
+    expect(eventCall).toContain("/api/events/memories");
+  });
+
+  it("shows each memory's own photos rather than restating its detail page", async () => {
+    stubFetch({ events: pastEvents });
+
+    render(<CommunityListPage />);
+    await screen.findByRole("heading", { name: "Event Memories" });
+
+    const tile = document.querySelector('img[src^="/api/storage/event_images/events/7/photos/"]');
+    expect(tile).toBeTruthy();
+    // The card holds one tile; the link offers the whole archive.
+    expect(screen.getByText(/View 12 photos/)).toBeTruthy();
   });
 
   it("hides the memories section entirely when no event has finished yet", async () => {

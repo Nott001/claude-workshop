@@ -48,6 +48,7 @@ describe("migration replay", () => {
       "00010_event_mode.sql",
       "00011_event_meeting_url.sql",
       "00012_ticket_realtime_read.sql",
+      "00013_event_photo.sql",
     ]);
   });
 

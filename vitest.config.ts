@@ -31,11 +31,21 @@ export default defineConfig({
       // `return { success: true }` lines the delete and publish services carried
       // were covered, and dropping them took four from both halves of the ratio.
       // No test stopped covering anything.
+      //
+      // Raised again with the after-event module release: its gate, settings
+      // store, release rule and both new surfaces arrived covered, so the
+      // ratchet moves up to what they measure rather than sitting where the
+      // feature found it.
+      //
+      // And again with event photos. The archive arrived with its DAO, its
+      // service authz, both routes, the gallery and the staff manager under
+      // test, and the two storage-cleanup bugs it exposed are now held by
+      // tests of their own — so every part moves up rather than diluting.
       thresholds: {
-        statements: 81.96,
-        branches: 76.72,
-        functions: 81.34,
-        lines: 83.02,
+        statements: 82.55,
+        branches: 77.38,
+        functions: 81.96,
+        lines: 83.6,
       },
     },
   },
