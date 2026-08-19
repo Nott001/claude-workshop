@@ -153,10 +153,17 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           </div>
         )}
         {/* The code stays visible even when the image fails to render — it is
-            the fallback credential for anyone whose camera cannot scan. */}
+            the fallback credential for anyone whose camera cannot scan.
+
+            `break-all` because a token has no break opportunity of its own: it
+            is one unbroken run of hex, so a long one is laid out as a single
+            word and simply leaves the card. Tokens are six characters since
+            #240, but that migration only stopped issuing 64-character ones — it
+            never rewrote the tickets already holding them, and those still
+            render. A 64-character token measured 896px inside a 256px pass. */}
         <div className="text-center">
           <span className="block text-[10px] uppercase tracking-wider text-muted-fg">Check-in code</span>
-          <span className="font-mono text-base font-bold tracking-widest text-fg">{ticket.qr_token}</span>
+          <span className="font-mono text-base font-bold tracking-widest text-fg break-all">{ticket.qr_token}</span>
         </div>
       </Link>
     </div>
