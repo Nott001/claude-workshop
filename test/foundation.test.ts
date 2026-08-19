@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { User, UserRole } from "@/shared/types";
 
 vi.mock("@/modules/auth/lib/session", () => ({
-  requireAuth: vi.fn(),
+  getCurrentUser: vi.fn(),
 }));
 
 describe("User types", () => {

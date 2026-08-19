@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const limit = Number(searchParams.get("limit") ?? 50);
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   const userRole = user?.role ?? null;
 
   const events = await listEvents(supabase, { role: userRole, userId: user?.id ?? null, filter, search, page, limit });

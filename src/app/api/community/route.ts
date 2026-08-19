@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
@@ -12,7 +12,7 @@ export async function GET(_req: Request) {
   const supabase = getServiceClient();
   // Public read: an anonymous caller simply has no staff role, so the service
   // answers visible cards only. No guard is needed beyond resolving the role.
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   const links = await listCommunityLinks(supabase, user?.role ?? null);
   return NextResponse.json(links);
 }

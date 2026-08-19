@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  getCurrentUser,
   requireRole,
   list,
   getAttendeeCounts,
@@ -16,7 +16,7 @@ const {
   speakerReplaceEventAssignments,
   facilitatorIsAssigned,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  getCurrentUser: vi.fn(),
   requireRole: vi.fn(),
   list: vi.fn(),
   getAttendeeCounts: vi.fn(),
@@ -31,7 +31,7 @@ const {
   facilitatorIsAssigned: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({
@@ -75,7 +75,7 @@ const postEvent = (body: unknown) => new Request("https://app.test/api/events", 
 beforeEach(() => {
   vi.clearAllMocks();
   requireRole.mockResolvedValue(facilitator);
-  requireAuth.mockResolvedValue({
+  getCurrentUser.mockResolvedValue({
     id: 5,
     role: ROLES.ATTENDEE,
     full_name: "Jane",
@@ -101,7 +101,7 @@ describe("GET /api/events", () => {
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     const res = await GET(new Request("https://app.test/api/events"));
 
@@ -128,7 +128,7 @@ describe("GET /api/events", () => {
   });
 
   it("passes the caller's id so a facilitator is filtered to their own events", async () => {
-    requireAuth.mockResolvedValue({
+    getCurrentUser.mockResolvedValue({
       id: 7,
       role: ROLES.FACILITATOR,
       full_name: "Fay",
@@ -145,7 +145,7 @@ describe("GET /api/events", () => {
   });
 
   it("attaches attendee counts to the rows a staff caller receives", async () => {
-    requireAuth.mockResolvedValue({
+    getCurrentUser.mockResolvedValue({
       id: 7,
       role: ROLES.FACILITATOR,
       full_name: "Fay",

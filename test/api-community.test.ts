@@ -1,9 +1,9 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, requireRole, listCommunityLinks, createCommunityLink, updateCommunityLink, deleteCommunityLink } =
+const { getCurrentUser, requireRole, listCommunityLinks, createCommunityLink, updateCommunityLink, deleteCommunityLink } =
   vi.hoisted(() => ({
-    requireAuth: vi.fn(),
+    getCurrentUser: vi.fn(),
     requireRole: vi.fn(),
     listCommunityLinks: vi.fn(),
     createCommunityLink: vi.fn(),
@@ -11,7 +11,7 @@ const { requireAuth, requireRole, listCommunityLinks, createCommunityLink, updat
     deleteCommunityLink: vi.fn(),
   }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/community/lib/community-service", async () => {
@@ -51,7 +51,7 @@ function jsonRequest(url: string, method: string, body: unknown): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({
+  getCurrentUser.mockResolvedValue({
     id: 5,
     role: ROLES.ATTENDEE,
     full_name: "Jane",
@@ -74,7 +74,7 @@ describe("GET /api/community", () => {
   });
 
   it("passes a null role for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     const res = await GET(new Request("https://app.test/api/community"));
 

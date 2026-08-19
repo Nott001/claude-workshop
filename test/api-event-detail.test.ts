@@ -1,16 +1,18 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { requireAuth, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned, ticketDao, speakerDao } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
-  findByIdWithCourse: vi.fn(),
-  getAttendeeCount: vi.fn(),
-  facilitatorIsAssigned: vi.fn(),
-  ticketDao: { findActiveTicketByUserAndEvent: vi.fn() },
-  speakerDao: { findByUserId: vi.fn(), checkSpeakerAssignment: vi.fn() },
-}));
+const { getCurrentUser, findByIdWithCourse, getAttendeeCount, facilitatorIsAssigned, ticketDao, speakerDao } = vi.hoisted(
+  () => ({
+    getCurrentUser: vi.fn(),
+    findByIdWithCourse: vi.fn(),
+    getAttendeeCount: vi.fn(),
+    facilitatorIsAssigned: vi.fn(),
+    ticketDao: { findActiveTicketByUserAndEvent: vi.fn() },
+    speakerDao: { findByUserId: vi.fn(), checkSpeakerAssignment: vi.fn() },
+  }),
+);
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
@@ -60,7 +62,7 @@ beforeEach(() => {
 
 describe("GET /api/events/[id] facilitator assignment scoping", () => {
   it("admits a facilitator assigned to the event", async () => {
-    requireAuth.mockResolvedValue(staffUser(ROLES.FACILITATOR));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.FACILITATOR));
 
     const res = await get();
 
@@ -69,7 +71,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("hides an event the facilitator is not assigned to", async () => {
-    requireAuth.mockResolvedValue(staffUser(ROLES.FACILITATOR));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.FACILITATOR));
     facilitatorIsAssigned.mockResolvedValue(false);
 
     const res = await get();
@@ -79,7 +81,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("does not consult the assignment roster for an admin", async () => {
-    requireAuth.mockResolvedValue(staffUser(ROLES.ADMIN));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.ADMIN));
 
     const res = await get();
 
@@ -88,7 +90,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("still lets an attendee read a published event without an assignment check", async () => {
-    requireAuth.mockResolvedValue(staffUser(ROLES.ATTENDEE));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.ATTENDEE));
 
     const res = await get();
 
@@ -97,7 +99,7 @@ describe("GET /api/events/[id] facilitator assignment scoping", () => {
   });
 
   it("answers the caller's ticket and speaker facts alongside the event", async () => {
-    requireAuth.mockResolvedValue(staffUser(ROLES.ATTENDEE));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.ATTENDEE));
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 11, event_id: 1, status: "issued" });
     speakerDao.findByUserId.mockResolvedValue({ id: 22, user_id: 9 });
     speakerDao.checkSpeakerAssignment.mockResolvedValue(true);
@@ -139,7 +141,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("serves it to staff before the event starts, since staff set it", async () => {
     vi.setSystemTime(new Date("2026-08-01T00:00:00"));
-    requireAuth.mockResolvedValue(staffUser(ROLES.ADMIN));
+    getCurrentUser.mockResolvedValue(staffUser(ROLES.ADMIN));
 
     const body = await (await get()).json();
 
@@ -148,7 +150,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("withholds it from a ticket holder until the event starts", async () => {
     vi.setSystemTime(new Date("2026-09-01T08:59:00"));
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 3, status: "issued" });
 
     const body = await (await get()).json();
@@ -159,7 +161,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("serves it to a ticket holder once the event has started", async () => {
     vi.setSystemTime(new Date("2026-09-01T09:30:00"));
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 3, status: "issued" });
 
     const body = await (await get()).json();
@@ -169,7 +171,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("withholds it from a signed-in reader with no ticket, mid-event", async () => {
     vi.setSystemTime(new Date("2026-09-01T09:30:00"));
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
 
     const body = await (await get()).json();
@@ -179,7 +181,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("withholds it from a signed-out reader, mid-event", async () => {
     vi.setSystemTime(new Date("2026-09-01T09:30:00"));
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     const body = await (await get()).json();
 
@@ -188,7 +190,7 @@ describe("GET /api/events/[id] meeting link", () => {
 
   it("keeps the key present when withholding, so the shape says nothing", async () => {
     vi.setSystemTime(new Date("2026-09-01T09:30:00"));
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     const body = await (await get()).json();
 

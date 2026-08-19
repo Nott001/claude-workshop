@@ -1,5 +1,5 @@
 import type { UserRole } from "@/shared/types";
-import { requireAuth } from "./session";
+import { getCurrentUser } from "./session";
 import type { AuthGuardResult } from "./types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
@@ -8,7 +8,7 @@ import { hasMinRole } from "@/shared/lib/role-hierarchy";
 // role must not reach. They were one variadic min-role check before, so a list
 // like (attendee, facilitator) silently admitted every authenticated role.
 export async function requireMinRole(role: UserRole): Promise<AuthGuardResult> {
-  const user = await requireAuth();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { allowed: false, error: "Unauthenticated", user: null };
@@ -22,7 +22,7 @@ export async function requireMinRole(role: UserRole): Promise<AuthGuardResult> {
 }
 
 export async function requireRole(...allowedRoles: UserRole[]): Promise<AuthGuardResult> {
-  const user = await requireAuth();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { allowed: false, error: "Unauthenticated", user: null };

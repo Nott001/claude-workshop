@@ -105,10 +105,11 @@ describe("route guard refusals go through the helper", () => {
     expect(HAND_ROLLED_REFUSAL.test('return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });')).toBe(true);
   });
 
-  // The pre-unification form lived on `requireAuth` + a bare null check, so it
-  // had no `guard.error` to pair a status with. Sheets 03-05 moved every such
-  // handler onto requireRole()/requireMinRole() + guardFailure; this keeps the
-  // inline NextResponse.json refusal from coming back.
+  // The pre-unification form lived on the old soft read + a bare null check, so
+  // it had no `guard.error` to pair a status with. Sheets 03-05 moved every such
+  // handler onto requireRole()/requireMinRole() + guardFailure, and sheet 08
+  // renamed the soft read to getCurrentUser; this keeps the inline
+  // NextResponse.json refusal from coming back.
   it("no route hand-rolls a guard refusal outside the helpers", () => {
     // `\s*` lets prettier wrap the call across lines without silently evading
     // the sweep — the single-line form is the common one today.

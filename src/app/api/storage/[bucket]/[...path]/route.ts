@@ -1,6 +1,6 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -88,7 +88,7 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
     if (await eventDao.isPublished(supabase, eventId)) {
       return { allowed: true, cacheable: true };
     }
-    const viewer = await requireAuth(supabase);
+    const viewer = await getCurrentUser(supabase);
     return { allowed: hasMinRole(viewer?.role ?? null, ROLES.FACILITATOR), cacheable: false };
   }
 
@@ -103,11 +103,11 @@ async function resolveAccess(bucket: StorageBucket, segments: string[], supabase
     if (await speakerDao.isSpeakerOnPublishedEvent(supabase, userId)) {
       return { allowed: true, cacheable: true };
     }
-    const viewer = await requireAuth(supabase);
+    const viewer = await getCurrentUser(supabase);
     return viewer ? { allowed: true, cacheable: false } : DENY;
   }
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
 
   // Everything else still needs a session. The middleware requires one for the
   // rest of /api/*; re-checking here keeps the rule with the data it protects

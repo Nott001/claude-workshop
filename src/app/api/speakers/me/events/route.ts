@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -8,7 +8,7 @@ import { toLandingEvent } from "@/modules/events/lib/landing-event";
 export async function GET() {
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json([]);
   }
