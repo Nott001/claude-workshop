@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
-import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
+import { forbidden, guardFailure, unauthenticated } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { deleteAccount } from "@/modules/user/lib/delete-account";
 import * as userDao from "@/shared/db/dao/user.dao";
@@ -39,7 +39,7 @@ export async function PATCH(req: Request) {
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   // No email here, deliberately. The address is owned by the auth identity and
@@ -125,7 +125,7 @@ export async function DELETE() {
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   try {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "fs";
 import path from "path";
-import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
+import { guardFailure, forbidden, unauthenticated } from "@/modules/auth/lib/guard-response";
 
 /**
  * RFC 9110 separates the two refusals: 401 means the caller is not
@@ -51,6 +51,20 @@ describe("forbidden", () => {
     const res = forbidden();
 
     expect(res.status === 401).toBe(false);
+  });
+});
+
+describe("unauthenticated", () => {
+  it("answers identity re-verification failures with 401", async () => {
+    const res = unauthenticated();
+
+    expect(res.status).toBe(401);
+  });
+
+  it("renders the canonical Unauthenticated body", async () => {
+    const res = unauthenticated();
+
+    await expect(res.json()).resolves.toEqual({ error: "Unauthenticated" });
   });
 });
 

@@ -27,3 +27,12 @@ export function guardFailure(guard: Extract<AuthGuardResult, { allowed: false }>
 export function forbidden(): NextResponse {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
+
+/**
+ * Renders a refusal a role guard cannot state: the caller passed the guard,
+ * but the auth identity needed later in the handler is gone. Answers the same
+ * 401 body so clients see one "Unauthenticated".
+ */
+export function unauthenticated(): NextResponse {
+  return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+}

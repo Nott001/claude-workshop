@@ -1,8 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
-import { requireMinRole } from "@/modules/auth/lib/role-guard";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
@@ -22,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // assignments, so an assigned speaker may read it for their event too. A
   // staff member passes through; only an exact speaker needs the assignment.
   if (guard.user.role === ROLES.SPEAKER && !(await speakerDao.isAssignedByUserId(supabase, guard.user.id, Number(id)))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   const assignments = await speakerDao.listEventAssignments(supabase, Number(id));
@@ -34,9 +33,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const body = await req.json();
@@ -46,7 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
-    await loadEventOr403(supabase, Number(id), user, "edit");
+    await loadEventOr403(supabase, Number(id), guard.user, "edit");
 
     const ok = await speakerDao.assignToEvent(supabase, Number(id), parsed.data.speaker_profile_id);
 
@@ -54,7 +53,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Failed to assign speaker" }, { status: 500 });
     }
 
-    await requireAuditEvent(supabase, user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
+    await requireAuditEvent(supabase, guard.user.id, "speaker.assigned", "speaker_profile", parsed.data.speaker_profile_id, {
       event_id: Number(id),
     });
 
