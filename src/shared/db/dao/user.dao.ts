@@ -21,25 +21,34 @@ export async function findStaffByEmail(supabase: DbClient, email: string): Promi
 }
 
 /**
- * The organization roster, and the search that reaches past it.
+ * The user roster, and the search and widening switches that reach past it.
  *
  * Unfiltered, this is the staff list it has always been: attendees outnumber
  * staff by orders of magnitude and would bury the roster. But a role can now be
  * granted to an existing account, and an attendee nobody can find is an
  * attendee nobody can promote — so naming one, by search or by asking for the
- * role outright, widens the query to every role.
+ * role outright (`allRoles`), widens the query to every role.
+ *
+ * Tombstoned accounts never appear: a purge leaves the row with a
+ * `deleted-{id}@deleted.local` address rather than removing it, and this query
+ * rejects that address pattern on every call.
  *
  * Ordering follows from that: a mixed list is ranked by authority before name,
  * a single-role list by name alone. See the ordering below for why the database
  * can rank the roles at all.
  */
-export async function listOrganizationMembers(
+export async function listUsers(
   supabase: DbClient,
-  options: { page: number; search: string; pageSize?: number; role?: string },
+  options: { page: number; search: string; pageSize?: number; role?: string; allRoles?: boolean },
 ): Promise<PaginatedResult<Pick<User, "id" | "full_name" | "email" | "role">>> {
-  const { page, search, role } = options;
+  const { page, search, role, allRoles } = options;
   const pageSize = options.pageSize ?? 10;
   let query = supabase.from("USER").select("id, full_name, email, role", { count: "exact" });
+
+  // A purge tombstones the USER row rather than deleting it, and the address
+  // it writes there is what this filter rejects, so `deleted-*` stays out of
+  // the roster without a schema flag.
+  query = query.not("email", "ilike", "deleted-%@deleted.local");
 
   if (role) {
     // Any single role, attendee included; the route validates it before here.
@@ -49,7 +58,7 @@ export async function listOrganizationMembers(
     // past them on purpose, which costs a full scan — the term has a leading
     // wildcard, so no index serves it and there is no trigram index on USER.
     // Fine at this size; a pg_trgm GIN index is the answer if it stops being.
-    if (!search) query = query.in("role", [...STAFF_ROLES]);
+    if (!search && !allRoles) query = query.in("role", [...STAFF_ROLES]);
 
     // More than one role can come back, so the list leads with the most senior.
     // Postgres sorts an enum by the order its members were declared in, and
@@ -142,11 +151,6 @@ export async function updateRole(
     .select("id, full_name, email, role")
     .single();
   return data;
-}
-
-export async function removeById(supabase: DbClient, id: number): Promise<boolean> {
-  const { error } = await supabase.from("USER").delete().eq("id", id);
-  return !error;
 }
 
 export async function deleteByAuthId(supabase: DbClient, authUserId: string): Promise<boolean> {

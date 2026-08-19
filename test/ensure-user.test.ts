@@ -62,7 +62,7 @@ describe("ensureUser", () => {
     expect(result).toMatchObject({ email: "", full_name: "" });
   });
 
-  it("grants the role an organization invite recorded", async () => {
+  it("grants the role a staff invite recorded", async () => {
     getUserById.mockResolvedValue({
       data: {
         user: {

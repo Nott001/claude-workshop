@@ -162,6 +162,15 @@ describe("deleteAccount", () => {
     expect(deleteAuthUser).not.toHaveBeenCalled();
   });
 
+  it("treats an already-gone auth identity as a successful teardown", async () => {
+    for (const error of [{ message: "User not found" }, { status: 404, message: "identity absent" }]) {
+      deleteAuthUser.mockResolvedValue({ error });
+
+      await expect(deleteAccount(input)).resolves.toBeUndefined();
+      expect(deleteAuthUser).toHaveBeenCalledWith("auth_7");
+    }
+  });
+
   it("throws when the auth identity deletion errors", async () => {
     deleteAuthUser.mockResolvedValue({ error: { message: "nope" } });
 

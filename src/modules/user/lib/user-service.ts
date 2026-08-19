@@ -10,8 +10,9 @@ import { appBaseUrl } from "@/shared/lib/app-url";
 import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
 import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
 import { ServiceError } from "@/shared/lib/service-error";
+import { deleteAccount } from "@/modules/user/lib/delete-account";
 
-export class OrganizationServiceError extends ServiceError {}
+export class UserServiceError extends ServiceError {}
 
 export interface InviteInput {
   email: string;
@@ -30,7 +31,7 @@ export async function cleanupStaleAccounts(supabase: DbClient, email: string): P
   const account = await findAuthAccountByEmail(email);
 
   if (account?.accepted) {
-    throw new OrganizationServiceError(409, "A user with this email already exists");
+    throw new UserServiceError(409, "A user with this email already exists");
   }
 
   if (!account) return false;
@@ -41,7 +42,7 @@ export async function cleanupStaleAccounts(supabase: DbClient, email: string): P
   // account stands, and report the refusal as "already exists" — a confident
   // wrong answer to an admin whose real problem is this delete.
   if (staleError) {
-    throw new OrganizationServiceError(502, "Failed to clear the earlier invitation");
+    throw new UserServiceError(502, "Failed to clear the earlier invitation");
   }
 
   return true;
@@ -64,7 +65,7 @@ export async function generateInviteLink(
 
   if (linkError || !link?.user || !link.properties?.hashed_token) {
     const alreadyRegistered = /already|registered|exists/i.test(linkError?.message ?? "");
-    throw new OrganizationServiceError(
+    throw new UserServiceError(
       alreadyRegistered ? 409 : 502,
       alreadyRegistered ? "A user with this email already exists" : "Failed to create the invitation",
     );
@@ -80,7 +81,7 @@ export async function generateInviteLink(
 
   if (roleError) {
     await supabase.auth.admin.deleteUser(link.user.id);
-    throw new OrganizationServiceError(500, "Failed to prepare the invitation");
+    throw new UserServiceError(500, "Failed to prepare the invitation");
   }
 
   return { userId: link.user.id, hashedToken: link.properties.hashed_token };
@@ -107,7 +108,7 @@ export async function sendInviteEmail(
 
   if (!sent.success) {
     await supabase.auth.admin.deleteUser(link.userId);
-    throw new OrganizationServiceError(502, "Could not send the invitation email");
+    throw new UserServiceError(502, "Could not send the invitation email");
   }
 }
 
@@ -121,31 +122,31 @@ export type Actor = Pick<User, "id" | "role">;
  * apply them — which is also the half of the audit trail the request does not
  * carry, so it is read once here and handed back rather than fetched twice.
  */
-async function authorizeMemberChange(supabase: DbClient, targetId: number, actor: Actor): Promise<Actor> {
+async function authorizeUserChange(supabase: DbClient, targetId: number, actor: Actor): Promise<Actor> {
   // Acting on yourself takes away the page you are standing on, and the account
   // that could undo it.
   if (actor.id === targetId) {
-    throw new OrganizationServiceError(400, "Cannot act on your own account");
+    throw new UserServiceError(400, "Cannot act on your own account");
   }
 
   // The role is the only field these rules judge, and the only one the audit row
   // needs back, so this reads two columns rather than the whole row.
   const target = await userDao.findRoleById(supabase, targetId);
   if (!target) {
-    throw new OrganizationServiceError(404, "User not found");
+    throw new UserServiceError(404, "User not found");
   }
 
   // A super admin outranks everyone who can reach these routes, including
   // another super admin. Leaving them editable would make the role assignable in
   // effect — demote the holder, and the seat is open to whoever asked.
   if (target.role === ROLES.SUPER_ADMIN) {
-    throw new OrganizationServiceError(403, "A super admin cannot be changed or removed");
+    throw new UserServiceError(403, "A super admin cannot be changed or removed");
   }
 
   return target;
 }
 
-export async function changeMemberRole(
+export async function changeUserRole(
   supabase: DbClient,
   input: { targetId: number; role: AssignableRole },
   actor: Actor,
@@ -153,17 +154,17 @@ export async function changeMemberRole(
   // Judged before the lookup: it depends only on who is asking and for what, so
   // a refusal here costs no round trip.
   if (!canGrantRole(actor.role, input.role)) {
-    throw new OrganizationServiceError(403, "You cannot grant a role you do not outrank");
+    throw new UserServiceError(403, "You cannot grant a role you do not outrank");
   }
 
-  const target = await authorizeMemberChange(supabase, input.targetId, actor);
+  const target = await authorizeUserChange(supabase, input.targetId, actor);
 
   const user = await userDao.updateRole(supabase, input.targetId, input.role);
   if (!user) {
-    throw new OrganizationServiceError(500, "Failed to update user role");
+    throw new UserServiceError(500, "Failed to update user role");
   }
 
-  await requireAuditEvent(supabase, actor.id, "organization.role_changed", "user", input.targetId, {
+  await requireAuditEvent(supabase, actor.id, "user.role_changed", "user", input.targetId, {
     previous_role: target.role,
     new_role: input.role,
   });
@@ -171,14 +172,38 @@ export async function changeMemberRole(
   return user;
 }
 
-export async function removeMember(supabase: DbClient, targetId: number, actor: Actor): Promise<void> {
-  await authorizeMemberChange(supabase, targetId, actor);
+export async function deleteUserAccount(supabase: DbClient, targetId: number, actor: Actor): Promise<void> {
+  // Self, super admin and existence are judged by the shared rule.
+  await authorizeUserChange(supabase, targetId, actor);
 
-  if (!(await userDao.removeById(supabase, targetId))) {
-    throw new OrganizationServiceError(500, "Failed to remove user");
+  // The purge needs the auth identity and the live address, and both must
+  // be read before the tombstone replaces them.
+  const target = await userDao.findById(supabase, targetId);
+  if (!target) {
+    throw new UserServiceError(404, "User not found");
   }
 
-  await requireAuditEvent(supabase, actor.id, "organization.removed", "user", targetId);
+  // Irreversible, so stricter than a role change: only a role the actor
+  // strictly outranks may be deleted.
+  if (!canGrantRole(actor.role, target.role)) {
+    throw new UserServiceError(403, "You can only delete a user in a role you outrank");
+  }
+
+  try {
+    await deleteAccount({
+      userId: target.id,
+      authUserId: target.auth_user_id,
+      email: target.email,
+      role: target.role,
+    });
+  } catch (err) {
+    // deleteAccount rethrows bare Errors; toErrorResponse only renders
+    // ServiceErrors, so the message is carried into a 500 it will answer
+    // with the flat `{ error }` shape instead of a server crash.
+    throw new UserServiceError(500, err instanceof Error ? err.message : "Failed to delete the user's account");
+  }
+
+  await requireAuditEvent(supabase, actor.id, "user.deleted", "user", targetId, { role: target.role });
 }
 
 export async function inviteUser(
@@ -188,14 +213,14 @@ export async function inviteUser(
 ): Promise<{ email: string; role: string }> {
   const existing = await userDao.findStaffByEmail(supabase, input.email);
   if (existing) {
-    throw new OrganizationServiceError(409, "A user with this email already exists");
+    throw new UserServiceError(409, "A user with this email already exists");
   }
 
   const resent = await cleanupStaleAccounts(supabase, input.email);
   const link = await generateInviteLink(supabase, input);
   await sendInviteEmail(supabase, link, input);
 
-  await requireAuditEvent(supabase, actorId, "organization.invited", "user", null, {
+  await requireAuditEvent(supabase, actorId, "user.invited", "user", null, {
     email: input.email,
     role: input.role,
     resent,

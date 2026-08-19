@@ -7,7 +7,7 @@ const {
   requireRole,
   findStaffByEmail,
   findAuthAccountByEmail,
-  listOrganizationMembers,
+  listUsers,
   logAuditEvent,
   generateLink,
   updateUserById,
@@ -17,7 +17,7 @@ const {
   requireRole: vi.fn(),
   findStaffByEmail: vi.fn(),
   findAuthAccountByEmail: vi.fn(),
-  listOrganizationMembers: vi.fn(),
+  listUsers: vi.fn(),
   logAuditEvent: vi.fn(),
   generateLink: vi.fn(),
   updateUserById: vi.fn(),
@@ -30,21 +30,21 @@ vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ auth: { admin: { generateLink, updateUserById, deleteUser } } }),
 }));
-vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listOrganizationMembers }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, listUsers }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
   logAuditEvent,
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
 }));
 vi.mock("@/shared/integrations/email", () => ({ getEmailService: () => ({ send }) }));
 
-import { POST, GET } from "@/app/api/organization/route";
+import { POST, GET } from "@/app/api/users/route";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 
 const admin = { allowed: true, error: null, user: { id: 3, role: ROLES.ADMIN } };
 const superAdmin = { allowed: true, error: null, user: { id: 1, role: ROLES.SUPER_ADMIN } };
 
 function post(body: unknown) {
-  return new Request("https://app.test/api/organization", { method: "POST", body: JSON.stringify(body) });
+  return new Request("https://app.test/api/users", { method: "POST", body: JSON.stringify(body) });
 }
 
 const INVITE = { full_name: "Jane Doe", email: "jane@example.com", role: ROLES.SPEAKER };
@@ -63,37 +63,39 @@ beforeEach(() => {
   logAuditEvent.mockResolvedValue(undefined);
 });
 
-describe("GET /api/organization", () => {
+describe("GET /api/users", () => {
   const staff = [
     { id: 1, full_name: "Ada Lovelace", email: "ada@example.com", role: ROLES.SPEAKER },
     { id: 2, full_name: "Grace Hopper", email: "grace@example.com", role: ROLES.ADMIN },
   ];
 
   it("lists a page of staff with no filters", async () => {
-    listOrganizationMembers.mockResolvedValue({ data: staff, total: 2, page: 1, limit: 10 });
+    listUsers.mockResolvedValue({ data: staff, total: 2, page: 1, limit: 10 });
 
-    const res = await GET(new Request("https://app.test/api/organization"));
+    const res = await GET(new Request("https://app.test/api/users"));
 
     expect(res.status).toBe(200);
-    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+    expect(listUsers).toHaveBeenCalledWith(expect.anything(), {
       page: 1,
       search: "",
       pageSize: 10,
       role: undefined,
+      allRoles: false,
     });
     await expect(res.json()).resolves.toMatchObject({ users: staff, total: 2, page: 1 });
   });
 
   it("forwards a validated role filter", async () => {
-    listOrganizationMembers.mockResolvedValue({ data: [staff[1]], total: 1, page: 1, limit: 10 });
+    listUsers.mockResolvedValue({ data: [staff[1]], total: 1, page: 1, limit: 10 });
 
-    await GET(new Request("https://app.test/api/organization?role=admin"));
+    await GET(new Request("https://app.test/api/users?role=admin"));
 
-    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+    expect(listUsers).toHaveBeenCalledWith(expect.anything(), {
       page: 1,
       search: "",
       pageSize: 10,
       role: ROLES.ADMIN,
+      allRoles: false,
     });
   });
 
@@ -101,41 +103,51 @@ describe("GET /api/organization", () => {
   // are about to promote. The check exists to keep an arbitrary string out of
   // the .eq filter, not to keep attendees out of the list.
   it("forwards attendee as a role filter", async () => {
-    listOrganizationMembers.mockResolvedValue({ data: [], total: 0, page: 1, limit: 10 });
+    listUsers.mockResolvedValue({ data: [], total: 0, page: 1, limit: 10 });
 
-    const res = await GET(new Request("https://app.test/api/organization?role=attendee"));
+    const res = await GET(new Request("https://app.test/api/users?role=attendee"));
 
     expect(res.status).toBe(200);
-    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+    expect(listUsers).toHaveBeenCalledWith(expect.anything(), {
       page: 1,
       search: "",
       pageSize: 10,
       role: ROLES.ATTENDEE,
+      allRoles: false,
     });
   });
 
   it("rejects a role that is not a role at all", async () => {
-    const res = await GET(new Request("https://app.test/api/organization?role=root"));
+    const res = await GET(new Request("https://app.test/api/users?role=root"));
 
     expect(res.status).toBe(400);
-    expect(listOrganizationMembers).not.toHaveBeenCalled();
+    expect(listUsers).not.toHaveBeenCalled();
+  });
+
+  it("widens to every role when scope=all", async () => {
+    listUsers.mockResolvedValue({ data: [], total: 0, page: 1, limit: 10 });
+
+    await GET(new Request("https://app.test/api/users?scope=all"));
+
+    expect(listUsers).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ allRoles: true }));
   });
 
   it("forwards a search term alongside a role", async () => {
-    listOrganizationMembers.mockResolvedValue({ data: [staff[0]], total: 1, page: 1, limit: 10 });
+    listUsers.mockResolvedValue({ data: [staff[0]], total: 1, page: 1, limit: 10 });
 
-    await GET(new Request("https://app.test/api/organization?search=ada&role=speaker"));
+    await GET(new Request("https://app.test/api/users?search=ada&role=speaker"));
 
-    expect(listOrganizationMembers).toHaveBeenCalledWith(expect.anything(), {
+    expect(listUsers).toHaveBeenCalledWith(expect.anything(), {
       page: 1,
       search: "ada",
       pageSize: 10,
       role: ROLES.SPEAKER,
+      allRoles: false,
     });
   });
 });
 
-describe("POST /api/organization", () => {
+describe("POST /api/users", () => {
   it("sends the invitation itself rather than letting Supabase mail it", async () => {
     const res = await POST(post(INVITE));
 
@@ -265,7 +277,7 @@ describe("POST /api/organization", () => {
     expect(logAuditEvent).toHaveBeenCalledWith(
       expect.anything(),
       3,
-      "organization.invited",
+      "user.invited",
       "user",
       null,
       expect.objectContaining({ resent: true }),

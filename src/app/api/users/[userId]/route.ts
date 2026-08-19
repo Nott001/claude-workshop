@@ -5,7 +5,7 @@ import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
-import { changeMemberRole, removeMember } from "@/modules/auth/lib/organization-service";
+import { changeUserRole, deleteUserAccount } from "@/modules/user/lib/user-service";
 
 const updateSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
@@ -42,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const supabase = getServiceClient();
 
   try {
-    const user = await changeMemberRole(supabase, { targetId, role: parsed.data.role }, guard.user);
+    const user = await changeUserRole(supabase, { targetId, role: parsed.data.role }, guard.user);
     return NextResponse.json(user);
   } catch (err) {
     return toErrorResponse(err);
@@ -64,7 +64,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
   const supabase = getServiceClient();
 
   try {
-    await removeMember(supabase, targetId, guard.user);
+    await deleteUserAccount(supabase, targetId, guard.user);
     return NextResponse.json({ success: true });
   } catch (err) {
     return toErrorResponse(err);
