@@ -34,7 +34,12 @@ export function CourseLibraryPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-fg">My Courses</h1>
-            <p className="mt-0.5 text-sm text-muted-fg">Material your events released once they finished.</p>
+            {/* The second clause is for the reader who has courses here and is
+                looking for one that never arrived: the empty state carries the
+                same caveat, but they will never see it. */}
+            <p className="mt-0.5 text-sm text-muted-fg">
+              Material your events released once they finished &mdash; not every event does.
+            </p>
           </div>
         </div>
 
@@ -49,6 +54,13 @@ export function CourseLibraryPage() {
             <p className="mt-1 text-xs text-muted-fg">
               Material appears here once an event you attended has finished and released it.
             </p>
+            {/* The sentence above reads as a promise on its own, and an attendee
+                whose event finished and released nothing is left wondering
+                whether the page is broken or the material is still coming.
+                "after it ends" is the load-bearing half: an event can run a
+                course during the session and keep none of it back, so having
+                had material is not the same as having material to release. */}
+            <p className="mt-1 text-xs text-muted-fg">Not every event has material to release after it ends.</p>
             <Link
               href="/events"
               className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand/80"
