@@ -1,6 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import * as supportSessionDao from "@/shared/db/dao/support-session.dao";
@@ -28,16 +29,16 @@ async function authorizeMessageRead(
   if (session && session.assigned_to === user.id) {
     return null;
   }
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return forbidden();
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {
   const { messageId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const message = await chatDao.findMessageWithUser(supabase, Number(messageId));
@@ -45,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ message
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
-  const denied = await authorizeMessageRead(supabase, message, user);
+  const denied = await authorizeMessageRead(supabase, message, guard.user);
   if (denied) {
     return denied;
   }
@@ -57,9 +58,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
   const { messageId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const message = await chatDao.findMessageWithUser(supabase, Number(messageId));
@@ -67,14 +68,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ mess
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
-  const denied = await authorizeMessageRead(supabase, message, user);
+  const denied = await authorizeMessageRead(supabase, message, guard.user);
   if (denied) {
     return denied;
   }
 
-  const ok = await chatDao.updateMessage(supabase, Number(messageId), {
-    deleted_at: new Date().toISOString(),
-  });
+  const ok = await chatDao.deleteMessagesByIds(supabase, [Number(messageId)]);
 
   if (!ok) {
     return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });

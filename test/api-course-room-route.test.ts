@@ -1,9 +1,9 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, resolveCourseGrant, readAfterEventModules, courseDao, eventDao, ticketDao, speakerDao } = vi.hoisted(
+const { requireRole, resolveCourseGrant, readAfterEventModules, courseDao, eventDao, ticketDao, speakerDao } = vi.hoisted(
   () => ({
-    requireAuth: vi.fn(),
+    requireRole: vi.fn(),
     resolveCourseGrant: vi.fn(),
     readAfterEventModules: vi.fn(),
     courseDao: {
@@ -22,7 +22,7 @@ const { requireAuth, resolveCourseGrant, readAfterEventModules, courseDao, event
   }),
 );
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 // The gate itself is exercised in course-entitlement.test.ts; here the route's
 // contract is that it asks that one gate and shapes what comes back.
@@ -49,6 +49,9 @@ const course = () => ({
   event_id: 9,
   MODULE: [LIVE_MODULE, HELD_MODULE],
 });
+
+// The pristine shape, for assertions only — the mock is handed its own copy
+// per test because the route narrows course.MODULE in place.
 const COURSE = course();
 
 const STARTED_EVENT = { id: 9, title: "Demo Day", event_date: "2020-01-01", start_time: "09:00", end_time: "17:00" };
@@ -63,7 +66,7 @@ function roomRequest() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({ id: 2, role: ROLES.ATTENDEE });
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 2, role: ROLES.ATTENDEE } });
   courseDao.findCourseWithDetails.mockResolvedValue(course());
   resolveCourseGrant.mockResolvedValue("live");
   readAfterEventModules.mockResolvedValue({ version: 1, releases: {} });
@@ -75,7 +78,7 @@ beforeEach(() => {
 
 describe("GET /api/courses/[courseId]/room", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(roomRequest(), params);
 
@@ -100,9 +103,8 @@ describe("GET /api/courses/[courseId]/room", () => {
     expect(res.status).toBe(403);
   });
 
-  it("admits staff, whose grant the gate answers on role alone", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
-    resolveCourseGrant.mockResolvedValue("staff");
+  it("admits staff without asking the access gate, as their access is role-based", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 5, role: ROLES.FACILITATOR } });
 
     const res = await GET(roomRequest(), params);
 
@@ -136,7 +138,7 @@ describe("GET /api/courses/[courseId]/room", () => {
   });
 
   it("shows staff the held-back module throughout, since they built it", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 5, role: ROLES.FACILITATOR } });
     resolveCourseGrant.mockResolvedValue("staff");
     eventDao.findByIdWithCourse.mockResolvedValue(RUNNING_EVENT);
     readAfterEventModules.mockResolvedValue({ version: 1, releases: { "9": [HELD_MODULE.id] } });
@@ -186,8 +188,7 @@ describe("GET /api/courses/[courseId]/room", () => {
   });
 
   it("still serves the course to staff before the event starts, so they can set the room up", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
-    resolveCourseGrant.mockResolvedValue("staff");
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 5, role: ROLES.FACILITATOR } });
     eventDao.findByIdWithCourse.mockResolvedValue(FUTURE_EVENT);
 
     const res = await GET(roomRequest(), params);

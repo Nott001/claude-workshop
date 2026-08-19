@@ -1,0 +1,2 @@
+ALTER TABLE "public"."QA_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";
+ALTER TABLE "public"."CHAT_MESSAGE" DROP COLUMN IF EXISTS "deleted_at";

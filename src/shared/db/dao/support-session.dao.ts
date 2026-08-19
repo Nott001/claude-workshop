@@ -207,7 +207,6 @@ export async function listCases(
     .from("CHAT_MESSAGE")
     .select("session_id, message, sent_at")
     .in("session_id", sessionIds)
-    .is("deleted_at", null)
     .order("sent_at", { ascending: false });
 
   const latestBySession = new Map<number, { message: string; sent_at: string }>();

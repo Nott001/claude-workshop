@@ -36,8 +36,6 @@ export default function CourseRoomPage() {
     isSpeakerAssigned,
     eventStarted,
     eventEnded,
-    elapsed,
-    remaining,
     highlightedLessonId,
     settingHighlight,
     handleSetHighlight,
@@ -133,10 +131,9 @@ export default function CourseRoomPage() {
     <div className="flex h-screen flex-col bg-bg">
       <EventSessionNavbar
         eventName={eventTitle}
-        elapsed={elapsed}
-        remaining={remaining}
         eventDate={eventDate}
         startTime={startTime}
+        endTime={endTime}
         liveModuleName={liveModule?.module_name}
         liveSpeakerName={assignedSpeakerCount > 1 ? (liveModule?.SPEAKER_PROFILE?.USER?.full_name ?? null) : null}
         onExit={handleExit}

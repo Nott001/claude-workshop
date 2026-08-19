@@ -1,8 +1,9 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, chatDao } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, requireMinRole, chatDao } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  requireMinRole: vi.fn(),
   chatDao: {
     listRecentSessions: vi.fn(),
     listRecentSupportMessages: vi.fn(),
@@ -14,15 +15,19 @@ const { requireAuth, chatDao } = vi.hoisted(() => ({
     endSession: vi.fn(),
     sendMessage: vi.fn(),
     deleteSessionsExcept: vi.fn(),
+    deleteSession: vi.fn(),
+    deleteMessagesByUser: vi.fn(),
+    deleteMessagesByRecipient: vi.fn(),
   },
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => chatDao);
 
 import { GET as listUsers } from "@/app/api/support/users/route";
 import { GET as listSessions, POST as sessionAction } from "@/app/api/support/sessions/route";
+import { DELETE as destroySession } from "@/app/api/support/sessions/[userId]/route";
 
 const ATTENDEE = { id: 12, role: ROLES.ATTENDEE };
 const FACILITATOR = { id: 3, role: ROLES.FACILITATOR };
@@ -34,7 +39,8 @@ function action(payload: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(FACILITATOR);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: FACILITATOR });
+  requireMinRole.mockResolvedValue({ allowed: true, error: null, user: FACILITATOR });
   chatDao.listRecentSessions.mockResolvedValue([]);
   chatDao.listRecentSupportMessages.mockResolvedValue([]);
   chatDao.listActiveSessions.mockResolvedValue([]);
@@ -45,11 +51,14 @@ beforeEach(() => {
   chatDao.endSession.mockResolvedValue({ id: 50, status: "ended_by_facilitator" });
   chatDao.sendMessage.mockResolvedValue({ id: 100 });
   chatDao.deleteSessionsExcept.mockResolvedValue(true);
+  chatDao.deleteSession.mockResolvedValue(true);
+  chatDao.deleteMessagesByUser.mockResolvedValue(true);
+  chatDao.deleteMessagesByRecipient.mockResolvedValue(true);
 });
 
 describe("GET /api/support/users", () => {
   it("refuses an attendee", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await listUsers();
 
@@ -58,9 +67,9 @@ describe("GET /api/support/users", () => {
   });
 
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
-    expect((await listUsers()).status).toBe(403);
+    expect((await listUsers()).status).toBe(401);
   });
 
   it("lists one entry per asker, newest conversation first", async () => {
@@ -171,7 +180,7 @@ describe("GET /api/support/users", () => {
 
 describe("GET /api/support/sessions", () => {
   it("refuses an attendee", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     expect((await listSessions()).status).toBe(403);
   });
@@ -188,13 +197,13 @@ describe("GET /api/support/sessions", () => {
 
 describe("POST /api/support/sessions", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     expect((await sessionAction(action({ action: "start" }))).status).toBe(401);
   });
 
   it("lets anyone start their own conversation", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
 
     const res = await sessionAction(action({ action: "start" }));
 
@@ -203,7 +212,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("returns the conversation already open instead of starting a second", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
     chatDao.findActiveSession.mockResolvedValue({ id: 77, status: "active" });
 
     const res = await sessionAction(action({ action: "start" }));
@@ -213,14 +222,14 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("reports a conversation that could not be started", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
     chatDao.createSession.mockResolvedValue(null);
 
     expect((await sessionAction(action({ action: "start" }))).status).toBe(500);
   });
 
   it("stops an attendee ending somebody else's conversation", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
 
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
@@ -236,7 +245,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("lets an admin end an unclaimed general conversation for someone else", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
     // An unclaimed case can be closed by any admin so the queue stays cleanable.
     chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: null });
 
@@ -247,7 +256,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("lets the assigned handler end a claimed general conversation", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
     chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: 1 });
 
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
@@ -257,7 +266,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("stops an admin ending a case that belongs to another handler", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
     chatDao.findActiveSession.mockResolvedValue({ id: 7, case_number: 100, assigned_to: 2 });
 
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
@@ -267,7 +276,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("reports when the target has no active case to end", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
 
     const res = await sessionAction(action({ action: "end", user_id: 99 }));
 
@@ -276,7 +285,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("refuses to start a conversation on somebody else's behalf", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
 
     const res = await sessionAction(action({ action: "start", user_id: 99 }));
 
@@ -285,7 +294,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("answers with null rather than failing when there was nothing to end", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
     chatDao.endSession.mockResolvedValue(null);
 
     const res = await sessionAction(action({}));
@@ -295,7 +304,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("lets an admin claim an unclaimed general case", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
 
     const res = await sessionAction(action({ action: "claim", user_id: 99 }));
 
@@ -304,7 +313,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("refuses an attendee claiming a case", async () => {
-    requireAuth.mockResolvedValue(ATTENDEE);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
 
     const res = await sessionAction(action({ action: "claim", user_id: 99 }));
 
@@ -313,7 +322,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("refuses to claim your own session", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
 
     const res = await sessionAction(action({ action: "claim", user_id: 1 }));
 
@@ -322,7 +331,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("reports a case that somebody else already claimed", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
     chatDao.claimSession.mockResolvedValue(null);
 
     const res = await sessionAction(action({ action: "claim", user_id: 99 }));
@@ -331,7 +340,7 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("lets the assigned handler relinquish a case", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
 
     const res = await sessionAction(action({ action: "relinquish", user_id: 99 }));
 
@@ -340,11 +349,38 @@ describe("POST /api/support/sessions", () => {
   });
 
   it("refuses to relinquish a case the caller does not own", async () => {
-    requireAuth.mockResolvedValue(ADMIN);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: ADMIN });
     chatDao.relinquishSession.mockResolvedValue(null);
 
     const res = await sessionAction(action({ action: "relinquish", user_id: 99 }));
 
     expect(res.status).toBe(409);
+  });
+});
+
+describe("DELETE /api/support/sessions/[userId]", () => {
+  const del = (userId = "9") =>
+    destroySession(new Request(`https://app.test/api/support/sessions/${userId}`, { method: "DELETE" }), {
+      params: Promise.resolve({ userId }),
+    });
+
+  it("refuses a caller with no session and deletes nothing", async () => {
+    requireMinRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
+
+    const res = await del();
+
+    expect(res.status).toBe(401);
+    expect(chatDao.deleteSession).not.toHaveBeenCalled();
+    expect(chatDao.deleteMessagesByUser).not.toHaveBeenCalled();
+    expect(chatDao.deleteMessagesByRecipient).not.toHaveBeenCalled();
+  });
+
+  it("purges the target's session and every message row for staff", async () => {
+    const res = await del();
+
+    expect(res.status).toBe(200);
+    expect(chatDao.deleteSession).toHaveBeenCalledWith({}, 9);
+    expect(chatDao.deleteMessagesByUser).toHaveBeenCalledWith({}, 9);
+    expect(chatDao.deleteMessagesByRecipient).toHaveBeenCalledWith({}, 9);
   });
 });

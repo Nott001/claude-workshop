@@ -22,11 +22,17 @@ afterEach(cleanup);
 // 0.357 and 0.359 of layout shift, more than three times the budget.
 describe("speaker pages while their data loads", () => {
   it("holds the engagement grid's shape instead of centring a line", () => {
-    useSpeakerEvents.mockReturnValue({ events: [], loading: true, error: null });
+    useSpeakerEvents.mockReturnValue({
+      events: [],
+      loading: true,
+      error: null,
+      activeTab: "upcoming",
+      setActiveTab: vi.fn(),
+      upcoming: { events: [], loading: true },
+    });
 
     const { container } = render(<SpeakerEventListPage />);
 
-    expect(screen.getByLabelText("Loading engagements")).toBeTruthy();
     expect(screen.queryByText("Loading engagements...")).toBeNull();
     // The grid it loads into is the same one the attendee list draws, so it
     // reserves height with that skeleton rather than a second copy of it.

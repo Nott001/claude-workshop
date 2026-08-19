@@ -6,15 +6,9 @@ import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { findTimeOverlaps } from "@/modules/courses/lib/scheduling";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { ServiceError } from "@/shared/lib/service-error";
 
-export class CourseModuleServiceError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export class CourseModuleServiceError extends ServiceError {}
 
 export async function setModuleLock(
   supabase: DbClient,

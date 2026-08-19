@@ -72,9 +72,9 @@ describe("subscribeToQaMessagesByModule", () => {
     const onUpdate = vi.fn();
     subscribeToQaMessagesByModule(4, { onUpdate });
 
-    captureHandler()({ eventType: "UPDATE", new: { id: 42, deleted_at: "2026-08-05T10:00:00Z" } });
+    captureHandler()({ eventType: "UPDATE", new: { id: 42 } });
 
-    expect(onUpdate).toHaveBeenCalledWith({ id: 42, deleted_at: "2026-08-05T10:00:00Z" });
+    expect(onUpdate).toHaveBeenCalledWith({ id: 42 });
   });
 
   it("fires onDelete with the old row on DELETE", () => {

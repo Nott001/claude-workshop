@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 import { SectionCard } from "@/shared/components/section-card";
 import { FormField, FormLabel, FormDescription, FormMessage } from "@/shared/components/form";
 import { Input } from "@/shared/components/input";
@@ -41,7 +42,7 @@ export function MeetingLinkPanel({ eventId, initialUrl, onSaved }: MeetingLinkPa
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.error ?? "Failed to save the meeting link");
+      setError(apiErrorMessage(body, "Failed to save the meeting link"));
       setSaving(false);
       return;
     }

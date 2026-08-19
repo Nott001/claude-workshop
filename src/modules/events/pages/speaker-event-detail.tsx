@@ -1,165 +1,94 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
-import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
-import { CountdownTimer } from "@/modules/events/components/countdown-timer";
-import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
+import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 import { BackLink } from "@/shared/components/back-link";
 import { SpeakerEventDetailSkeleton } from "@/modules/events/components/speaker-event-detail-skeleton";
+import { buttonStyles } from "@/shared/components/button";
+import { SectionCard } from "@/shared/components/section-card";
+import { StaffPage, StaffPageState } from "@/shared/components/staff-page";
 
 export function SpeakerEventDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const eventId = params.eventId as string;
 
-  const { event, loading, error, badge, isLive, isUpcoming, isComplete } = useSpeakerEvent(eventId);
+  const { event, loading, error } = useSpeakerEvent(eventId);
 
   if (loading) {
     return <SpeakerEventDetailSkeleton />;
   }
 
-  if (error || !event || !badge) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-bg">
-        <div className="text-sm text-error">{error ?? "Event not found"}</div>
-        <button
-          onClick={() => router.push("/speaker/events")}
-          className="mt-4 text-sm font-semibold text-brand hover:underline"
-        >
-          Back to My Events
-        </button>
-      </div>
-    );
+  if (error || !event) {
+    return <StaffPageState tone="error">{error ?? "Event not found"}</StaffPageState>;
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <BackLink href="/speaker/events" className="mb-8">
-          Back to My Events
-        </BackLink>
+    <StaffPage>
+      <BackLink href="/speaker/events" className="mb-6">
+        Back to My Events
+      </BackLink>
 
-        <div className="grid grid-cols-12 gap-6">
-          {/* Hero Card */}
-          <div className="col-span-8 overflow-hidden rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-            <div className="relative h-[400px] overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-cyan-400 to-teal-300" />
-              <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_20%,rgba(255,255,255,0.2)_20%,transparent_21%)] [background-size:28px_28px] opacity-50" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.6)] to-[rgba(0,0,0,0)]" />
+      <EventDetailHero event={event} />
 
-              <div className="absolute bottom-8 left-8 flex flex-col gap-3">
-                <EventStatusBadge
-                  status={event.status}
-                  date={event.event_date}
-                  startTime={event.start_time}
-                  endTime={event.end_time}
-                />
-                <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-white">{event.title}</h1>
-                <div className="flex items-center gap-6 pt-2">
-                  <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <span className="material-symbols-rounded text-base">calendar_today</span>
-                    {formatEventDate(event.event_date)}
-                  </span>
-                  <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <span className="material-symbols-rounded text-base">schedule</span>
-                    {formatTime(event.start_time)} – {formatTime(event.end_time)}
-                  </span>
-                  <span className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <span className="material-symbols-rounded text-base">location_on</span>
-                    {event.venue_name}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="col-span-4 flex flex-col gap-6">
-            <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-muted-fg">Total Registered Attendees</span>
-              <span className="mt-2 text-[48px] font-bold leading-[56px] tracking-[-0.96px] text-brand">
-                {event.attendee_count.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex flex-col justify-center rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] px-8 py-12 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <span className="text-sm font-medium tracking-[0.7px] text-muted-fg">Status</span>
-              <div className="mt-2 flex items-center gap-4">
-                {isLive && <span className="size-3 animate-pulse rounded-full bg-brand" />}
-                {isUpcoming && <span className="size-3 rounded-full bg-brand" />}
-                {isComplete && <span className="size-3 rounded-full bg-muted-fg" />}
-                <span className="text-[24px] font-semibold leading-[32px] text-fg">{badge.label}</span>
-              </div>
-              {isUpcoming && (
-                <div className="mt-4">
-                  <CountdownTimer eventDate={event.event_date} startTime={event.start_time} />
-                </div>
-              )}
-              {!isUpcoming && <span className="mt-2 text-base text-muted-fg">{event.venue_name}</span>}
-            </div>
-          </div>
-
-          {/* Detailed Info Grid */}
-          <div className="col-span-7">
-            <div className="rounded-xl border border-[rgba(229,231,235,0.5)] bg-[rgba(255,255,255,0.9)] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[5px]">
-              <h2 className="text-[24px] font-semibold text-fg">Full Event Description</h2>
-              <div className="mt-6 flex flex-col gap-4">
-                {event.description ? (
-                  event.description.split("\n").map((para, i) => (
-                    <p key={i} className="text-base leading-[26px] text-muted-fg">
-                      {para}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-base leading-[26px] text-muted-fg">No description available for this event.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Speaker Actions */}
-          <div className="col-span-5">
-            <div className="rounded-xl border border-[rgba(0,102,136,0.2)] bg-[rgba(0,102,136,0.05)] p-8">
-              <h2 className="text-[24px] font-semibold text-fg">Speaker Actions</h2>
-
-              <div className="mt-6 space-y-3">
-                {event.course_id ? (
-                  <Link
-                    href={`/speaker/events/${eventId}/course`}
-                    prefetch={false}
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
-                  >
-                    <span className="material-symbols-rounded text-[19px]">school</span>
-                    Manage Course
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/speaker/events/${eventId}/course`}
-                    prefetch={false}
-                    className="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-dashed border-brand py-4 text-[16px] font-bold text-brand shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/10"
-                  >
-                    <span className="material-symbols-rounded text-[19px]">add_circle</span>
-                    Build Course
-                  </Link>
-                )}
-                {event.course_id && (
-                  <Link
-                    href={`/courses/${event.course_id}/room`}
-                    prefetch={false}
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-brand py-4 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] transition-colors hover:bg-brand/90"
-                  >
-                    <span className="material-symbols-rounded text-[19px]">play_arrow</span>
-                    Enter Course Room
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* The whole-event speaker actions, above the panels, the same place the
+          staff page puts its own. */}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {event.course_id ? (
+          <Link href={`/speaker/events/${eventId}/course`} prefetch={false} className={buttonStyles({ size: "lg" })}>
+            <span aria-hidden className="material-symbols-rounded text-[18px]">
+              school
+            </span>
+            Manage Course
+          </Link>
+        ) : (
+          <Link href={`/speaker/events/${eventId}/course`} prefetch={false} className={buttonStyles({ size: "lg" })}>
+            <span aria-hidden className="material-symbols-rounded text-[18px]">
+              add_circle
+            </span>
+            Build Course
+          </Link>
+        )}
+        {event.course_id && (
+          <Link
+            href={`/courses/${event.course_id}/room`}
+            prefetch={false}
+            className={buttonStyles({ variant: "secondary", size: "lg" })}
+          >
+            <span aria-hidden className="material-symbols-rounded text-[18px]">
+              play_arrow
+            </span>
+            Enter Course Room
+          </Link>
+        )}
       </div>
-    </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-[65fr_35fr]">
+        <div className="min-w-0 space-y-6">
+          <SectionCard title="Full Event Description" icon="description">
+            {event.description ? (
+              <div className="flex flex-col gap-4">
+                {event.description.split("\n").map((para, i) => (
+                  <p key={i} className="text-sm leading-relaxed text-muted-fg">
+                    {para}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-fg">No description available for this event.</p>
+            )}
+          </SectionCard>
+        </div>
+
+        <aside className="space-y-6 self-start lg:sticky lg:top-24">
+          <SectionCard title="Attendees" icon="group">
+            <p className="text-4xl font-bold tracking-tight text-brand">{event.attendee_count.toLocaleString()}</p>
+            <p className="mt-1 text-sm text-muted-fg">Total registered attendees</p>
+          </SectionCard>
+        </aside>
+      </div>
+    </StaffPage>
   );
 }

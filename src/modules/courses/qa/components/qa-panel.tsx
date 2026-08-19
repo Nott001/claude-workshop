@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { UserRole } from "@/shared/types";
 import { isChatStaff } from "@/shared/lib/is-chat-staff";
+import { qaAuthorKind } from "@/modules/courses/qa/lib/author-kind";
 import type { QaMessageWithUser } from "@/modules/courses/qa/lib/types";
 import { subscribeToQaMessagesByModule, subscribeToModuleLock } from "@/modules/courses/qa/lib/realtime";
 import { unsubscribe } from "@/shared/integrations/realtime";
@@ -32,6 +33,39 @@ export default function QAPanel({
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A row keeps its op for exactly as long as it exists: "deleting" holds the
+  // bubble muted until the realtime DELETE event drops the row (the orphan
+  // entry is cleaned there), "failed" marks a refused delete until it clears
+  // itself after two seconds, and any other result clears it.
+  const [ops, setOps] = useState<Record<number, "deleting" | "failed">>({});
+  const failTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timers = failTimersRef.current;
+    return () => {
+      for (const id of Object.keys(timers)) clearTimeout(timers[Number(id)]);
+    };
+  }, []);
+
+  function clearOp(messageId: number) {
+    setOps((prev) => {
+      const next = { ...prev };
+      delete next[messageId];
+      return next;
+    });
+  }
+
+  function markFailed(messageId: number) {
+    setOps((prev) => ({ ...prev, [messageId]: "failed" }));
+    clearTimeout(failTimersRef.current[messageId]);
+    failTimersRef.current[messageId] = setTimeout(() => {
+      setOps((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+    }, 2000);
+  }
   // The lock is broadcast by realtime; the prop only seeds it, so a toggle by
   // any moderator lands here live instead of surviving only for the one who
   // reloaded. React's "adjust state during render" pattern keeps the seed
@@ -81,7 +115,10 @@ export default function QAPanel({
         }
       },
       onUpdate: (msg) => setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))),
-      onDelete: (msg) => setMessages((prev) => prev.filter((m) => m.id !== msg.id)),
+      onDelete: (msg) => {
+        setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+        clearOp(msg.id);
+      },
     });
 
     return () => unsubscribe(sub);
@@ -121,7 +158,22 @@ export default function QAPanel({
   }
 
   async function handleDelete(messageId: number) {
-    await fetch(`/api/qa/message/${messageId}`, { method: "DELETE" });
+    if (ops[messageId] === "deleting") return;
+    setOps((prev) => ({ ...prev, [messageId]: "deleting" }));
+    try {
+      const res = await fetch(`/api/qa/message/${messageId}`, { method: "DELETE" });
+      // Success leaves the op in place: the realtime DELETE event drops the
+      // row and clears the linger there. A 404 means the row was already
+      // deleted elsewhere, so nothing has failed — just restore. Anything
+      // else is a refusal and gets the visible failure mark.
+      if (!res.ok && res.status !== 404) {
+        markFailed(messageId);
+      } else if (res.status === 404) {
+        clearOp(messageId);
+      }
+    } catch {
+      markFailed(messageId);
+    }
   }
 
   function formatDateTime(sentAt: string) {
@@ -174,30 +226,72 @@ export default function QAPanel({
           <div className="flex-1 overflow-y-auto min-h-0 max-h-60 p-4">
             <div className="space-y-3">
               {sortedMessages.length === 0 && <p className="py-12 text-center text-sm text-muted-fg">No questions yet.</p>}
-              {sortedMessages.map((msg) => (
-                <div key={msg.id} className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted p-3 shadow-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                        <span className="material-symbols-rounded text-[8px] text-muted-fg">person</span>
+              {sortedMessages.map((msg) => {
+                const kind = qaAuthorKind(msg.USER?.role);
+                const isSpeaker = kind === "speaker";
+                const isStaff = kind === "staff";
+                const deleting = ops[msg.id] === "deleting";
+                return (
+                  <div
+                    key={msg.id}
+                    className={
+                      "flex flex-col gap-1.5 rounded-xl border p-3 shadow-sm " +
+                      (isSpeaker
+                        ? "border-warning/40 bg-warning/10"
+                        : isStaff
+                          ? "border-info/40 bg-info/10"
+                          : "border-border bg-muted") +
+                      (deleting ? " opacity-50 pointer-events-none transition-opacity" : "")
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                          <span className="material-symbols-rounded text-[8px] text-muted-fg">person</span>
+                        </div>
+                        <span className="truncate text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>
+                        {isSpeaker && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+                            <span className="material-symbols-rounded text-[10px]">record_voice_over</span>
+                            Speaker
+                          </span>
+                        )}
+                        {isStaff && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[9px] font-bold text-brand">
+                            <span className="material-symbols-rounded text-[10px]">support_agent</span>
+                            Staff
+                          </span>
+                        )}
                       </div>
-                      <span className="truncate text-[10px] font-semibold text-fg">{msg.USER?.full_name ?? "Unknown"}</span>
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
+                        {formatDateTime(msg.created_at)}
+                      </span>
                     </div>
-                    <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-fg">
-                      {formatDateTime(msg.created_at)}
-                    </span>
+                    <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
+                    {canModerate &&
+                      (deleting ? (
+                        <span className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg">
+                          <span className="size-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                          Deleting...
+                        </span>
+                      ) : (
+                        <div className="ml-auto flex items-center gap-2">
+                          {ops[msg.id] === "failed" && (
+                            <span role="status" className="text-[10px] font-semibold text-error">
+                              Deleting failed
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(msg.id)}
+                            className="flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
+                          >
+                            <span className="material-symbols-rounded text-xs">delete</span>
+                          </button>
+                        </div>
+                      ))}
                   </div>
-                  <p className="text-sm leading-relaxed text-fg">{msg.message}</p>
-                  {canModerate && (
-                    <button
-                      onClick={() => handleDelete(msg.id)}
-                      className="ml-auto flex items-center gap-1 rounded-lg border border-error/30 px-1.5 py-0.5 text-[10px] font-bold text-error transition-colors hover:bg-error/10"
-                    >
-                      <span className="material-symbols-rounded text-xs">delete</span>
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               <div ref={bottomRef} />
             </div>
           </div>

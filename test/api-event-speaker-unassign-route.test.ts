@@ -1,8 +1,8 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, speakerDao, courseDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, speakerDao, courseDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   speakerDao: {
     unassignFromEvent: vi.fn(),
   },
@@ -14,7 +14,7 @@ const { requireAuth, speakerDao, courseDao, logAuditEvent, eventFindById, facili
   facilitatorIsAssigned: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
@@ -35,13 +35,11 @@ const user = (id: number, role: string) => ({
   profile_image_url: null,
 });
 const admin = user(5, ROLES.ADMIN);
-const facilitator = user(6, ROLES.FACILITATOR);
-const attendee = user(7, ROLES.ATTENDEE);
 const params = { params: Promise.resolve({ id: "9", profileId: "7" }) };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(admin);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: admin });
   speakerDao.unassignFromEvent.mockResolvedValue(true);
   courseDao.clearModuleSpeakerForEvent.mockResolvedValue(true);
   logAuditEvent.mockResolvedValue(undefined);
@@ -71,7 +69,7 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
     facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
@@ -83,7 +81,7 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
   });
 
   it("refuses a caller below admin without touching the database", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 
@@ -93,7 +91,7 @@ describe("DELETE /api/events/[id]/speakers/[profileId]", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await DELETE(new Request("https://app.test/api/events/9/speakers/7"), params);
 

@@ -71,7 +71,7 @@ describe("MeetingLinkPanel", () => {
     expect(await screen.findByText("Forbidden")).toBeTruthy();
   });
 
-  it("reports the nested error shape the service answers with", async () => {
+  it("reports the flat error body the service answers with", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: "Nope" }) }));
     render(<MeetingLinkPanel eventId="1" initialUrl={null} />);
 

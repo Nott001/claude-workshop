@@ -3,13 +3,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireAuth, getCurrentUserId, deleteAccount } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, getCurrentUserId, deleteAccount } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   getCurrentUserId: vi.fn(),
   deleteAccount: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth, getCurrentUserId }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUserId }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/user/lib/delete-account", () => ({ deleteAccount }));
 
@@ -25,14 +26,14 @@ const user = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(user);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user });
   getCurrentUserId.mockResolvedValue("auth_7");
   deleteAccount.mockResolvedValue(undefined);
 });
 
 describe("DELETE /api/auth/me", () => {
   it("returns 401 without a session and never calls the service", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await DELETE();
 

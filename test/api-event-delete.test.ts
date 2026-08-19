@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  requireRole,
   eventFindById,
   eventRemove,
   findModulesByCourse,
@@ -13,7 +13,7 @@ const {
   findCourseIdByEventId,
   listPhotoStoragePaths,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
   eventFindById: vi.fn(),
   eventRemove: vi.fn(),
   findModulesByCourse: vi.fn(),
@@ -25,7 +25,7 @@ const {
   listPhotoStoragePaths: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findCourseIdByEventId }));
@@ -47,8 +47,6 @@ const user = (id: number, role: string) => ({
   profile_image_url: null,
 });
 const admin = user(9, ROLES.ADMIN);
-const facilitator = user(10, ROLES.FACILITATOR);
-const attendee = user(5, ROLES.ATTENDEE);
 
 const del = (id = "1") =>
   DELETE(new Request(`https://app.test/api/events/${id}`, { method: "DELETE" }), {
@@ -62,7 +60,7 @@ function deletions() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(admin);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: admin });
   eventFindById.mockResolvedValue({
     id: 1,
     title: "Launch Day",
@@ -79,7 +77,7 @@ beforeEach(() => {
 
 describe("DELETE /api/events/[id] authorization", () => {
   it("refuses a caller below admin and deletes nothing", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await del();
 
@@ -89,7 +87,7 @@ describe("DELETE /api/events/[id] authorization", () => {
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await del();
 
@@ -99,7 +97,7 @@ describe("DELETE /api/events/[id] authorization", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await del();
 

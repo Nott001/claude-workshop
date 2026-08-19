@@ -1,9 +1,9 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, listReleasedCourses, resolveCourseGrant, readAfterEventModules, findCourseWithDetails } = vi.hoisted(
+const { getCurrentUser, listReleasedCourses, resolveCourseGrant, readAfterEventModules, findCourseWithDetails } = vi.hoisted(
   () => ({
-    requireAuth: vi.fn(),
+    getCurrentUser: vi.fn(),
     listReleasedCourses: vi.fn(),
     resolveCourseGrant: vi.fn(),
     readAfterEventModules: vi.fn(),
@@ -11,7 +11,7 @@ const { requireAuth, listReleasedCourses, resolveCourseGrant, readAfterEventModu
   }),
 );
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/courses/lib/course-entitlement", () => ({
   listReleasedCourses,
   resolveCourseGrant,
@@ -43,7 +43,7 @@ const course = (event: unknown = FINISHED_EVENT) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({ id: 5, role: ROLES.ATTENDEE });
+  getCurrentUser.mockResolvedValue({ id: 5, role: ROLES.ATTENDEE });
   listReleasedCourses.mockResolvedValue([{ id: 4 }]);
   resolveCourseGrant.mockResolvedValue("live");
   readAfterEventModules.mockResolvedValue({ version: 1, releases: { "9": [HELD_MODULE.id] } });
@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe("GET /api/courses/library", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     expect((await libraryGET()).status).toBe(401);
     expect(listReleasedCourses).not.toHaveBeenCalled();
@@ -68,7 +68,7 @@ describe("GET /api/courses/library", () => {
 
 describe("GET /api/courses/[courseId]/content", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     expect((await contentGET(contentRequest(), contentParams)).status).toBe(401);
   });

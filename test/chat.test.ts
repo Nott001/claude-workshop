@@ -20,27 +20,11 @@ describe("ChatMessage type", () => {
       recipient_user_id: null,
       message: "Hello, world!",
       sent_at: "2026-07-10T12:00:00Z",
-      deleted_at: null,
       updated_at: "2026-07-10T12:00:00Z",
     };
     expect(msg.id).toBe(1);
     expect(msg.support_type).toBe("general");
     expect(msg.message).toBe("Hello, world!");
-  });
-
-  it("accepts deleted_at with a value", () => {
-    const msg: ChatMessage = {
-      id: 2,
-      session_id: null,
-      support_type: "general",
-      user_id: 3,
-      recipient_user_id: null,
-      message: "Need help",
-      sent_at: "2026-07-10T12:00:00Z",
-      deleted_at: "2026-07-10T12:05:00Z",
-      updated_at: "2026-07-10T12:05:00Z",
-    };
-    expect(msg.deleted_at).toBeTruthy();
   });
 });
 

@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  getCurrentUser,
   isPublished,
   eventFindById,
   isAssigned,
@@ -16,7 +16,7 @@ const {
   deleteFromStorage,
   logAuditEvent,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  getCurrentUser: vi.fn(),
   isPublished: vi.fn(),
   eventFindById: vi.fn(),
   isAssigned: vi.fn(),
@@ -31,7 +31,7 @@ const {
   logAuditEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ isPublished, findById: eventFindById }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
@@ -97,7 +97,7 @@ const patch = (caption: unknown, id = "1", photoId = "4") =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(null);
+  getCurrentUser.mockResolvedValue(null);
   isPublished.mockResolvedValue(true);
   eventFindById.mockResolvedValue({ id: 1, title: "Launch Day", status: "complete" });
   isAssigned.mockResolvedValue(true);
@@ -132,7 +132,7 @@ describe("GET /api/events/[id]/photos", () => {
 
   it("lets staff read a draft's archive while they are still curating it", async () => {
     isPublished.mockResolvedValue(false);
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
 
     const res = await list();
 
@@ -141,7 +141,7 @@ describe("GET /api/events/[id]/photos", () => {
 
   it("does not let a signed-in attendee reach a draft's archive", async () => {
     isPublished.mockResolvedValue(false);
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await list();
 
@@ -158,7 +158,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("refuses an attendee", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await upload();
 
@@ -167,7 +167,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("admits an assigned facilitator, who is the one who was in the room", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
 
     const res = await upload();
 
@@ -176,7 +176,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("refuses a facilitator assigned to some other event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
     isAssigned.mockResolvedValue(false);
 
     const res = await upload();
@@ -186,7 +186,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("stores the object under the event's photo folder, never over its cover", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     await upload();
 
@@ -196,7 +196,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("appends rather than overwriting the sequence", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     await upload();
 
@@ -204,7 +204,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("passes the same file-type gate the shared policy enforces", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const res = await upload("1", "image/gif");
 
@@ -213,7 +213,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("gives the object back when its row cannot be written", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
     photoCreate.mockResolvedValue(null);
 
     const res = await upload();
@@ -228,7 +228,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("answers with a `url` key, which is what postUpload reads", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const body = await (await upload()).json();
 
@@ -237,7 +237,7 @@ describe("POST /api/events/[id]/photos", () => {
   });
 
   it("records the upload in the audit log", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     await upload();
 
@@ -247,7 +247,7 @@ describe("POST /api/events/[id]/photos", () => {
 
 describe("DELETE /api/events/[id]/photos/[photoId]", () => {
   it("refuses an attendee", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await destroy();
 
@@ -256,7 +256,7 @@ describe("DELETE /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("refuses a photo that belongs to another event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
     photoFindById.mockResolvedValue({ ...photo, event_id: 2, storage_path: "events/2/photos/a.jpg" });
 
     const res = await destroy();
@@ -269,7 +269,7 @@ describe("DELETE /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("removes the row before the object", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const res = await destroy();
 
@@ -281,7 +281,7 @@ describe("DELETE /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("leaves the object alone when the row will not delete", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
     photoRemove.mockResolvedValue(false);
 
     const res = await destroy();
@@ -293,7 +293,7 @@ describe("DELETE /api/events/[id]/photos/[photoId]", () => {
 
 describe("PATCH /api/events/[id]/photos/[photoId]", () => {
   it("refuses an attendee", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await patch("Opening keynote");
 
@@ -302,7 +302,7 @@ describe("PATCH /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("saves a caption for a curator", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const res = await patch("Opening keynote");
 
@@ -311,7 +311,7 @@ describe("PATCH /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("reads a blank caption as no caption, not as an empty line", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     await patch("   ");
 
@@ -319,7 +319,7 @@ describe("PATCH /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("refuses a caption longer than the column holds", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const res = await patch("x".repeat(201));
 
@@ -328,7 +328,7 @@ describe("PATCH /api/events/[id]/photos/[photoId]", () => {
   });
 
   it("answers a bad body with a message, not a Zod dump", async () => {
-    requireAuth.mockResolvedValue(admin);
+    getCurrentUser.mockResolvedValue(admin);
 
     const res = await patch(42);
 

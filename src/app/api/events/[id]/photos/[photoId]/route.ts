@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { EventServiceError, removeEventPhoto, updateEventPhotoCaption } from "@/modules/events/lib/event-service";
 import { eventPhotoCaptionSchema } from "@/modules/events/lib/schemas";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { badRequest } from "@/shared/lib/api-response";
 import type { UserRole } from "@/shared/types";
+import { unauthenticated } from "@/modules/auth/lib/guard-response";
 
 type RouteParams = { params: Promise<{ id: string; photoId: string }> };
 
@@ -20,9 +21,9 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   const { id, photoId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   const parsed = eventPhotoCaptionSchema.safeParse(await req.json());
@@ -48,9 +49,9 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   const { id, photoId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   try {

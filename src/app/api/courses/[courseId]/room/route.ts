@@ -1,6 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { isEventFinished, isEventStarted } from "@/shared/lib/date-utils";
 import { getServiceClient } from "@/shared/db/client";
@@ -15,9 +16,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   const { courseId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const course = await courseDao.findCourseWithDetails(supabase, Number(courseId));
@@ -28,9 +29,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   // The room admits ticket holders, assigned speakers and staff; the feed must
   // honour the same gate. A role check alone kept the room empty for the
   // attendees it let in.
-  const grant = await resolveCourseGrant(supabase, user, course.id);
-  if (!grant) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!(await resolveCourseGrant(supabase, guard.user, course.id))) {
+    return forbidden();
   }
 
   const event = await eventDao.findByIdWithCourse(supabase, course.event_id);
@@ -43,8 +43,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   let isSpeakerAssigned = false;
   if (event) {
     const [ticket, speakerProfile] = await Promise.all([
-      ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event.id),
-      speakerDao.findByUserId(supabase, user.id),
+      ticketDao.findActiveTicketByUserAndEvent(supabase, guard.user.id, event.id),
+      speakerDao.findByUserId(supabase, guard.user.id),
     ]);
     hasTicket = !!ticket;
     speakerProfileId = speakerProfile?.id ?? null;
@@ -57,7 +57,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
     // receive the curriculum early — so the course is withheld from the
     // response rather than refused outright, letting the page show the lock
     // with the event's own opening window.
-    const isStaff = hasMinRole(user.role, ROLES.FACILITATOR);
+    const isStaff = hasMinRole(guard.user.role, ROLES.FACILITATOR);
     if (!isEventStarted(event.event_date, event.start_time) && !isStaff && !isSpeakerAssigned) {
       return NextResponse.json({ course: null, event, hasTicket, isSpeakerAssigned, speakerProfileId });
     }

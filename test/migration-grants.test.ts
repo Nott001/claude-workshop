@@ -46,7 +46,11 @@ describe("migration grants", () => {
       "00010_event_mode.sql",
       "00011_event_meeting_url.sql",
       "00012_ticket_realtime_read.sql",
-      "00013_event_photo.sql",
+      "00013_messages_replica_identity.sql",
+      "00014_drop_message_deleted_at.sql",
+      "00015_live_state_realtime.sql",
+      "00016_live_state_replica_identity.sql",
+      "00017_event_photo.sql",
     ]);
   });
 
@@ -54,6 +58,29 @@ describe("migration grants", () => {
   // not add any grant for the roles this suite guards.
   it("adds no table grant in 00007", () => {
     const migration = migrations().find((f) => f.name === "00007_short_qr_token.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00013 only switches the realtime chat tables to replica identity full so
+  // filtered DELETE events can be routed; a grant there would widen who can
+  // read messages, so its absence is pinned the same way 00007's is.
+  it("adds no table grant in 00013", () => {
+    const migration = migrations().find((f) => f.name === "00013_messages_replica_identity.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00014 drops the vestigial soft-delete columns; a grant there would widen
+  // who can read messages, so its absence is pinned the same way as above.
+  it("adds no table grant in 00014", () => {
+    const migration = migrations().find((f) => f.name === "00014_drop_message_deleted_at.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
+  });
+
+  // 00016 switches the room's live-state table to replica identity full so the
+  // highlight broadcasts over realtime; a grant would widen who can read it,
+  // so its absence is pinned like 00013's.
+  it("adds no table grant in 00016", () => {
+    const migration = migrations().find((f) => f.name === "00016_live_state_replica_identity.sql")!;
     expect(migration.sql).not.toMatch(/GRANT/);
   });
 

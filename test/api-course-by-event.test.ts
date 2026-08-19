@@ -1,14 +1,14 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findCourseByEvent, resolveCourseGrant } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, findCourseByEvent, resolveCourseGrant } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   findCourseByEvent: vi.fn(),
   resolveCourseGrant: vi.fn(),
 }));
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseByEvent }));
 // One gate for every course surface — exercised directly in
 // course-entitlement.test.ts, stubbed here so this file stays about the route.
@@ -26,14 +26,14 @@ const course = { id: 12, course_name: "React", MODULE: [] };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(attendee);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: attendee });
   findCourseByEvent.mockResolvedValue(course);
   resolveCourseGrant.mockResolvedValue("live");
 });
 
 describe("authentication", () => {
   it("refuses an unauthenticated caller without resolving a course", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(req(), params);
 
@@ -70,9 +70,8 @@ describe("entitlement", () => {
     expect(res.status).toBe(403);
   });
 
-  it("serves the course to a facilitator, whose grant is role-based", async () => {
-    requireAuth.mockResolvedValue(facilitator);
-    resolveCourseGrant.mockResolvedValue("staff");
+  it("gives facilitators access without consulting entitlements", async () => {
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: facilitator });
 
     const res = await GET(req(), params);
 
@@ -80,7 +79,7 @@ describe("entitlement", () => {
   });
 
   it("checks entitlement for a speaker like any other non-facilitator", async () => {
-    requireAuth.mockResolvedValue(speaker);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: speaker });
     resolveCourseGrant.mockResolvedValue(null);
 
     const res = await GET(req(), params);

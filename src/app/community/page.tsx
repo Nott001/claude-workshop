@@ -1,5 +1,5 @@
 import { CommunityListPage } from "@/modules/community/pages/community-list";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { listCommunityLinks } from "@/modules/community/lib/community-service";
 import { listEventMemories, MEMORY_EVENT_LIMIT } from "@/modules/events/lib/event-service";
@@ -28,7 +28,7 @@ export default async function CommunityRoute() {
   // The cards are role-aware — an admin sees hidden ones — so the role is
   // resolved here exactly as `/api/community` resolves it. An anonymous
   // visitor has none, and the service answers with the visible cards.
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
 
   const [links, memories] = await Promise.all([
     listCommunityLinks(supabase, user?.role ?? null),

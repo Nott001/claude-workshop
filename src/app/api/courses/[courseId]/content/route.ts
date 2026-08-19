@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { isEventFinished, isEventStarted } from "@/shared/lib/date-utils";
 import { getServiceClient } from "@/shared/db/client";
 import { readAfterEventModules, resolveCourseGrant } from "@/modules/courses/lib/course-entitlement";
 import { releaseFor, visibleModules } from "@/modules/courses/lib/after-event-modules";
 import * as courseDao from "@/shared/db/dao/course.dao";
+import { forbidden, unauthenticated } from "@/modules/auth/lib/guard-response";
 
 /**
  * The self-paced surface's feed: a curriculum with no session around it.
@@ -20,9 +21,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   const { courseId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   const course = await courseDao.findCourseWithDetails(supabase, Number(courseId));
@@ -32,7 +33,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
 
   const grant = await resolveCourseGrant(supabase, user, course.id);
   if (!grant) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   const map = await readAfterEventModules(supabase);

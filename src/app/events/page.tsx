@@ -1,5 +1,5 @@
 import { EventListPage } from "@/modules/events/pages/event-list";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { listEvents } from "@/modules/events/lib/event-service";
 import { PAGE_SIZE, tabScope } from "@/modules/events/lib/event-list-query";
@@ -32,7 +32,7 @@ export default async function EventsRoute() {
   // Resolved here so the seed is scoped the same way `/api/events` would scope
   // it. An anonymous visitor simply has no role, and the service answers with
   // the published listing.
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
 
   const scope = tabScope("upcoming", false);
   const initial = await listEvents(supabase, {

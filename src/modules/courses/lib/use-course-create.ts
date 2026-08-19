@@ -10,11 +10,11 @@ import { postUpload } from "@/shared/integrations/storage/upload-client";
 import { planDraft, planIsEmpty, type ModuleDraft } from "./module-draft";
 import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 
 /** A refusal the author can act on carries its own message; a 500 will not. */
 async function refusalMessage(res: Response, fallback: string): Promise<string> {
-  const body = await res.json().catch(() => null);
-  return typeof body?.error === "string" ? body.error : fallback;
+  return apiErrorMessage(await res.json().catch(() => null), fallback);
 }
 
 export function useCourseCreate(eventId: string, existingCourseId?: number) {

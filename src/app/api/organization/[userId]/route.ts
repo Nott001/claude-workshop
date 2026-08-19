@@ -4,19 +4,13 @@ import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { changeMemberRole, OrganizationServiceError, removeMember } from "@/modules/auth/lib/organization-service";
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { changeMemberRole, removeMember } from "@/modules/auth/lib/organization-service";
 import { badRequest } from "@/shared/lib/api-response";
 
 const updateSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
 });
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof OrganizationServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
 
 /**
  * The path segment is caller-supplied text. `Number("abc")` is NaN, which
@@ -52,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
     const user = await changeMemberRole(supabase, { targetId, role: parsed.data.role }, guard.user);
     return NextResponse.json(user);
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }
 
@@ -74,6 +68,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
     await removeMember(supabase, targetId, guard.user);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

@@ -104,14 +104,6 @@ describe("chat-message.dao listMessages", () => {
     expect(argsOf(calls, "eq")).toEqual(["support_type", "general"]);
   });
 
-  it("hides messages that were deleted", async () => {
-    const { client, calls } = stub({ data: [] });
-
-    await dao.listMessages(client, "general", options);
-
-    expect(calls.some(([m, a]) => m === "is" && a[0] === "deleted_at" && a[1] === null)).toBe(true);
-  });
-
   it("walks backwards from a cursor when one is given", async () => {
     const { client, calls } = stub({ data: [] });
 
@@ -150,23 +142,16 @@ describe("chat-message.dao writes", () => {
     await expect(dao.countRecentByUser(client, 3, "general", "2026-08-05T00:00:00Z")).resolves.toBe(0);
   });
 
-  it("marks a delete rather than removing the row", async () => {
-    // The transcript stays intact for moderation; listing filters on deleted_at.
-    const { client, calls } = stub({ error: null });
-
-    await expect(dao.softDeleteMessages(client, [1, 2])).resolves.toBe(true);
-    const [payload] = argsOf(calls, "update") as [Record<string, unknown>];
-    expect(payload).toHaveProperty("deleted_at");
-    expect(argsOf(calls, "in")).toEqual(["id", [1, 2]]);
-    expect(names(calls)).not.toContain("delete");
-  });
-
-  it("reports whether an edit landed", async () => {
+  it("hard-deletes the given message ids outright", async () => {
     const ok = stub({ error: null });
-    const failed = stub({ error: { message: "no such row" } });
+    const failed = stub({ error: { message: "delete blocked" } });
 
-    await expect(dao.updateMessage(ok.client, 1, { message: "edited" })).resolves.toBe(true);
-    await expect(dao.updateMessage(failed.client, 1, { message: "edited" })).resolves.toBe(false);
+    await expect(dao.deleteMessagesByIds(ok.client, [1, 2])).resolves.toBe(true);
+    expect(argsOf(ok.calls, "in")).toEqual(["id", [1, 2]]);
+    expect(names(ok.calls)).toContain("delete");
+    expect(names(ok.calls)).not.toContain("update");
+
+    await expect(dao.deleteMessagesByIds(failed.client, [1, 2])).resolves.toBe(false);
   });
 
   it("erases a user's own messages and the ones addressed to them separately", async () => {

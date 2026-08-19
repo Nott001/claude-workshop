@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { addEventPhoto, EventServiceError, listEventPhotos } from "@/modules/events/lib/event-service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import type { UserRole } from "@/shared/types";
+import { unauthenticated } from "@/modules/auth/lib/guard-response";
 
 function mapError(err: unknown): NextResponse {
   if (err instanceof EventServiceError) {
@@ -18,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
 
   try {
     const photos = await listEventPhotos(supabase, Number(id), (user?.role as UserRole | undefined) ?? null);
@@ -32,9 +33,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
+  const user = await getCurrentUser(supabase);
   if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   const formData = await req.formData();

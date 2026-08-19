@@ -4,10 +4,11 @@ import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import * as userDao from "@/shared/db/dao/user.dao";
 import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES } from "@/modules/auth/lib/invited-role";
-import { inviteUser, OrganizationServiceError } from "@/modules/auth/lib/organization-service";
+import { inviteUser } from "@/modules/auth/lib/organization-service";
 import { badRequest } from "@/shared/lib/api-response";
 
 const PAGE_SIZE = 10;
@@ -17,13 +18,6 @@ const inviteSchema = z.object({
   email: z.string().email("Invalid email"),
   role: z.enum(INVITABLE_ROLES),
 });
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof OrganizationServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.ADMIN);
@@ -77,6 +71,6 @@ export async function POST(req: Request) {
     const result = await inviteUser(supabase, parsed.data, guard.user.id);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

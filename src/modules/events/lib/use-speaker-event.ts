@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBadgeProps } from "@/modules/events/lib/schemas";
+import type { EventMode, EventStatus } from "@/shared/types";
 
 interface EventData {
   event_id: number;
@@ -10,7 +10,10 @@ interface EventData {
   start_time: string;
   end_time: string;
   venue_name: string;
-  status: string;
+  venue_address: string | null;
+  cover_image_url: string | null;
+  event_type: EventMode;
+  status: EventStatus;
   course_id: number | null;
   course_name: string | null;
   description: string | null;
@@ -48,10 +51,5 @@ export function useSpeakerEvent(eventId: string) {
     };
   }, [eventId]);
 
-  const badge = event ? getBadgeProps(event) : null;
-  const isLive = badge?.status === "live";
-  const isUpcoming = badge?.status === "upcoming";
-  const isComplete = badge?.status === "completed";
-
-  return { event, loading, error, badge, isLive, isUpcoming, isComplete };
+  return { event, loading, error };
 }
