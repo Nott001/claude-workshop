@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { EventServiceError, loadEventOr403, setMeetingLink } from "@/modules/events/lib/event-service";
 import { meetingUrlSchema } from "@/modules/events/lib/schemas";
@@ -19,9 +20,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const body = await req.json().catch(() => null);
@@ -31,8 +32,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   try {
-    await loadEventOr403(supabase, Number(id), user, "meeting_link");
-    const event = await setMeetingLink(supabase, Number(id), parsed.data.meeting_url, { id: user.id });
+    await loadEventOr403(supabase, Number(id), guard.user, "meeting_link");
+    const event = await setMeetingLink(supabase, Number(id), parsed.data.meeting_url, { id: guard.user.id });
     return NextResponse.json({ meeting_url: event.meeting_url });
   } catch (err) {
     if (err instanceof EventServiceError) {

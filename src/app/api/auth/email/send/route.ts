@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { checkEmailChangeSendLimit } from "@/modules/auth/lib/email-change-limit";
 import { getServiceClient } from "@/shared/db/client";
 import { getRouteClient } from "@/shared/db/route-client";
@@ -22,9 +23,9 @@ import { isSameEmail, resendCooldownRemaining } from "@/shared/lib/email";
 // from a mail budget the whole project shares. `checkEmailChangeSendLimit` is
 // the actual limit, on a ledger of our own that neither trick touches.
 export async function POST(request: Request) {
-  const guard = await requireAuth();
-  if (!guard) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   let body: { email?: unknown };
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
   const target = body.email.trim();
   // The form refuses this first, but a caller that skips the form must not be
   // let to spend a send on a change that cannot happen.
-  if (isSameEmail(target, guard.email)) {
+  if (isSameEmail(target, guard.user.email)) {
     return NextResponse.json(
       { ok: false, error: { status: 400, message: "This is already your email address." } },
       { status: 400 },
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   // Cloudflare sets this at the edge and it cannot be spoofed by the client; it
   // is absent under `next dev`, where the per-user limit still applies.
   const ip = request.headers.get("cf-connecting-ip");
-  const verdict = await checkEmailChangeSendLimit(getServiceClient(), guard.id, ip);
+  const verdict = await checkEmailChangeSendLimit(getServiceClient(), guard.user.id, ip);
   if (!verdict.allowed) {
     return NextResponse.json(
       { ok: false, error: { status: 429, message: "", retryAfter: verdict.retryAfter } },
@@ -119,8 +120,8 @@ export async function POST(request: Request) {
   try {
     await sendTemplatedEmail(
       emailChangeAlertTemplate,
-      { name: guard.full_name || "there", newEmail: target },
-      { email: guard.email, name: guard.full_name || "there" },
+      { name: guard.user.full_name || "there", newEmail: target },
+      { email: guard.user.email, name: guard.user.full_name || "there" },
     );
   } catch (err) {
     console.error("Old-address email-change notice failed:", err);

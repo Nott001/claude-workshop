@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { EventServiceError, getEventRegistrationState, registerForEvent } from "@/modules/events/lib/event-service";
@@ -15,18 +16,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   try {
-    const state = await getEventRegistrationState(supabase, Number(id), {
-      id: user.id,
-      role: user.role,
-      full_name: user.full_name,
-      email: user.email,
-    });
+    const state = await getEventRegistrationState(supabase, Number(id), guard.user);
     return NextResponse.json(state);
   } catch (err) {
     return mapError(err);
@@ -37,9 +33,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const parsed = paymentInitSchema.safeParse({ event_id: id });
@@ -48,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
-    const result = await registerForEvent(supabase, Number(id), { id: user.id, role: user.role });
+    const result = await registerForEvent(supabase, Number(id), { id: guard.user.id, role: guard.user.role });
     return NextResponse.json(result);
   } catch (err) {
     return mapError(err);

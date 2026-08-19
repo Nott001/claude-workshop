@@ -1,11 +1,11 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { requireAuth, getRouteClient, routeAuth, sendTemplatedEmail, checkEmailChangeSendLimit, getServiceClient } = vi.hoisted(
+const { requireRole, getRouteClient, routeAuth, sendTemplatedEmail, checkEmailChangeSendLimit, getServiceClient } = vi.hoisted(
   () => {
     const routeAuth = { getUser: vi.fn(), updateUser: vi.fn() };
     return {
-      requireAuth: vi.fn(),
+      requireRole: vi.fn(),
       getRouteClient: vi.fn(async () => ({ auth: routeAuth })),
       routeAuth,
       sendTemplatedEmail: vi.fn(),
@@ -15,7 +15,7 @@ const { requireAuth, getRouteClient, routeAuth, sendTemplatedEmail, checkEmailCh
   },
 );
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/modules/auth/lib/email-change-limit", () => ({ checkEmailChangeSendLimit }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
@@ -46,7 +46,7 @@ function goTrueUser(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(USER);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: USER });
   routeAuth.getUser.mockResolvedValue({ data: { user: goTrueUser() }, error: null });
   routeAuth.updateUser.mockResolvedValue({ error: null, data: { user: goTrueUser() } });
   sendTemplatedEmail.mockResolvedValue({ success: true });
@@ -59,7 +59,7 @@ afterEach(() => {
 
 describe("POST /api/auth/email/send", () => {
   it("refuses an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await POST(send("new@example.com"));
 

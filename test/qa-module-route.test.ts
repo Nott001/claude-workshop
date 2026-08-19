@@ -2,8 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
-const { requireAuth, requireRole, findCourseByModule, setModuleLock, isAssigned, sendQuestion } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, findCourseByModule, setModuleLock, isAssigned, sendQuestion } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   findCourseByModule: vi.fn(),
   setModuleLock: vi.fn(),
@@ -11,7 +10,6 @@ const { requireAuth, requireRole, findCourseByModule, setModuleLock, isAssigned,
   sendQuestion: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/modules/auth/lib/guard-response", () => ({
   guardFailure: (guard: { error: string }) => NextResponse.json({ error: guard.error }, { status: 403 }),
@@ -47,8 +45,19 @@ function jsonRequest(method: string, body: unknown): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireRole.mockResolvedValue(speaker);
-  requireAuth.mockResolvedValue({ id: 5, role: ROLES.ATTENDEE });
+  // POST guards bare (any authenticated attendee), PATCH guards as
+  // requireMinRole(ROLES.SPEAKER) through the requireMinRole: requireRole alias.
+  requireRole.mockImplementation((role?: string) =>
+    Promise.resolve(
+      role
+        ? speaker
+        : {
+            allowed: true,
+            error: null,
+            user: { id: 5, role: ROLES.ATTENDEE, full_name: "Ana", email: "ana@example.com", profile_image_url: null },
+          },
+    ),
+  );
   findCourseByModule.mockResolvedValue(course);
   setModuleLock.mockResolvedValue({ ...qaModule, is_locked: true });
   isAssigned.mockResolvedValue(false);

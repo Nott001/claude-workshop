@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "fs";
 import path from "path";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 
 /**
  * RFC 9110 separates the two refusals: 401 means the caller is not
@@ -31,6 +31,26 @@ describe("guardFailure", () => {
 
       expect(body.error === "Forbidden" && res.status === 401).toBe(false);
     }
+  });
+});
+
+describe("forbidden", () => {
+  it("answers entitlement denials with 403", async () => {
+    const res = forbidden();
+
+    expect(res.status).toBe(403);
+  });
+
+  it("renders the canonical Forbidden body", async () => {
+    const res = forbidden();
+
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
+  });
+
+  it("never pairs a Forbidden body with a 401 status", () => {
+    const res = forbidden();
+
+    expect(res.status === 401).toBe(false);
   });
 });
 

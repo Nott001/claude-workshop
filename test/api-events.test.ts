@@ -300,20 +300,13 @@ describe("POST /api/events/[id]/publish", () => {
     email: "alex@example.com",
     profile_image_url: null,
   };
-  const facilitatorUser = {
-    id: 10,
-    role: ROLES.FACILITATOR,
-    full_name: "Fay",
-    email: "fay@example.com",
-    profile_image_url: null,
-  };
 
   beforeEach(() => {
-    requireAuth.mockResolvedValue(adminUser);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: adminUser });
   });
 
   it("refuses a caller below admin", async () => {
-    requireAuth.mockResolvedValue({ ...adminUser, role: ROLES.ATTENDEE });
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await PUBLISH(req(), params("1"));
 
@@ -322,7 +315,7 @@ describe("POST /api/events/[id]/publish", () => {
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitatorUser);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
     facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await PUBLISH(req(), params("1"));
@@ -332,7 +325,7 @@ describe("POST /api/events/[id]/publish", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await PUBLISH(req(), params("1"));
 
@@ -382,12 +375,16 @@ describe("PATCH /api/events/[id] edit capability", () => {
   const req = (body: unknown) => new Request("https://app.test/api/events/1", { method: "PATCH", body: JSON.stringify(body) });
 
   it("refuses an assigned facilitator even when they run the event", async () => {
-    requireAuth.mockResolvedValue({
-      id: 10,
-      role: ROLES.FACILITATOR,
-      full_name: "Fay",
-      email: "fay@example.com",
-      profile_image_url: null,
+    requireRole.mockResolvedValue({
+      allowed: true,
+      error: null,
+      user: {
+        id: 10,
+        role: ROLES.FACILITATOR,
+        full_name: "Fay",
+        email: "fay@example.com",
+        profile_image_url: null,
+      },
     });
     facilitatorIsAssigned.mockResolvedValue(true);
 
@@ -398,12 +395,16 @@ describe("PATCH /api/events/[id] edit capability", () => {
   });
 
   it("admits an admin to the update path", async () => {
-    requireAuth.mockResolvedValue({
-      id: 9,
-      role: ROLES.ADMIN,
-      full_name: "Alex",
-      email: "alex@example.com",
-      profile_image_url: null,
+    requireRole.mockResolvedValue({
+      allowed: true,
+      error: null,
+      user: {
+        id: 9,
+        role: ROLES.ADMIN,
+        full_name: "Alex",
+        email: "alex@example.com",
+        profile_image_url: null,
+      },
     });
 
     const res = await PATCH(req({ title: "Renamed" }), params("1"));

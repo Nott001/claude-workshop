@@ -4,6 +4,12 @@
 
 ### Changed
 
+- Every authenticated-only API route now guards through the same `requireRole()`/`guardFailure()` pair the role-floor routes already used. The app used to answer "who is calling?" two different ways — a hard guard on routes with a role floor, and a soft `requireAuth()` plus inline identity checks on routes that only needed to know the caller was signed in — so the same question had two APIs and a refusal's shape depended on which dialect the route happened to be in. That was the bug: the soft dialect answered a caller with no session with `403 Forbidden`, so clients could not tell "log in" from "you may not do this" without special-casing the route.
+
+  The guard is now only the authentication door: it returns the caller or a `401 Unauthenticated`, and the entitlement checks that cannot be stated as a role floor (edit, publish, survey, attendees, meeting_link) stay in the capability paths where they belong rather than being spelled out as ad-hoc role tests. The handle functions read `guard.user`, so ownership and audit code has one canonical source of truth for the caller's identity.
+
+  Three converted routes had no guard coverage at all and now carry their own 401-and-no-lookup tests.
+
 - The top navigation bar is taller, its links a step larger, and it is frosted rather than solid. At 64px with 14px links it read as chrome to get past; it now stands at 72px with 16px links, and the page scrolls under it through a translucent, blurred surface instead of behind an opaque band. SIGN IN keeps its 14px deliberately — it is the one control up there that is not navigation, and it was already carrying that distinction in its caps and letter-spacing rather than in its size.
 
   The staff bar matches it — same height, same frosted surface — which meant moving the collapsible rail down with it, since the rail hangs off the bar's bottom edge and sizing one without the other opens a gap down the left of every staff page. Both now read the height from the token instead of naming a number, and the content offset went back to being one value rather than one per bar. The surface itself is shared between the two bars rather than spelled out twice: the alpha and the blur are one decision, since translucency is what lets the page through and the blur is the only reason the links stay readable over it, and half that pair copied into a second bar is a bar you cannot read.

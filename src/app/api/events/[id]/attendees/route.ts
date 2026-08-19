@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { EventServiceError, listEventAttendees, loadEventOr403 } from "@/modules/events/lib/event-service";
 
@@ -20,13 +21,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   try {
-    await loadEventOr403(supabase, Number(eventId), user, "attendees");
+    await loadEventOr403(supabase, Number(eventId), guard.user, "attendees");
   } catch (err) {
     return mapError(err);
   }

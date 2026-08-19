@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QaServiceError } from "@/modules/courses/qa/lib/service";
 
 const {
-  requireAuth,
   requireRole,
   courseDao,
   facilitatorIsAssigned,
@@ -13,7 +12,6 @@ const {
   sendQuestion,
   setModuleLock,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
   requireRole: vi.fn(),
   courseDao: {
     findModuleById: vi.fn(),
@@ -29,7 +27,6 @@ const {
   setModuleLock: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
@@ -53,8 +50,15 @@ function post(payload: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(ATTENDEE);
-  requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 3, role: ROLES.SPEAKER } });
+  // GET and POST guard bare (any authenticated user); PATCH guards as
+  // requireMinRole(ROLES.SPEAKER) through the requireMinRole: requireRole alias.
+  requireRole.mockImplementation((role?: string) =>
+    Promise.resolve(
+      role
+        ? { allowed: true, error: null, user: { id: 3, role: ROLES.SPEAKER } }
+        : { allowed: true, error: null, user: ATTENDEE },
+    ),
+  );
   courseDao.findModuleById.mockResolvedValue(QA_MODULE);
   courseDao.findCourseByModule.mockResolvedValue({ id: 7, event_id: 9 });
   courseDao.findCourseEvent.mockResolvedValue({ id: 7, event_id: 9 });
@@ -74,11 +78,11 @@ describe("GET /api/qa/module/[moduleId]", () => {
     const res = await GET(new Request("https://app.test/api/qa/module/4"), params);
 
     expect(res.status).toBe(404);
-    expect(requireAuth).not.toHaveBeenCalled();
+    expect(requireRole).not.toHaveBeenCalled();
   });
 
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(new Request("https://app.test/api/qa/module/4"), params);
 
@@ -121,7 +125,7 @@ describe("POST /api/qa/module/[moduleId]", () => {
   });
 
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await POST(post(QUESTION), params);
 

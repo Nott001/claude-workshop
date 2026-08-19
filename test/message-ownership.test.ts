@@ -74,7 +74,7 @@ beforeEach(() => {
 
 describe("DELETE /api/qa/message/[messageId]", () => {
   it("answers 401 before any lookups", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await DELETE_QA(req(), msgParams);
 
@@ -83,7 +83,7 @@ describe("DELETE /api/qa/message/[messageId]", () => {
   });
 
   it("answers 404 for a message that does not exist", async () => {
-    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(1, ROLES.ATTENDEE) });
     deleteQuestion.mockRejectedValue(new QaServiceError(404, "Message not found"));
 
     const res = await DELETE_QA(req(), msgParams);
@@ -92,7 +92,7 @@ describe("DELETE /api/qa/message/[messageId]", () => {
   });
 
   it("asks the service to take down the asker's own question", async () => {
-    requireAuth.mockResolvedValue(user(5, ROLES.ATTENDEE));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(5, ROLES.ATTENDEE) });
     deleteQuestion.mockResolvedValue(undefined);
 
     const res = await DELETE_QA(req(), msgParams);
@@ -103,7 +103,7 @@ describe("DELETE /api/qa/message/[messageId]", () => {
   });
 
   it("asks the service to remove someone else's question as team", async () => {
-    requireAuth.mockResolvedValue(user(9, ROLES.SPEAKER));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(9, ROLES.SPEAKER) });
     deleteQuestion.mockResolvedValue(undefined);
 
     const res = await DELETE_QA(req(), msgParams);
@@ -113,7 +113,7 @@ describe("DELETE /api/qa/message/[messageId]", () => {
   });
 
   it("refuses a caller who is neither the asker nor on the course's team", async () => {
-    requireAuth.mockResolvedValue(user(9, ROLES.FACILITATOR));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(9, ROLES.FACILITATOR) });
     deleteQuestion.mockRejectedValue(new QaServiceError(403, "Forbidden"));
 
     const res = await DELETE_QA(req(), msgParams);
@@ -136,7 +136,7 @@ describe("GET /api/qa/message/[messageId]", () => {
   });
 
   it("answers 401 before any lookups", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET_QA(req(), msgParams);
 
@@ -145,7 +145,7 @@ describe("GET /api/qa/message/[messageId]", () => {
   });
 
   it("answers 404 for a message that does not exist", async () => {
-    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(1, ROLES.ATTENDEE) });
     getQuestion.mockRejectedValue(new QaServiceError(404, "Message not found"));
 
     const res = await GET_QA(req(), msgParams);
@@ -154,7 +154,7 @@ describe("GET /api/qa/message/[messageId]", () => {
   });
 
   it("returns the pre-joined question to any authenticated user", async () => {
-    requireAuth.mockResolvedValue(user(1, ROLES.ATTENDEE));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: user(1, ROLES.ATTENDEE) });
     getQuestion.mockResolvedValue(joinedQuestion());
 
     const res = await GET_QA(req(), msgParams);

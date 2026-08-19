@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
 import { sendSurveyToAttendee } from "@/modules/surveys/lib/survey-service";
@@ -23,14 +24,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id: eventId, userId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   let event;
   try {
-    event = await loadEventOr403(supabase, Number(eventId), user, "survey");
+    event = await loadEventOr403(supabase, Number(eventId), guard.user, "survey");
   } catch (err) {
     return mapError(err);
   }
