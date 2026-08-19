@@ -85,3 +85,30 @@ describe("hero silhouette", () => {
     expect(section?.querySelector("img")).not.toBeNull();
   });
 });
+
+// The landing hero's copy arrives a line at a time; the community hero sits
+// under the same navbar, is cut with the same foot, and used to be the one that
+// simply appeared.
+describe("community hero entry", () => {
+  it("rises its copy in, staggered, the way the landing hero does", () => {
+    render(<CommunityHero />);
+
+    const heading = screen.getByRole("heading", { name: /Connect, Share/ });
+    const body = heading.parentElement?.querySelector("p");
+
+    expect(heading.className).toContain("hero-rise");
+    // A stagger, not two lines moving as one block.
+    expect(body?.className).toContain("hero-rise");
+    expect(body?.className).toContain("hero-rise-1");
+    expect(heading.className).not.toContain("hero-rise-1");
+  });
+
+  // Chrome does not count an element as painted while it is still transparent,
+  // so animating the photograph would push the page's largest paint back by the
+  // length of the animation.
+  it("leaves the LCP photograph out of the animation", () => {
+    const { container } = render(<CommunityHero />);
+
+    expect(container.querySelector("img")?.className).not.toContain("hero-rise");
+  });
+});

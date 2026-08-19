@@ -19,6 +19,13 @@
  * the photo is still in flight, and if the file ever goes missing the heading
  * stays legible instead of landing white-on-white.
  *
+ * The copy rises in on load the way the landing hero's does, so the two read as
+ * the same page furniture rather than one animated page and one static one. The
+ * photograph deliberately does not: it is the LCP element, and Chrome does not
+ * count an element as painted while it is still transparent, so fading it in
+ * would push the page's largest paint back by the length of the animation. Text
+ * over it is free — it is not what LCP is measuring here.
+ *
  * The prototype carries member/event/project count pills here. They are left
  * out until something real backs them: only the event count is countable today,
  * and member totals are deliberately withheld from anonymous visitors — the
@@ -49,8 +56,10 @@ export function CommunityHero() {
       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/75 to-slate-900/65" />
 
       <div className="relative mx-auto max-w-3xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Connect, Share &amp; Learn Together</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/90 sm:text-base">
+        <h1 className="hero-rise text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+          Connect, Share &amp; Learn Together
+        </h1>
+        <p className="hero-rise hero-rise-1 mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/90 sm:text-base">
           Join the StartupLab community, connect with fellow workshop participants, and keep the conversation going long after
           the session ends.
         </p>

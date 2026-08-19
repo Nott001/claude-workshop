@@ -8,6 +8,10 @@
 
 ### Changed
 
+- The community hero's copy arrives a line at a time, as the landing hero's does. The two sit under the same navbar and are cut with the same foot, so one of them appearing all at once while the other rose in read as an oversight rather than a distinction. It reuses the landing page's `hero-rise` — no new animation, and no JavaScript: the hero is a server component and the entry is two class names.
+
+  The photograph is deliberately left out of it. It is the page's largest paint, and Chrome does not count an element as painted while it is still transparent, so fading it in would push LCP back by the length of the animation. The text over it costs nothing by the same measure.
+
 - Paging the events list no longer collides with searching it. A Load More still in flight when a search or a tab landed appended its rows underneath the new results, so a page of events nobody had asked for sat below the ones they had — and the totals came back describing a listing that was no longer on screen. Every request now carries the listing it was sent for and is discarded if that listing has been replaced, which covers pagination and the first page alike; the first page had been guarded, but the guard lived in an effect's cleanup and pagination has no cleanup to hang one on.
 
   A page that fails is also retried rather than skipped. The cursor moved before the request rather than after it, so a failed page two left it on two and the retry asked for three, putting page two's events out of reach until the page was reloaded.
