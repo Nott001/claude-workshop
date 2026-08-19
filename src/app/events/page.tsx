@@ -2,7 +2,7 @@ import { EventListPage } from "@/modules/events/pages/event-list";
 import { requireAuth } from "@/modules/auth/lib/session";
 import { getServiceClient } from "@/shared/db/client";
 import { listEvents } from "@/modules/events/lib/event-service";
-import { PAGE_SIZE } from "@/modules/events/lib/use-event-list";
+import { PAGE_SIZE, tabScope } from "@/modules/events/lib/event-list-query";
 
 // Rendered per request, like the landing page and for the same reason: the
 // listing changes whenever staff publish an event, and a page prerendered at
@@ -21,6 +21,10 @@ export const dynamic = "force-dynamic";
  * The query matches the tab the list opens on — Upcoming, published only, no
  * search — so the seed answers exactly what the hook would have asked for.
  * Every tab and keystroke after that still goes through the API.
+ *
+ * `tabScope` rather than a filter and status set written out again here: the
+ * seed only saves a round trip while it asks the question the hook would have,
+ * and two copies of that question are free to drift apart silently.
  */
 export default async function EventsRoute() {
   const supabase = getServiceClient();
@@ -30,11 +34,12 @@ export default async function EventsRoute() {
   // the published listing.
   const user = await requireAuth(supabase);
 
+  const scope = tabScope("upcoming", false);
   const initial = await listEvents(supabase, {
     role: user?.role ?? null,
     userId: user?.id ?? null,
-    filter: "upcoming",
-    statuses: ["active"],
+    filter: scope.filter ?? null,
+    statuses: scope.statuses ?? null,
     page: 1,
     limit: PAGE_SIZE,
   });

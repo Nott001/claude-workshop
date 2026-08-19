@@ -81,7 +81,7 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof useCommunityLinks>);
 
   vi.mocked(useEventList).mockReturnValue({
-    filteredEvents: [],
+    events: [],
     loading: false,
     loadingMore: false,
     error: null,

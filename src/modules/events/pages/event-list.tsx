@@ -42,7 +42,7 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
   const router = useRouter();
   const { user } = useSession();
   const {
-    filteredEvents,
+    events,
     loading,
     refreshing,
     loadingMore,
@@ -102,7 +102,7 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
 
       {/* A failed refetch that still has rows behind it warns in place instead
           of throwing the list away — the same reason the hook keeps them. */}
-      {error && filteredEvents.length > 0 && (
+      {error && events.length > 0 && (
         <p className="mb-3 text-sm text-error">Failed to refresh events — showing the last results loaded.</p>
       )}
 
@@ -113,11 +113,11 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
           result count it resized the page on every keystroke. */}
       {loading ? (
         <EventListSkeleton />
-      ) : error && filteredEvents.length === 0 ? (
+      ) : error && events.length === 0 ? (
         <div className="flex flex-1 items-center justify-center p-8">
           <p className="text-sm text-error">{error}</p>
         </div>
-      ) : filteredEvents.length === 0 ? (
+      ) : events.length === 0 ? (
         <div
           aria-busy={refreshing}
           className={cn(
@@ -135,7 +135,7 @@ export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
             refreshing && DIM_WHILE_REFRESHING,
           )}
         >
-          {filteredEvents.map((event, index) => (
+          {events.map((event, index) => (
             <EventCard
               key={event.id}
               className="card-rise"

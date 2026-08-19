@@ -63,14 +63,14 @@ describe("useEventList under strict mode's mount/unmount/remount", () => {
     });
 
     expect(result.current.loading).toBe(true);
-    expect(result.current.filteredEvents).toEqual([]);
+    expect(result.current.events).toEqual([]);
 
     await act(async () => {
       pending[1].resolve({ data: events, total: 1, page: 1, limit: 50 });
     });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.filteredEvents).toHaveLength(1);
+    expect(result.current.events).toHaveLength(1);
   });
 
   it("ends with the live run's data, never the discarded one's", async () => {
@@ -86,7 +86,7 @@ describe("useEventList under strict mode's mount/unmount/remount", () => {
     });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.filteredEvents).toHaveLength(1);
+    expect(result.current.events).toHaveLength(1);
   });
 });
 

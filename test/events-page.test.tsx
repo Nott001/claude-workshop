@@ -408,3 +408,40 @@ describe("events page card transitions", () => {
     vi.useRealTimers();
   });
 });
+
+describe("events page tab switching", () => {
+  // `activeTab` changed on the click while the rows on screen still belonged to
+  // the old tab, and a client-side re-filter over `status` failed every one of
+  // them at once — so the grid flashed "No events found." for a round trip
+  // before the archive arrived. The rows a tab is replacing now stay up dimmed,
+  // exactly as a search's do.
+  it("does not flash the empty state while the new tab is in flight", async () => {
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("filter=past")) await gate;
+        return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    render(<EventListPage />);
+    expect(await screen.findByText("Alpha")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+
+    // Mid-switch: the previous rows are still up, dimmed, and no empty state.
+    await waitFor(() => expect(screen.getByText("Alpha").closest("[aria-busy]")?.getAttribute("aria-busy")).toBe("true"));
+    expect(screen.queryByText("No events found.")).toBeNull();
+    expect(screen.queryByLabelText("Loading events")).toBeNull();
+
+    await act(async () => {
+      release!();
+    });
+
+    await waitFor(() => expect(screen.getByText("Alpha").closest("[aria-busy]")?.getAttribute("aria-busy")).toBe("false"));
+  });
+});

@@ -2,66 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
-import type { EventMode } from "@/shared/types";
+import { fetchEventListPage, PAGE_SIZE } from "@/modules/events/lib/event-list-query";
+import type { EventListItem, EventListSeed, FilterTab } from "@/modules/events/lib/event-list-query";
 
-interface Course {
-  course_name: string;
-}
-
-export interface EventListItem {
-  id: number;
-  title: string;
-  event_date: string;
-  start_time: string;
-  end_time: string;
-  venue_name: string;
-  venue_address: string | null;
-  status: "draft" | "active" | "complete";
-  event_type?: EventMode | null;
-  cover_image_url: string | null;
-  COURSE?: Course | null;
-  attendee_count?: number;
-  /** Seat cap, or null when uncapped. Read by the staff table's attendance cell. */
-  capacity?: number | null;
-}
-
-export type FilterTab = "upcoming" | "completed" | "drafts";
-
-/** Exported so the server component that seeds the first page asks the
- *  database for exactly the page this hook would otherwise have fetched. */
-export const PAGE_SIZE = 50;
-
-/**
- * What each tab asks the server for.
- *
- * The tabs used to be a client-side filter over one unscoped page of fifty, so
- * a tab showed only the events of its kind that happened to fall in those fifty
- * rows — with fifty upcoming events on the books, Completed rendered empty while
- * the archive sat there in full. Each tab now paginates over its own set.
- *
- * Upcoming and Completed are windows on the calendar, not status values: a past
- * `active` event is served as complete without its column ever being advanced,
- * because `effectiveEventStatus` derives that from the end time. Asking for
- * `status=complete` would miss every one of those. The status set rides along
- * only to keep drafts out, since they have a tab of their own.
- *
- * Drafts is the exception and really is a status — a draft sits on either side
- * of today, so a date window would hide half of them.
- */
-function tabQuery(tab: FilterTab, includeDrafts: boolean): { filter?: string; status?: string } {
-  switch (tab) {
-    case "upcoming":
-      return { filter: "upcoming", status: includeDrafts ? "active,draft" : "active" };
-    case "completed":
-      return { filter: "past", status: "active,complete" };
-    case "drafts":
-      return { status: "draft" };
-  }
-}
-export interface EventListSeed {
-  rows: EventListItem[];
-  total: number;
-}
+// The query moved to a module the server seed can import; these re-exports keep
+// every call site pointing at the hook, the way `event-service` fronts the files
+// it was split into.
+export { PAGE_SIZE };
+export type { EventListItem, EventListSeed, FilterTab };
 
 interface UseEventListOptions {
   /**
@@ -101,6 +49,9 @@ export function useEventList(options?: UseEventListOptions) {
   // `events.length`, or a search matching nothing would arm the skeleton for
   // the next keystroke.
   const loadedOnceRef = useRef(!!seed);
+  // A ref rather than the state flag: two clicks landing in one render both read
+  // the same stale `loadingMore` and fetched the same page twice.
+  const loadingMoreRef = useRef(false);
 
   // Trimmed so a trailing space doesn't change the query and trigger a
   // spurious refetch; the raw value still shows in the input.
@@ -125,26 +76,20 @@ export function useEventList(options?: UseEventListOptions) {
   const queryKey = `${activeTab}|${debouncedSearch}|${includeDrafts}`;
   const seededKeyRef = useRef(seed ? `upcoming||${includeDrafts}` : null);
 
+  /**
+   * Which listing the rows on screen belong to.
+   *
+   * Every request reads this when it is sent and checks it again when it lands,
+   * and may only write state if the two agree. A per-effect `cancelled` flag
+   * covered the first page but could not cover pagination, because `loadMore`
+   * is not an effect and has no cleanup: a page two in flight when a search
+   * landed appended the old tab's rows underneath the new tab's, and left
+   * `hasMore` and `total` describing a list nobody was looking at.
+   */
+  const generationRef = useRef(0);
+
   const load = useCallback(
-    async (page: number): Promise<{ rows: EventListItem[]; hasMore: boolean; ok: boolean; total: number }> => {
-      try {
-        const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
-        const scope = tabQuery(activeTab, includeDrafts);
-        if (scope.filter) params.set("filter", scope.filter);
-        if (scope.status) params.set("status", scope.status);
-        if (debouncedSearch) params.set("search", debouncedSearch);
-        const res = await fetch(`/api/events?${params}`);
-        if (!res.ok) return { rows: [], hasMore: false, ok: false, total: 0 };
-        const data = await res.json();
-        const rows = (Array.isArray(data.data) ? data.data : []) as EventListItem[];
-        const total = data.total ?? 0;
-        return { rows, hasMore: total > page * PAGE_SIZE, ok: true, total };
-      } catch {
-        // A rejected request or a body that is not JSON leaves the page on an
-        // error rather than stranded on the loading skeleton forever.
-        return { rows: [], hasMore: false, ok: false, total: 0 };
-      }
-    },
+    (page: number) => fetchEventListPage({ tab: activeTab, search: debouncedSearch, includeDrafts, page }),
     [debouncedSearch, activeTab, includeDrafts],
   );
 
@@ -152,8 +97,12 @@ export function useEventList(options?: UseEventListOptions) {
     if (seededKeyRef.current === queryKey) return;
     seededKeyRef.current = null;
 
-    let cancelled = false;
+    const generation = ++generationRef.current;
+    // Pagination belongs to the query that opened it, so a new one starts back
+    // at page one with no page-two request outstanding against it.
     pageRef.current = 1;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
 
     async function loadFirstPage() {
       if (loadedOnceRef.current) setRefreshing(true);
@@ -162,7 +111,7 @@ export function useEventList(options?: UseEventListOptions) {
       const result = await load(1);
       // Not on a superseded run: that one leaves every flag to its replacement.
       // Guarding only `loading` let the discarded run's data still land.
-      if (cancelled) return;
+      if (generation !== generationRef.current) return;
       if (!result.ok) {
         // Keep the rows already on screen: wiping them on a failed search is
         // the whole-page blanking this refetch path exists to avoid.
@@ -182,40 +131,58 @@ export function useEventList(options?: UseEventListOptions) {
 
     loadFirstPage();
     return () => {
-      cancelled = true;
+      // An unmount has no successor to advance the generation, so this does it.
+      //
+      // The exhaustive-deps warning here is the inverse of what this needs: it
+      // asks for the value copied in at effect time, and reading the current
+      // one is the entire point — a counter, not a DOM node whose identity has
+      // gone stale.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      generationRef.current++;
     };
   }, [load, queryKey]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore) return;
-    setLoadingMore(true);
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    const generation = generationRef.current;
     const next = pageRef.current + 1;
-    pageRef.current = next;
+    setLoadingMore(true);
+
     const result = await load(next);
-    if (!result.ok) setError("Failed to load events");
+
+    // A tab or a search landed while this page was in flight. Its rows belong
+    // to a listing that is no longer on screen, and the effect has already
+    // reset the pagination this would otherwise advance.
+    if (generation !== generationRef.current) return;
+
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    if (!result.ok) {
+      // `pageRef` deliberately stays where it was: advanced before the request,
+      // a failed page two left the cursor on two, so the retry asked for three
+      // and page two's rows became unreachable without reloading the page.
+      setError("Failed to load events");
+      return;
+    }
+    pageRef.current = next;
     setEvents((prev) => [...prev, ...result.rows]);
     setHasMore(result.hasMore);
-    setLoadingMore(false);
-  }, [load, loadingMore]);
-
-  const isUpcoming = (event: EventListItem) => event.status === "active" || (includeDrafts && event.status === "draft");
-
-  const filteredEvents = events.filter((event) => {
-    switch (activeTab) {
-      case "upcoming":
-        return isUpcoming(event);
-      case "completed":
-        return event.status === "complete";
-      case "drafts":
-        return event.status === "draft";
-      default:
-        return true;
-    }
-  });
+  }, [load]);
 
   return {
+    /**
+     * The rows the server returned for the open tab — not re-filtered here.
+     *
+     * A client-side pass over `status` used to run on top of this, left from
+     * when the tabs were one unscoped page split three ways. It was redundant
+     * once each tab became its own query, and it was destructive during the
+     * refetch: `activeTab` changes on the click, so every row on screen failed
+     * the new tab's test immediately and the grid flashed "No events found."
+     * for a round trip before the real rows arrived. Serving the previous rows
+     * dimmed, exactly as a search does, is the behaviour the dim exists for.
+     */
     events,
-    filteredEvents,
     loading,
     refreshing,
     loadingMore,

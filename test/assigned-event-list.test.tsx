@@ -69,24 +69,38 @@ afterEach(() => {
 });
 
 describe("AssignedEventListPage", () => {
-  it("shows draft and active under Upcoming, keeping complete out", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: events, total: 3, page: 1, limit: 50 }) }),
-    );
+  // Each tab is its own server query, so which events a tab holds is settled by
+  // the scope it asks for, not by a second filter over the answer. A stub that
+  // returns every row regardless of the query tests only that second filter —
+  // which is why this one answers the scope it was actually given.
+  const scopedFetch = () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const params = new URL(String(url), "http://localhost").searchParams;
+      const statuses = params.get("status")?.split(",") ?? [];
+      const inWindow = (event: (typeof events)[number]) =>
+        params.get("filter") === "past" ? event.status === "complete" : event.status !== "complete";
+      const rows = events.filter((event) => statuses.includes(event.status) && inWindow(event));
+      return { ok: true, json: async () => ({ data: rows, total: rows.length, page: 1, limit: 50 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  it("asks Upcoming for drafts alongside published events, and never for finished ones", async () => {
+    const fetchMock = scopedFetch();
 
     render(<AssignedEventListPage />);
 
     expect(await screen.findByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.queryByText("Gamma")).toBeNull();
+    // A facilitator must see an unpublished event they have been assigned to
+    // run, which is the whole of why this view opts into drafts.
+    expect(String(fetchMock.mock.calls[0][0])).toContain("status=active%2Cdraft");
   });
 
   it("moves a finished event under Completed via the select", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: events, total: 3, page: 1, limit: 50 }) }),
-    );
+    const fetchMock = scopedFetch();
 
     render(<AssignedEventListPage />);
     expect(await screen.findByText("Alpha")).toBeTruthy();
@@ -98,8 +112,9 @@ describe("AssignedEventListPage", () => {
       fireEvent.click(completedOption);
     });
 
-    expect(screen.getByText("Gamma")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("Gamma")).toBeTruthy());
     expect(screen.queryByText("Alpha")).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("filter=past"))).toBe(true);
   });
 
   it("loads the next page on Load More", async () => {
