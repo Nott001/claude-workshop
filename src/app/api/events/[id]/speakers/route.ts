@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
-import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -59,9 +60,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
-    if (err instanceof EventServiceError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    throw err;
+    return toErrorResponse(err);
   }
 }

@@ -3,22 +3,11 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import {
-  openOrReuseSession,
-  rateLimitCheck,
-  sendSupportMessage,
-  SupportServiceError,
-} from "@/modules/chat/lib/support-service";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof SupportServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
+import { openOrReuseSession, rateLimitCheck, sendSupportMessage } from "@/modules/chat/lib/support-service";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -110,6 +99,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(message, { status: 201 });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

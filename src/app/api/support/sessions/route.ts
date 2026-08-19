@@ -3,16 +3,10 @@ import { NextResponse } from "next/server";
 import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
 import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { claimCase, endCase, openOrReuseSession, releaseCase, SupportServiceError } from "@/modules/chat/lib/support-service";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof SupportServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
+import { claimCase, endCase, openOrReuseSession, releaseCase } from "@/modules/chat/lib/support-service";
 
 export async function GET() {
   const supabase = getServiceClient();
@@ -55,7 +49,7 @@ export async function POST(req: Request) {
       const session = await openOrReuseSession(supabase, { userId: targetUserId, role: guard.user.role });
       return NextResponse.json({ session });
     } catch (err) {
-      return mapError(err);
+      return toErrorResponse(err);
     }
   }
 
@@ -67,7 +61,7 @@ export async function POST(req: Request) {
           : await releaseCase(supabase, targetUserId, guard.user.id);
       return NextResponse.json({ session });
     } catch (err) {
-      return mapError(err);
+      return toErrorResponse(err);
     }
   }
 
@@ -75,6 +69,6 @@ export async function POST(req: Request) {
     const session = await endCase(supabase, targetUserId, { id: guard.user.id, role: guard.user.role });
     return NextResponse.json({ session: session ?? null });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

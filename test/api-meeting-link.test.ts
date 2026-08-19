@@ -102,6 +102,6 @@ describe("PATCH /api/events/[id]/meeting-link", () => {
     const res = await patch({ meeting_url: LINK });
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: { message: "Only an online event can have a meeting link" } });
+    expect(await res.json()).toEqual({ error: "Only an online event can have a meeting link" });
   });
 });

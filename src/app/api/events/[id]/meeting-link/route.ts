@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { EventServiceError, loadEventOr403, setMeetingLink } from "@/modules/events/lib/event-service";
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { loadEventOr403, setMeetingLink } from "@/modules/events/lib/event-service";
 import { meetingUrlSchema } from "@/modules/events/lib/schemas";
 
 /**
@@ -36,12 +37,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const event = await setMeetingLink(supabase, Number(id), parsed.data.meeting_url, { id: guard.user.id });
     return NextResponse.json({ meeting_url: event.meeting_url });
   } catch (err) {
-    if (err instanceof EventServiceError) {
-      if (err.status === 404 || err.status === 403) {
-        return NextResponse.json({ error: err.message }, { status: err.status });
-      }
-      return NextResponse.json({ error: { message: err.message } }, { status: err.status });
-    }
-    throw err;
+    return toErrorResponse(err);
   }
 }

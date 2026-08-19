@@ -1,48 +1,29 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const {
-  requireAuth,
-  requireRole,
-  listCommunityLinks,
-  createCommunityLink,
-  updateCommunityLink,
-  deleteCommunityLink,
-  ServiceError,
-} = vi.hoisted(() => {
-  class CommunityServiceError extends Error {
-    constructor(
-      public status: number,
-      message: string,
-    ) {
-      super(message);
-      this.name = "CommunityServiceError";
-    }
-  }
-  return {
+const { requireAuth, requireRole, listCommunityLinks, createCommunityLink, updateCommunityLink, deleteCommunityLink } =
+  vi.hoisted(() => ({
     requireAuth: vi.fn(),
     requireRole: vi.fn(),
     listCommunityLinks: vi.fn(),
     createCommunityLink: vi.fn(),
     updateCommunityLink: vi.fn(),
     deleteCommunityLink: vi.fn(),
-    ServiceError: CommunityServiceError,
-  };
-});
+  }));
 
 vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/modules/community/lib/community-service", () => ({
-  listCommunityLinks,
-  createCommunityLink,
-  updateCommunityLink,
-  deleteCommunityLink,
-  CommunityServiceError: ServiceError,
-}));
+vi.mock("@/modules/community/lib/community-service", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/community/lib/community-service")>(
+    "@/modules/community/lib/community-service",
+  );
+  return { ...actual, listCommunityLinks, createCommunityLink, updateCommunityLink, deleteCommunityLink };
+});
 
 import { GET, POST } from "@/app/api/community/route";
 import { PATCH, DELETE } from "@/app/api/community/[id]/route";
+import { CommunityServiceError } from "@/modules/community/lib/community-service";
 
 const admin = {
   allowed: true,
@@ -169,7 +150,7 @@ describe("POST /api/community creation", () => {
   });
 
   it("returns 500 when the write fails", async () => {
-    createCommunityLink.mockRejectedValue(new ServiceError(500, "Failed to create community link"));
+    createCommunityLink.mockRejectedValue(new CommunityServiceError(500, "Failed to create community link"));
 
     const res = await POST(jsonRequest("https://app.test/api/community", "POST", { label: "X", url: "https://x.com" }));
 
@@ -218,7 +199,7 @@ describe("PATCH /api/community/[id]", () => {
   });
 
   it("answers 404 when the card does not exist", async () => {
-    updateCommunityLink.mockRejectedValue(new ServiceError(404, "Community link not found"));
+    updateCommunityLink.mockRejectedValue(new CommunityServiceError(404, "Community link not found"));
 
     const res = await PATCH(jsonRequest("https://app.test/api/community/999", "PATCH", { label: "X" }), params("999"));
 

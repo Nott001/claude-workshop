@@ -4,15 +4,9 @@ import { requireAuth } from "@/modules/auth/lib/session";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import { eventSchema } from "@/modules/events/lib/schemas";
-import { createEvent, EventServiceError, listEvents } from "@/modules/events/lib/event-service";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof EventServiceError) {
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
-  }
-  throw err;
-}
+import { createEvent, listEvents } from "@/modules/events/lib/event-service";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -48,6 +42,6 @@ export async function POST(req: Request) {
     const event = await createEvent(supabase, parsed.data, { id: guard.user.id });
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

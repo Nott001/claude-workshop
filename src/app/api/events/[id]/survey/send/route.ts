@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { sendEventSurvey } from "@/modules/surveys/lib/survey-service";
 
 const NOT_SENT_MESSAGES: Record<string, string> = {
@@ -29,9 +30,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
     return NextResponse.json(result);
   } catch (err) {
-    if (err instanceof EventServiceError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    throw err;
+    return toErrorResponse(err);
   }
 }

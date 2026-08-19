@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { getStaffSurveyStatus } from "@/modules/surveys/lib/survey-service";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -19,9 +20,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const status = await getStaffSurveyStatus(supabase, event);
     return NextResponse.json(status);
   } catch (err) {
-    if (err instanceof EventServiceError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    throw err;
+    return toErrorResponse(err);
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 import { AssignmentTable, type AssignmentRow } from "@/modules/events/components/assignment-table";
 import { SectionCard } from "@/shared/components/section-card";
 import { useEventSpeakers } from "@/modules/events/lib/use-event-speakers";
@@ -24,7 +25,7 @@ function FacilitatorAssignments({ eventId, initialIds }: { eventId: string; init
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to update facilitators");
+      setError(apiErrorMessage(body, "Failed to update facilitators"));
       setSaving(false);
       return false;
     }

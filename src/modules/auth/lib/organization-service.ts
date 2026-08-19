@@ -9,15 +9,9 @@ import { findAuthAccountByEmail } from "@/modules/auth/lib/auth-account";
 import { appBaseUrl } from "@/shared/lib/app-url";
 import { sendTemplatedEmail } from "@/shared/integrations/email/send-templated";
 import { memberInvitedTemplate } from "@/shared/integrations/email/templates";
+import { ServiceError } from "@/shared/lib/service-error";
 
-export class OrganizationServiceError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export class OrganizationServiceError extends ServiceError {}
 
 export interface InviteInput {
   email: string;

@@ -2,16 +2,10 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { EventServiceError, loadEventOr403 } from "@/modules/events/lib/event-service";
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { canTransitionTicket } from "@/modules/commerce/lib/payment-state";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof EventServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string; userId: string }> }) {
   const { id: eventId, userId } = await params;
@@ -25,7 +19,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   try {
     await loadEventOr403(supabase, Number(eventId), guard.user, "attendees_manage");
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 
   const ticket = await ticketDao.findActiveTicketByUserAndEvent(supabase, Number(userId), Number(eventId));

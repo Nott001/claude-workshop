@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 import { EventForm, toFormValues, type EventPayload, type EventFormValues } from "./event-form";
 
 interface EditEventFormProps {
@@ -41,7 +42,7 @@ export function EditEventForm({ eventId, initialData, onSaved }: EditEventFormPr
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new Error(body?.error?.message ?? "Failed to update event");
+      throw new Error(apiErrorMessage(body, "Failed to update event"));
     }
 
     onSaved?.(await res.json());

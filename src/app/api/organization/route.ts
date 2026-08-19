@@ -4,10 +4,11 @@ import { z } from "zod";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import * as userDao from "@/shared/db/dao/user.dao";
 import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES } from "@/modules/auth/lib/invited-role";
-import { inviteUser, OrganizationServiceError } from "@/modules/auth/lib/organization-service";
+import { inviteUser } from "@/modules/auth/lib/organization-service";
 
 const PAGE_SIZE = 10;
 
@@ -16,15 +17,6 @@ const inviteSchema = z.object({
   email: z.string().email("Invalid email"),
   role: z.enum(INVITABLE_ROLES),
 });
-
-// Invitation failures are all answered with a nested { message }; keeping the
-// shape the route has always used on the wire.
-function mapError(err: unknown): NextResponse {
-  if (err instanceof OrganizationServiceError) {
-    return NextResponse.json({ error: { message: err.message } }, { status: err.status });
-  }
-  throw err;
-}
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.ADMIN);
@@ -41,7 +33,7 @@ export async function GET(req: Request) {
   // Attendee is among them: promoting one means first being able to list them.
   const role = searchParams.get("role") ?? undefined;
   if (role && !(ALL_ROLES as readonly string[]).includes(role)) {
-    return NextResponse.json({ error: { message: "Invalid role" } }, { status: 400 });
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   const supabase = getServiceClient();
@@ -69,7 +61,7 @@ export async function POST(req: Request) {
   }
 
   if (!canGrantRole(guard.user.role, parsed.data.role)) {
-    return NextResponse.json({ error: { message: "You cannot invite a role you do not outrank" } }, { status: 403 });
+    return NextResponse.json({ error: "You cannot invite a role you do not outrank" }, { status: 403 });
   }
 
   const supabase = getServiceClient();
@@ -78,6 +70,6 @@ export async function POST(req: Request) {
     const result = await inviteUser(supabase, parsed.data, guard.user.id);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }
