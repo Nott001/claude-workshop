@@ -3,6 +3,12 @@ import { readFileSync, readdirSync } from "fs";
 import path from "path";
 import { guardFailure, forbidden, unauthenticated } from "@/modules/auth/lib/guard-response";
 
+// The inline refusal predates the unified guard idiom; the sweep below scans
+// every route file for it. Kept as a named regex so the positive-control test
+// can prove the sweep is not vacuous.
+const HAND_ROLLED_REFUSAL =
+  /NextResponse\.json\(\s*\{ error: "(?:Unauthenticated|Forbidden)" \}\s*,\s*\{ status: (?:401|403) \}\s*\)/;
+
 /**
  * RFC 9110 separates the two refusals: 401 means the caller is not
  * authenticated, 403 means it is authenticated but not permitted. Every route
@@ -90,6 +96,23 @@ describe("route guard refusals go through the helper", () => {
   // this keeps a new route from reintroducing the inline version.
   it("no route hard-codes a status alongside guard.error", () => {
     const offenders = files.filter((f) => /guard\.error\s*\}[^)]*status:\s*\d+/.test(readFileSync(f, "utf8")));
+
+    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+  });
+
+  it("matches a hand-rolled refusal so the sweep is not vacuous", () => {
+    expect(HAND_ROLLED_REFUSAL.test('return NextResponse.json({ error: "Forbidden" }, { status: 403 });')).toBe(true);
+    expect(HAND_ROLLED_REFUSAL.test('return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });')).toBe(true);
+  });
+
+  // The pre-unification form lived on `requireAuth` + a bare null check, so it
+  // had no `guard.error` to pair a status with. Sheets 03-05 moved every such
+  // handler onto requireRole()/requireMinRole() + guardFailure; this keeps the
+  // inline NextResponse.json refusal from coming back.
+  it("no route hand-rolls a guard refusal outside the helpers", () => {
+    // `\s*` lets prettier wrap the call across lines without silently evading
+    // the sweep — the single-line form is the common one today.
+    const offenders = files.filter((f) => HAND_ROLLED_REFUSAL.test(readFileSync(f, "utf8")));
 
     expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
   });
