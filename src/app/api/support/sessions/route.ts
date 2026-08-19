@@ -1,6 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
@@ -16,9 +17,9 @@ function mapError(err: unknown): NextResponse {
 export async function GET() {
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, ROLES.FACILITATOR)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireMinRole(ROLES.FACILITATOR);
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const sessions = await chatDao.listActiveSessions(supabase);
@@ -29,20 +30,20 @@ export async function GET() {
 export async function POST(req: Request) {
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const body = await req.json();
   const action = body.action ?? "end";
-  const targetUserId = body.user_id ? Number(body.user_id) : user.id;
+  const targetUserId = body.user_id ? Number(body.user_id) : guard.user.id;
 
-  const isOwn = targetUserId === user.id;
-  const isStaff = hasMinRole(user.role, ROLES.ADMIN);
+  const isOwn = targetUserId === guard.user.id;
+  const isStaff = hasMinRole(guard.user.role, ROLES.ADMIN);
 
   if (!isOwn && !isStaff) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   if (action === "start") {
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      const session = await openOrReuseSession(supabase, { userId: targetUserId, role: user.role });
+      const session = await openOrReuseSession(supabase, { userId: targetUserId, role: guard.user.role });
       return NextResponse.json({ session });
     } catch (err) {
       return mapError(err);
@@ -62,8 +63,8 @@ export async function POST(req: Request) {
     try {
       const session =
         action === "claim"
-          ? await claimCase(supabase, targetUserId, user.id)
-          : await releaseCase(supabase, targetUserId, user.id);
+          ? await claimCase(supabase, targetUserId, guard.user.id)
+          : await releaseCase(supabase, targetUserId, guard.user.id);
       return NextResponse.json({ session });
     } catch (err) {
       return mapError(err);
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const session = await endCase(supabase, targetUserId, { id: user.id, role: user.role });
+    const session = await endCase(supabase, targetUserId, { id: guard.user.id, role: guard.user.role });
     return NextResponse.json({ session: session ?? null });
   } catch (err) {
     return mapError(err);

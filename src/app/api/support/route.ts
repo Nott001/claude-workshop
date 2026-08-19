@@ -1,6 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
 import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
@@ -35,18 +36,18 @@ export async function GET(req: Request) {
 
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasMinRole(guard.user.role, ROLES.ADMIN) && guard.user.role !== ROLES.ATTENDEE) {
+    return forbidden();
   }
 
   const result = await chatDao.listSupportMessages(supabase, {
-    userId: user.id,
-    role: user.role,
+    userId: guard.user.id,
+    role: guard.user.role,
     supportType,
     before: before ?? null,
     after: after ?? null,
@@ -79,31 +80,31 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  if (!hasMinRole(user.role, ROLES.ADMIN) && user.role !== ROLES.ATTENDEE) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasMinRole(guard.user.role, ROLES.ADMIN) && guard.user.role !== ROLES.ATTENDEE) {
+    return forbidden();
   }
 
-  if (await rateLimitCheck(supabase, user.id)) {
+  if (await rateLimitCheck(supabase, guard.user.id)) {
     return NextResponse.json({ error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
   try {
     const session = await openOrReuseSession(supabase, {
-      userId: user.id,
-      role: user.role,
+      userId: guard.user.id,
+      role: guard.user.role,
       recipientUserId: parsed.data.recipient_user_id,
     });
 
     const message = await sendSupportMessage(supabase, {
       message: parsed.data.message,
       sessionId: session.id,
-      userId: user.id,
-      role: user.role,
+      userId: guard.user.id,
+      role: guard.user.role,
       recipientUserId: parsed.data.recipient_user_id,
     });
 

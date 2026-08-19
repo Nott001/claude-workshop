@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Anonymous callers on the support and staff routes now get `401 Unauthenticated` instead of `403 Forbidden`. Four routes folded the role floor into the session null-check, so a logged-out caller earned the "Forbidden" reserved for the authenticated-but-unpermitted — the pairing RFC 9110 rules out and `guardFailure` was built to prevent. The role-floor routes now run through `requireMinRole`, which answers unauthenticated with 401 while keeping every permitted denial a 403. Routes that authenticate without a floor (`support`, `sessions`, course rooms, `live/highlight`, `auth/me`) keep their capability predicates but report a missing session as 401 too.
+
 ### Changed
 
 - Every authenticated-only API route now guards through the same `requireRole()`/`guardFailure()` pair the role-floor routes already used. The app used to answer "who is calling?" two different ways — a hard guard on routes with a role floor, and a soft `requireAuth()` plus inline identity checks on routes that only needed to know the caller was signed in — so the same question had two APIs and a refusal's shape depended on which dialect the route happened to be in. That was the bug: the soft dialect answered a caller with no session with `403 Forbidden`, so clients could not tell "log in" from "you may not do this" without special-casing the route.
