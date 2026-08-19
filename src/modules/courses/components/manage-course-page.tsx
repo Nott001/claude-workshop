@@ -35,7 +35,10 @@ export function ManageCoursePage({
   eventEndTime?: string | null;
 }) {
   if (loading) {
-    return <StaffPageSkeleton />;
+    // A course builder, not a table: it settles some 240px shorter than the
+    // eleven rows the listing pages need, and over-reserving pulls the footer
+    // up when the real page lands just as under-reserving pushes it down.
+    return <StaffPageSkeleton rows={6} />;
   }
 
   return (

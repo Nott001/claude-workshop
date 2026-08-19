@@ -2,14 +2,24 @@
 
 import { EventCard } from "@/modules/events/components/event-card";
 import { useSpeakerEvents } from "@/modules/events/lib/use-speaker-events";
+import { EventListSkeleton } from "@/modules/events/components/event-list-skeleton";
+import { Skeleton } from "@/shared/components/skeleton";
 
 export function SpeakerEventListPage() {
   const { events, loading, error } = useSpeakerEvents();
 
   if (loading) {
+    // The page's own frame around the card grid's existing skeleton: what
+    // arrives here is the same grid of event cards the attendee list draws, so
+    // the placeholder for it is the same one rather than a second copy.
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading engagements...</div>
+      <div aria-busy="true" aria-label="Loading engagements" className="flex flex-1 flex-col bg-bg">
+        <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
+          <div className="mb-8 flex items-center justify-between">
+            <Skeleton className="h-8 w-72" />
+          </div>
+          <EventListSkeleton />
+        </div>
       </div>
     );
   }

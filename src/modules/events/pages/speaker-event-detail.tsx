@@ -8,6 +8,7 @@ import { CountdownTimer } from "@/modules/events/components/countdown-timer";
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 import { BackLink } from "@/shared/components/back-link";
+import { SpeakerEventDetailSkeleton } from "@/modules/events/components/speaker-event-detail-skeleton";
 
 export function SpeakerEventDetailPage() {
   const params = useParams();
@@ -17,11 +18,7 @@ export function SpeakerEventDetailPage() {
   const { event, loading, error, badge, isLive, isUpcoming, isComplete } = useSpeakerEvent(eventId);
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-bg">
-        <div className="text-sm text-muted-fg">Loading event details...</div>
-      </div>
-    );
+    return <SpeakerEventDetailSkeleton />;
   }
 
   if (error || !event || !badge) {
