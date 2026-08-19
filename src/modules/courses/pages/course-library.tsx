@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCourseLibrary } from "@/modules/courses/lib/use-course-library";
 import { CourseSummaryCard } from "@/modules/courses/components/course-summary-card";
+import { CourseLibrarySkeleton } from "@/modules/courses/components/course-library-skeleton";
 
 /**
  * The after-event material an attendee has been given, in one place.
@@ -16,11 +17,7 @@ export function CourseLibraryPage() {
   const { courses, loading, error } = useCourseLibrary();
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading your courses...</div>
-      </div>
-    );
+    return <CourseLibrarySkeleton />;
   }
 
   return (

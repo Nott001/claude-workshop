@@ -73,7 +73,8 @@ describe("CourseLibraryPage", () => {
 
     render(<CourseLibraryPage />);
 
-    expect(screen.getByText("Loading your courses...")).toBeTruthy();
+    expect(screen.getByLabelText("Loading your courses")).toBeTruthy();
+    expect(screen.queryByText("Loading your courses...")).toBeNull();
     expect(screen.queryByText("Nothing unlocked yet")).toBeNull();
   });
 

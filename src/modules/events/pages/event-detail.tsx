@@ -7,6 +7,7 @@ import { useSession } from "@/modules/auth/components/session-context";
 import { resolveBackLink, toBackLinkOrigin } from "@/shared/lib/back-link";
 import { useEventDetail } from "@/modules/events/lib/use-event-detail";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
+import { EventDetailSkeleton } from "@/modules/events/components/event-detail-skeleton";
 import { EventSchedule } from "@/modules/events/components/event-schedule";
 import { EventSpeakerCard } from "@/modules/events/components/event-speaker-card";
 import { EventRegisterCard } from "@/modules/events/components/event-register-card";
@@ -33,11 +34,7 @@ export function EventDetailPage({ from }: { from?: string }) {
   }, [user, eventId, router]);
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-sm text-muted-fg">Loading event...</div>
-      </div>
-    );
+    return <EventDetailSkeleton />;
   }
 
   if (error || !event) {

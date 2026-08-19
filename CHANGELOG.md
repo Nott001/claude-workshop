@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- The event detail page no longer jumps as it loads. It rendered one line of centred text while its data was in flight, which let the app shell's `mt-auto` footer sit mid-viewport; the arriving page then pushed it back down in a single 0.425 layout shift — four times the 0.1 the Lighthouse budget allows, and effectively the whole of that page's CLS. It now reserves the page's actual shape while it waits: the same `max-w-page` gutters, the same two-column split, the same cover height, and an aside roughly the height of the register card that decides where the footer lands. Measured 0.426 before, 0.001 after.
+
+  The course library had a milder version of the same thing at 0.062, and is fixed the same way. Both loading states are now built from one shared `Skeleton`, which is also what the events list skeleton is made of — the fill and the pulse are one decision rather than a shape copied between modules, and the layouts stay next to the pages whose height they have to match.
+
 - Searching the events list no longer flickers on every keystroke. Two things were moving that should not have been. The rows dimmed while a refetch was in flight and undimmed when it landed, so each character faded the whole grid down and back up — and the slower the answer, the more of it, which is backwards for a progress signal; the rows are now left alone entirely and a spinner appears in the search box instead, a quarter second in, so a fast search draws no indicator at all. And the entry animation replayed on the way back: typing only removes cards, but deleting a character re-matches events, React mounts their cards afresh, and mounting is what starts a CSS animation — so every backspace rose the grid again, and returning from a term that matched nothing rose all of it. The animation now belongs to the list's first arrival and ends the moment the reader touches the search box or the tabs.
 
 ### Changed
