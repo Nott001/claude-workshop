@@ -29,6 +29,7 @@ vi.mock("@/shared/db/dao/facilitator.dao", () => ({
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 
 import { GET } from "@/app/api/events/[id]/route";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const get = (id = "1") => GET(new Request(`https://app.test/api/events/${id}`), { params: Promise.resolve({ id }) });
 
@@ -138,7 +139,7 @@ describe("GET /api/events/[id] meeting link", () => {
   afterEach(() => vi.useRealTimers());
 
   it("serves it to staff before the event starts, since staff set it", async () => {
-    vi.setSystemTime(new Date("2026-08-01T00:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-01", "00:00:00")!);
     requireAuth.mockResolvedValue(staffUser(ROLES.ADMIN));
 
     const body = await (await get()).json();
@@ -147,7 +148,7 @@ describe("GET /api/events/[id] meeting link", () => {
   });
 
   it("withholds it from a ticket holder until the event starts", async () => {
-    vi.setSystemTime(new Date("2026-09-01T08:59:00"));
+    vi.setSystemTime(parseEventDateTime("2026-09-01", "08:59:00")!);
     requireAuth.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 3, status: "issued" });
 
@@ -158,7 +159,7 @@ describe("GET /api/events/[id] meeting link", () => {
   });
 
   it("serves it to a ticket holder once the event has started", async () => {
-    vi.setSystemTime(new Date("2026-09-01T09:30:00"));
+    vi.setSystemTime(parseEventDateTime("2026-09-01", "09:30:00")!);
     requireAuth.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue({ id: 3, status: "issued" });
 
@@ -168,7 +169,7 @@ describe("GET /api/events/[id] meeting link", () => {
   });
 
   it("withholds it from a signed-in reader with no ticket, mid-event", async () => {
-    vi.setSystemTime(new Date("2026-09-01T09:30:00"));
+    vi.setSystemTime(parseEventDateTime("2026-09-01", "09:30:00")!);
     requireAuth.mockResolvedValue(attendee);
     ticketDao.findActiveTicketByUserAndEvent.mockResolvedValue(null);
 
@@ -178,7 +179,7 @@ describe("GET /api/events/[id] meeting link", () => {
   });
 
   it("withholds it from a signed-out reader, mid-event", async () => {
-    vi.setSystemTime(new Date("2026-09-01T09:30:00"));
+    vi.setSystemTime(parseEventDateTime("2026-09-01", "09:30:00")!);
     requireAuth.mockResolvedValue(null);
 
     const body = await (await get()).json();
@@ -187,7 +188,7 @@ describe("GET /api/events/[id] meeting link", () => {
   });
 
   it("keeps the key present when withholding, so the shape says nothing", async () => {
-    vi.setSystemTime(new Date("2026-09-01T09:30:00"));
+    vi.setSystemTime(parseEventDateTime("2026-09-01", "09:30:00")!);
     requireAuth.mockResolvedValue(null);
 
     const body = await (await get()).json();

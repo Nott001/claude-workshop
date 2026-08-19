@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildTimeline } from "@/modules/events/lib/timeline";
 import type { LiveModuleSource } from "@/shared/lib/live-module";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const EVENT_DATE = "2026-09-01";
 
@@ -15,7 +16,9 @@ function module(id: number, start: string | null, end: string | null): LiveModul
 }
 
 function at(hour: number, minute: number): Date {
-  return new Date(`${EVENT_DATE}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
+  // Built in the app timezone, the same clock the code under test reads.
+  // A runtime-local Date passes on a machine in that zone and fails on CI.
+  return parseEventDateTime(EVENT_DATE, `${hour}:${minute}`)!;
 }
 
 describe("buildTimeline", () => {

@@ -3,7 +3,7 @@ import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { effectiveEventStatus, ilikePattern, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
-import { localDateString, localTimeString } from "@/shared/lib/date-utils";
+import { eventZoneDate, eventZoneTime } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
@@ -22,8 +22,8 @@ type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string 
  * `meeting_url` is deliberately absent, and must stay absent: the listing feeds
  * the public event list and the landing page, so a link selected here would
  * reach anyone who can see an event at all. Leaving it unselected makes that
- * structural — `EventListRow` has no such field for a caller to read — where a
- * redaction step after the fact only held while someone remembered it.
+ * structural — `EventListColumns` has no such field for a caller to read —
+ * where a redaction step after the fact only held while someone remembered it.
  */
 const LIST_SELECT =
   "id, title, event_date, start_time, end_time, venue_name, venue_address, status, event_type, cover_image_url, capacity, COURSE!event_id(course_name)";
@@ -125,19 +125,19 @@ export async function list(
     // An event is still upcoming while its end edge is in the future, not
     // merely while its date has not passed — otherwise a session that ended
     // an hour ago keeps a seat on the landing page until midnight. Same
-    // local-clock convention as isEventFinished.
+    // app-timezone convention as isEventFinished.
     const now = new Date();
     query = query.or(
-      `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`,
+      `event_date.gt.${eventZoneDate(now)},and(event_date.eq.${eventZoneDate(now)},end_time.gte.${eventZoneTime(now)})`,
     );
   } else if (filter === "past") {
-    // The exact complement of "upcoming", on the same local clock. Comparing
+    // The exact complement of "upcoming", on the same app-timezone clock. Comparing
     // `event_date` against a UTC day boundary disagreed with isEventFinished
     // twice over: it kept a session that ended this morning out of the archive
     // until midnight, and west of UTC it dropped in a day early.
     const now = new Date();
     query = query.or(
-      `event_date.lt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.lt.${localTimeString(now)})`,
+      `event_date.lt.${eventZoneDate(now)},and(event_date.eq.${eventZoneDate(now)},end_time.lt.${eventZoneTime(now)})`,
     );
   }
 
@@ -187,7 +187,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<Landing
     .from("EVENT")
     .select("*", { count: "exact" })
     .eq("status", "active")
-    .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
+    .or(`event_date.gt.${eventZoneDate(now)},and(event_date.eq.${eventZoneDate(now)},end_time.gte.${eventZoneTime(now)})`)
     .order("event_date", { ascending: true })
     .limit(LANDING_EVENT_LIMIT);
   // Without this the landing page renders "No upcoming events" identically

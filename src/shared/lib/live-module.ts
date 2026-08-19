@@ -1,4 +1,4 @@
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 export interface LiveModuleSource {
   id: number;
@@ -23,8 +23,8 @@ export function moduleSessionStatus(
   now: Date,
 ): SessionStatus | null {
   if (!eventDate || !startTime || !endTime) return null;
-  const start = parseLocalDateTime(eventDate, startTime);
-  const end = parseLocalDateTime(eventDate, endTime);
+  const start = parseEventDateTime(eventDate, startTime);
+  const end = parseEventDateTime(eventDate, endTime);
   if (!start || !end) return null;
   const t = now.getTime();
   if (t < start.getTime()) return "upcoming";

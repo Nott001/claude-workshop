@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 import { Button, buttonStyles } from "@/shared/components/button";
 import { SectionCard, StatGrid } from "@/shared/components/section-card";
 import { useSurveyStatus } from "@/modules/surveys/lib/use-survey-status";
@@ -49,7 +49,7 @@ export function EventSurveyPanel({ event }: { event: SurveyEvent }) {
 
   // enabled is mutated only by the toggle below; the server value may drift if
   // another staff member changed it, but a reload resets it via useState.
-  const eventEnd = parseLocalDateTime(event.event_date, event.end_time);
+  const eventEnd = parseEventDateTime(event.event_date, event.end_time);
   const finished = eventEnd != null && eventEnd <= new Date();
 
   async function handleToggle(next: boolean) {
