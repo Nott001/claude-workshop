@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.mock is hoisted above the module body, so the doubles it closes over must
 // be created inside vi.hoisted rather than as plain consts.
-const { requireAuth, getCurrentUserId, updateUser, findByUserId, update, create } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, getCurrentUserId, updateUser, findByUserId, update, create } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   getCurrentUserId: vi.fn(),
   updateUser: vi.fn(),
   findByUserId: vi.fn(),
@@ -12,12 +12,13 @@ const { requireAuth, getCurrentUserId, updateUser, findByUserId, update, create 
   create: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth, getCurrentUserId }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUserId }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/user.dao", () => ({ updateUser }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ findByUserId, update, create }));
 
-import { PATCH } from "@/app/api/auth/me/route";
+import { GET, PATCH } from "@/app/api/auth/me/route";
 
 function patch(body: unknown) {
   return new Request("https://app.test/api/auth/me", {
@@ -36,15 +37,27 @@ const speaker = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(speaker);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: speaker });
   getCurrentUserId.mockResolvedValue("auth_123");
   updateUser.mockResolvedValue({ ...speaker });
+});
+
+describe("GET /api/auth/me", () => {
+  it("returns 401 without a session and performs no lookups", async () => {
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
+
+    const res = await GET();
+
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: "Unauthenticated" });
+    expect(findByUserId).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /api/auth/me speaker profile guard", () => {
   it("forbids every non-speaker role from writing designation or bio", async () => {
     for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
-      requireAuth.mockResolvedValue({ ...speaker, role });
+      requireRole.mockResolvedValue({ allowed: true, error: null, user: { ...speaker, role } });
 
       const res = await PATCH(patch({ designation: "CTO" }));
 
@@ -56,7 +69,7 @@ describe("PATCH /api/auth/me speaker profile guard", () => {
 
   it("forbids every non-speaker role from writing links", async () => {
     for (const role of [ROLES.ATTENDEE, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
-      requireAuth.mockResolvedValue({ ...speaker, role });
+      requireRole.mockResolvedValue({ allowed: true, error: null, user: { ...speaker, role } });
 
       const res = await PATCH(patch({ linkedin_url: "https://linkedin.com/in/ada" }));
 

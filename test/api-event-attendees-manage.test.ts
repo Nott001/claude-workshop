@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  requireRole,
   findById,
   isAssigned,
   isAssignedByUserId,
@@ -16,7 +16,7 @@ const {
   getAttendeeSurveyFlags,
   sendSurveyToAttendee,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
   findById: vi.fn(),
   isAssigned: vi.fn(),
   isAssignedByUserId: vi.fn(),
@@ -31,7 +31,7 @@ const {
   sendSurveyToAttendee: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById }));
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned }));
@@ -57,7 +57,6 @@ import { POST as resendPOST } from "@/app/api/events/[id]/attendees/[userId]/res
 import { POST as surveyPOST } from "@/app/api/events/[id]/attendees/[userId]/survey/route";
 
 const admin = { id: 1, role: ROLES.ADMIN };
-const facilitator = { id: 7, role: ROLES.FACILITATOR };
 
 const event = {
   id: 1,
@@ -94,7 +93,7 @@ const post = (path: string) => new Request(`https://app.test${path}`, { method: 
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(admin);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: admin });
   findById.mockResolvedValue(event);
   updateStatus.mockResolvedValue(true);
   sendEmailNotification.mockResolvedValue(true);
@@ -103,7 +102,7 @@ beforeEach(() => {
 
 describe("GET /api/events/[id]/attendees/manage", () => {
   it("requires a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await manageGET(get("/api/events/1/attendees/manage"), { params: Promise.resolve({ id: "1" }) });
 
@@ -112,7 +111,7 @@ describe("GET /api/events/[id]/attendees/manage", () => {
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
     isAssigned.mockResolvedValue(true);
 
     const res = await manageGET(get("/api/events/1/attendees/manage"), { params: Promise.resolve({ id: "1" }) });
@@ -160,7 +159,7 @@ describe("GET /api/events/[id]/attendees/manage", () => {
 
 describe("POST /api/events/[id]/attendees/[userId]/checkin", () => {
   it("requires a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await checkinPOST(post("/api/events/1/attendees/5/checkin"), {
       params: Promise.resolve({ id: "1", userId: "5" }),
@@ -171,7 +170,7 @@ describe("POST /api/events/[id]/attendees/[userId]/checkin", () => {
   });
 
   it("refuses a facilitator", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await checkinPOST(post("/api/events/1/attendees/5/checkin"), {
       params: Promise.resolve({ id: "1", userId: "5" }),
@@ -232,7 +231,7 @@ describe("POST /api/events/[id]/attendees/[userId]/checkin", () => {
 
 describe("POST /api/events/[id]/attendees/[userId]/cancel", () => {
   it("requires a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await cancelPOST(post("/api/events/1/attendees/5/cancel"), {
       params: Promise.resolve({ id: "1", userId: "5" }),
@@ -292,7 +291,7 @@ describe("POST /api/events/[id]/attendees/[userId]/resend-ticket", () => {
   });
 
   it("requires a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await resendPOST(post("/api/events/1/attendees/5/resend-ticket"), {
       params: Promise.resolve({ id: "1", userId: "5" }),
@@ -328,7 +327,7 @@ describe("POST /api/events/[id]/attendees/[userId]/survey", () => {
   });
 
   it("requires a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await surveyPOST(post("/api/events/1/attendees/5/survey"), {
       params: Promise.resolve({ id: "1", userId: "5" }),

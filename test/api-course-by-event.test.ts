@@ -1,14 +1,14 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findCourseByEvent, userHasCourseAccess } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, findCourseByEvent, userHasCourseAccess } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   findCourseByEvent: vi.fn(),
   userHasCourseAccess: vi.fn(),
 }));
 
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findCourseByEvent, userHasCourseAccess }));
 
 import { GET } from "@/app/api/courses/event/[eventId]/route";
@@ -23,14 +23,14 @@ const course = { id: 12, course_name: "React", MODULE: [] };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(attendee);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: attendee });
   findCourseByEvent.mockResolvedValue(course);
   userHasCourseAccess.mockResolvedValue(true);
 });
 
 describe("authentication", () => {
   it("refuses an unauthenticated caller without resolving a course", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(req(), params);
 
@@ -68,7 +68,7 @@ describe("entitlement", () => {
   });
 
   it("gives facilitators access without consulting entitlements", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: facilitator });
 
     const res = await GET(req(), params);
 
@@ -77,7 +77,7 @@ describe("entitlement", () => {
   });
 
   it("checks entitlement for a speaker like any other non-facilitator", async () => {
-    requireAuth.mockResolvedValue(speaker);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: speaker });
     userHasCourseAccess.mockResolvedValue(false);
 
     const res = await GET(req(), params);

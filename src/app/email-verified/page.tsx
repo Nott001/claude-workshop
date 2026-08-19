@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { isSafeRedirectPath } from "@/modules/auth/lib/redirect-url";
 import { roleHome } from "@/modules/auth/lib/role-home";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 
 export default async function EmailVerifiedPage({ searchParams }: { searchParams: Promise<{ redirect_url?: string }> }) {
   const { redirect_url } = await searchParams;
   const redirectUrl = isSafeRedirectPath(redirect_url) ? redirect_url : null;
-  const user = await requireAuth();
+  const user = await getCurrentUser();
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-bg px-4">

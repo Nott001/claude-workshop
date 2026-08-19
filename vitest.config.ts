@@ -30,10 +30,10 @@ export default defineConfig({
       // move across the whole change — 1485 before and after. Only re-baseline
       // for a reason like that; never to make a build pass.
       thresholds: {
-        statements: 81.81,
-        branches: 76.54,
-        functions: 81.08,
-        lines: 82.89,
+        statements: 83.35,
+        branches: 77.96,
+        functions: 82.25,
+        lines: 84.52,
       },
     },
   },

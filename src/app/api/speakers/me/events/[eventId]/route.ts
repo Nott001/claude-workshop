@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -9,12 +10,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const { eventId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  const profile = await speakerDao.findByUserId(supabase, user.id);
+  const profile = await speakerDao.findByUserId(supabase, guard.user.id);
 
   if (!profile) {
     return NextResponse.json({ error: "Not a speaker" }, { status: 403 });

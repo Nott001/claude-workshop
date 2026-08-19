@@ -1,16 +1,16 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireMinRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as chatDao from "@/shared/db/dao/chat.dao";
-import { hasMinRole } from "@/shared/lib/role-hierarchy";
 
 export async function GET(req: Request) {
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user || !hasMinRole(user.role, ROLES.ADMIN)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireMinRole(ROLES.ADMIN);
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const { searchParams } = new URL(req.url);

@@ -1,8 +1,8 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, courseDao, eventDao, ticketDao, speakerDao } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, courseDao, eventDao, ticketDao, speakerDao } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   courseDao: {
     findCourseWithDetails: vi.fn(),
     userHasCourseAccess: vi.fn(),
@@ -19,7 +19,7 @@ const { requireAuth, courseDao, eventDao, ticketDao, speakerDao } = vi.hoisted((
   },
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
@@ -45,7 +45,7 @@ function roomRequest() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({ id: 2, role: ROLES.ATTENDEE });
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 2, role: ROLES.ATTENDEE } });
   courseDao.findCourseWithDetails.mockResolvedValue(COURSE);
   courseDao.userHasCourseAccess.mockResolvedValue(true);
   eventDao.findByIdWithCourse.mockResolvedValue(STARTED_EVENT);
@@ -56,7 +56,7 @@ beforeEach(() => {
 
 describe("GET /api/courses/[courseId]/room", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(roomRequest(), params);
 
@@ -82,7 +82,7 @@ describe("GET /api/courses/[courseId]/room", () => {
   });
 
   it("admits staff without asking the access gate, as their access is role-based", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 5, role: ROLES.FACILITATOR } });
 
     const res = await GET(roomRequest(), params);
 
@@ -126,7 +126,7 @@ describe("GET /api/courses/[courseId]/room", () => {
   });
 
   it("still serves the course to staff before the event starts, so they can set the room up", async () => {
-    requireAuth.mockResolvedValue({ id: 5, role: ROLES.FACILITATOR });
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: { id: 5, role: ROLES.FACILITATOR } });
     eventDao.findByIdWithCourse.mockResolvedValue(FUTURE_EVENT);
 
     const res = await GET(roomRequest(), params);

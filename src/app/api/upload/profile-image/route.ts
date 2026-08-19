@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { guardFailure, unauthenticated } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as userDao from "@/shared/db/dao/user.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   const formData = await req.formData();
@@ -73,7 +73,7 @@ export async function DELETE() {
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   const supabase = getServiceClient();

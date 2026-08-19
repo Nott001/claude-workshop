@@ -2,6 +2,7 @@
 
 import { ALL_ROLES, ASSIGNABLE_ROLES, INVITABLE_ROLES, ROLES } from "@/shared/lib/roles";
 import { useCallback, useEffect, useState } from "react";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 import { useSession } from "@/modules/auth/components/session-context";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { Button } from "@/shared/components/button";
@@ -171,7 +172,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setInviteError(data?.error?.message ?? "Failed to invite member");
+      setInviteError(apiErrorMessage(data, "Failed to invite member"));
       setInviting(false);
       return;
     }
@@ -210,7 +211,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setRoleError(data?.error?.message ?? "Failed to change the role");
+      setRoleError(apiErrorMessage(data, "Failed to change the role"));
       setSavingRole(false);
       return;
     }
@@ -234,7 +235,7 @@ export default function StaffOrganizationPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.error?.message ?? "Failed to remove member");
+      alert(apiErrorMessage(data, "Failed to remove member"));
       return;
     }
 

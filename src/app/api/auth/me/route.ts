@@ -1,6 +1,8 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUserId } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure, unauthenticated } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { deleteAccount } from "@/modules/user/lib/delete-account";
 import * as userDao from "@/shared/db/dao/user.dao";
@@ -8,17 +10,16 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import type { SpeakerProfile } from "@/shared/types";
 
 export async function GET() {
-  const user = await requireAuth();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const supabase = getServiceClient();
-  const profile = await speakerDao.findByUserId(supabase, user.id);
+  const profile = await speakerDao.findByUserId(supabase, guard.user.id);
 
   return NextResponse.json({
-    ...user,
+    ...guard.user,
     speaker_profile_id: profile?.id ?? null,
     designation: profile?.designation ?? null,
     bio: profile?.bio ?? null,
@@ -31,14 +32,14 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const guard = await requireAuth();
-  if (!guard) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   // No email here, deliberately. The address is owned by the auth identity and
@@ -69,8 +70,8 @@ export async function PATCH(req: Request) {
     body.twitter_url !== undefined ||
     body.github_url !== undefined ||
     body.website_url !== undefined;
-  if (wantsSpeakerUpdate && guard.role !== ROLES.SPEAKER) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (wantsSpeakerUpdate && guard.user.role !== ROLES.SPEAKER) {
+    return forbidden();
   }
 
   const supabase = getServiceClient();
@@ -117,22 +118,22 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE() {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const authUserId = await getCurrentUserId();
   if (!authUserId) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+    return unauthenticated();
   }
 
   try {
     await deleteAccount({
-      userId: user.id,
+      userId: guard.user.id,
       authUserId,
-      email: user.email,
-      role: user.role,
+      email: guard.user.email,
+      role: guard.user.role,
     });
     return NextResponse.json({ ok: true });
   } catch {

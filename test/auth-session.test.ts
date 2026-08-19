@@ -17,7 +17,7 @@ vi.mock("@/shared/db/dao/user.dao", () => ({ findByAuthId }));
 
 vi.mock("@/modules/auth/lib/ensure-user", () => ({ ensureUser }));
 
-import { getCurrentUserId, requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUserId, getCurrentUser } from "@/modules/auth/lib/session";
 
 const dbUser = {
   id: 5,
@@ -44,16 +44,16 @@ describe("getCurrentUserId", () => {
   });
 });
 
-describe("requireAuth", () => {
+describe("getCurrentUser", () => {
   it("returns null without a session and never queries the database", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
 
-    await expect(requireAuth()).resolves.toBeNull();
+    await expect(getCurrentUser()).resolves.toBeNull();
     expect(findByAuthId).not.toHaveBeenCalled();
   });
 
   it("resolves the auth id to the application user record", async () => {
-    await expect(requireAuth()).resolves.toEqual({
+    await expect(getCurrentUser()).resolves.toEqual({
       id: 5,
       role: ROLES.ATTENDEE,
       full_name: "Jane Doe",
@@ -62,7 +62,7 @@ describe("requireAuth", () => {
   });
 
   it("does not expose auth_user_id to callers", async () => {
-    const user = await requireAuth();
+    const user = await getCurrentUser();
     expect(user).not.toHaveProperty("auth_user_id");
   });
 
@@ -70,7 +70,7 @@ describe("requireAuth", () => {
     findByAuthId.mockResolvedValue(null);
     ensureUser.mockResolvedValue(dbUser);
 
-    await expect(requireAuth()).resolves.toMatchObject({ id: 5 });
+    await expect(getCurrentUser()).resolves.toMatchObject({ id: 5 });
     expect(ensureUser).toHaveBeenCalledWith({ tag: "service" }, "auth_123");
   });
 
@@ -78,13 +78,13 @@ describe("requireAuth", () => {
     findByAuthId.mockResolvedValue(null);
     ensureUser.mockResolvedValue(null);
 
-    await expect(requireAuth()).resolves.toBeNull();
+    await expect(getCurrentUser()).resolves.toBeNull();
   });
 
   it("uses a caller-supplied client instead of opening another one", async () => {
     const caller = { tag: "caller" } as never;
 
-    await requireAuth(caller);
+    await getCurrentUser(caller);
 
     expect(findByAuthId).toHaveBeenCalledWith(caller, "auth_123");
   });

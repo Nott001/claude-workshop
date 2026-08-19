@@ -53,7 +53,8 @@ function routeFiles(): string[] {
     .map((f) => f.replace(/\\/g, "/"));
 }
 
-const guarded = (rel: string) => /requireAuth|requireMinRole|requireRole/.test(readFileSync(path.join(API_DIR, rel), "utf8"));
+const guarded = (rel: string) =>
+  /requireMinRole|requireRole|getCurrentUser/.test(readFileSync(path.join(API_DIR, rel), "utf8"));
 
 describe("api route authorization sweep", () => {
   const files = routeFiles();
@@ -65,7 +66,7 @@ describe("api route authorization sweep", () => {
   it("every route either enforces auth or is listed with a reason", () => {
     const unaccounted = files.filter((rel) => !guarded(rel) && !(rel in PUBLIC_BY_DESIGN) && !(rel in KNOWN_UNGUARDED));
 
-    expect(unaccounted, `New API route(s) with no requireAuth/requireRole call:\n  ${unaccounted.join("\n  ")}`).toEqual([]);
+    expect(unaccounted, `New API route(s) with no guard/soft-read call:\n  ${unaccounted.join("\n  ")}`).toEqual([]);
   });
 
   it("keeps the public list minimal", () => {

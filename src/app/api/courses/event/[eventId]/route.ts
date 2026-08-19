@@ -1,6 +1,7 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
@@ -9,9 +10,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const { eventId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const course = await courseDao.findCourseByEvent(supabase, Number(eventId));
@@ -23,9 +24,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   // feed must honour the same gate. A role check alone kept the room empty for
   // the attendees it let in.
   const entitled =
-    hasMinRole(user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, user.id, course.id));
+    hasMinRole(guard.user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, guard.user.id, course.id));
   if (!entitled) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   return NextResponse.json(course);

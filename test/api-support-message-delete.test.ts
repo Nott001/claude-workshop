@@ -1,14 +1,14 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, findMessageWithUser, deleteMessagesByIds, findById } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, findMessageWithUser, deleteMessagesByIds, findById } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   findMessageWithUser: vi.fn(),
   deleteMessagesByIds: vi.fn(),
   findById: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({ findMessageWithUser, deleteMessagesByIds }));
 vi.mock("@/shared/db/dao/support-session.dao", () => ({ findById }));
@@ -25,7 +25,7 @@ function del(id: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(ATTENDEE);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
   findMessageWithUser.mockResolvedValue(null);
   deleteMessagesByIds.mockResolvedValue(true);
   findById.mockResolvedValue(null);
@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe("DELETE /api/support/[messageId]", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     expect((await del("5")).status).toBe(401);
     expect(deleteMessagesByIds).not.toHaveBeenCalled();

@@ -1,16 +1,16 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, getRouteClient, routeRpc } = vi.hoisted(() => {
+const { requireRole, getRouteClient, routeRpc } = vi.hoisted(() => {
   const routeRpc = vi.fn();
   return {
-    requireAuth: vi.fn(),
+    requireRole: vi.fn(),
     getRouteClient: vi.fn(async () => ({ rpc: routeRpc })),
     routeRpc,
   };
 });
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/route-client", () => ({ getRouteClient }));
 
 import { POST } from "@/app/api/auth/email/cancel/route";
@@ -25,13 +25,13 @@ const USER = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(USER);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: USER });
   routeRpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe("POST /api/auth/email/cancel", () => {
   it("refuses an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await POST();
 

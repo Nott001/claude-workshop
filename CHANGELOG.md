@@ -2,7 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Anonymous callers on the support and staff routes now get `401 Unauthenticated` instead of `403 Forbidden`. Four routes folded the role floor into the session null-check, so a logged-out caller earned the "Forbidden" reserved for the authenticated-but-unpermitted — the pairing RFC 9110 rules out and `guardFailure` was built to prevent. The role-floor routes now run through `requireMinRole`, which answers unauthenticated with 401 while keeping every permitted denial a 403. Routes that authenticate without a floor (`support`, `sessions`, course rooms, `live/highlight`, `auth/me`) keep their capability predicates but report a missing session as 401 too.
+
 ### Changed
+
+- **Breaking wire shape.** Every domain failure now answers the flat `{ error: "…" }` body the auth guards already serve, instead of three drifting shapes. `community/*`, `organization/*`, the `events` collection, `events/[id]` (its 400/500 branch) and `modules/[id]` (its 400 branch) used to answer nested `{ error: { message } }` — or split flat/nested by status — because each route hand-rolled a `mapError` next to its service. Twenty copies and five inline blocks collapsed into one `toErrorResponse` helper over a single shared `ServiceError` base, so a route can no longer render the same failure two ways. The client reads both shapes through `apiErrorMessage` while the flat body rolls out.
+
+- Every authenticated-only API route now guards through the same `requireRole()`/`guardFailure()` pair the role-floor routes already used. The app used to answer "who is calling?" two different ways — a hard guard on routes with a role floor, and a soft `requireAuth()` plus inline identity checks on routes that only needed to know the caller was signed in — so the same question had two APIs and a refusal's shape depended on which dialect the route happened to be in. That was the bug: the soft dialect answered a caller with no session with `403 Forbidden`, so clients could not tell "log in" from "you may not do this" without special-casing the route.
+
+  The guard is now only the authentication door: it returns the caller or a `401 Unauthenticated`, and the entitlement checks that cannot be stated as a role floor (edit, publish, survey, attendees, meeting_link) stay in the capability paths where they belong rather than being spelled out as ad-hoc role tests. The handle functions read `guard.user`, so ownership and audit code has one canonical source of truth for the caller's identity.
+
+  Three converted routes had no guard coverage at all and now carry their own 401-and-no-lookup tests.
 
 - The top navigation bar is taller, its links a step larger, and it is frosted rather than solid. At 64px with 14px links it read as chrome to get past; it now stands at 72px with 16px links, and the page scrolls under it through a translucent, blurred surface instead of behind an opaque band. SIGN IN keeps its 14px deliberately — it is the one control up there that is not navigation, and it was already carrying that distinction in its caps and letter-spacing rather than in its size.
 

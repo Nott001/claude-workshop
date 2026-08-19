@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { eventPartialSchema } from "@/modules/events/lib/schemas";
 
-const { findById, update, logAuditEvent, facilitatorReplace, speakerReplace, facilitatorIsAssigned, requireAuth } = vi.hoisted(
+const { findById, update, logAuditEvent, facilitatorReplace, speakerReplace, facilitatorIsAssigned, requireRole } = vi.hoisted(
   () => ({
     findById: vi.fn(),
     update: vi.fn(),
@@ -10,11 +10,11 @@ const { findById, update, logAuditEvent, facilitatorReplace, speakerReplace, fac
     facilitatorReplace: vi.fn(),
     speakerReplace: vi.fn(),
     facilitatorIsAssigned: vi.fn(),
-    requireAuth: vi.fn(),
+    requireRole: vi.fn(),
   }),
 );
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById, update, findByIdWithRelations: vi.fn(), countAttendees: vi.fn() }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({}));
@@ -33,7 +33,6 @@ vi.mock("@/modules/audit/lib/log-audit-event", () => ({
 import { PATCH } from "@/app/api/events/[id]/route";
 
 const user = { id: 9, role: ROLES.ADMIN, full_name: "Alex", email: "alex@example.com", profile_image_url: null };
-const facilitator = { id: 10, role: ROLES.FACILITATOR, full_name: "Fay", email: "fay@example.com", profile_image_url: null };
 
 const stored = { id: 3, title: "Launch", event_date: "2026-09-01", start_time: "09:00", end_time: "17:00" };
 
@@ -44,7 +43,7 @@ const patch = (body: unknown) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(user);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user });
   findById.mockResolvedValue(stored);
   update.mockResolvedValue({ ...stored });
   facilitatorReplace.mockResolvedValue(true);
@@ -112,7 +111,7 @@ describe("PATCH /api/events/[id] time range", () => {
 
 describe("PATCH /api/events/[id] authorization", () => {
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
     facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await patch({ title: "Renamed" });
@@ -123,7 +122,7 @@ describe("PATCH /api/events/[id] authorization", () => {
   });
 
   it("refuses a caller below admin", async () => {
-    requireAuth.mockResolvedValue({ ...user, role: ROLES.ATTENDEE });
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await patch({ title: "Renamed" });
 
@@ -132,7 +131,7 @@ describe("PATCH /api/events/[id] authorization", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await patch({ title: "Renamed" });
 

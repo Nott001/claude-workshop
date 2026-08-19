@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { apiErrorMessage } from "@/shared/lib/api-error-message";
 import { parseLocalDateTime } from "@/shared/lib/date-utils";
 import { Button, buttonStyles } from "@/shared/components/button";
 import { SectionCard, StatGrid } from "@/shared/components/section-card";
@@ -63,7 +64,7 @@ export function EventSurveyPanel({ event, onSaved }: { event: SurveyEvent; onSav
     });
     if (!res.ok) {
       const body = await res.json();
-      setSettingError(body.error?.message ?? "Failed to update survey setting");
+      setSettingError(apiErrorMessage(body, "Failed to update survey setting"));
       setSaving(false);
       return;
     }

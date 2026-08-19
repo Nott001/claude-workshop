@@ -59,7 +59,7 @@ describe("staff organization invite confirmation", () => {
   });
 
   it("stays silent when the invitation was refused", async () => {
-    invitePost = () => ({ ok: false, json: async () => ({ error: { message: "A user with this email already exists" } }) });
+    invitePost = () => ({ ok: false, json: async () => ({ error: "A user with this email already exists" }) });
 
     render(<StaffOrganizationPage />);
     await screen.findByText("ada@example.com");
