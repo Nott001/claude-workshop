@@ -46,7 +46,7 @@ Seeded users are **already confirmed**, so those logins work immediately (see
 the table). GoTrue's own mail — sign-up confirmations and email-change links —
 always lands in inbucket → **Studio → inbucket** (or http://127.0.0.1:54324).
 
-The project's own transactional mail — password-reset links, organization
+The project's own transactional mail — password-reset links, user
 invites, tickets, check-in receipts — is delivered by the app's SMTP seam, not
 by GoTrue. When `.env` points at the local stack (`pnpm db:env local`), the
 seam routes this mail to the same capture box GoTrue already uses, so it lands

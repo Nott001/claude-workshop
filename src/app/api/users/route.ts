@@ -8,7 +8,7 @@ import { toErrorResponse } from "@/shared/lib/error-response";
 import * as userDao from "@/shared/db/dao/user.dao";
 import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { INVITABLE_ROLES } from "@/modules/auth/lib/invited-role";
-import { inviteUser } from "@/modules/auth/lib/organization-service";
+import { inviteUser } from "@/modules/user/lib/user-service";
 import { badRequest } from "@/shared/lib/api-response";
 
 const PAGE_SIZE = 10;
@@ -37,9 +37,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
+  // scope=all is the explicit widen-everything filter; a roster nobody
+  // narrowed still defaults to staff unless the caller asks for everything.
+  const allRoles = searchParams.get("scope") === "all";
+
   const supabase = getServiceClient();
 
-  const result = await userDao.listOrganizationMembers(supabase, { page, search, pageSize: PAGE_SIZE, role });
+  const result = await userDao.listUsers(supabase, { page, search, pageSize: PAGE_SIZE, role, allRoles });
 
   return NextResponse.json({
     users: result.data,

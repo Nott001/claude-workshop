@@ -3,21 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { TicketPass } from "@/modules/commerce/components/ticket-pass";
 import TicketPassPage from "@/app/tickets/[ticketId]/page";
+import { subscribeToTicket } from "@/shared/integrations/realtime";
 import type { TicketWithEvent } from "@/shared/db/dao/ticket.dao";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ ticketId: "42" }),
 }));
 
-const { subscribeToTicketCb } = vi.hoisted(() => ({
-  subscribeToTicketCb: vi.fn(),
-}));
-
 vi.mock("@/shared/integrations/realtime", () => ({
-  subscribeToTicket: vi.fn((_id, cb) => {
-    subscribeToTicketCb.mockReturnValue(cb);
-    return {};
-  }),
+  subscribeToTicket: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 
@@ -90,19 +84,17 @@ describe("TicketPassPage", () => {
 
     expect(await screen.findByText("Registered")).toBeTruthy();
 
-    // "Registered" being on screen says the ticket loaded, not that the page has
-    // subscribed — the subscription runs in an effect that may not have fired
-    // yet, and reading the callback before it does yields `undefined` and fails
-    // with "onTicket is not a function" on roughly two runs in five.
-    await waitFor(() => expect(subscribeToTicketCb()).toBeInstanceOf(Function));
-
-    const onTicket = subscribeToTicketCb(); // the callback the page registered
+    // The page subscribes in a passive effect that flushes after the commit
+    // that paints "Registered"; wait for it so the callback is actually there.
+    const subscribeToTicketMock = vi.mocked(subscribeToTicket);
+    await waitFor(() => expect(subscribeToTicketMock).toHaveBeenCalledWith(42, expect.any(Function)));
+    const onTicket = subscribeToTicketMock.mock.calls[0][1];
     const checkedInAt = "2026-08-14T11:30:00.000Z";
     const expectedTime = new Date(checkedInAt).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
     });
-    onTicket({ status: "checked_in", updated_at: checkedInAt });
+    onTicket({ ...ticket, status: "checked_in", updated_at: checkedInAt });
 
     await waitFor(() => expect(screen.getByText(`Checked in · ${expectedTime}`)).toBeTruthy());
   });

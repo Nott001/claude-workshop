@@ -102,7 +102,7 @@ describe("Navbar prefetching", () => {
     renderAs(ROLES.ADMIN);
     expect(navLinks().map((a) => a.getAttribute("href"))).toEqual([
       "/staff/events",
-      "/staff/organization",
+      "/staff/users",
       "/staff/community",
       "/staff/emails",
       "/staff/support",

@@ -19,7 +19,7 @@ function stub(result: { data?: unknown; error?: unknown; count?: number | null }
     // Some DAOs await the builder itself rather than a terminal.
     then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
   };
-  for (const method of ["select", "eq", "in", "or", "order", "range", "update", "upsert", "insert", "delete"]) {
+  for (const method of ["select", "eq", "not", "in", "or", "order", "range", "update", "upsert", "insert", "delete"]) {
     chain[method] = (...args: unknown[]) => {
       calls.push([method, args]);
       return chain;
@@ -59,12 +59,13 @@ describe("user.dao reads", () => {
   });
 });
 
-describe("user.dao listOrganizationMembers", () => {
+describe("user.dao listUsers", () => {
   it("lists staff roles only when nothing was asked for", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "" });
+    await userDao.listUsers(client, { page: 1, search: "" });
 
+    expect(argsOf(calls, "not")).toEqual(["email", "ilike", "deleted-%@deleted.local"]);
     expect(argsOf(calls, "in")).toEqual(["role", [ROLES.FACILITATOR, ROLES.SPEAKER, ROLES.ADMIN, ROLES.SUPER_ADMIN]]);
   });
 
@@ -73,7 +74,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("searches every role, attendees included", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "ada" });
+    await userDao.listUsers(client, { page: 1, search: "ada" });
 
     expect(calls.some(([m]) => m === "in")).toBe(false);
   });
@@ -81,16 +82,26 @@ describe("user.dao listOrganizationMembers", () => {
   it("lists attendees when they are the role asked for", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "", role: ROLES.ATTENDEE });
+    await userDao.listUsers(client, { page: 1, search: "", role: ROLES.ATTENDEE });
 
     expect(calls.some(([m]) => m === "in")).toBe(false);
     expect(calls.filter(([m]) => m === "eq").map(([, args]) => args)).toContainEqual(["role", ROLES.ATTENDEE]);
   });
 
+  it("widens to every role when allRoles is set", async () => {
+    const { client, calls } = stub({ data: [], count: 0 });
+
+    await userDao.listUsers(client, { page: 1, search: "", allRoles: true });
+
+    expect(argsOf(calls, "not")).toEqual(["email", "ilike", "deleted-%@deleted.local"]);
+    expect(calls.some(([m]) => m === "in")).toBe(false);
+    expect(calls.filter(([m]) => m === "order").map(([, args]) => args)[0]).toEqual(["role", { ascending: false }]);
+  });
+
   it("asks for the page the caller wanted", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 3, search: "", pageSize: 10 });
+    await userDao.listUsers(client, { page: 3, search: "", pageSize: 10 });
 
     // Page 3 of 10 starts at row 20 and ends at 29, inclusive.
     expect(argsOf(calls, "range")).toEqual([20, 29]);
@@ -99,7 +110,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("searches the name and the address together", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "ana" });
+    await userDao.listUsers(client, { page: 1, search: "ana" });
 
     // ilikePattern quotes and escapes the term so input cannot re-write the
     // or-filter; the quotes are part of the generated expression.
@@ -109,7 +120,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("narrows to one role and keeps pagination when role is set", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 2, search: "", pageSize: 10, role: ROLES.SPEAKER });
+    await userDao.listUsers(client, { page: 2, search: "", pageSize: 10, role: ROLES.SPEAKER });
 
     const eqs = calls.filter(([m]) => m === "eq").map(([, args]) => args);
     expect(eqs).toContainEqual(["role", ROLES.SPEAKER]);
@@ -119,7 +130,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("reports an empty page rather than null when the query returns nothing", async () => {
     const { client } = stub({ data: null, count: null });
 
-    await expect(userDao.listOrganizationMembers(client, { page: 1, search: "" })).resolves.toMatchObject({
+    await expect(userDao.listUsers(client, { page: 1, search: "" })).resolves.toMatchObject({
       data: [],
       total: 0,
     });
@@ -130,7 +141,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("ranks the staff list by authority before name", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "" });
+    await userDao.listUsers(client, { page: 1, search: "" });
 
     const orders = calls.filter(([m]) => m === "order").map(([, args]) => args);
     expect(orders).toEqual([
@@ -142,7 +153,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("ranks a mixed search result the same way", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "ada" });
+    await userDao.listUsers(client, { page: 1, search: "ada" });
 
     expect(calls.filter(([m]) => m === "order").map(([, args]) => args)[0]).toEqual(["role", { ascending: false }]);
   });
@@ -150,7 +161,7 @@ describe("user.dao listOrganizationMembers", () => {
   it("orders a single-role list by name alone, having nothing to rank", async () => {
     const { client, calls } = stub({ data: [], count: 0 });
 
-    await userDao.listOrganizationMembers(client, { page: 1, search: "", role: ROLES.SPEAKER });
+    await userDao.listUsers(client, { page: 1, search: "", role: ROLES.SPEAKER });
 
     const orders = calls.filter(([m]) => m === "order").map(([, args]) => args);
     expect(orders).toEqual([["full_name", { ascending: true }]]);
@@ -214,14 +225,6 @@ describe("user.dao writes", () => {
 
     expect(argsOf(calls, "eq")).toEqual(["id", 3]);
     expect((argsOf(calls, "update") as [Record<string, unknown>])[0]).toMatchObject({ role: ROLES.ADMIN });
-  });
-
-  it("reports whether a delete actually happened", async () => {
-    const ok = stub({ error: null });
-    const failed = stub({ error: { message: "row is referenced" } });
-
-    await expect(userDao.removeById(ok.client, 3)).resolves.toBe(true);
-    await expect(userDao.removeById(failed.client, 3)).resolves.toBe(false);
   });
 
   it("deletes by auth id for the account-closure path", async () => {

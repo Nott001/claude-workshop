@@ -1,22 +1,23 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DbClient } from "@/shared/db/dao/types";
-import type { Actor } from "@/modules/auth/lib/organization-service";
+import type { Actor } from "@/modules/user/lib/user-service";
 import {
-  changeMemberRole,
+  changeUserRole,
   cleanupStaleAccounts,
   generateInviteLink,
   inviteUser,
-  removeMember,
+  deleteUserAccount,
   sendInviteEmail,
-} from "@/modules/auth/lib/organization-service";
+} from "@/modules/user/lib/user-service";
 import { INVITED_ROLE_KEY } from "@/modules/auth/lib/invited-role";
 
 const {
   findStaffByEmail,
   findRoleById,
+  findById,
   updateRole,
-  removeById,
+  deleteAccount,
   findAuthAccountByEmail,
   logAuditEvent,
   generateLink,
@@ -26,8 +27,9 @@ const {
 } = vi.hoisted(() => ({
   findStaffByEmail: vi.fn(),
   findRoleById: vi.fn(),
+  findById: vi.fn(),
   updateRole: vi.fn(),
-  removeById: vi.fn(),
+  deleteAccount: vi.fn(),
   findAuthAccountByEmail: vi.fn(),
   logAuditEvent: vi.fn(),
   generateLink: vi.fn(),
@@ -36,8 +38,9 @@ const {
   send: vi.fn(),
 }));
 
-vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, findRoleById, updateRole, removeById }));
+vi.mock("@/shared/db/dao/user.dao", () => ({ findStaffByEmail, findRoleById, updateRole, findById }));
 vi.mock("@/modules/auth/lib/auth-account", () => ({ findAuthAccountByEmail }));
+vi.mock("@/modules/user/lib/delete-account", () => ({ deleteAccount }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
   logAuditEvent,
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
@@ -58,7 +61,8 @@ beforeEach(() => {
     email: "a@b.c",
     role,
   }));
-  removeById.mockResolvedValue(true);
+  findById.mockResolvedValue({ id: 9, full_name: "Ada", email: "a@b.c", auth_user_id: "auth-9", role: ROLES.ATTENDEE });
+  deleteAccount.mockResolvedValue(undefined);
   findAuthAccountByEmail.mockResolvedValue(null);
   generateLink.mockResolvedValue({ data: { user: { id: "auth-1" }, properties: { hashed_token: TOKEN } }, error: null });
   updateUserById.mockResolvedValue({ error: null });
@@ -155,7 +159,7 @@ describe("inviteUser", () => {
     expect(logAuditEvent).toHaveBeenCalledWith(
       supabase,
       3,
-      "organization.invited",
+      "user.invited",
       "user",
       null,
       expect.objectContaining({ resent: false }),
@@ -177,7 +181,7 @@ describe("inviteUser", () => {
     expect(logAuditEvent).toHaveBeenCalledWith(
       supabase,
       3,
-      "organization.invited",
+      "user.invited",
       "user",
       null,
       expect.objectContaining({ resent: true }),
@@ -200,9 +204,9 @@ const superAdmin: Actor = { id: 1, role: ROLES.SUPER_ADMIN };
  * decide who may act on whom, and pinning them to HTTP status codes states them
  * only as far as the route happens to translate them.
  */
-describe("changeMemberRole", () => {
+describe("changeUserRole", () => {
   it("promotes an attendee to a role the actor outranks", async () => {
-    const user = await changeMemberRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
+    const user = await changeUserRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
 
     expect(user).toMatchObject({ id: 9, role: ROLES.FACILITATOR });
     expect(updateRole).toHaveBeenCalledWith(supabase, 9, ROLES.FACILITATOR);
@@ -211,9 +215,9 @@ describe("changeMemberRole", () => {
   it("records the role it replaced, which the request never carried", async () => {
     findRoleById.mockResolvedValue({ id: 9, role: ROLES.SPEAKER });
 
-    await changeMemberRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
+    await changeUserRole(supabase, { targetId: 9, role: ROLES.FACILITATOR }, admin);
 
-    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "organization.role_changed", "user", 9, {
+    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "user.role_changed", "user", 9, {
       previous_role: ROLES.SPEAKER,
       new_role: ROLES.FACILITATOR,
     });
@@ -221,35 +225,32 @@ describe("changeMemberRole", () => {
 
   // An admin minting admins is how one compromised account becomes several.
   it("refuses a role the actor only equals", async () => {
-    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
+    await expect(changeUserRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
     expect(updateRole).not.toHaveBeenCalled();
 
-    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, superAdmin)).resolves.toMatchObject({
+    await expect(changeUserRole(supabase, { targetId: 9, role: ROLES.ADMIN }, superAdmin)).resolves.toMatchObject({
       role: ROLES.ADMIN,
     });
   });
 
   it("refuses before reading the target, when the role alone settles it", async () => {
-    await expect(changeMemberRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
+    await expect(changeUserRole(supabase, { targetId: 9, role: ROLES.ADMIN }, admin)).rejects.toMatchObject({ status: 403 });
 
     expect(findRoleById).not.toHaveBeenCalled();
   });
 });
 
-describe("acting on a member at all", () => {
+describe("acting on a user at all", () => {
   for (const [name, act] of [
-    [
-      "changeMemberRole",
-      (id: number, actor: Actor) => changeMemberRole(supabase, { targetId: id, role: ROLES.SPEAKER }, actor),
-    ],
-    ["removeMember", (id: number, actor: Actor) => removeMember(supabase, id, actor)],
+    ["changeUserRole", (id: number, actor: Actor) => changeUserRole(supabase, { targetId: id, role: ROLES.SPEAKER }, actor)],
+    ["deleteUserAccount", (id: number, actor: Actor) => deleteUserAccount(supabase, id, actor)],
   ] as const) {
     it(`${name} refuses a super admin, whoever asks`, async () => {
       findRoleById.mockResolvedValue({ id: 9, role: ROLES.SUPER_ADMIN });
 
       await expect(act(9, superAdmin)).rejects.toMatchObject({ status: 403 });
       expect(updateRole).not.toHaveBeenCalled();
-      expect(removeById).not.toHaveBeenCalled();
+      expect(deleteAccount).not.toHaveBeenCalled();
     });
 
     it(`${name} refuses the actor's own account`, async () => {
@@ -262,23 +263,52 @@ describe("acting on a member at all", () => {
 
       await expect(act(9, admin)).rejects.toMatchObject({ status: 404 });
       expect(updateRole).not.toHaveBeenCalled();
-      expect(removeById).not.toHaveBeenCalled();
+      expect(deleteAccount).not.toHaveBeenCalled();
     });
   }
 });
 
-describe("removeMember", () => {
-  it("removes an ordinary member and records it", async () => {
-    await removeMember(supabase, 9, admin);
+describe("deleteUserAccount", () => {
+  it("runs the full teardown for a target the actor outranks", async () => {
+    await deleteUserAccount(supabase, 9, admin);
 
-    expect(removeById).toHaveBeenCalledWith(supabase, 9);
-    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "organization.removed", "user", 9);
+    expect(deleteAccount).toHaveBeenCalledWith({
+      userId: 9,
+      authUserId: "auth-9",
+      email: "a@b.c",
+      role: ROLES.ATTENDEE,
+    });
+    expect(logAuditEvent).toHaveBeenCalledWith(supabase, 3, "user.deleted", "user", 9, { role: ROLES.ATTENDEE });
   });
 
-  it("does not record a removal the database refused", async () => {
-    removeById.mockResolvedValue(false);
+  it("refuses a user the actor only equals", async () => {
+    findRoleById.mockResolvedValue({ id: 9, role: ROLES.ADMIN });
+    findById.mockResolvedValue({ id: 9, full_name: "Ada", email: "a@b.c", auth_user_id: "auth-9", role: ROLES.ADMIN });
 
-    await expect(removeMember(supabase, 9, admin)).rejects.toMatchObject({ status: 500 });
+    await expect(deleteUserAccount(supabase, 9, admin)).rejects.toMatchObject({ status: 403 });
+    expect(deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("lets a super admin delete an admin", async () => {
+    findRoleById.mockResolvedValue({ id: 9, role: ROLES.ADMIN });
+    findById.mockResolvedValue({ id: 9, full_name: "Ada", email: "a@b.c", auth_user_id: "auth-9", role: ROLES.ADMIN });
+
+    await expect(deleteUserAccount(supabase, 9, superAdmin)).resolves.toBeUndefined();
+    expect(deleteAccount).toHaveBeenCalledWith({
+      userId: 9,
+      authUserId: "auth-9",
+      email: "a@b.c",
+      role: ROLES.ADMIN,
+    });
+  });
+
+  it("reports a failed purge as a 500 carrying its message", async () => {
+    deleteAccount.mockRejectedValue(new Error("Failed to delete chat messages sent by the user"));
+
+    await expect(deleteUserAccount(supabase, 9, admin)).rejects.toMatchObject({
+      status: 500,
+      message: "Failed to delete chat messages sent by the user",
+    });
     expect(logAuditEvent).not.toHaveBeenCalled();
   });
 });

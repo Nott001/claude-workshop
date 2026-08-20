@@ -46,7 +46,7 @@ describe("route protection", () => {
     ["/staff/events", undefined],
     ["/staff/events/new", undefined],
     ["/staff/community", undefined],
-    ["/staff/organization", undefined],
+    ["/staff/users", undefined],
     ["/staff/kiosk", undefined],
     ["/speaker/events", undefined],
     ["/speaker/events/42/course", undefined],

@@ -50,8 +50,17 @@ describe("migration grants", () => {
       "00014_drop_message_deleted_at.sql",
       "00015_live_state_realtime.sql",
       "00016_live_state_replica_identity.sql",
-      "00017_event_photo.sql",
+      "00017_rename_audit_actions.sql",
+      "00018_event_photo.sql",
     ]);
+  });
+
+  // 00017 renames enum values and adds one new value; it creates no table so
+  // the per-table grant sweep above is untouched, and a grant here would only
+  // widen read access on an existing surface, so its absence is pinned too.
+  it("adds no table grant in 00017", () => {
+    const migration = migrations().find((f) => f.name === "00017_rename_audit_actions.sql")!;
+    expect(migration.sql).not.toMatch(/GRANT/);
   });
 
   // 00007 drops the unique constraint rather than touching grants, so it must

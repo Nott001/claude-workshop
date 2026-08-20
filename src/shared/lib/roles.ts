@@ -20,7 +20,7 @@ export const ROLES = {
  * first, which is also the order `user_role` is declared in the database.
  *
  * That agreement is load-bearing, not cosmetic: Postgres sorts an enum by
- * declaration order, and the organization roster ranks staff with `ORDER BY
+ * declaration order, and the user roster sorts staff with `ORDER BY
  * role DESC`. Adding a role means adding it here, in `ROLE_LEVEL`, and to the
  * enum with an explicit `BEFORE`/`AFTER` — a bare `ADD VALUE` lands at the end
  * of the sort order and the new role opens the roster as its most senior
@@ -34,7 +34,7 @@ export const ALL_ROLES: readonly UserRole[] = [
   ROLES.SUPER_ADMIN,
 ];
 
-/** The roles an admin can hand out through the organization invite. */
+/** The roles an admin can hand out through a user invite. */
 export const INVITABLE_ROLES = [ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN] as const;
 
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];

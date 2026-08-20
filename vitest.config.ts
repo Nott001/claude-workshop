@@ -42,10 +42,10 @@ export default defineConfig({
       // test, and the two storage-cleanup bugs it exposed are now held by
       // tests of their own — so every part moves up rather than diluting.
       thresholds: {
-        statements: 83.35,
-        branches: 77.96,
-        functions: 82.25,
-        lines: 84.52,
+        statements: 83.84,
+        branches: 78.65,
+        functions: 82.71,
+        lines: 85.05,
       },
     },
   },

@@ -9,7 +9,7 @@ export async function ensureUser(supabase: ReturnType<typeof getServiceClient>, 
   const email = authUser?.user?.email ?? "";
   const full_name = authUser?.user?.user_metadata?.full_name ?? "";
 
-  // An organization invite records the granted role in app_metadata, which only
+  // A staff invite records the granted role in app_metadata, which only
   // the service role can write. Anyone who signed up for themselves has none
   // and stays an attendee.
   const invitedRole = readInvitedRole(authUser?.user?.app_metadata);
