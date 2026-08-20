@@ -32,9 +32,10 @@ function actionLabel(action: string): string {
     "event.published": "Event Published",
     "speaker.assigned": "Speaker Assigned",
     "speaker.unassigned": "Speaker Removed",
-    "organization.invited": "Member Invited",
-    "organization.role_changed": "Role Changed",
-    "organization.removed": "Member Removed",
+    "user.deleted": "User Deleted",
+    "user.invited": "User Invited",
+    "user.role_changed": "Role Changed",
+    "user.removed": "Member Removed",
     "checkin.performed": "Check-in",
     "course.created": "Course Created",
     "course.updated": "Course Updated",
@@ -67,19 +68,19 @@ function actionVariant(action: string): "error" | "success" | "info" {
 type Category = "all" | "created" | "deleted/removed" | "updated" | "assigned" | "check-in" | "invited";
 
 // Substring mapping mirrors actionVariant. `event.published` and
-// `organization.role_changed` are state changes of an existing entity, so they
+// `user.role_changed` are state changes of an existing entity, so they
 // filter as updates even though neither name contains "updated".
 function categoryOf(action: string): Category {
   if (action.includes("deleted") || action.includes("removed") || action.includes("unassigned")) {
     return "deleted/removed";
   }
   if (action.includes("created")) return "created";
-  if (action.includes("updated") || action === "event.published" || action === "organization.role_changed") {
+  if (action.includes("updated") || action === "event.published" || action === "user.role_changed") {
     return "updated";
   }
   if (action.includes("assigned")) return "assigned";
   if (action === "checkin.performed") return "check-in";
-  if (action === "organization.invited") return "invited";
+  if (action === "user.invited") return "invited";
   return "all";
 }
 

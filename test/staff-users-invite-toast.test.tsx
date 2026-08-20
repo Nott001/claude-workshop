@@ -8,7 +8,7 @@ vi.mock("@/modules/auth/components/session-context", () => ({ useSession: vi.fn(
 
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { useSession } from "@/modules/auth/components/session-context";
-import StaffOrganizationPage from "@/app/staff/organization/page";
+import StaffUsersPage from "@/app/staff/users/page";
 
 const MEMBER = { id: 1, full_name: "Ada Admin", email: "ada@example.com", role: ROLES.ADMIN };
 
@@ -47,9 +47,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("staff organization invite confirmation", () => {
+describe("staff users invite confirmation", () => {
   it("confirms the invitation, naming the address and role it went to", async () => {
-    render(<StaffOrganizationPage />);
+    render(<StaffUsersPage />);
     await screen.findByText("ada@example.com");
 
     await invite("new@example.com");
@@ -61,7 +61,7 @@ describe("staff organization invite confirmation", () => {
   it("stays silent when the invitation was refused", async () => {
     invitePost = () => ({ ok: false, json: async () => ({ error: "A user with this email already exists" }) });
 
-    render(<StaffOrganizationPage />);
+    render(<StaffUsersPage />);
     await screen.findByText("ada@example.com");
 
     await invite("taken@example.com");
@@ -73,7 +73,7 @@ describe("staff organization invite confirmation", () => {
   });
 
   it("replaces the message when a second invitation follows the first", async () => {
-    render(<StaffOrganizationPage />);
+    render(<StaffUsersPage />);
     await screen.findByText("ada@example.com");
 
     await invite("first@example.com");

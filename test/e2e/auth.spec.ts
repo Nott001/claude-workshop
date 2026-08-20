@@ -65,6 +65,6 @@ test("an attendee signed in is still refused the staff area", async ({ page }) =
   const res = await page.request.get("/api/events", { failOnStatusCode: false });
   expect(res.status()).toBe(200);
 
-  await page.goto("/staff/organization");
+  await page.goto("/staff/users");
   await expect(page.locator("body")).not.toContainText("Internal Server Error");
 });

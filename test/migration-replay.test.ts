@@ -52,6 +52,7 @@ describe("migration replay", () => {
       "00014_drop_message_deleted_at.sql",
       "00015_live_state_realtime.sql",
       "00016_live_state_replica_identity.sql",
+      "00017_rename_audit_actions.sql",
     ]);
   });
 

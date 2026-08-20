@@ -24,7 +24,8 @@ export interface DeleteAccountInput {
  * the Supabase auth identity. The purges run first and throw on failure so a
  * partial purge aborts before the irreversible steps; the one storage cleanup
  * is best-effort (a leftover profile image is not a privacy leak worth
- * blocking the deletion over).
+ * blocking the deletion over). An identity that is already gone counts as
+ * deleted — the rows and profile are what the teardown is for.
  */
 export async function deleteAccount(input: DeleteAccountInput): Promise<void> {
   const supabase = getServiceClient();
@@ -86,8 +87,17 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<void> {
     throw new Error("Failed to anonymize the user's profile row");
   }
 
+  // The identity may already be gone: rosters include accounts that never had an
+  // auth row, and a gone identity is the end state a finished teardown leaves.
+  // Same "not found is success" tolerance the reset link applies, so deleting
+  // such an account is not reported as a failure on its last step.
   const { error } = await supabase.auth.admin.deleteUser(input.authUserId);
-  if (error) {
+  if (error && !isUnknownIdentity(error)) {
     throw new Error(`Failed to delete the auth account: ${error.message}`);
   }
+}
+
+/** GoTrue answers an identity that is already gone with a 404 / "User not found". */
+function isUnknownIdentity(error: { status?: number; message?: string }): boolean {
+  return error.status === 404 || /user not found/i.test(error.message ?? "");
 }

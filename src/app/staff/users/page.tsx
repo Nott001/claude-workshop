@@ -9,7 +9,15 @@ import { Button } from "@/shared/components/button";
 import { Badge } from "@/shared/components/badge";
 import { Input } from "@/shared/components/input";
 import { Toast } from "@/shared/components/toast";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { canGrantRole } from "@/shared/lib/role-hierarchy";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
@@ -73,16 +81,25 @@ function memberLockReason(member: Member, viewerId: number | undefined): string 
   return null;
 }
 
-type RoleFilter = "all" | UserRole;
+// Role pickers and the delete button are gated separately: a peer admin may
+// still be demoted, but an irreversible delete is strictly-lower only.
+const canDeleteUser = (member: Member, viewerId: number | undefined, actorRole: UserRole | null) => {
+  if (member.role === ROLES.SUPER_ADMIN) return false;
+  if (member.id === viewerId) return false;
+  return canGrantRole(actorRole, member.role);
+};
+
+type RoleFilter = "all" | "all_users" | UserRole;
 
 // Every role, not just the ones this user may hand out — and attendee among
 // them, since picking it is how an admin finds somebody to promote.
 const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
-  { value: "all", label: "Staff" },
+  { value: "all", label: "Staff only" },
+  { value: "all_users", label: "All users" },
   ...ALL_ROLES.map((role) => ({ value: role as RoleFilter, label: roleLabel(role) })),
 ];
 
-export default function StaffOrganizationPage() {
+export default function StaffUsersPage() {
   const { user } = useSession();
   const { role: userRole, allowed: isAdmin, pending } = useRoleGuard(ROLES.ADMIN);
 
@@ -111,6 +128,9 @@ export default function StaffOrganizationPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [selected, setSelected] = useState<Member | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // The route's PAGE_SIZE is 10, so the client's page size must agree or the
   // pagination math comes out wrong.
@@ -127,9 +147,10 @@ export default function StaffOrganizationPage() {
       setLoading(true);
       const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
       if (debouncedSearch) params.set("search", debouncedSearch);
-      if (roleFilter !== "all") params.set("role", roleFilter);
+      if (roleFilter === "all_users") params.set("scope", "all");
+      else if (roleFilter !== "all") params.set("role", roleFilter);
 
-      const res = await fetch(`/api/organization?${params}`);
+      const res = await fetch(`/api/users?${params}`);
       if (!cancelled) {
         if (res.ok) {
           const data = await res.json();
@@ -164,7 +185,7 @@ export default function StaffOrganizationPage() {
     setInviteError(null);
     setInviting(true);
 
-    const res = await fetch("/api/organization", {
+    const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ full_name: inviteName, email: inviteEmail, role: inviteRole }),
@@ -203,7 +224,7 @@ export default function StaffOrganizationPage() {
     setRoleError(null);
     setSavingRole(true);
 
-    const res = await fetch(`/api/organization/${member.id}`, {
+    const res = await fetch(`/api/users/${member.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
@@ -228,17 +249,29 @@ export default function StaffOrganizationPage() {
     setRefreshKey((k) => k + 1);
   }
 
-  async function handleRemove(userId: number) {
-    if (!confirm("Remove this member from the organization?")) return;
-
-    const res = await fetch(`/api/organization/${userId}`, { method: "DELETE" });
-
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(apiErrorMessage(data, "Failed to remove member"));
+      setDeleteError(apiErrorMessage(data, "Failed to delete user"));
+      setDeleting(false);
+      // The teardown may already have tombstoned the row server-side even when a
+      // later step (the auth identity) failed, so the roster is refetched here
+      // too rather than holding a row the server has already removed.
+      setRefreshKey((k) => k + 1);
       return;
     }
-
+    setToast((prev) => ({
+      id: (prev?.id ?? 0) + 1,
+      title: "User deleted",
+      description: `${deleteTarget.full_name} was deleted.`,
+    }));
+    setDeleteTarget(null);
+    setSelected(null);
+    setDeleting(false);
     setRefreshKey((k) => k + 1);
   }
 
@@ -248,7 +281,7 @@ export default function StaffOrganizationPage() {
   const allowedInviteRoles = INVITABLE_ROLES.filter((r) => canGrantRole(userRole, r));
   const allowedAssignableRoles = ASSIGNABLE_ROLES.filter((r) => canGrantRole(userRole, r));
 
-  // One answer drives both the picker and the Remove button, which the route
+  // One answer drives both the picker and the delete button, which the route
   // refuses under the same conditions — computing it twice is how the two would
   // come to disagree.
   const lockReason = selected ? memberLockReason(selected, user?.id) : null;
@@ -263,8 +296,8 @@ export default function StaffOrganizationPage() {
     <>
       <StaffPage>
         <StaffPageHeader
-          title="Manage staff"
-          description="Invite members and set the role each one holds."
+          title="Manage users"
+          description="Invite members, set the role each one holds, and delete accounts."
           actions={
             <Button onClick={() => setInviteOpen(true)}>
               <span className="material-symbols-rounded text-[18px]">person_add</span>
@@ -335,6 +368,25 @@ export default function StaffOrganizationPage() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete {deleteTarget?.full_name}?</DialogTitle>
+              <DialogDescription>
+                Their account and all personal data — tickets, chat, survey responses and any speaker profile — will be
+                permanently deleted. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            {deleteError && <p className="text-xs text-error">{deleteError}</p>}
+            <DialogFooter>
+              <DialogClose render={<Button variant="secondary">Cancel</Button>} />
+              <Button variant="danger" disabled={deleting} onClick={() => void handleDelete()}>
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {error && members.length > 0 && <p className="mb-3 text-sm text-error">{error}</p>}
 
         <TableContainer>
@@ -386,15 +438,19 @@ export default function StaffOrganizationPage() {
         title={selected?.full_name ?? ""}
         description={selected?.email}
         footer={
-          selected && isAdmin && !lockReason ? (
+          selected && isAdmin ? (
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-error hover:bg-error/10"
-                onClick={() => handleRemove(selected.id)}
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteTarget(selected);
+                }}
+                disabled={!canDeleteUser(selected, user?.id, userRole)}
               >
-                Remove
+                Delete user
               </Button>
             </div>
           ) : undefined
@@ -432,6 +488,10 @@ export default function StaffOrganizationPage() {
                 </Select>
                 {roleError && <p className="mt-2 text-xs text-error">{roleError}</p>}
               </div>
+            )}
+
+            {selected && !lockReason && !canDeleteUser(selected, user?.id, userRole) && (
+              <p className="text-xs text-muted-fg">You can only delete users in a role you outrank.</p>
             )}
           </div>
         )}
