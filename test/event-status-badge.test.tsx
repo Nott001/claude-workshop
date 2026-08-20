@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 afterEach(() => {
   cleanup();
@@ -11,7 +12,7 @@ afterEach(() => {
 describe("EventStatusBadge", () => {
   it("shows the live pill while the event window covers now", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "12:00")!);
 
     render(<EventStatusBadge status="active" date="2026-06-01" startTime="11:00" endTime="13:00" />);
 
@@ -20,7 +21,7 @@ describe("EventStatusBadge", () => {
 
   it("labels the status instead when the event has not started", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "12:00")!);
 
     render(<EventStatusBadge status="active" date="2026-06-01" startTime="13:00" endTime="14:00" />);
 
@@ -29,7 +30,7 @@ describe("EventStatusBadge", () => {
 
   it("maps stored statuses through the same labels the listing used", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "12:00")!);
 
     const { unmount } = render(<EventStatusBadge status="draft" date="2026-06-02" startTime="13:00" endTime="14:00" />);
     expect(screen.getByText("Draft")).toBeTruthy();
@@ -41,7 +42,7 @@ describe("EventStatusBadge", () => {
 
   it("gives each status its own icon", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "12:00")!);
 
     const { container: upcoming, unmount } = render(
       <EventStatusBadge status="active" date="2026-06-01" startTime="13:00" endTime="14:00" />,

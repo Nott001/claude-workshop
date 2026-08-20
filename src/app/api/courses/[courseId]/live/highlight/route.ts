@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
+import { toErrorResponse } from "@/shared/lib/error-response";
 import type { UserRole } from "@/shared/types";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { canManageEvent } from "@/modules/courses/lib/course-access";
-import { CourseServiceError } from "@/modules/courses/lib/course-errors";
 import { clearCourseHighlight, getCourseHighlight, setCourseHighlight } from "@/modules/courses/lib/live-session-service";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof CourseServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
 
 async function requireHighlightAccess(
   supabase: ReturnType<typeof getServiceClient>,
@@ -38,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
     const state = await getCourseHighlight(supabase, Number(courseId));
     return NextResponse.json(state);
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }
 
@@ -46,22 +40,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
   const { courseId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  const denied = await requireHighlightAccess(supabase, Number(courseId), user.id, user.role);
+  const denied = await requireHighlightAccess(supabase, Number(courseId), guard.user.id, guard.user.role);
   if (denied) return denied;
 
   const body = await req.json();
   const lessonId = body.lesson_id ?? null;
 
   try {
-    const state = await setCourseHighlight(supabase, Number(courseId), lessonId, { id: user.id });
+    const state = await setCourseHighlight(supabase, Number(courseId), lessonId, { id: guard.user.id });
     return NextResponse.json(state);
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }
 
@@ -69,18 +63,18 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ cour
   const { courseId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  const denied = await requireHighlightAccess(supabase, Number(courseId), user.id, user.role);
+  const denied = await requireHighlightAccess(supabase, Number(courseId), guard.user.id, guard.user.role);
   if (denied) return denied;
 
   try {
-    const result = await clearCourseHighlight(supabase, Number(courseId), { id: user.id });
+    const result = await clearCourseHighlight(supabase, Number(courseId), { id: guard.user.id });
     return NextResponse.json(result);
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 }

@@ -6,7 +6,7 @@ import { CommunityAdminCard } from "@/modules/community/components/community-adm
 import { CommunityForm, type CommunityFormValues } from "@/modules/community/components/community-form";
 import { useCommunityLinks } from "@/modules/community/lib/use-community-links";
 import { Button } from "@/shared/components/button";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { useState } from "react";
 
 export function StaffCommunityListPage() {
@@ -76,7 +76,7 @@ export function StaffCommunityListPage() {
   }
 
   if (pending || loading) {
-    return <StaffPageState>Loading community...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   if (!allowed) return null;

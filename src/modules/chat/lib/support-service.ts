@@ -5,15 +5,9 @@ import * as chatDao from "@/shared/db/dao/chat.dao";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/shared/lib/rate-limit";
 import { CHAT_CLAIMED_MESSAGE, CHAT_ENDED_MESSAGE, CHAT_UNCLAIMED_MESSAGE } from "./support-notices";
+import { ServiceError } from "@/shared/lib/service-error";
 
-export class SupportServiceError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export class SupportServiceError extends ServiceError {}
 
 /**
  * Whether the caller may send another message inside the window. The threshold

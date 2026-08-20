@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/modules/auth/components/session-context";
 import { redirectUrlParam } from "@/modules/auth/lib/redirect-url";
 import { withBackLink, type BackLinkOrigin } from "@/shared/lib/back-link";
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { EventWithCourse } from "@/modules/events/lib/types";
 
@@ -78,7 +78,7 @@ export function useEventDetail(eventId: string, backOrigin?: BackLinkOrigin) {
   const isSpeakerAssigned =
     speakerProfileId != null && (event?.EVENT_SPEAKER?.some((es) => es.SPEAKER_PROFILE.id === speakerProfileId) ?? false);
 
-  const eventStart = event ? parseLocalDateTime(event.event_date, event.start_time) : null;
+  const eventStart = event ? parseEventDateTime(event.event_date, event.start_time) : null;
   const eventStarted = event ? (eventStart ? eventStart <= new Date() : false) : true;
 
   const isFacilitator = hasMinRole(userRole, ROLES.FACILITATOR);

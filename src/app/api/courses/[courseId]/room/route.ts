@@ -1,9 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { isEventStarted } from "@/shared/lib/date-utils";
+import { isEventFinished, isEventStarted } from "@/shared/lib/date-utils";
 import { getServiceClient } from "@/shared/db/client";
+import { readAfterEventModules, resolveCourseGrant } from "@/modules/courses/lib/course-entitlement";
+import { releaseFor, visibleModules } from "@/modules/courses/lib/after-event-modules";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
@@ -13,9 +16,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   const { courseId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const course = await courseDao.findCourseWithDetails(supabase, Number(courseId));
@@ -26,10 +29,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   // The room admits ticket holders, assigned speakers and staff; the feed must
   // honour the same gate. A role check alone kept the room empty for the
   // attendees it let in.
-  const entitled =
-    hasMinRole(user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, user.id, course.id));
-  if (!entitled) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!(await resolveCourseGrant(supabase, guard.user, course.id))) {
+    return forbidden();
   }
 
   const event = await eventDao.findByIdWithCourse(supabase, course.event_id);
@@ -42,8 +43,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   let isSpeakerAssigned = false;
   if (event) {
     const [ticket, speakerProfile] = await Promise.all([
-      ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event.id),
-      speakerDao.findByUserId(supabase, user.id),
+      ticketDao.findActiveTicketByUserAndEvent(supabase, guard.user.id, event.id),
+      speakerDao.findByUserId(supabase, guard.user.id),
     ]);
     hasTicket = !!ticket;
     speakerProfileId = speakerProfile?.id ?? null;
@@ -56,10 +57,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
     // receive the curriculum early — so the course is withheld from the
     // response rather than refused outright, letting the page show the lock
     // with the event's own opening window.
-    const isStaff = hasMinRole(user.role, ROLES.FACILITATOR);
+    const isStaff = hasMinRole(guard.user.role, ROLES.FACILITATOR);
     if (!isEventStarted(event.event_date, event.start_time) && !isStaff && !isSpeakerAssigned) {
       return NextResponse.json({ course: null, event, hasTicket, isSpeakerAssigned, speakerProfileId });
     }
+
+    // Modules held back for after the event are stripped here rather than
+    // hidden in the page: material withheld by a component is still on the
+    // wire, and the room is the surface people already have open when the
+    // session ends.
+    const map = await readAfterEventModules(supabase);
+    course.MODULE = visibleModules(course.MODULE, releaseFor(map, event.id), {
+      started: true,
+      finished: isEventFinished(event.event_date, event.end_time),
+      isStaff: isStaff || isSpeakerAssigned,
+    });
   }
 
   return NextResponse.json({ course, event, hasTicket, isSpeakerAssigned, speakerProfileId });

@@ -6,15 +6,9 @@ import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { findTimeOverlaps } from "@/modules/courses/lib/scheduling";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { ServiceError } from "@/shared/lib/service-error";
 
-export class CourseModuleServiceError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export class CourseModuleServiceError extends ServiceError {}
 
 export async function setModuleLock(
   supabase: DbClient,
@@ -96,7 +90,7 @@ export async function updateModule(
   return mod;
 }
 
-export async function deleteModuleWithStorage(supabase: DbClient, id: number, actorId: number): Promise<{ success: true }> {
+export async function deleteModuleWithStorage(supabase: DbClient, id: number, actorId: number): Promise<void> {
   const mod = await courseDao.findModuleById(supabase, id);
   if (mod) {
     const lessons = await courseDao.findLessonsByModule(supabase, id);
@@ -119,6 +113,4 @@ export async function deleteModuleWithStorage(supabase: DbClient, id: number, ac
   await requireAuditEvent(supabase, actorId, "module.deleted", "module", id, {
     course_id: mod?.course_id,
   });
-
-  return { success: true };
 }

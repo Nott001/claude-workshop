@@ -64,7 +64,7 @@ describe("PATCH /api/modules/[id] speaker assignment", () => {
     const res = await patchModule(patch({ ...MODULE_BODY, speaker_profile_id: 7 }), params);
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: { message: "Speaker is not assigned to this event" } });
+    await expect(res.json()).resolves.toEqual({ error: "Speaker is not assigned to this event" });
     expect(dao.findCourseByModule).toHaveBeenCalledWith({}, 11);
     expect(speakerDao.checkSpeakerAssignment).toHaveBeenCalledWith({}, 7, 9);
     expect(dao.updateModule).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("PATCH /api/modules/[id] time sessions", () => {
     const res = await patchModule(patch({ ...MODULE_BODY, start_time: "09:00", end_time: "10:00" }), params);
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: { message: 'Time overlaps with "Hands-on"' } });
+    await expect(res.json()).resolves.toEqual({ error: 'Time overlaps with "Hands-on"' });
     expect(dao.updateModule).not.toHaveBeenCalled();
   });
 

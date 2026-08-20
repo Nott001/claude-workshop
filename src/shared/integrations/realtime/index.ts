@@ -96,3 +96,32 @@ export function subscribeToTicket(ticketId: number, onTicket: TicketCallback): R
 
   return sub;
 }
+
+/**
+ * Subscribes to a course's live highlight. The channel name is stable per
+ * courseId (no counter suffix) for the same reason the QA channels are: the
+ * room remounts on navigation and must reuse one topic rather than piling up
+ * dead channels. LIVE_SESSION_STATE joined the supabase_realtime publication
+ * in 00015 and its read RLS is USING (true), so the browser's own role gets
+ * the UPDATE events carrying the new highlighted_lesson_id.
+ */
+export function subscribeToCourseHighlight(
+  courseId: number,
+  onChange: (highlightedLessonId: number | null) => void,
+): RealtimeChannel {
+  return getBrowserClient()
+    .channel(`live-highlight-${courseId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "LIVE_SESSION_STATE",
+        filter: `course_id=eq.${courseId}`,
+      },
+      (payload) => {
+        onChange((payload.new as { highlighted_lesson_id: number | null }).highlighted_lesson_id);
+      },
+    )
+    .subscribe();
+}

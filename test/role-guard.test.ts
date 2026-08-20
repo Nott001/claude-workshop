@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AuthUser } from "@/modules/auth/lib/types";
 
 vi.mock("@/modules/auth/lib/session", () => ({
-  requireAuth: vi.fn(),
+  getCurrentUser: vi.fn(),
 }));
 
-import { requireAuth } from "@/modules/auth/lib/session";
+import { getCurrentUser } from "@/modules/auth/lib/session";
 import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
 
 const user = (role: AuthUser["role"]): AuthUser => ({
@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("requireMinRole — 'at least this level'", () => {
   it("denies an unauthenticated caller", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(null);
+    vi.mocked(getCurrentUser).mockResolvedValue(null);
 
     await expect(requireMinRole(ROLES.FACILITATOR)).resolves.toEqual({
       allowed: false,
@@ -33,7 +33,7 @@ describe("requireMinRole — 'at least this level'", () => {
   });
 
   it.each([ROLES.ATTENDEE, ROLES.SPEAKER])("%s is denied a facilitator floor", async (role) => {
-    vi.mocked(requireAuth).mockResolvedValue(user(role));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(role));
 
     const result = await requireMinRole(ROLES.FACILITATOR);
 
@@ -43,13 +43,13 @@ describe("requireMinRole — 'at least this level'", () => {
   });
 
   it.each([ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN])("%s clears a facilitator floor", async (role) => {
-    vi.mocked(requireAuth).mockResolvedValue(user(role));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(role));
 
     await expect(requireMinRole(ROLES.FACILITATOR)).resolves.toMatchObject({ allowed: true, user: { role } });
   });
 
   it("admits an attendee against the attendee floor", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(user(ROLES.ATTENDEE));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(ROLES.ATTENDEE));
 
     await expect(requireMinRole(ROLES.ATTENDEE)).resolves.toMatchObject({ allowed: true });
   });
@@ -57,7 +57,7 @@ describe("requireMinRole — 'at least this level'", () => {
 
 describe("requireRole — exactly one of the listed roles", () => {
   it("denies an unauthenticated caller", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(null);
+    vi.mocked(getCurrentUser).mockResolvedValue(null);
 
     await expect(requireRole(ROLES.ATTENDEE)).resolves.toEqual({
       allowed: false,
@@ -67,13 +67,13 @@ describe("requireRole — exactly one of the listed roles", () => {
   });
 
   it("admits a caller holding one of the listed roles", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(user(ROLES.SPEAKER));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(ROLES.SPEAKER));
 
     await expect(requireRole(ROLES.ATTENDEE, ROLES.SPEAKER)).resolves.toMatchObject({ allowed: true });
   });
 
   it("rejects a higher role that is not on the list", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(user(ROLES.ADMIN));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(ROLES.ADMIN));
 
     const result = await requireRole(ROLES.FACILITATOR, ROLES.SPEAKER);
 
@@ -82,7 +82,7 @@ describe("requireRole — exactly one of the listed roles", () => {
   });
 
   it("rejects a caller holding no listed role", async () => {
-    vi.mocked(requireAuth).mockResolvedValue(user(ROLES.ATTENDEE));
+    vi.mocked(getCurrentUser).mockResolvedValue(user(ROLES.ATTENDEE));
 
     const result = await requireRole(ROLES.FACILITATOR);
 
@@ -91,7 +91,7 @@ describe("requireRole — exactly one of the listed roles", () => {
 
   it("admits any authenticated caller when no role is named", async () => {
     for (const role of [ROLES.ATTENDEE, ROLES.SPEAKER, ROLES.FACILITATOR, ROLES.ADMIN, ROLES.SUPER_ADMIN]) {
-      vi.mocked(requireAuth).mockResolvedValue(user(role));
+      vi.mocked(getCurrentUser).mockResolvedValue(user(role));
 
       await expect(requireRole()).resolves.toMatchObject({ allowed: true, user: { role } });
     }

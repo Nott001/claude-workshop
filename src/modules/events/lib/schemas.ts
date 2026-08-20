@@ -93,6 +93,18 @@ export const speakerAssignmentSchema = z.object({
   speaker_profile_id: z.coerce.number().int().positive(),
 });
 
+/** A caption is a line under a photo, not a paragraph. Mirrors the column. */
+export const MAX_CAPTION_LENGTH = 200;
+
+/**
+ * The caption on a photo. Optional on upload and nullable on edit, because
+ * clearing a caption is a thing a curator does and `undefined` would read as
+ * "leave it alone" — the two are different requests.
+ */
+export const eventPhotoCaptionSchema = z.object({
+  caption: z.string().max(MAX_CAPTION_LENGTH).nullable(),
+});
+
 export type BadgeStatus = "live" | "upcoming" | "completed" | "draft";
 
 export function getBadgeProps(event: { event_date: string; start_time: string; end_time: string; status: string }): {

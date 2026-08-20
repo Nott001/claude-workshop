@@ -54,7 +54,7 @@ describe("StaffEventListPage", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), {
       target: { value: "workshop" },
@@ -66,6 +66,6 @@ describe("StaffEventListPage", () => {
       await vi.advanceTimersByTimeAsync(300);
     });
 
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=workshop");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active&search=workshop");
   });
 });

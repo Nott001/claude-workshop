@@ -3,12 +3,61 @@ import type { DbClient, PaginatedResult } from "@/shared/db/dao/types";
 import type { Event, User, SpeakerProfile, UserRole } from "@/shared/types";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { effectiveEventStatus, ilikePattern, pageBounds, throwOnDbError } from "@/shared/db/dao/helpers";
-import { localDateString, localTimeString } from "@/shared/lib/date-utils";
+import { eventZoneDate, eventZoneTime } from "@/shared/lib/date-utils";
 
 type CreateEventInput = Omit<Event, "id" | "created_at" | "updated_at">;
 type UpdateEventInput = Partial<CreateEventInput>;
 
 type EventWithCourseName = Event & { COURSE?: { id: number; course_name: string } | null };
+
+/**
+ * The columns the listing actually renders.
+ *
+ * `select("*")` here shipped the whole row to every caller — description, price,
+ * currency, survey_enabled and the timestamps among them — for Postgres to
+ * serialise, the Worker to parse and re-serialise, and the client to discard.
+ * This is the widest read in the app, so it is the one place that saving is
+ * worth naming columns for.
+ *
+ * `meeting_url` is deliberately absent, and must stay absent: the listing feeds
+ * the public event list and the landing page, so a link selected here would
+ * reach anyone who can see an event at all. Leaving it unselected makes that
+ * structural — `EventListColumns` has no such field for a caller to read —
+ * where a redaction step after the fact only held while someone remembered it.
+ */
+const LIST_SELECT =
+  "id, title, event_date, start_time, end_time, venue_name, venue_address, status, event_type, cover_image_url, capacity, COURSE!event_id(course_name)";
+
+// Spelled out rather than derived from LIST_SELECT: the generated client parses
+// the select string as a type literal, so it has to stay one. event-dao-list-columns
+// asserts the two agree, which is the guard against them drifting apart.
+type EventListRow = Pick<
+  Event,
+  | "id"
+  | "title"
+  | "event_date"
+  | "start_time"
+  | "end_time"
+  | "venue_name"
+  | "venue_address"
+  | "status"
+  | "event_type"
+  | "cover_image_url"
+  | "capacity"
+> & { COURSE?: { course_name: string } | null };
+
+/**
+ * End-edged bound: an event is still upcoming while its end edge is in the
+ * future, on the same app-timezone clock as isEventFinished.
+ */
+function upcomingBounds(now: Date): string {
+  return `event_date.gt.${eventZoneDate(now)},and(event_date.eq.${eventZoneDate(now)},end_time.gte.${eventZoneTime(now)})`;
+}
+
+/** The exact complement: every event whose end edge has passed. */
+function pastBounds(now: Date): string {
+  return `event_date.lt.${eventZoneDate(now)},and(event_date.eq.${eventZoneDate(now)},end_time.lt.${eventZoneTime(now)})`;
+}
 
 type EventSpeakerJoin = {
   speaker_profile_id: number;
@@ -50,15 +99,17 @@ export async function list(
     role?: string | null;
     userId?: number | null;
     filter?: string | null;
+    /** The `status` column values a listing accepts, narrowing the role guard below. */
+    statuses?: string[] | null;
     search?: string | null;
     page?: number;
     limit?: number;
   },
-): Promise<PaginatedResult<EventWithCourseName>> {
-  const { role, userId, filter, search } = options ?? {};
+): Promise<PaginatedResult<EventListRow>> {
+  const { role, userId, filter, statuses, search } = options ?? {};
   const { from, to, page, limit } = pageBounds(options);
 
-  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)", { count: "exact" });
+  let query = supabase.from("EVENT").select(LIST_SELECT, { count: "exact" });
 
   // A facilitator's dashboard shows only the events they are assigned to;
   // admins and every other role keep the full listing.
@@ -77,24 +128,24 @@ export async function list(
     query = query.in("status", ["active", "complete"]);
   }
 
+  // Applied after the role guard above, so a caller who may not see drafts asking
+  // for them narrows an already-draftless set to nothing rather than widening it.
+  if (statuses && statuses.length > 0) {
+    query = query.in("status", statuses);
+  }
+
   if (filter === "upcoming") {
     // An event is still upcoming while its end edge is in the future, not
     // merely while its date has not passed — otherwise a session that ended
     // an hour ago keeps a seat on the landing page until midnight. Same
-    // local-clock convention as isEventFinished.
-    const now = new Date();
-    query = query.or(
-      `event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`,
-    );
+    // app-timezone convention as isEventFinished.
+    query = query.or(upcomingBounds(new Date()));
   } else if (filter === "past") {
-    // The exact complement of "upcoming", on the same local clock. Comparing
+    // The exact complement of "upcoming", on the same app-timezone clock. Comparing
     // `event_date` against a UTC day boundary disagreed with isEventFinished
     // twice over: it kept a session that ended this morning out of the archive
     // until midnight, and west of UTC it dropped in a day early.
-    const now = new Date();
-    query = query.or(
-      `event_date.lt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.lt.${localTimeString(now)})`,
-    );
+    query = query.or(pastBounds(new Date()));
   }
 
   // Title/venue search, only when a term is present. ilikePattern quotes and
@@ -111,7 +162,13 @@ export async function list(
 
   const { data, count } = await query;
   return {
-    data: (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) })),
+    // COURSE.event_id carries a UNIQUE constraint, so the embed answers with one
+    // course or null — but the generated types model only the foreign key and
+    // infer an array. Every consumer reads `COURSE.course_name` directly and has
+    // always been right to; naming the columns is what made the parser confident
+    // enough to disagree. The cast keeps that reading, and the shape it asserts
+    // is the one `EventListRow` declares.
+    data: (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) })) as unknown as EventListRow[],
     total: count ?? 0,
     page,
     limit,
@@ -137,7 +194,7 @@ export async function getUpcomingForLanding(supabase: DbClient): Promise<Landing
     .from("EVENT")
     .select("*", { count: "exact" })
     .eq("status", "active")
-    .or(`event_date.gt.${localDateString(now)},and(event_date.eq.${localDateString(now)},end_time.gte.${localTimeString(now)})`)
+    .or(upcomingBounds(now))
     .order("event_date", { ascending: true })
     .limit(LANDING_EVENT_LIMIT);
   // Without this the landing page renders "No upcoming events" identically
@@ -241,12 +298,34 @@ export async function getAttendeeCounts(supabase: DbClient, eventIds: number[]):
   return counts;
 }
 
-export async function findByIds(supabase: DbClient, ids: number[]): Promise<EventWithCourseName[]> {
+export type SpeakerEventFilter = "upcoming" | "completed" | "drafts";
+
+export async function findByIds(
+  supabase: DbClient,
+  ids: number[],
+  options?: { filter?: SpeakerEventFilter | null },
+): Promise<EventWithCourseName[]> {
   if (ids.length === 0) return [];
-  const { data } = await supabase
-    .from("EVENT")
-    .select("*, COURSE!event_id(course_name)")
-    .in("id", ids)
-    .order("event_date", { ascending: true });
-  return data ?? [];
+  const { filter } = options ?? {};
+  let query = supabase.from("EVENT").select("*, COURSE!event_id(course_name)").in("id", ids);
+
+  if (filter === "upcoming") {
+    // A live event is still an active engagement whose end edge has not passed,
+    // so it belongs under Upcoming; the bound includes it.
+    const now = new Date();
+    query = query.eq("status", "active").or(upcomingBounds(now));
+  } else if (filter === "completed") {
+    // The effective status derives complete from a past active row, so "active"
+    // or "complete" inside the past bound is the column-level spelling of it.
+    const now = new Date();
+    query = query.in("status", ["active", "complete"]).or(pastBounds(now));
+  } else if (filter === "drafts") {
+    query = query.eq("status", "draft");
+  }
+
+  // An archive reads backwards from the most recent session; every other
+  // listing reads forwards from the next one.
+  query = query.order("event_date", { ascending: filter !== "completed" });
+  const { data } = await query;
+  return (data ?? []).map((row) => ({ ...row, status: effectiveEventStatus(row) }));
 }

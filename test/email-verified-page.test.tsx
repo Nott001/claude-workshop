@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
-const { requireAuth } = vi.hoisted(() => ({ requireAuth: vi.fn() }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+const { getCurrentUser } = vi.hoisted(() => ({ getCurrentUser: vi.fn() }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 
 import { ROLES } from "@/shared/lib/roles";
 import { roleHome } from "@/modules/auth/lib/role-home";
@@ -11,7 +11,7 @@ import EmailVerifiedPage from "@/app/email-verified/page";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(null);
+  getCurrentUser.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -30,7 +30,7 @@ describe("/email-verified", () => {
   }
 
   it("sends an admin to their role home rather than the attendee landing page", async () => {
-    requireAuth.mockResolvedValue({ id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" });
+    getCurrentUser.mockResolvedValue({ id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" });
     await renderPage();
 
     expect(screen.getByRole("link", { name: "Go to home" }).getAttribute("href")).toBe(roleHome(ROLES.ADMIN));
@@ -38,14 +38,14 @@ describe("/email-verified", () => {
   });
 
   it("sends an attendee to the attendee home", async () => {
-    requireAuth.mockResolvedValue({ id: 1, role: ROLES.ATTENDEE, full_name: "Ada", email: "ada@example.com" });
+    getCurrentUser.mockResolvedValue({ id: 1, role: ROLES.ATTENDEE, full_name: "Ada", email: "ada@example.com" });
     await renderPage();
 
     expect(screen.getByRole("link", { name: "Go to home" }).getAttribute("href")).toBe(roleHome(ROLES.ATTENDEE));
   });
 
   it("lets a safe redirect_url override the role home", async () => {
-    requireAuth.mockResolvedValue({ id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" });
+    getCurrentUser.mockResolvedValue({ id: 1, role: ROLES.ADMIN, full_name: "Ada", email: "ada@example.com" });
     await renderPage("/events/5");
 
     const link = screen.getByRole("link", { name: "Continue to event" });

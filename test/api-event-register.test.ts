@@ -1,14 +1,14 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, eventFindById, findActiveTicketByUserAndEvent, findPendingByUserAndEvent } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, eventFindById, findActiveTicketByUserAndEvent, findPendingByUserAndEvent } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   eventFindById: vi.fn(),
   findActiveTicketByUserAndEvent: vi.fn(),
   findPendingByUserAndEvent: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById }));
 vi.mock("@/shared/db/dao/ticket.dao", () => ({ findActiveTicketByUserAndEvent }));
@@ -27,7 +27,7 @@ const draft = { id: 1, title: "Secret Day", status: "draft" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(attendee);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: attendee });
   eventFindById.mockResolvedValue(published);
   findActiveTicketByUserAndEvent.mockResolvedValue(null);
   findPendingByUserAndEvent.mockResolvedValue(null);
@@ -35,7 +35,7 @@ beforeEach(() => {
 
 describe("GET authentication", () => {
   it("returns 401 without a session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await GET(req(), params("1"));
 
@@ -56,7 +56,7 @@ describe("GET draft visibility", () => {
   });
 
   it("shows a draft event to a facilitator", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: facilitator });
     eventFindById.mockResolvedValue(draft);
 
     const res = await GET(req(), params("1"));
@@ -99,7 +99,7 @@ describe("GET registration state", () => {
 
 describe("POST authentication", () => {
   it("returns 401 without a session and performs no lookup", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await POST(req(), params("1"));
 

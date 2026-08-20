@@ -24,7 +24,7 @@ export function EventRegisterCard({ event, hasTicket, onRegister }: EventRegiste
   const eventStarted = isEventStarted(event.event_date, event.start_time);
   // Either read is sufficient: the detail routes already serve the effective
   // status, so a plain expired `active` event arrives as "complete"; the time
-  // check covers any path that hands over the raw row, on the same local clock
+  // check covers any path that hands over the raw row, on the same clock
   // the server's ensureRegistrable guard uses.
   const finished = event.status === "complete" || isEventFinished(event.event_date, event.end_time);
   // Served only for a capped event, and only as a remainder — the attendee

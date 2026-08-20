@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  requireRole,
   findEventForPayment,
   findLatestByUserAndEvent,
   findActiveTicketByUserAndEvent,
@@ -11,7 +11,7 @@ const {
   updateGatewayReference,
   createPayment,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
   findEventForPayment: vi.fn(),
   findLatestByUserAndEvent: vi.fn(),
   findActiveTicketByUserAndEvent: vi.fn(),
@@ -21,8 +21,7 @@ const {
   createPayment: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole: vi.fn() }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/payment.dao", () => ({
   findEventForPayment,
@@ -45,7 +44,7 @@ const post = () => new Request("https://app.test/api/payments", { method: "POST"
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(user);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user });
   findEventForPayment.mockResolvedValue(event);
   findLatestByUserAndEvent.mockResolvedValue(null);
   findActiveTicketByUserAndEvent.mockResolvedValue(null);

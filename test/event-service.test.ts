@@ -12,6 +12,7 @@ const {
   paymentDao,
   listStorageFolder,
   deleteFromStorage,
+  listPhotoStoragePaths,
   logAuditEvent,
   requireAuditEvent,
   getAttendeeSurveyFlags,
@@ -38,6 +39,7 @@ const {
   paymentDao: { findPendingByUserAndEvent: vi.fn() },
   listStorageFolder: vi.fn(),
   deleteFromStorage: vi.fn(),
+  listPhotoStoragePaths: vi.fn(),
   logAuditEvent: vi.fn(),
   requireAuditEvent: vi.fn(async (...args: unknown[]) => logAuditEvent(...args)),
   getAttendeeSurveyFlags: vi.fn(async () => ({ usable: true, hasSurvey: true, byUser: new Map() })),
@@ -50,6 +52,7 @@ vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/shared/db/dao/ticket.dao", () => ticketDao);
 vi.mock("@/shared/db/dao/payment.dao", () => paymentDao);
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
+vi.mock("@/modules/events/db/event-photo.dao", () => ({ listStoragePathsByEvent: listPhotoStoragePaths }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({ logAuditEvent, requireAuditEvent }));
 vi.mock("@/modules/surveys/lib/survey-service", () => ({ getAttendeeSurveyFlags }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
@@ -64,7 +67,6 @@ import {
   getEventRegistrationState,
   listAdminEventAttendees,
   listEventAttendees,
-  listEvents,
   loadEventOr403,
   publishEvent,
   registerForEvent,
@@ -98,6 +100,7 @@ beforeEach(() => {
   speakerDao.replaceEventAssignments.mockResolvedValue(true);
   speakerDao.isAssignedByUserId.mockResolvedValue(true);
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
+  listPhotoStoragePaths.mockResolvedValue([]);
   deleteFromStorage.mockResolvedValue(undefined);
   logAuditEvent.mockResolvedValue(undefined);
 });
@@ -457,22 +460,10 @@ describe("updateEvent and the online/address pair", () => {
   });
 });
 
-describe("listEvents and the meeting link", () => {
-  it("strips the link from every row, whoever is listing", async () => {
-    // The list selects * and feeds the public listing and the landing page, so
-    // a link left on a row reaches anyone who can see the event at all.
-    eventDao.list.mockResolvedValue({
-      data: [{ id: 1, status: "active", event_type: "online", meeting_url: "https://meet.google.com/abc" }],
-      total: 1,
-      page: 1,
-      limit: 50,
-    });
-
-    const result = await listEvents(supabase, { role: ROLES.ADMIN, userId: 9, filter: null });
-
-    expect(result.data[0].meeting_url).toBeNull();
-  });
-});
+// The listing used to select * and strip the link back off each row here. The
+// query now never asks for the column, so the guarantee moved down a layer with
+// it — event-dao-list-columns pins it, and it holds by construction rather than
+// by this service remembering to redact.
 
 describe("setMeetingLink", () => {
   beforeEach(() => {
@@ -532,15 +523,16 @@ describe("deleteEvent", () => {
     courseDao.findModulesByCourse.mockResolvedValue([{ id: 3 }]);
     courseDao.findLessonsByModule.mockResolvedValue([{ id: 5 }]);
 
-    const result = await deleteEvent(supabase, 1, actor);
+    await deleteEvent(supabase, 1, actor);
 
     const byBucket = Object.fromEntries(deleteFromStorage.mock.calls.map(([bucket, paths]) => [bucket, paths]));
-    expect(byBucket.event_images).toEqual(["events/1/event_images-file"]);
+    // Two folders are listed now — the event's own and its photos' — because
+    // `storage.list()` does not recurse into the second.
+    expect(byBucket.event_images).toEqual(["events/1/event_images-file", "events/1/photos/event_images-file"]);
     expect(byBucket.course_assets).toEqual(["courses/7/modules/3/lessons/5/course_assets-file"]);
     expect(byBucket.course_videos).toEqual(["courses/7/modules/3/lessons/5/course_videos-file"]);
     expect(eventDao.remove).toHaveBeenCalledWith(supabase, 1);
     expect(logAuditEvent).toHaveBeenCalledWith(supabase, 9, "event.deleted", "event", 1, { title: "Launch Day" });
-    expect(result).toEqual({ success: true });
   });
 });
 
@@ -556,11 +548,10 @@ describe("publishEvent", () => {
   });
 
   it("moves a draft to active and audits the publisher", async () => {
-    const result = await publishEvent(supabase, 1, actor);
+    await publishEvent(supabase, 1, actor);
 
     expect(eventDao.updateField).toHaveBeenCalledWith(supabase, 1, "status", "active");
     expect(logAuditEvent).toHaveBeenCalledWith(supabase, 9, "event.published", "event", 1);
-    expect(result).toEqual({ success: true });
   });
 });
 

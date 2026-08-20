@@ -39,6 +39,7 @@ import { Navbar } from "@/modules/shell/components/navbar";
 import { TopNavbar } from "@/modules/shell/components/top-navbar";
 import { Brand } from "@/modules/shell/components/brand";
 import { BackLink } from "@/shared/components/back-link";
+import { CardLink } from "@/shared/components/card-link";
 import { EventCard } from "@/modules/events/components/event-card";
 import { EventMemoryCard } from "@/modules/community/components/event-memory-card";
 import { EventTable, type EventTableRow } from "@/modules/events/components/event-table";
@@ -101,7 +102,7 @@ describe("Navbar prefetching", () => {
     renderAs(ROLES.ADMIN);
     expect(navLinks().map((a) => a.getAttribute("href"))).toEqual([
       "/staff/events",
-      "/staff/organization",
+      "/staff/users",
       "/staff/community",
       "/staff/emails",
       "/staff/support",
@@ -185,6 +186,14 @@ describe("Chrome and card prefetching", () => {
     expect(link.dataset.prefetch).toBe("false");
   });
 
+  it("does not prefetch from the shared card shell, which both grids build on", () => {
+    const { container } = render(<CardLink href="/events/7">card</CardLink>);
+
+    // Both card grids route their anchor through this now, so the policy is
+    // asserted once here rather than per card.
+    expect(within(container).getByRole("link").dataset.prefetch).toBe("false");
+  });
+
   it("does not prefetch a community memory card's detail page", () => {
     const { container } = render(
       <EventMemoryCard
@@ -200,6 +209,8 @@ describe("Chrome and card prefetching", () => {
           course_name: null,
           cover_image_url: null,
         }}
+        photos={[]}
+        photoCount={0}
       />,
     );
     expect(within(container).getByRole("link").dataset.prefetch).toBe("false");

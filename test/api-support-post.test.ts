@@ -1,9 +1,9 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMessage, deleteSessionsExcept } = vi.hoisted(
+const { requireRole, countRecentByUser, findActiveSession, createSession, sendMessage, deleteSessionsExcept } = vi.hoisted(
   () => ({
-    requireAuth: vi.fn(),
+    requireRole: vi.fn(),
     countRecentByUser: vi.fn(),
     findActiveSession: vi.fn(),
     createSession: vi.fn(),
@@ -12,7 +12,7 @@ const { requireAuth, countRecentByUser, findActiveSession, createSession, sendMe
   }),
 );
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({
   countRecentByUser,
@@ -30,7 +30,7 @@ const post = () => new Request("https://app.test/api/support", { method: "POST",
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(user);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user });
   countRecentByUser.mockResolvedValue(0);
   findActiveSession.mockResolvedValue(null);
   createSession.mockResolvedValue({ id: 31 });
@@ -79,7 +79,7 @@ describe("staff ownership of a general case", () => {
     });
 
   beforeEach(() => {
-    requireAuth.mockResolvedValue(admin);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: admin });
   });
 
   it("lets the assigned handler reply to the asker's case", async () => {

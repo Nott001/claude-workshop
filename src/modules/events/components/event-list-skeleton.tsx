@@ -12,6 +12,8 @@
  * search box, swapping the whole page out on every debounced refetch would have
  * unmounted the input mid-search and taken the cursor with it.
  */
+import { Skeleton } from "@/shared/components/skeleton";
+
 const PLACEHOLDER_COUNT = 6;
 
 export function EventListSkeleton() {
@@ -20,12 +22,12 @@ export function EventListSkeleton() {
       {Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => (
         <div key={i} className="overflow-hidden rounded-xl border border-border bg-surface">
           {/* Matches the card's h-48 cover so the two heights line up. */}
-          <div className="h-48 animate-pulse bg-muted" />
+          <Skeleton className="h-48 rounded-none" />
           <div className="space-y-3 p-6">
-            <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-            <div className="mt-6 h-4 w-28 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="mt-6 h-4 w-28" />
           </div>
         </div>
       ))}

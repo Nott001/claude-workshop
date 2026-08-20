@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
-import { EventServiceError, listAdminEventAttendees, loadEventOr403 } from "@/modules/events/lib/event-service";
-
-function mapError(err: unknown): NextResponse {
-  if (err instanceof EventServiceError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  throw err;
-}
+import { toErrorResponse } from "@/shared/lib/error-response";
+import { listAdminEventAttendees, loadEventOr403 } from "@/modules/events/lib/event-service";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: eventId } = await params;
@@ -20,16 +15,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   let event;
   try {
-    event = await loadEventOr403(supabase, Number(eventId), user, "attendees_manage");
+    event = await loadEventOr403(supabase, Number(eventId), guard.user, "attendees_manage");
   } catch (err) {
-    return mapError(err);
+    return toErrorResponse(err);
   }
 
   const result = await listAdminEventAttendees(supabase, event, { search, status, page, limit });

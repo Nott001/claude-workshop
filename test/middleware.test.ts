@@ -46,7 +46,7 @@ describe("route protection", () => {
     ["/staff/events", undefined],
     ["/staff/events/new", undefined],
     ["/staff/community", undefined],
-    ["/staff/organization", undefined],
+    ["/staff/users", undefined],
     ["/staff/kiosk", undefined],
     ["/speaker/events", undefined],
     ["/speaker/events/42/course", undefined],
@@ -78,13 +78,15 @@ describe("route protection", () => {
 });
 
 describe("api responses", () => {
+  // Same word as the routes: whichever check catches the caller first, a client
+  // detecting "needs to log in" reads one body, not two.
   it("answers unauthenticated api writes with 401 json, never a redirect", async () => {
     getUser.mockResolvedValue(signedOut);
     const res = await middleware(request("/api/events", { method: "POST" }));
 
     expect(res.status).toBe(401);
     expect(res.headers.get("location")).toBeNull();
-    await expect(res.json()).resolves.toEqual({ error: "Unauthorized" });
+    await expect(res.json()).resolves.toEqual({ error: "Unauthenticated" });
   });
 
   it("leaves the auth callback reachable so sign-in can complete", async () => {

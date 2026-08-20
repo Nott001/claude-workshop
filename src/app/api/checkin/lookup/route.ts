@@ -1,11 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireMinRole } from "@/modules/auth/lib/role-guard";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import { checkinSchema, formatTicketPreview } from "@/modules/kiosk/lib/checkin";
 import { loadEventOr403 } from "@/modules/events/lib/event-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.FACILITATOR);
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
 
   const parsed = checkinSchema.safeParse({ qr_token: token });
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
     await loadEventOr403(supabase, ticket.event_id, guard.user, "attendees");
   } catch (err) {
     if ((err as { status?: number })?.status === 403) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return forbidden();
     }
     throw err;
   }

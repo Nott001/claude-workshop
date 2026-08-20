@@ -12,6 +12,9 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
     { label: "Events", href: "/events", icon: "event" },
     { label: "Community", href: "/community", icon: "forum" },
     { label: "Tickets", href: "/tickets", icon: "confirmation_number" },
+    // Courses released by events already attended hang off no event the
+    // reader would think to open, so the library needs its own way in.
+    { label: "Courses", href: "/courses", icon: "school" },
   ],
   speaker: [
     { label: "My Events", href: "/speaker/events", icon: "event" },
@@ -23,7 +26,7 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   ],
   admin: [
     { label: "Events", href: "/staff/events", icon: "event" },
-    { label: "Organization", href: "/staff/organization", icon: "groups" },
+    { label: "Users", href: "/staff/users", icon: "groups" },
     { label: "Community", href: "/staff/community", icon: "forum" },
     { label: "Emails", href: "/staff/emails", icon: "mail" },
     { label: "Support", href: "/staff/support", icon: "support_agent" },
@@ -31,7 +34,7 @@ export const ROLE_NAV_ITEMS: Partial<Record<UserRole, NavItem[]>> = {
   ],
   super_admin: [
     { label: "Events", href: "/staff/events", icon: "event" },
-    { label: "Organization", href: "/staff/organization", icon: "groups" },
+    { label: "Users", href: "/staff/users", icon: "groups" },
     { label: "Community", href: "/staff/community", icon: "forum" },
     { label: "Emails", href: "/staff/emails", icon: "mail" },
     { label: "Support", href: "/staff/support", icon: "support_agent" },

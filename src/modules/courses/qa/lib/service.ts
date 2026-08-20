@@ -4,15 +4,9 @@ import * as courseDao from "@/shared/db/dao/course.dao";
 import * as qaMessageDao from "@/modules/courses/qa/db/qa-message.dao";
 import { canManageEvent } from "@/modules/courses/lib/course-access";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "@/shared/lib/rate-limit";
+import { ServiceError } from "@/shared/lib/service-error";
 
-export class QaServiceError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export class QaServiceError extends ServiceError {}
 
 export async function findQaModule(supabase: DbClient, moduleId: number): Promise<Module> {
   const mod = await courseDao.findModuleById(supabase, moduleId);

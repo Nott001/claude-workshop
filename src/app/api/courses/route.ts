@@ -7,6 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function POST(req: Request) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = courseSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

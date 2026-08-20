@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
+import { requireRole } from "@/modules/auth/lib/role-guard";
+import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import * as eventDao from "@/modules/events/db/event.dao";
@@ -9,12 +10,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
   const { eventId } = await params;
   const supabase = getServiceClient();
 
-  const user = await requireAuth(supabase);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
-  const profile = await speakerDao.findByUserId(supabase, user.id);
+  const profile = await speakerDao.findByUserId(supabase, guard.user.id);
 
   if (!profile) {
     return NextResponse.json({ error: "Not a speaker" }, { status: 403 });
@@ -41,6 +42,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
     start_time: event.start_time,
     end_time: event.end_time,
     venue_name: event.venue_name,
+    venue_address: event.venue_address,
+    cover_image_url: event.cover_image_url,
+    event_type: event.event_type,
     status: event.status,
     course_id: event.COURSE?.id ?? null,
     course_name: event.COURSE?.course_name ?? null,

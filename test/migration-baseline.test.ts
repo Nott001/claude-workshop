@@ -41,16 +41,19 @@ describe("RLS is enabled in the file that creates each table", () => {
 });
 
 /**
- * Guard detail: live-session state ended up on the realtime publication by
- * accident in the chain, letting a client watch facilitator notes it could not
- * read through RLS. Membership is the live-tables-only set the chain converged
- * on, and it must survive into the baseline and any future change.
+ * Guard detail: LIVE_SESSION_STATE accidentally ended up on the realtime
+ * publication in the chain, letting a client watch facilitator notes it could
+ * not read through RLS, then it was dropped from the set. It is re-added by
+ * 00015 deliberately so room highlights broadcast postgres_changes; the read
+ * grants it relies on come from the baseline. The membership set this describe
+ * pins is the six live-participant tables the chain converged on, and it must
+ * survive into the baseline and any future change.
  */
 describe("realtime publication membership", () => {
-  it("publishes exactly the live-participant tables", () => {
+  it("publishes the live-participant tables", () => {
     const all = migrationFiles.map((f) => readFileSync(path.join(MIGRATIONS_DIR, f), "utf8")).join("\n");
 
     const added = [...all.matchAll(/ALTER PUBLICATION supabase_realtime ADD TABLE "public"\."([A-Z_]+)";/g)].map((m) => m[1]);
-    expect(added).toEqual(["MODULE", "TICKET", "SUPPORT_SESSION", "CHAT_MESSAGE", "QA_MESSAGE"]);
+    expect(added).toEqual(["MODULE", "TICKET", "SUPPORT_SESSION", "CHAT_MESSAGE", "QA_MESSAGE", "LIVE_SESSION_STATE"]);
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { expectStaffColumn } from "./helpers/staff-column";
 
 afterEach(cleanup);
@@ -59,5 +59,30 @@ describe("StaffPageState", () => {
 
     expect(container.innerHTML).not.toContain("foreground");
     expect(container.innerHTML).not.toContain("destructive");
+  });
+});
+
+// One centred line left the shell's flex column almost empty, so every staff
+// page took the same layout shift when its header and table arrived — one
+// shared cause behind a shift on all seven, not seven page bugs.
+describe("StaffPageSkeleton", () => {
+  it("reserves the staff column rather than centring a line in it", () => {
+    const { container } = render(<StaffPageSkeleton />);
+
+    expectStaffColumn(container);
+    expect(screen.getByLabelText("Loading page")).toBeTruthy();
+  });
+
+  it("reserves eleven rows by default, which is what five of the seven settle at", () => {
+    const { container } = render(<StaffPageSkeleton />);
+
+    // The header block and the toolbar are placeholders too, so count the body.
+    expect(container.querySelectorAll(".divide-y > *")).toHaveLength(11);
+  });
+
+  it("lets the pages that list more say so", () => {
+    const { container } = render(<StaffPageSkeleton rows={20} />);
+
+    expect(container.querySelectorAll(".divide-y > *")).toHaveLength(20);
   });
 });

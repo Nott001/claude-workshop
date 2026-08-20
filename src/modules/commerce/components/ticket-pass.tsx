@@ -135,10 +135,17 @@ export function TicketPass({ ticket }: { ticket: TicketWithEvent }) {
             </div>
           )}
           {/* The code stays visible even when the image fails to render — it is
-              the fallback credential for anyone whose camera cannot scan. */}
+              the fallback credential for anyone whose camera cannot scan.
+
+              `break-all` because a token is one unbroken run of hex and offers
+              the layout nowhere to wrap, so a long one is treated as a single
+              word and leaves the card entirely. Tokens have been six characters
+              since #240, but that migration only stopped issuing 64-character
+              ones — every ticket already holding one still renders it, and a
+              64-character token measures 896px inside a 256px pass. */}
           <div className="text-center">
             <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Check-in code</span>
-            <span className="font-mono text-xl font-bold tracking-widest text-fg">{ticket.qr_token}</span>
+            <span className="font-mono text-xl font-bold tracking-widest text-fg break-all">{ticket.qr_token}</span>
           </div>
           <p className="text-center text-xs text-muted-fg">Present this QR code at the entrance for check-in.</p>
         </div>

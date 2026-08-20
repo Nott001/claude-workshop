@@ -49,9 +49,9 @@ afterEach(() => {
 });
 
 describe("TopNavbar role nav items", () => {
-  it("shows an attendee Home, Events, Community and Tickets — never /staff or /speaker links", () => {
+  it("shows an attendee their own surfaces — never a /staff or /speaker link", () => {
     renderAs(ROLES.ATTENDEE);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
+    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets", "Courses"]);
     for (const a of within(screen.getByRole("navigation", { name: "Primary navigation" })).getAllByRole("link")) {
       expect(a.getAttribute("href")).not.toMatch(/^\/(staff|speaker)/);
     }
@@ -64,7 +64,7 @@ describe("TopNavbar role nav items", () => {
 
   it("falls back to the attendee set for an unrecognised role", () => {
     renderAs("wizard" as UserRole);
-    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets"]);
+    expect(navLabels()).toEqual(["Home", "Events", "Community", "Tickets", "Courses"]);
   });
 
   it("shows the profile menu for a signed-in attendee", () => {

@@ -101,7 +101,7 @@ is invisible to the other.
 
    Two senders exist, and which one is responsible decides where a fix goes:
 
-   - **The worker** sends ticket, check-in, organization-invite **and
+   - **The worker** sends ticket, check-in, user-invite **and
      password-recovery** mail through the `SMTP_*` mailbox above. Recovery mints
      its link through GoTrue's admin API but emails it from here with the same
      branded template as the invitation — which is why its template lives with

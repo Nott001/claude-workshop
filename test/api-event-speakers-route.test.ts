@@ -1,9 +1,8 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireRole, requireAuth, speakerDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
+const { requireRole, speakerDao, logAuditEvent, eventFindById, facilitatorIsAssigned } = vi.hoisted(() => ({
   requireRole: vi.fn(),
-  requireAuth: vi.fn(),
   speakerDao: {
     isAssignedByUserId: vi.fn(),
     listEventAssignments: vi.fn(),
@@ -15,7 +14,6 @@ const { requireRole, requireAuth, speakerDao, logAuditEvent, eventFindById, faci
 }));
 
 vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole, requireMinRole: requireRole }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/speaker.dao", () => speakerDao);
 vi.mock("@/shared/db/dao/facilitator.dao", () => ({ isAssigned: facilitatorIsAssigned }));
@@ -99,18 +97,18 @@ describe("GET /api/events/[id]/speakers", () => {
 
 describe("POST /api/events/[id]/speakers", () => {
   it("lets an admin assign a speaker", async () => {
-    requireAuth.mockResolvedValue(staffUser(9, ROLES.ADMIN));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: staffUser(9, ROLES.ADMIN) });
 
     const res = await post();
 
     expect(res.status).toBe(201);
-    await expect(res.json()).resolves.toEqual({ success: true });
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(speakerDao.assignToEvent).toHaveBeenCalledWith({}, 9, 7);
     expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "speaker.assigned", "speaker_profile", 7, { event_id: 9 });
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(staffUser(9, ROLES.FACILITATOR));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: staffUser(9, ROLES.FACILITATOR) });
     facilitatorIsAssigned.mockResolvedValue(true);
 
     const res = await post();
@@ -121,7 +119,7 @@ describe("POST /api/events/[id]/speakers", () => {
   });
 
   it("refuses a caller below admin", async () => {
-    requireAuth.mockResolvedValue(staffUser(5, ROLES.ATTENDEE));
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: staffUser(5, ROLES.ATTENDEE) });
 
     const res = await post();
 
@@ -130,7 +128,7 @@ describe("POST /api/events/[id]/speakers", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await post();
 

@@ -26,10 +26,9 @@ describe("removed Figma MCP assets", () => {
     const { container } = render(
       <EventSessionNavbar
         eventName="Demo Day"
-        elapsed="00:12:00"
-        remaining="01:48:00"
         eventDate="2024-01-01"
         startTime="09:00:00"
+        endTime="10:00:00"
         onExit={vi.fn()}
       />,
     );

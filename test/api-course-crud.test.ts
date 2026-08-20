@@ -169,6 +169,7 @@ describe("DELETE /api/courses/[courseId]", () => {
     const res = await DELETE(new Request("https://app.test/api/courses/7"), params);
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(dao.deleteCourse).toHaveBeenCalledWith({}, 7);
   });
 

@@ -7,12 +7,18 @@ import { CommunityHero } from "@/modules/community/components/community-hero";
 import { CommunityJoinDialog, type JoinTarget } from "@/modules/community/components/community-join-dialog";
 import { EventMemoryCard } from "@/modules/community/components/event-memory-card";
 import { useCommunityLinks } from "@/modules/community/lib/use-community-links";
-import { useEventFeed } from "@/modules/events/lib/use-event-feed";
+import { useEventMemories, type EventMemoryCardData } from "@/modules/events/lib/use-event-memories";
+import type { CommunityLink } from "@/shared/types";
 
-export function CommunityListPage() {
-  const { links, loading, error } = useCommunityLinks();
+export interface CommunityListSeed {
+  links: CommunityLink[];
+  memories: EventMemoryCardData[];
+}
+
+export function CommunityListPage({ initial }: { initial?: CommunityListSeed } = {}) {
+  const { links, loading, error } = useCommunityLinks(initial?.links);
   // Three finished events fills the grid's one row without a second.
-  const { events } = useEventFeed("past", 3);
+  const { memories, loading: memoriesLoading } = useEventMemories(3, initial?.memories);
   const [joinTarget, setJoinTarget] = useState<JoinTarget | null>(null);
 
   return (
@@ -62,21 +68,42 @@ export function CommunityListPage() {
 
         {/* Hidden entirely until there is an archive to show: an empty-state
             card here would advertise a section the app cannot fill yet. */}
-        {events.length > 0 && (
+        {(memories.length > 0 || memoriesLoading) && (
           <section>
             <h2 className="text-xl font-bold">Event Memories</h2>
             <p className="mt-1 text-sm text-muted-fg">Revisit the workshops and sessions this community has already run.</p>
 
             <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((event) => (
-                <EventMemoryCard key={event.event_id} event={event} />
-              ))}
+              {memoriesLoading
+                ? /* Placeholders rather than nothing. The strip is the last
+                     section on the page, so an empty gap where three cards are
+                     about to land reads as a longer wait than it is — and the
+                     footer jumps down when they arrive. */
+                  Array.from({ length: 3 }, (_, i) => <MemoryCardSkeleton key={i} />)
+                : memories.map(({ event, photos, photoCount }) => (
+                    <EventMemoryCard key={event.event_id} event={event} photos={photos} photoCount={photoCount} />
+                  ))}
             </div>
           </section>
         )}
       </div>
 
       <CommunityJoinDialog target={joinTarget} onClose={() => setJoinTarget(null)} />
+    </div>
+  );
+}
+
+/** One memory card's footprint while the strip loads: the same picture area and
+ *  the same three text rows, so nothing moves when the real card replaces it. */
+function MemoryCardSkeleton() {
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="aspect-[1.85] w-full animate-pulse bg-muted" />
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="mt-auto h-3 w-1/4 animate-pulse rounded bg-muted" />
+      </div>
     </div>
   );
 }

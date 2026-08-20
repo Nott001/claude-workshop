@@ -1,12 +1,13 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
 import { requireMinRole, requireRole } from "@/modules/auth/lib/role-guard";
-import { guardFailure } from "@/modules/auth/lib/guard-response";
+import { guardFailure, forbidden } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileUpdateSchema } from "@/modules/events/lib/schemas";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import type { AuthUser } from "@/modules/auth/lib/types";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   // Staff may edit any profile; a speaker is held to their own. Requiring both
@@ -28,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = speakerProfileUpdateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();
@@ -40,7 +41,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   if (!hasMinRole(user.role, ROLES.FACILITATOR) && user.id !== (profile as { user_id: number }).user_id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   const updated = await speakerDao.update(supabase, Number(id), parsed.data);
@@ -71,7 +72,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   // or the owner may do it — a facilitator editing someone else's profile
   // cannot, and the profile fetch above keeps existence private below admin.
   if (!hasMinRole(guard.user.role, ROLES.ADMIN) && guard.user.id !== (profile as { user_id: number }).user_id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbidden();
   }
 
   const ok = await speakerDao.remove(supabase, Number(id));
@@ -80,5 +81,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Failed to delete speaker profile" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

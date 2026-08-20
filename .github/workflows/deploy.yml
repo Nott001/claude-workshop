@@ -97,6 +97,9 @@ jobs:
       NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # The zone every event window is read in. Unset falls back to the default
+      # in app-timezone.ts, which is the zone the events are actually run in.
+      NEXT_PUBLIC_APP_TIMEZONE: ${{ vars.NEXT_PUBLIC_APP_TIMEZONE }}
     steps:
       - uses: actions/checkout@v4
         with:

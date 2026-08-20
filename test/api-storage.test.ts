@@ -1,13 +1,13 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { createSignedUrl, from, requireAuth, userHasCourseAccess, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
+const { createSignedUrl, from, getCurrentUser, resolveCourseGrant, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
   const createSignedUrl = vi.fn();
   return {
     createSignedUrl,
     from: vi.fn(() => ({ createSignedUrl })),
-    requireAuth: vi.fn(),
-    userHasCourseAccess: vi.fn(),
+    getCurrentUser: vi.fn(),
+    resolveCourseGrant: vi.fn(),
     isPublished: vi.fn(),
     isSpeakerOnPublishedEvent: vi.fn(),
   };
@@ -16,8 +16,8 @@ const { createSignedUrl, from, requireAuth, userHasCourseAccess, isPublished, is
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ storage: { from } }),
 }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ userHasCourseAccess }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
+vi.mock("@/modules/courses/lib/course-entitlement", () => ({ resolveCourseGrant }));
 vi.mock("@/modules/events/db/event.dao", () => ({ isPublished }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isSpeakerOnPublishedEvent }));
 
@@ -46,8 +46,8 @@ const keyFor = (bucket: string) => (bucket === "event_images" ? cover : bucket =
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(attendee);
-  userHasCourseAccess.mockResolvedValue(true);
+  getCurrentUser.mockResolvedValue(attendee);
+  resolveCourseGrant.mockResolvedValue("live");
   isPublished.mockResolvedValue(true);
   isSpeakerOnPublishedEvent.mockResolvedValue(true);
   createSignedUrl.mockResolvedValue({ data: { signedUrl: SIGNED_URL }, error: null });
@@ -94,7 +94,7 @@ describe("path safety", () => {
 
 describe("authentication", () => {
   it("refuses an unauthenticated caller without touching storage", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     const res = await GET(req(), params("course_assets", lesson));
 
@@ -106,7 +106,7 @@ describe("authentication", () => {
     const res = await GET(req(), params("event_images", cover));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 });
 
@@ -115,7 +115,7 @@ describe("authentication", () => {
 // on the landing page.
 describe("public event covers", () => {
   beforeEach(() => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
   });
 
   it("serves a published event's cover to a caller with no session", async () => {
@@ -133,10 +133,10 @@ describe("public event covers", () => {
     const res = await GET(req(), params("event_images", cover));
 
     // Every card on `/` and `/events` is one of these requests, and each
-    // `requireAuth` is an auth round trip plus a user lookup whose answer this
+    // `getCurrentUser` is an auth round trip plus a user lookup whose answer this
     // branch never reads. Without this assertion the ordering silently regresses.
     expect(res.status).toBe(302);
-    expect(requireAuth).not.toHaveBeenCalled();
+    expect(getCurrentUser).not.toHaveBeenCalled();
   });
 
   it("still resolves the caller for a draft cover, which is role-gated", async () => {
@@ -144,7 +144,7 @@ describe("public event covers", () => {
 
     await GET(req(), params("event_images", cover));
 
-    expect(requireAuth).toHaveBeenCalled();
+    expect(getCurrentUser).toHaveBeenCalled();
   });
 
   it("lets a shared cache hold a published cover, since it is the same for everyone", async () => {
@@ -166,7 +166,7 @@ describe("public event covers", () => {
 
   it("still shows a draft cover to staff", async () => {
     isPublished.mockResolvedValue(false);
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
 
     const res = await GET(req(), params("event_images", cover));
 
@@ -177,7 +177,7 @@ describe("public event covers", () => {
 
   it("refuses a draft cover to a signed-in attendee", async () => {
     isPublished.mockResolvedValue(false);
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await GET(req(), params("event_images", cover));
 
@@ -213,7 +213,7 @@ describe("public event covers", () => {
 // session. Ordinary account photos keep the signed-in access they had before.
 describe("public speaker avatars", () => {
   beforeEach(() => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
   });
 
   it("serves a published-event speaker's avatar to a caller with no session", async () => {
@@ -232,7 +232,7 @@ describe("public speaker avatars", () => {
     const res = await GET(req(), params("profile_images", avatar));
 
     expect(res.status).toBe(302);
-    expect(requireAuth).not.toHaveBeenCalled();
+    expect(getCurrentUser).not.toHaveBeenCalled();
   });
 
   it("lets a shared cache hold a speaker avatar, since it is the same for everyone", async () => {
@@ -254,7 +254,7 @@ describe("public speaker avatars", () => {
 
   it("still serves a non-speaker's avatar to any signed-in user", async () => {
     isSpeakerOnPublishedEvent.mockResolvedValue(false);
-    requireAuth.mockResolvedValue(attendee);
+    getCurrentUser.mockResolvedValue(attendee);
 
     const res = await GET(req(), params("profile_images", avatar));
 
@@ -281,16 +281,16 @@ describe("public speaker avatars", () => {
 
 describe("course entitlement", () => {
   it("serves course material to a user who holds the entitlement", async () => {
-    userHasCourseAccess.mockResolvedValue(true);
+    resolveCourseGrant.mockResolvedValue("live");
 
     const res = await GET(req(), params("course_videos", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).toHaveBeenCalledWith(expect.anything(), 5, 12);
+    expect(resolveCourseGrant).toHaveBeenCalledWith(expect.anything(), attendee, 12);
   });
 
   it("refuses course material to a user without the entitlement", async () => {
-    userHasCourseAccess.mockResolvedValue(false);
+    resolveCourseGrant.mockResolvedValue(null);
 
     const res = await GET(req(), params("course_videos", lesson));
 
@@ -300,33 +300,33 @@ describe("course entitlement", () => {
   });
 
   it("gives facilitators access without consulting entitlements", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    getCurrentUser.mockResolvedValue(facilitator);
 
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 
   // "Facilitator" here means facilitator *and up*. An equality test denied
   // admins and super_admins the material every facilitator already reads.
   it.each([ROLES.ADMIN, ROLES.SUPER_ADMIN])("gives %s the same access as a facilitator", async (role) => {
-    requireAuth.mockResolvedValue({ ...facilitator, role });
+    getCurrentUser.mockResolvedValue({ ...facilitator, role });
 
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 
   it("checks entitlement for a speaker like any other non-facilitator", async () => {
-    requireAuth.mockResolvedValue(speaker);
-    userHasCourseAccess.mockResolvedValue(false);
+    getCurrentUser.mockResolvedValue(speaker);
+    resolveCourseGrant.mockResolvedValue(null);
 
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(404);
-    expect(userHasCourseAccess).toHaveBeenCalledWith(expect.anything(), 7, 12);
+    expect(resolveCourseGrant).toHaveBeenCalledWith(expect.anything(), speaker, 12);
   });
 
   it.each([[["assets", "12", "x.pdf"]], [["courses", "abc", "x.pdf"]], [["courses", "-1", "x.pdf"]], [["courses"]]])(
@@ -378,7 +378,7 @@ describe("responses", () => {
     createSignedUrl.mockResolvedValue({ data: null, error: { message: "not found" } });
     const missing = await GET(req(), params("course_assets", lesson));
 
-    userHasCourseAccess.mockResolvedValue(false);
+    resolveCourseGrant.mockResolvedValue(null);
     const forbidden = await GET(req(), params("course_assets", lesson));
 
     expect(missing.status).toBe(forbidden.status);

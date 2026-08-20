@@ -29,7 +29,9 @@ export async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-export async function requireAuth(supabase?: ReturnType<typeof getServiceClient>): Promise<AuthUser | null> {
+// getCurrentUser never guards: it resolves the current authenticated user, or
+// null when anonymous. The hard guards in role-guard.ts sit on top of it.
+export async function getCurrentUser(supabase?: ReturnType<typeof getServiceClient>): Promise<AuthUser | null> {
   const authUserId = await getCurrentUserId();
   if (!authUserId) return null;
 

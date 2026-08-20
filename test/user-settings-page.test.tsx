@@ -3,15 +3,15 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
-const { redirect, requireAuth } = vi.hoisted(() => ({
+const { redirect, getCurrentUser } = vi.hoisted(() => ({
   redirect: vi.fn(() => {
     throw new Error("NEXT_REDIRECT");
   }),
-  requireAuth: vi.fn(),
+  getCurrentUser: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect }));
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/user/components/account-settings", () => ({
   AccountSettings: () => <div>Account Settings stub</div>,
 }));
@@ -26,7 +26,7 @@ afterEach(() => {
 
 describe("UserSettingsPage route", () => {
   it("renders the settings page for an authenticated user", async () => {
-    requireAuth.mockResolvedValue(user);
+    getCurrentUser.mockResolvedValue(user);
 
     render(await UserSettingsPage());
 
@@ -35,7 +35,7 @@ describe("UserSettingsPage route", () => {
   });
 
   it("redirects an anonymous visitor to sign-in before rendering anything", async () => {
-    requireAuth.mockResolvedValue(null);
+    getCurrentUser.mockResolvedValue(null);
 
     await expect(UserSettingsPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/sign-in?redirect_url=/user");

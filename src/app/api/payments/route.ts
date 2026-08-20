@@ -1,6 +1,5 @@
 import { ROLES } from "@/shared/lib/roles";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/modules/auth/lib/session";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
@@ -10,19 +9,19 @@ import { paymentInitSchema } from "@/modules/commerce/lib/payment-state";
 import { getPaymentGateway } from "@/modules/commerce/lib/payment-gateway";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { isSoldOut, SOLD_OUT_MESSAGE } from "@/shared/lib/event-capacity";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function POST(req: Request) {
   const supabase = getServiceClient();
-  const user = await requireAuth(supabase);
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const guard = await requireRole();
+  if (!guard.allowed) {
+    return guardFailure(guard);
   }
 
   const body = await req.json();
   const parsed = paymentInitSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const { event_id } = parsed.data;
@@ -34,8 +33,8 @@ export async function POST(req: Request) {
   // two fewer round trips on every real purchase.
   const [event, activeTicket, existing] = await Promise.all([
     paymentDao.findEventForPayment(supabase, event_id),
-    ticketDao.findActiveTicketByUserAndEvent(supabase, user.id, event_id),
-    paymentDao.findLatestByUserAndEvent(supabase, user.id, event_id),
+    ticketDao.findActiveTicketByUserAndEvent(supabase, guard.user.id, event_id),
+    paymentDao.findLatestByUserAndEvent(supabase, guard.user.id, event_id),
   ]);
 
   if (!event || event.status === "draft") {
@@ -62,7 +61,7 @@ export async function POST(req: Request) {
     payment_id = existing.id;
   } else {
     const payment = await paymentDao.create(supabase, {
-      user_id: user.id,
+      user_id: guard.user.id,
       event_id,
       amount: event.price,
       currency: event.currency,
@@ -79,10 +78,10 @@ export async function POST(req: Request) {
     amount: event.price,
     currency: event.currency,
     payment_id,
-    user_id: user.id,
+    user_id: guard.user.id,
     event_id,
-    user_email: user.email,
-    user_name: user.full_name,
+    user_email: guard.user.email,
+    user_name: guard.user.full_name,
     // Already loaded above; the gateway used to re-read the same row.
     event: { title: event.title, event_date: event.event_date },
   });

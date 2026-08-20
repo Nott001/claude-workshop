@@ -3,22 +3,19 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup, waitFor, act } from "@testing-library/react";
 
-const { sessionValue, fetchCourseRoomAccess, mutateHighlight } = vi.hoisted(() => ({
+const { sessionValue, fetchCourseRoomAccess, subscribeToCourseHighlight, unsubscribe } = vi.hoisted(() => ({
   sessionValue: vi.fn(),
   fetchCourseRoomAccess: vi.fn(),
-  mutateHighlight: vi.fn(),
+  subscribeToCourseHighlight: vi.fn(),
+  unsubscribe: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/components/session-context", () => ({ useSession: () => sessionValue() }));
 vi.mock("@/modules/courses/lib/fetch-course-room-access", () => ({ fetchCourseRoomAccess }));
-vi.mock("@/shared/lib/use-event-timer", () => ({
-  useEventTimer: () => ({ elapsed: "00:10", remaining: "00:50" }),
-}));
-vi.mock("swr", () => ({
-  default: () => ({ data: { highlighted_lesson_id: 7 }, mutate: mutateHighlight }),
-}));
+vi.mock("@/shared/integrations/realtime", () => ({ subscribeToCourseHighlight, unsubscribe }));
 
 import { useCourseRoomAccess } from "@/modules/courses/lib/use-course-room-access";
+import { eventZoneDate, eventZoneTime } from "@/shared/lib/date-utils";
 
 const ATTENDEE = { id: 2, role: ROLES.ATTENDEE, full_name: "Bo", email: "bo@example.com", profile_image_url: null };
 const SPEAKER = { ...ATTENDEE, id: 3, role: ROLES.SPEAKER };
@@ -34,20 +31,15 @@ const EVENT = {
 };
 
 function liveWindow() {
+  // A window around "now" on the app timezone's calendar — the same clock
+  // findLiveModule reads. Built from the runtime's own zone it is only live on
+  // a machine that happens to sit in that zone, and never on CI.
   const now = new Date();
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(now);
-  dayEnd.setHours(23, 59, 59, 999);
-  const start = new Date(Math.max(now.getTime() - 5 * 60000, dayStart.getTime()));
-  const end = new Date(Math.min(now.getTime() + 5 * 60000, dayEnd.getTime()));
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  // The hook parses date+time as local wall clock (parseLocalDateTime), so the
-  // date must be the local one — toISOString is UTC and flips a day behind UTC
-  // around midnight, putting the "live" window on the wrong local day.
-  const fmtDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  return { date: fmtDate(now), start: fmt(start), end: fmt(end) };
+  const date = eventZoneDate(now);
+  const at = (offsetMs: number) => eventZoneTime(new Date(now.getTime() + offsetMs));
+  const clampLow = (time: string) => (time > eventZoneTime(now) ? "00:00:00" : time);
+  const clampHigh = (time: string) => (time < eventZoneTime(now) ? "23:59:59" : time);
+  return { date, start: clampLow(at(-5 * 60000)), end: clampHigh(at(5 * 60000)) };
 }
 
 function roomData(overrides: Record<string, unknown> = {}) {
@@ -71,9 +63,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   signedIn();
   fetchCourseRoomAccess.mockResolvedValue(roomData());
+  subscribeToCourseHighlight.mockReturnValue({ name: "live-highlight-9" } as never);
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, json: async () => ({}) })),
+    vi.fn(async () => ({ ok: true, json: async () => ({ highlighted_lesson_id: 7 }) })),
   );
 });
 
@@ -186,15 +179,47 @@ describe("useCourseRoomAccess", () => {
     expect(assigned.current.isSpeakerAssigned).toBe(true);
   });
 
-  it("reads the highlighted lesson the room is polling for", async () => {
+  it("seeds the highlighted lesson from the load-time fetch", async () => {
     const { result } = renderHook(() => useCourseRoomAccess("9"));
 
     await waitFor(() => expect(result.current.highlightedLessonId).toBe(7));
+    expect(fetch).toHaveBeenCalledWith("/api/courses/9/live/highlight");
   });
 
-  it("shows the new highlight before the server has confirmed it", async () => {
+  it("subscribes to realtime highlight updates once access is allowed", async () => {
+    const channel = { name: "live-highlight-9" } as never;
+    subscribeToCourseHighlight.mockReturnValue(channel);
+
+    const { result, unmount } = renderHook(() => useCourseRoomAccess("9"));
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+
+    expect(subscribeToCourseHighlight).toHaveBeenCalledWith(9, expect.any(Function));
+
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledWith(channel);
+  });
+
+  it("pushes a realtime highlight event straight into state", async () => {
+    const { result } = renderHook(() => useCourseRoomAccess("9"));
+    await waitFor(() => expect(result.current.access).toBe("allowed"));
+
+    const onChange = subscribeToCourseHighlight.mock.calls[0][1] as (id: number | null) => void;
+    await act(async () => onChange(21));
+
+    expect(result.current.highlightedLessonId).toBe(21);
+  });
+
+  it("shows the new highlight optimistically while the POST is in flight", async () => {
     // The room is watched live; waiting for the round trip makes the speaker's
     // own click feel broken.
+    let resolvePost: (v: { ok: boolean; json: () => Promise<unknown> }) => void = () => {};
+    const postPromise = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => (resolvePost = resolve));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ highlighted_lesson_id: 7 }) })
+      .mockReturnValueOnce(postPromise);
+    vi.stubGlobal("fetch", fetchMock);
+
     const { result } = renderHook(() => useCourseRoomAccess("9"));
     await waitFor(() => expect(result.current.access).toBe("allowed"));
 
@@ -202,14 +227,18 @@ describe("useCourseRoomAccess", () => {
       result.current.handleSetHighlight(12);
     });
 
-    expect(mutateHighlight).toHaveBeenCalledWith({ highlighted_lesson_id: 12 }, false);
-    expect(fetch).toHaveBeenCalledWith(
+    expect(result.current.highlightedLessonId).toBe(12);
+    expect(fetchMock).toHaveBeenCalledWith(
       "/api/courses/9/live/highlight",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ lesson_id: 12 }) }),
     );
+
+    await act(async () => {
+      resolvePost({ ok: true, json: async () => ({}) });
+    });
   });
 
-  it("clears the highlight the same way", async () => {
+  it("clears the highlight optimistically and DELETE it", async () => {
     const { result } = renderHook(() => useCourseRoomAccess("9"));
     await waitFor(() => expect(result.current.access).toBe("allowed"));
 
@@ -217,7 +246,7 @@ describe("useCourseRoomAccess", () => {
       result.current.handleClearHighlight();
     });
 
-    expect(mutateHighlight).toHaveBeenCalledWith({ highlighted_lesson_id: null }, false);
+    expect(result.current.highlightedLessonId).toBeNull();
     expect(fetch).toHaveBeenCalledWith("/api/courses/9/live/highlight", { method: "DELETE" });
   });
 

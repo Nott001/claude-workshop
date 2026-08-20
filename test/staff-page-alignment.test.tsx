@@ -34,7 +34,7 @@ import { useEventList } from "@/modules/events/lib/use-event-list";
 
 import StaffAuditLogsPage from "@/app/staff/audit-logs/page";
 import StaffEmailsPage from "@/app/staff/emails/page";
-import StaffOrganizationPage from "@/app/staff/organization/page";
+import StaffUsersPage from "@/app/staff/users/page";
 import StaffSupportPage from "@/app/staff/support/page";
 import StaffProfilerPage from "@/app/staff/profiler/page";
 import { StaffCommunityListPage } from "@/modules/community/pages/staff-community-list";
@@ -81,7 +81,7 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof useCommunityLinks>);
 
   vi.mocked(useEventList).mockReturnValue({
-    filteredEvents: [],
+    events: [],
     loading: false,
     loadingMore: false,
     error: null,
@@ -106,7 +106,7 @@ afterEach(() => {
 const PAGES: [string, () => React.JSX.Element | null][] = [
   ["audit logs", StaffAuditLogsPage],
   ["emails", StaffEmailsPage],
-  ["organization", StaffOrganizationPage],
+  ["users", StaffUsersPage],
   ["support", StaffSupportPage],
   ["profiler", StaffProfilerPage],
   ["community", StaffCommunityListPage],

@@ -2,7 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  requireAuth,
+  requireRole,
   eventFindById,
   eventRemove,
   findModulesByCourse,
@@ -11,8 +11,9 @@ const {
   deleteFromStorage,
   logAuditEvent,
   findCourseIdByEventId,
+  listPhotoStoragePaths,
 } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
   eventFindById: vi.fn(),
   eventRemove: vi.fn(),
   findModulesByCourse: vi.fn(),
@@ -21,12 +22,14 @@ const {
   deleteFromStorage: vi.fn(),
   logAuditEvent: vi.fn(),
   findCourseIdByEventId: vi.fn(),
+  listPhotoStoragePaths: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/db/event.dao", () => ({ findById: eventFindById, remove: eventRemove }));
 vi.mock("@/shared/db/dao/course.dao", () => ({ findModulesByCourse, findLessonsByModule, findCourseIdByEventId }));
+vi.mock("@/modules/events/db/event-photo.dao", () => ({ listStoragePathsByEvent: listPhotoStoragePaths }));
 
 vi.mock("@/shared/integrations/storage/service", () => ({ listStorageFolder, deleteFromStorage }));
 vi.mock("@/modules/audit/lib/log-audit-event", () => ({
@@ -44,8 +47,6 @@ const user = (id: number, role: string) => ({
   profile_image_url: null,
 });
 const admin = user(9, ROLES.ADMIN);
-const facilitator = user(10, ROLES.FACILITATOR);
-const attendee = user(5, ROLES.ATTENDEE);
 
 const del = (id = "1") =>
   DELETE(new Request(`https://app.test/api/events/${id}`, { method: "DELETE" }), {
@@ -59,7 +60,7 @@ function deletions() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(admin);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: admin });
   eventFindById.mockResolvedValue({
     id: 1,
     title: "Launch Day",
@@ -70,12 +71,13 @@ beforeEach(() => {
   findModulesByCourse.mockResolvedValue([{ id: 3 }]);
   findLessonsByModule.mockResolvedValue([{ id: 5 }]);
   listStorageFolder.mockImplementation(async (bucket: string, folder: string) => [`${folder}/${bucket}-file`]);
+  listPhotoStoragePaths.mockResolvedValue([]);
   deleteFromStorage.mockResolvedValue(undefined);
 });
 
 describe("DELETE /api/events/[id] authorization", () => {
   it("refuses a caller below admin and deletes nothing", async () => {
-    requireAuth.mockResolvedValue(attendee);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await del();
 
@@ -85,7 +87,7 @@ describe("DELETE /api/events/[id] authorization", () => {
   });
 
   it("refuses a facilitator even when assigned to the event", async () => {
-    requireAuth.mockResolvedValue(facilitator);
+    requireRole.mockResolvedValue({ allowed: false, error: "Forbidden", user: null });
 
     const res = await del();
 
@@ -95,7 +97,7 @@ describe("DELETE /api/events/[id] authorization", () => {
   });
 
   it("returns 401 for an anonymous caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await del();
 
@@ -127,7 +129,43 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
   it("removes the event's own images from event_images", async () => {
     await del();
 
-    expect(deletions().event_images).toEqual(["events/1/event_images-file"]);
+    expect(deletions().event_images).toContain("events/1/event_images-file");
+  });
+
+  it("sweeps the photo folder, which a non-recursive listing of the event folder misses", async () => {
+    // `storage.list()` does not recurse: asked for `events/1` it reports the
+    // `photos` directory as one entry, which the old collector turned into a
+    // path that deletes nothing and then never looked inside.
+    listStorageFolder.mockImplementation(async (bucket: string, folder: string) =>
+      folder === "events/1" ? ["events/1/cover.png", "events/1/photos"] : [`${folder}/${bucket}-file`],
+    );
+
+    await del();
+
+    const paths = deletions().event_images as string[];
+    expect(paths).toContain("events/1/photos/event_images-file");
+    // The directory entry itself is not an object, so asking the bucket to
+    // delete it can only ever be a no-op.
+    expect(paths).not.toContain("events/1/photos");
+  });
+
+  it("deletes every photo the table records, even one the folder listing misses", async () => {
+    listPhotoStoragePaths.mockResolvedValue(["events/1/photos/recorded.jpg"]);
+
+    await del();
+
+    expect(deletions().event_images).toContain("events/1/photos/recorded.jpg");
+  });
+
+  it("asks the bucket for each path once when a photo is both recorded and listed", async () => {
+    listStorageFolder.mockImplementation(async (_bucket: string, folder: string) =>
+      folder === "events/1/photos" ? ["events/1/photos/a.jpg"] : [],
+    );
+    listPhotoStoragePaths.mockResolvedValue(["events/1/photos/a.jpg"]);
+
+    await del();
+
+    expect(deletions().event_images).toEqual(["events/1/photos/a.jpg"]);
   });
 
   it("never asks a bucket to delete another bucket's paths", async () => {
@@ -148,12 +186,17 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
     expect(deletions().course_videos).toEqual([]);
   });
 
-  it("skips event images when the event has no cover", async () => {
+  it("still sweeps an event that holds photos but never had a cover", async () => {
+    // The collector used to gate the whole event_images sweep on
+    // `cover_image_url`, which read as "does this event have images" — untrue
+    // the moment an event could be photographed without ever being given a
+    // cover, and the photos were then left in the bucket forever.
     eventFindById.mockResolvedValue({ id: 1, title: "Launch Day", cover_image_url: null });
+    listPhotoStoragePaths.mockResolvedValue(["events/1/photos/a.jpg"]);
 
     await del();
 
-    expect(deletions().event_images).toEqual([]);
+    expect(deletions().event_images).toContain("events/1/photos/a.jpg");
   });
 
   it("deletes the row before touching storage, so a failed delete leaves files alone", async () => {
@@ -171,7 +214,7 @@ describe("DELETE /api/events/[id] storage cleanup", () => {
     const res = await del();
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ success: true });
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 
   it("records the deletion in the audit log", async () => {

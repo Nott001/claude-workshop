@@ -1,5 +1,5 @@
 import { moduleSessionStatus, type LiveModuleSource, type SessionStatus } from "@/shared/lib/live-module";
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 export interface ModuleEntry {
   kind: "module";
@@ -24,7 +24,7 @@ function toMinutes(time: string): number {
 }
 
 function bookendStatus(eventDate: string, time: string, now: Date): SessionStatus | null {
-  const point = parseLocalDateTime(eventDate, time);
+  const point = parseEventDateTime(eventDate, time);
   if (!point) return null;
   return now >= point ? "completed" : "upcoming";
 }
@@ -35,7 +35,7 @@ function bookendStatus(eventDate: string, time: string, now: Date): SessionStatu
  */
 function positionInWindow(eventDate: string, time: string, startMs: number, endMs: number): number {
   if (endMs <= startMs) return 0;
-  const point = parseLocalDateTime(eventDate, time);
+  const point = parseEventDateTime(eventDate, time);
   if (!point) return 0;
   return Math.max(0, Math.min(1, (point.getTime() - startMs) / (endMs - startMs)));
 }
@@ -54,8 +54,8 @@ export function buildTimeline(
 ): TimelineItem[] {
   if (!eventDate) return [];
 
-  const parsedStart = eventStartTime ? parseLocalDateTime(eventDate, eventStartTime) : null;
-  const parsedEnd = eventEndTime ? parseLocalDateTime(eventDate, eventEndTime) : null;
+  const parsedStart = eventStartTime ? parseEventDateTime(eventDate, eventStartTime) : null;
+  const parsedEnd = eventEndTime ? parseEventDateTime(eventDate, eventEndTime) : null;
 
   const moduleEntries: ModuleEntry[] = modules
     .map((mod) => ({
@@ -95,8 +95,8 @@ export function buildTimeline(
   } else {
     const firstModTime = moduleEntries[0].module.start_time!;
     const lastModTime = moduleEntries[moduleEntries.length - 1].module.end_time!;
-    startMs = parseLocalDateTime(eventDate, firstModTime)!.getTime();
-    endMs = parseLocalDateTime(eventDate, lastModTime)!.getTime();
+    startMs = parseEventDateTime(eventDate, firstModTime)!.getTime();
+    endMs = parseEventDateTime(eventDate, lastModTime)!.getTime();
   }
 
   const startBookend =

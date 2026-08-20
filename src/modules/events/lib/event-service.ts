@@ -5,5 +5,6 @@ export * from "@/modules/events/lib/event-errors";
 export * from "@/modules/events/lib/event-authz";
 export * from "@/modules/events/lib/event-crud";
 export * from "@/modules/events/lib/event-delete";
+export * from "@/modules/events/lib/event-photos";
 export * from "@/modules/events/lib/event-registration";
 export * from "@/modules/events/lib/event-attendees";

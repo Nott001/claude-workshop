@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, loadEventOr403, setMeetingLink } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, loadEventOr403, setMeetingLink } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   loadEventOr403: vi.fn(),
   setMeetingLink: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/modules/events/lib/event-service", async () => {
   const errors = await vi.importActual<typeof import("@/modules/events/lib/event-errors")>("@/modules/events/lib/event-errors");
@@ -25,14 +25,18 @@ const patch = (body: unknown, id = "1") =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue({ id: 7, role: "facilitator", full_name: "Fay", email: "fay@example.com" });
+  requireRole.mockResolvedValue({
+    allowed: true,
+    error: null,
+    user: { id: 7, role: "facilitator", full_name: "Fay", email: "fay@example.com" },
+  });
   loadEventOr403.mockResolvedValue({ id: 1 });
   setMeetingLink.mockResolvedValue({ id: 1, meeting_url: LINK });
 });
 
 describe("PATCH /api/events/[id]/meeting-link", () => {
   it("refuses an unauthenticated caller", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     expect((await patch({ meeting_url: LINK })).status).toBe(401);
     expect(setMeetingLink).not.toHaveBeenCalled();
@@ -98,6 +102,6 @@ describe("PATCH /api/events/[id]/meeting-link", () => {
     const res = await patch({ meeting_url: LINK });
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: { message: "Only an online event can have a meeting link" } });
+    expect(await res.json()).toEqual({ error: "Only an online event can have a meeting link" });
   });
 });

@@ -9,7 +9,7 @@ import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { buttonStyles } from "@/shared/components/button";
 import { TableToolbar } from "@/shared/components/table-toolbar";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 
 const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
@@ -20,11 +20,11 @@ const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
 
 export function StaffEventListPage() {
   const { allowed, pending } = useRoleGuard(ROLES.ADMIN);
-  const { events, filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
+  const { events, loading, refreshing, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
     useEventList();
 
   if (pending) {
-    return <StaffPageState>Loading events...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   // Only blank the page when there is nothing to fall back on; a failed search
@@ -67,7 +67,7 @@ export function StaffEventListPage() {
         <p className="mt-2 text-sm text-error">Failed to refresh events — showing last loaded results.</p>
       )}
 
-      <EventTable events={filteredEvents} showEdit loading={loading} />
+      <EventTable events={events} showEdit loading={loading || refreshing} />
 
       {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
     </StaffPage>

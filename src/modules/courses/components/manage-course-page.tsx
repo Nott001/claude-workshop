@@ -1,6 +1,7 @@
 "use client";
 
 import { BackLink } from "@/shared/components/back-link";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { CourseBuilderSection, type CourseBuilder } from "./course-builder-section";
 import type { CourseSpeaker } from "../lib/types";
 
@@ -11,6 +12,11 @@ import type { CourseSpeaker } from "../lib/types";
  * everything else lived twice — which is how one of them ended up wrapping the
  * builder in a second card the other did not have. Each route now owns its auth
  * and its data; the screen itself has one definition.
+ *
+ * It sits in `StaffPage` like every other staff screen. It used to measure its
+ * own column — `px-16 pt-24` and no maximum width at all — so on a wide display
+ * the curriculum stretched the full viewport while the event page it is reached
+ * from stopped at 1360px, and stepping between them moved every control.
  */
 export function ManageCoursePage({
   loading = false,
@@ -29,29 +35,26 @@ export function ManageCoursePage({
   eventEndTime?: string | null;
 }) {
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-bg">
-        <div className="text-sm text-muted-fg">Loading...</div>
-      </div>
-    );
+    // A course builder, not a table: it settles some 240px shorter than the
+    // eleven rows the listing pages need, and over-reserving pulls the footer
+    // up when the real page lands just as under-reserving pushes it down.
+    return <StaffPageSkeleton rows={6} />;
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
-      <div className="flex flex-1 flex-col px-16 pt-24 pb-12">
-        <BackLink href={backHref} className="mb-8">
-          Back to event
-        </BackLink>
+    <StaffPage>
+      <BackLink href={backHref} className="mb-6">
+        Back to event
+      </BackLink>
 
-        <h1 className="mb-8 text-[32px] font-bold tracking-[-0.02em] text-fg">Manage Course</h1>
+      <StaffPageHeader title="Manage Course" description="Build the curriculum this event's room runs on." />
 
-        <CourseBuilderSection
-          builder={builder}
-          eventSpeakers={speakers}
-          eventStartTime={eventStartTime}
-          eventEndTime={eventEndTime}
-        />
-      </div>
-    </div>
+      <CourseBuilderSection
+        builder={builder}
+        eventSpeakers={speakers}
+        eventStartTime={eventStartTime}
+        eventEndTime={eventEndTime}
+      />
+    </StaffPage>
   );
 }

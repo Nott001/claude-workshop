@@ -1,12 +1,12 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, listSupportMessages } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, listSupportMessages } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   listSupportMessages: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/client", () => ({ getServiceClient: () => ({}) }));
 vi.mock("@/shared/db/dao/chat.dao", () => ({ listSupportMessages }));
 
@@ -21,7 +21,7 @@ function get(url: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(ATTENDEE);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: ATTENDEE });
   listSupportMessages.mockResolvedValue({
     messages: [],
     nextCursor: null,
@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe("GET /api/support", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     expect((await get("/api/support")).status).toBe(401);
   });
@@ -43,7 +43,7 @@ describe("GET /api/support", () => {
   });
 
   it("keeps speakers and facilitators out of the general queue", async () => {
-    requireAuth.mockResolvedValue(SPEAKER);
+    requireRole.mockResolvedValue({ allowed: true, error: null, user: SPEAKER });
 
     expect((await get("/api/support")).status).toBe(403);
   });

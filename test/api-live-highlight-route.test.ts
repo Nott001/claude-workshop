@@ -1,8 +1,8 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { requireAuth, courseDao, canManageEvent, liveSessionService } = vi.hoisted(() => ({
-  requireAuth: vi.fn(),
+const { requireRole, courseDao, canManageEvent, liveSessionService } = vi.hoisted(() => ({
+  requireRole: vi.fn(),
   courseDao: { findCourseEvent: vi.fn() },
   canManageEvent: vi.fn(),
   liveSessionService: {
@@ -12,7 +12,7 @@ const { requireAuth, courseDao, canManageEvent, liveSessionService } = vi.hoiste
   },
 }));
 
-vi.mock("@/modules/auth/lib/session", () => ({ requireAuth }));
+vi.mock("@/modules/auth/lib/role-guard", () => ({ requireRole }));
 vi.mock("@/shared/db/dao/course.dao", () => courseDao);
 vi.mock("@/modules/courses/lib/course-access", () => ({ canManageEvent }));
 vi.mock("@/modules/courses/lib/live-session-service", () => liveSessionService);
@@ -31,7 +31,7 @@ function post(payload: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAuth.mockResolvedValue(SPEAKER);
+  requireRole.mockResolvedValue({ allowed: true, error: null, user: SPEAKER });
   courseDao.findCourseEvent.mockResolvedValue({ id: 7, event_id: 1 });
   canManageEvent.mockResolvedValue(true);
   liveSessionService.getCourseHighlight.mockResolvedValue(EMPTY_STATE);
@@ -73,7 +73,7 @@ describe("GET /api/courses/[courseId]/live/highlight", () => {
 
 describe("POST /api/courses/[courseId]/live/highlight", () => {
   it("refuses a caller with no session", async () => {
-    requireAuth.mockResolvedValue(null);
+    requireRole.mockResolvedValue({ allowed: false, error: "Unauthenticated", user: null });
 
     const res = await POST(post({ lesson_id: 4 }), params);
 
