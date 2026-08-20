@@ -1,4 +1,4 @@
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 /**
  * Overall event progress as a fraction 0–1: 0 before the event opens, 1 once
@@ -13,8 +13,8 @@ export function eventProgress(
   now: Date,
 ): number {
   if (!startTime || !endTime) return 0;
-  const start = parseLocalDateTime(eventDate, startTime);
-  const end = parseLocalDateTime(eventDate, endTime);
+  const start = parseEventDateTime(eventDate, startTime);
+  const end = parseEventDateTime(eventDate, endTime);
   if (!start || !end || end.getTime() <= start.getTime()) return 0;
   const t = now.getTime();
   if (t < start.getTime()) return 0;

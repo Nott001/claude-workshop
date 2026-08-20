@@ -101,9 +101,19 @@ describe("postUpload", () => {
   it("returns the stored url on success", async () => {
     vi.stubGlobal("fetch", ok());
 
-    await expect(postUpload("event_images", "/api/upload/event-image", photo())).resolves.toEqual({
+    await expect(postUpload("event_images", "/api/upload/event-image", photo())).resolves.toMatchObject({
       ok: true,
       url: "/api/storage/x",
     });
+  });
+
+  it("hands back the whole response body, not just the url", async () => {
+    vi.stubGlobal("fetch", ok());
+
+    const result = await postUpload("event_images", "/api/upload/event-image", photo());
+
+    // An endpoint that creates a row answers with it. A caller that then has to
+    // re-read the collection pays a round trip for what it already received.
+    expect(result).toMatchObject({ ok: true, data: { url: "/api/storage/x" } });
   });
 });

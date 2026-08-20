@@ -8,6 +8,7 @@ import * as chatDao from "@/shared/db/dao/chat.dao";
 import { sendMessageSchema, supportTypeEnum } from "@/modules/chat/lib/schemas";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { openOrReuseSession, rateLimitCheck, sendSupportMessage } from "@/modules/chat/lib/support-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = sendMessageSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

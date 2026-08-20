@@ -22,13 +22,25 @@ export default defineConfig({
       // Ratchet, not a goal. Set at the measured baseline so coverage cannot
       // regress; raise these as the API-route and DAO gaps close.
       //
-      // These read a hair under the previous baseline, which is a denominator
-      // effect rather than a regression: the settings refactor deleted fully
-      // covered code (its own page component, and the section nav that
-      // replaced it briefly), and removing covered code from a codebase at 81%
-      // raises the untouched remainder's share. Uncovered statements did not
-      // move across the whole change — 1485 before and after. Only re-baseline
-      // for a reason like that; never to make a build pass.
+      // Raised with the shared `badRequest` helper: the 23 routes that each
+      // rendered a Zod error inline now share one covered branch. Lower these
+      // only for a denominator effect — covered code being deleted raises the
+      // untouched remainder's share — and never to make a build pass.
+      //
+      // Statements and lines are down 0.01 for exactly that reason: the four
+      // `return { success: true }` lines the delete and publish services carried
+      // were covered, and dropping them took four from both halves of the ratio.
+      // No test stopped covering anything.
+      //
+      // Raised again with the after-event module release: its gate, settings
+      // store, release rule and both new surfaces arrived covered, so the
+      // ratchet moves up to what they measure rather than sitting where the
+      // feature found it.
+      //
+      // And again with event photos. The archive arrived with its DAO, its
+      // service authz, both routes, the gallery and the staff manager under
+      // test, and the two storage-cleanup bugs it exposed are now held by
+      // tests of their own — so every part moves up rather than diluting.
       thresholds: {
         statements: 83.84,
         branches: 78.65,

@@ -12,6 +12,7 @@ import type { ModuleWithLessons } from "./types";
 import type { LessonMove } from "./reorder";
 import { apiErrorMessage } from "@/shared/lib/api-error-message";
 
+/** A refusal the author can act on carries its own message; a 500 will not. */
 async function refusalMessage(res: Response, fallback: string): Promise<string> {
   return apiErrorMessage(await res.json().catch(() => null), fallback);
 }

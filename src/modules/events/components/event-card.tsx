@@ -1,8 +1,9 @@
-import Link from "next/link";
-
 import { formatEventDate, formatTime } from "@/shared/lib/date-utils";
 import { eventModeIcon } from "@/shared/lib/event-format";
 import { EventStatusBadge } from "@/modules/events/components/event-status-badge";
+import { CardCta } from "@/shared/components/card-cta";
+import { CardLink } from "@/shared/components/card-link";
+import type { CSSProperties } from "react";
 import type { EventMode } from "@/shared/types";
 
 const ACCENT_CLASSES = [
@@ -31,6 +32,10 @@ interface EventCardProps {
   showEdit?: boolean;
   onDelete?: (eventId: number) => void;
   detailHref?: string;
+  /** Merged onto the card shell, for the grid to hand a card its entry animation. */
+  className?: string;
+  /** Carries that animation's per-card delay, which has to be a computed value. */
+  style?: CSSProperties;
 }
 
 export function EventCard({
@@ -47,26 +52,21 @@ export function EventCard({
   showEdit,
   onDelete,
   detailHref,
+  className,
+  style,
 }: EventCardProps) {
   return (
-    <Link
-      href={detailHref ?? `/events/${eventId}`}
-      // One card is one prefetch, and a grid scrolls several into view at once
-      // — each a full render of a detail page nobody has opened. This was the
-      // largest single source of speculative load in the app.
-      prefetch={false}
-      className="group block overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_20px_rgba(0,0,0,.05)] transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-[0_8px_30px_rgba(0,0,0,.12)]"
-    >
+    <CardLink href={detailHref ?? `/events/${eventId}`} className={className} style={style}>
       <article>
         <div className="relative h-48 overflow-hidden p-6 text-white">
           <div
-            className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)} transition-transform duration-300 ease-in-out group-hover:scale-105`}
+            className={`absolute inset-0 bg-gradient-to-br ${accentClass(accentIndex)} transition-transform duration-300 ease-in-out motion-safe:group-hover:scale-105`}
           />
           {coverImageUrl && (
             <img
               src={coverImageUrl}
               alt={title}
-              className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+              className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-in-out motion-safe:group-hover:scale-105"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -96,9 +96,7 @@ export function EventCard({
             </p>
           </div>
           <div className="mt-6 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
-              View details <span className="material-symbols-rounded text-base">chevron_right</span>
-            </span>
+            <CardCta>View details</CardCta>
             {showEdit && onDelete && (
               <button
                 onClick={(e) => {
@@ -114,6 +112,6 @@ export function EventCard({
           </div>
         </div>
       </article>
-    </Link>
+    </CardLink>
   );
 }

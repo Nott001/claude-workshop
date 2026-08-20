@@ -102,7 +102,7 @@ describe("POST /api/events/[id]/speakers", () => {
     const res = await post();
 
     expect(res.status).toBe(201);
-    await expect(res.json()).resolves.toEqual({ success: true });
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(speakerDao.assignToEvent).toHaveBeenCalledWith({}, 9, 7);
     expect(logAuditEvent).toHaveBeenCalledWith({}, 9, "speaker.assigned", "speaker_profile", 7, { event_id: 9 });
   });

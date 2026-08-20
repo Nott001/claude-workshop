@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { featuredEvent } from "@/modules/events/lib/featured-event";
 import type { LandingEvent } from "@/shared/types";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const landingEvent = (eventId: number, eventDate: string, startTime: string, endTime: string): LandingEvent => ({
   event_id: eventId,
@@ -29,31 +30,31 @@ describe("featuredEvent", () => {
   });
 
   it("returns null for an empty list", () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     expect(featuredEvent([])).toBeNull();
   });
 
   it("returns the first (closest) upcoming when nothing is live", () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     expect(featuredEvent([upcoming, nextDayUpcoming])).toBe(upcoming);
   });
 
   it("returns a live event even when it is not events[0]", () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     expect(featuredEvent([upcoming, live])).toBe(live);
   });
 
   it("never picks a finished event ahead of an upcoming one", () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     expect(featuredEvent([finished, upcoming])).toBe(upcoming);
   });
 
   it("returns null when every row has ended", () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     expect(featuredEvent([finished])).toBeNull();
   });

@@ -19,6 +19,12 @@ import type { NextRequest } from "next/server";
 // the detail page renders them to guests — but only when the storage route can
 // tie the owner to a published event; ordinary account photos stay behind the
 // session.
+//
+// `/api/events/memories` and `/api/events/{id}/photos` are the archive of a
+// finished event, rendered on /community and on the public detail page. Both
+// handlers refuse an unpublished event to a caller with no staff role, so the
+// gate is the event's own visibility rather than the session — which is what
+// lets a guest see the photos of an event whose page they can already read.
 const isPublicApiGet = (req: NextRequest) => {
   if (req.method !== "GET") return false;
   const { pathname } = req.nextUrl;
@@ -27,6 +33,8 @@ const isPublicApiGet = (req: NextRequest) => {
     pathname === "/api/community" ||
     /^\/api\/events\/\d+$/.test(pathname) ||
     /^\/api\/events\/\d+\/schedule$/.test(pathname) ||
+    pathname === "/api/events/memories" ||
+    /^\/api\/events\/\d+\/photos$/.test(pathname) ||
     /^\/api\/surveys\/[^/]+$/.test(pathname) ||
     pathname.startsWith("/api/storage/event_images/") ||
     pathname.startsWith("/api/storage/profile_images/")
@@ -99,7 +107,7 @@ export async function middleware(req: NextRequest) {
 
   if (isProtectedRoute(req) && !user) {
     const denied = req.nextUrl.pathname.startsWith("/api/")
-      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      ? NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
       : redirectToSignIn(req);
 
     // Refusing the request must not discard what Supabase just wrote — an

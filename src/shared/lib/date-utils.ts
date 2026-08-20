@@ -1,8 +1,14 @@
-// force local-timezone parsing — bare "2024-01-15" is parsed as UTC midnight,
-// which shifts to the previous day in negative UTC offset timezones
+import { appTimeZone, zonedFields, zonedInstant } from "@/shared/lib/app-timezone";
+
+/**
+ * An event date rendered in the zone the event is run in, so the server and
+ * the browser print the same day. A bare "2024-01-15" parses as UTC midnight,
+ * which is the previous day at any negative offset.
+ */
 export function formatEventDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const d = parseEventDateTime(dateStr, "00:00");
+  if (!d) return dateStr;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: appTimeZone() });
 }
 
 export function formatTime(timeStr: string): string {
@@ -13,17 +19,22 @@ export function formatTime(timeStr: string): string {
 }
 
 /**
- * A local-time Date for an event window edge. Times arrive unpadded ("9:00"),
- * which the ISO parse rejects, so hours and minutes are zero-padded before
- * parsing; a falsy or unparseable input yields null so callers can branch
- * instead of comparing against Invalid Date.
+ * The instant an event window edge falls on, read in the app timezone rather
+ * than whichever zone the runtime happens to sit in — see `app-timezone.ts`
+ * for why that distinction decides gates. Times arrive unpadded ("9:00"), and
+ * a falsy or unparseable input yields null so callers can branch instead of
+ * comparing against Invalid Date.
  */
-export function parseLocalDateTime(dateStr: string, timeStr: string): Date | null {
+export function parseEventDateTime(dateStr: string, timeStr: string): Date | null {
   if (!dateStr || !timeStr) return null;
-  const [hours, minutes = "00", seconds = "00"] = timeStr.split(":");
-  const padded = `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`;
-  const d = new Date(`${dateStr}T${padded}`);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hour, minute = 0, second = 0] = timeStr.split(":").map(Number);
+  const fields = { year, month, day, hour, minute, second };
+  if (Object.values(fields).some((value) => !Number.isFinite(value))) return null;
+  // Date.UTC rolls "2026-13-01" forward into the next year rather than
+  // rejecting it, so the calendar is checked before the offset maths runs.
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return null;
+  return zonedInstant(fields);
 }
 
 /**
@@ -32,32 +43,28 @@ export function parseLocalDateTime(dateStr: string, timeStr: string): Date | nul
  * letting a ticket holder into a room that cannot be timed.
  */
 export function isEventStarted(eventDate: string | null | undefined, startTime: string | null | undefined): boolean {
-  const start = parseLocalDateTime(eventDate ?? "", startTime ?? "");
+  const start = parseEventDateTime(eventDate ?? "", startTime ?? "");
   return !!start && start <= new Date();
 }
 
 export function isEventLive(eventDate: string, startTime: string, endTime: string): boolean {
+  const start = parseEventDateTime(eventDate, startTime);
+  const end = parseEventDateTime(eventDate, endTime);
+  if (!start || !end) return false;
   const now = new Date();
-  const [y, m, d] = eventDate.split("-").map(Number);
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  const start = new Date(y, m - 1, d, sh, sm);
-  const end = new Date(y, m - 1, d, eh, em);
   return now >= start && now <= end;
 }
 
-// Follows the local-time convention of isEventLive: an event has ended the
-// moment its end time is in the past, which is what marks it completed.
-// Missing or unparseable edge values mean "not finished", so callers like the
-// registration guard and survey sender refuse to act on incomplete rows
-// instead of crashing on them.
+/**
+ * Whether the event's closing edge has passed — what marks it completed, and
+ * what releases the courses an event unlocks afterwards. Missing or
+ * unparseable edge values mean "not finished", so callers like the
+ * registration guard and the survey sender refuse to act on incomplete rows
+ * instead of crashing on them.
+ */
 export function isEventFinished(eventDate: string, endTime: string): boolean {
-  const now = new Date();
-  const [y, m, d] = (eventDate ?? "").split("-").map(Number);
-  const [eh, em] = (endTime ?? "").split(":").map(Number);
-  const end = new Date(y, m - 1, d, eh, em);
-  if (Number.isNaN(end.getTime())) return false;
-  return now > end;
+  const end = parseEventDateTime(eventDate ?? "", endTime ?? "");
+  return !!end && new Date() > end;
 }
 
 export function eventStatusLabel(status: string): string {
@@ -74,22 +81,21 @@ export function eventStatusLabel(status: string): string {
 }
 
 /**
- * Local "today" in the same YYYY-MM-DD form EVENT.event_date is stored in.
- * Unlike `toISOString().split("T")[0]` this stays on the local calendar, so a
- * date bound derived here agrees with isEventFinished, which also reads local
- * time.
+ * "Today" in the app timezone, in the same YYYY-MM-DD form EVENT.event_date is
+ * stored in. Unlike `toISOString().split("T")[0]` this stays on the calendar
+ * the events are scheduled against, so a date bound derived here agrees with
+ * isEventFinished.
  */
-export function localDateString(now: Date = new Date()): string {
-  const [y, m, d] = [now.getFullYear(), now.getMonth() + 1, now.getDate()];
-  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+export function eventZoneDate(now: Date = new Date()): string {
+  const { year, month, day } = zonedFields(now);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 /**
- * Local "now" in the HH:MM:SS form EVENT.end_time is stored in, for comparing
- * against the end edge of today's events. Local again, matching
- * isEventFinished rather than a UTC clock.
+ * "Now" in the app timezone, in the HH:MM:SS form EVENT.end_time is stored in,
+ * for comparing against the end edge of today's events.
  */
-export function localTimeString(now: Date = new Date()): string {
-  const [h, m, s] = [now.getHours(), now.getMinutes(), now.getSeconds()];
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+export function eventZoneTime(now: Date = new Date()): string {
+  const { hour, minute, second } = zonedFields(now);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
 }

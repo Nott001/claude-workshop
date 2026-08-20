@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/modules/auth/lib/role-guard";
 import { forbidden, guardFailure } from "@/modules/auth/lib/guard-response";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
-import { isEventStarted } from "@/shared/lib/date-utils";
+import { isEventFinished, isEventStarted } from "@/shared/lib/date-utils";
 import { getServiceClient } from "@/shared/db/client";
+import { readAfterEventModules, resolveCourseGrant } from "@/modules/courses/lib/course-entitlement";
+import { releaseFor, visibleModules } from "@/modules/courses/lib/after-event-modules";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import * as ticketDao from "@/shared/db/dao/ticket.dao";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
@@ -27,9 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   // The room admits ticket holders, assigned speakers and staff; the feed must
   // honour the same gate. A role check alone kept the room empty for the
   // attendees it let in.
-  const entitled =
-    hasMinRole(guard.user.role, ROLES.FACILITATOR) || (await courseDao.userHasCourseAccess(supabase, guard.user.id, course.id));
-  if (!entitled) {
+  if (!(await resolveCourseGrant(supabase, guard.user, course.id))) {
     return forbidden();
   }
 
@@ -61,6 +61,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
     if (!isEventStarted(event.event_date, event.start_time) && !isStaff && !isSpeakerAssigned) {
       return NextResponse.json({ course: null, event, hasTicket, isSpeakerAssigned, speakerProfileId });
     }
+
+    // Modules held back for after the event are stripped here rather than
+    // hidden in the page: material withheld by a component is still on the
+    // wire, and the room is the surface people already have open when the
+    // session ends.
+    const map = await readAfterEventModules(supabase);
+    course.MODULE = visibleModules(course.MODULE, releaseFor(map, event.id), {
+      started: true,
+      finished: isEventFinished(event.event_date, event.end_time),
+      isStaff: isStaff || isSpeakerAssigned,
+    });
   }
 
   return NextResponse.json({ course, event, hasTicket, isSpeakerAssigned, speakerProfileId });

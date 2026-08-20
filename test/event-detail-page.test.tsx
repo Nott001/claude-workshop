@@ -195,10 +195,17 @@ describe("Event detail page assembly", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/staff/events/7"));
   });
 
-  it("renders the loading state while the event loads", () => {
-    renderDetail(ROLES.ATTENDEE, { loading: true, event: null });
+  // A centred line of text let the footer sit mid-viewport and take a 0.425
+  // layout shift when the real page pushed it back down — four times the whole
+  // page's CLS budget. The loading state has to occupy the page's shape.
+  it("reserves the page's shape while the event loads", () => {
+    const { container } = renderDetail(ROLES.ATTENDEE, { loading: true, event: null });
 
-    expect(screen.getByText("Loading event...")).toBeTruthy();
+    expect(screen.getByLabelText("Loading event")).toBeTruthy();
+    expect(screen.queryByText("Loading event...")).toBeNull();
+    // The two-column split and the cover are what the height is made of.
+    expect(container.querySelector('[class*="65fr_35fr"]')).not.toBeNull();
+    expect(container.querySelector('[class*="min-h-[320px]"]')).not.toBeNull();
   });
 
   it("renders the error state when the event fails to load", () => {

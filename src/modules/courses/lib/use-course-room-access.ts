@@ -4,7 +4,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { useEffect, useState } from "react";
 import { useSession } from "@/modules/auth/components/session-context";
 import { findLiveModule } from "@/shared/lib/live-module";
-import { isEventStarted, parseLocalDateTime } from "@/shared/lib/date-utils";
+import { isEventStarted, parseEventDateTime } from "@/shared/lib/date-utils";
 import { hasMinRole } from "@/shared/lib/role-hierarchy";
 import { canAccessCourseRoom } from "@/modules/courses/lib/room-access-policy";
 import { fetchCourseRoomAccess, type CourseRoomCourse } from "@/modules/courses/lib/fetch-course-room-access";
@@ -38,7 +38,7 @@ export function useCourseRoomAccess(courseId: string) {
 
   const isStaff = hasMinRole(userRole, ROLES.SPEAKER);
   const eventStarted = isEventStarted(eventDate, startTime);
-  const eventEnd = eventDate && endTime ? parseLocalDateTime(eventDate, endTime) : null;
+  const eventEnd = eventDate && endTime ? parseEventDateTime(eventDate, endTime) : null;
   const eventEnded = !!eventEnd && eventEnd <= now;
 
   const liveModule = findLiveModule(course?.MODULE ?? [], eventDate, now);

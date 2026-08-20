@@ -1,25 +1,23 @@
 import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { createSignedUrl, from, getCurrentUser, userHasCourseAccess, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(
-  () => {
-    const createSignedUrl = vi.fn();
-    return {
-      createSignedUrl,
-      from: vi.fn(() => ({ createSignedUrl })),
-      getCurrentUser: vi.fn(),
-      userHasCourseAccess: vi.fn(),
-      isPublished: vi.fn(),
-      isSpeakerOnPublishedEvent: vi.fn(),
-    };
-  },
-);
+const { createSignedUrl, from, getCurrentUser, resolveCourseGrant, isPublished, isSpeakerOnPublishedEvent } = vi.hoisted(() => {
+  const createSignedUrl = vi.fn();
+  return {
+    createSignedUrl,
+    from: vi.fn(() => ({ createSignedUrl })),
+    getCurrentUser: vi.fn(),
+    resolveCourseGrant: vi.fn(),
+    isPublished: vi.fn(),
+    isSpeakerOnPublishedEvent: vi.fn(),
+  };
+});
 
 vi.mock("@/shared/db/client", () => ({
   getServiceClient: () => ({ storage: { from } }),
 }));
 vi.mock("@/modules/auth/lib/session", () => ({ getCurrentUser }));
-vi.mock("@/shared/db/dao/course.dao", () => ({ userHasCourseAccess }));
+vi.mock("@/modules/courses/lib/course-entitlement", () => ({ resolveCourseGrant }));
 vi.mock("@/modules/events/db/event.dao", () => ({ isPublished }));
 vi.mock("@/shared/db/dao/speaker.dao", () => ({ isSpeakerOnPublishedEvent }));
 
@@ -49,7 +47,7 @@ const keyFor = (bucket: string) => (bucket === "event_images" ? cover : bucket =
 beforeEach(() => {
   vi.clearAllMocks();
   getCurrentUser.mockResolvedValue(attendee);
-  userHasCourseAccess.mockResolvedValue(true);
+  resolveCourseGrant.mockResolvedValue("live");
   isPublished.mockResolvedValue(true);
   isSpeakerOnPublishedEvent.mockResolvedValue(true);
   createSignedUrl.mockResolvedValue({ data: { signedUrl: SIGNED_URL }, error: null });
@@ -108,7 +106,7 @@ describe("authentication", () => {
     const res = await GET(req(), params("event_images", cover));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 });
 
@@ -283,16 +281,16 @@ describe("public speaker avatars", () => {
 
 describe("course entitlement", () => {
   it("serves course material to a user who holds the entitlement", async () => {
-    userHasCourseAccess.mockResolvedValue(true);
+    resolveCourseGrant.mockResolvedValue("live");
 
     const res = await GET(req(), params("course_videos", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).toHaveBeenCalledWith(expect.anything(), 5, 12);
+    expect(resolveCourseGrant).toHaveBeenCalledWith(expect.anything(), attendee, 12);
   });
 
   it("refuses course material to a user without the entitlement", async () => {
-    userHasCourseAccess.mockResolvedValue(false);
+    resolveCourseGrant.mockResolvedValue(null);
 
     const res = await GET(req(), params("course_videos", lesson));
 
@@ -307,7 +305,7 @@ describe("course entitlement", () => {
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 
   // "Facilitator" here means facilitator *and up*. An equality test denied
@@ -318,17 +316,17 @@ describe("course entitlement", () => {
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(302);
-    expect(userHasCourseAccess).not.toHaveBeenCalled();
+    expect(resolveCourseGrant).not.toHaveBeenCalled();
   });
 
   it("checks entitlement for a speaker like any other non-facilitator", async () => {
     getCurrentUser.mockResolvedValue(speaker);
-    userHasCourseAccess.mockResolvedValue(false);
+    resolveCourseGrant.mockResolvedValue(null);
 
     const res = await GET(req(), params("course_assets", lesson));
 
     expect(res.status).toBe(404);
-    expect(userHasCourseAccess).toHaveBeenCalledWith(expect.anything(), 7, 12);
+    expect(resolveCourseGrant).toHaveBeenCalledWith(expect.anything(), speaker, 12);
   });
 
   it.each([[["assets", "12", "x.pdf"]], [["courses", "abc", "x.pdf"]], [["courses", "-1", "x.pdf"]], [["courses"]]])(
@@ -380,7 +378,7 @@ describe("responses", () => {
     createSignedUrl.mockResolvedValue({ data: null, error: { message: "not found" } });
     const missing = await GET(req(), params("course_assets", lesson));
 
-    userHasCourseAccess.mockResolvedValue(false);
+    resolveCourseGrant.mockResolvedValue(null);
     const forbidden = await GET(req(), params("course_assets", lesson));
 
     expect(missing.status).toBe(forbidden.status);

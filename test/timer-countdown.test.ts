@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { computeRoomCountdown } from "@/shared/lib/timer-countdown";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
-const NOW = new Date("2026-09-01T09:30:00");
+const NOW = parseEventDateTime("2026-09-01", "09:30:00")!;
 
 describe("computeRoomCountdown", () => {
   it("tracks elapsed and remaining while the session is underway", () => {
@@ -36,7 +37,7 @@ describe("computeRoomCountdown", () => {
   });
 
   it("clamps elapsed to the full session and clears remaining once ended", () => {
-    const result = computeRoomCountdown("2026-09-01", "09:00:00", "10:00:00", new Date("2026-09-01T11:00:00"));
+    const result = computeRoomCountdown("2026-09-01", "09:00:00", "10:00:00", parseEventDateTime("2026-09-01", "11:00:00")!);
 
     expect(result).toEqual({
       startsIn: "",
@@ -72,7 +73,7 @@ describe("computeRoomCountdown", () => {
   });
 
   it("clamps a malformed row whose end precedes its start to a zero duration", () => {
-    const result = computeRoomCountdown("2026-09-01", "10:00:00", "09:00:00", new Date("2026-09-01T11:00:00"));
+    const result = computeRoomCountdown("2026-09-01", "10:00:00", "09:00:00", parseEventDateTime("2026-09-01", "11:00:00")!);
 
     expect(result).toEqual({
       startsIn: "",

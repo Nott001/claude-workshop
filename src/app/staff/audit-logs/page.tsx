@@ -12,7 +12,7 @@ import { Drawer } from "@/shared/components/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 import { TableToolbar } from "@/shared/components/table-toolbar";
 import { Pagination } from "@/shared/components/table-pagination";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import {
   Table,
   TableBody,
@@ -104,7 +104,9 @@ export default function StaffAuditLogsPage() {
   const [selected, setSelected] = useState<AuditLogWithActor | null>(null);
 
   if (pending) {
-    return <StaffPageState>Loading...</StaffPageState>;
+    // This table paginates at twenty, and is the one staff page tall enough for
+    // the difference to matter.
+    return <StaffPageSkeleton rows={20} />;
   }
 
   if (!allowed) return null;

@@ -6,6 +6,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
 import { communityLinkPartialSchema } from "@/modules/community/lib/community-schemas";
 import { deleteCommunityLink, updateCommunityLink } from "@/modules/community/lib/community-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const parsed = communityLinkPartialSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();
@@ -40,8 +41,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const supabase = getServiceClient();
 
   try {
-    const result = await deleteCommunityLink(supabase, Number(id));
-    return NextResponse.json(result);
+    await deleteCommunityLink(supabase, Number(id));
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
   }

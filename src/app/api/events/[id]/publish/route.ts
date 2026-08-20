@@ -16,8 +16,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   try {
     await loadEventOr403(supabase, Number(id), guard.user, "publish");
-    const result = await publishEvent(supabase, Number(id), { id: guard.user.id });
-    return NextResponse.json(result);
+    await publishEvent(supabase, Number(id), { id: guard.user.id });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
   }

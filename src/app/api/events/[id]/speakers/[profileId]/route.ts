@@ -32,7 +32,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       event_id: Number(id),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
   }

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { FeaturedEventCard } from "@/modules/events/components/featured-event-card";
 import type { LandingEvent } from "@/shared/types";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 afterEach(() => {
   cleanup();
@@ -26,7 +27,7 @@ const featuredEvent = (overrides: Partial<LandingEvent>): LandingEvent => ({
 describe("FeaturedEventCard", () => {
   it("renders the title and links to the speaker event detail page", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 8, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "08:00:00")!);
 
     render(<FeaturedEventCard event={featuredEvent({})} />);
 
@@ -37,7 +38,7 @@ describe("FeaturedEventCard", () => {
 
   it("shows the Live badge and Happening now eyebrow while the window covers now", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "12:00:00")!);
 
     render(<FeaturedEventCard event={featuredEvent({ start_time: "11:00", end_time: "13:00" })} />);
 
@@ -48,7 +49,7 @@ describe("FeaturedEventCard", () => {
 
   it("shows Up next and a countdown for a future event, with no Live badge", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 8, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "08:00:00")!);
 
     render(<FeaturedEventCard event={featuredEvent({})} />);
 
@@ -59,7 +60,7 @@ describe("FeaturedEventCard", () => {
 
   it("renders the formatted date, time range and venue fact rows", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 1, 8, 0, 0));
+    vi.setSystemTime(parseEventDateTime("2026-06-01", "08:00:00")!);
 
     render(<FeaturedEventCard event={featuredEvent({})} />);
 

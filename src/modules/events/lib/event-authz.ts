@@ -11,7 +11,8 @@ export type EventActor = { id: number };
 
 export type EventGuardUser = { id: number; role: UserRole };
 
-export type EventCapability = "edit" | "delete" | "publish" | "attendees" | "attendees_manage" | "survey" | "meeting_link";
+export type EventCapability =
+  "edit" | "delete" | "publish" | "attendees" | "attendees_manage" | "survey" | "meeting_link" | "photos";
 
 // Courses keeps its own copy: the module boundary forbids courses → events, so
 // the course-room guard (SPEC-05) cannot import this one.
@@ -42,6 +43,12 @@ const CAPABILITY_RULE: Record<EventCapability, { minRole: UserRole; assignment: 
   // facilitator may set the link for their own event and no other. It is one
   // column behind its own endpoint, not the edit form, which stays admin-only.
   meeting_link: { minRole: ROLES.FACILITATOR, assignment: true },
+  // Scoped exactly like meeting_link, and for the same reason: the photos of an
+  // event are held by whoever was in the room, and routing them through an admin
+  // is how an archive never gets posted. A facilitator may curate their own
+  // event's and no other. It writes only EVENT_PHOTO — never the event row — so
+  // it does not widen `edit`, which stays admin-only.
+  photos: { minRole: ROLES.FACILITATOR, assignment: true },
 };
 
 export async function loadEventOr403(

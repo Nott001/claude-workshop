@@ -167,6 +167,29 @@ export function buildEventImagePath(eventId: number, ext: string): string {
   return `events/${eventId}/cover.${ext}`;
 }
 
+/**
+ * One photo in an event's archive.
+ *
+ * Under the same `events/{id}/` prefix the cover uses, because that prefix is
+ * what the storage route reads to decide who may see the object — a photo of a
+ * published event is public for the same reason its cover is, and stays behind
+ * the facilitator floor while the event is a draft.
+ *
+ * A random name rather than a counter or a timestamp: several files are picked
+ * at once and uploaded concurrently, so anything derived from the clock or from
+ * the number of existing photos collides and one upload silently overwrites
+ * another. The key is also the table's unique column, which is what makes a
+ * retried upload idempotent instead of duplicated.
+ */
+export function buildEventPhotoPath(eventId: number, ext: string): string {
+  return `events/${eventId}/photos/${crypto.randomUUID()}.${ext}`;
+}
+
+/** The folder every photo of an event sits in, and the one a cleanup lists. */
+export function eventPhotoFolder(eventId: number): string {
+  return `events/${eventId}/photos`;
+}
+
 export function buildProfileImagePath(userId: number, ext: string): string {
   return `users/${userId}/profile_${Date.now()}.${ext}`;
 }

@@ -93,6 +93,7 @@ describe("StaffEventCoursePage", () => {
 
     render(<StaffEventCoursePage />);
 
-    expect(screen.getByText("Loading...")).toBeTruthy();
+    expect(screen.getByLabelText("Loading page")).toBeTruthy();
+    expect(screen.queryByText("Loading...")).toBeNull();
   });
 });

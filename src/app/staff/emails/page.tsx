@@ -9,7 +9,7 @@ import { LoadMoreButton } from "@/shared/components/load-more";
 import { Badge } from "@/shared/components/badge";
 import { Drawer } from "@/shared/components/drawer";
 import { TableToolbar } from "@/shared/components/table-toolbar";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import {
   Table,
   TableBody,
@@ -70,7 +70,7 @@ export default function StaffEmailsPage() {
   const [selected, setSelected] = useState<EmailLogWithUser | null>(null);
 
   if (pending) {
-    return <StaffPageState>Loading...</StaffPageState>;
+    return <StaffPageSkeleton rows={15} />;
   }
 
   if (!allowed) return null;

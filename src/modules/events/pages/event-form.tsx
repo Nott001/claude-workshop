@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ROLES } from "@/shared/lib/roles";
 import { Toast } from "@/shared/components/toast";
 import { BackLink } from "@/shared/components/back-link";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { postUpload } from "@/shared/integrations/storage/upload-client";
 import { EventForm, type EventPayload } from "@/modules/events/components/event-form";
@@ -24,7 +24,7 @@ export function EventFormPage() {
   const [toast, setToast] = useState<{ title: string; description?: string; type: "success" | "error" } | null>(null);
 
   if (pending) {
-    return <StaffPageState>Loading...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   if (!allowed) return null;

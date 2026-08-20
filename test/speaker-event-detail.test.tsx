@@ -53,7 +53,7 @@ describe("SpeakerEventDetailPage", () => {
 
     render(<SpeakerEventDetailPage />);
 
-    expect(screen.getByText("Loading event details...")).toBeTruthy();
+    expect(screen.getByLabelText("Loading event details")).toBeTruthy();
   });
 
   it("shows the failure message instead of the page when the event cannot load", () => {

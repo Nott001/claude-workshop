@@ -6,6 +6,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
 import { loadEventOr403, setMeetingLink } from "@/modules/events/lib/event-service";
 import { meetingUrlSchema } from "@/modules/events/lib/schemas";
+import { badRequest } from "@/shared/lib/api-response";
 
 /**
  * The one event column an assigned facilitator may write.
@@ -29,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   try {

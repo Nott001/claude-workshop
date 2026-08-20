@@ -3,6 +3,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import CourseRoomPage from "@/app/courses/[courseId]/room/page";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const { useCourseRoomAccess } = vi.hoisted(() => ({ useCourseRoomAccess: vi.fn() }));
 
@@ -104,7 +105,7 @@ describe("CourseRoomPage", () => {
   it("marks the live module and its speaker when the course has several speakers", () => {
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-09-01T10:00:00"));
+      vi.setSystemTime(parseEventDateTime("2026-09-01", "10:00:00")!);
       allowRoom({
         liveModule: {
           id: 1,

@@ -90,7 +90,7 @@ export async function updateModule(
   return mod;
 }
 
-export async function deleteModuleWithStorage(supabase: DbClient, id: number, actorId: number): Promise<{ success: true }> {
+export async function deleteModuleWithStorage(supabase: DbClient, id: number, actorId: number): Promise<void> {
   const mod = await courseDao.findModuleById(supabase, id);
   if (mod) {
     const lessons = await courseDao.findLessonsByModule(supabase, id);
@@ -113,6 +113,4 @@ export async function deleteModuleWithStorage(supabase: DbClient, id: number, ac
   await requireAuditEvent(supabase, actorId, "module.deleted", "module", id, {
     course_id: mod?.course_id,
   });
-
-  return { success: true };
 }

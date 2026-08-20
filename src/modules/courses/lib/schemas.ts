@@ -68,3 +68,11 @@ export const lessonSchema = z.object({
   module_id: z.coerce.number().int().positive().optional(),
   sequence_order: z.coerce.number().int().positive("Must be at least 1"),
 });
+
+/**
+ * The modules an event holds back until it finishes. An empty list is the
+ * clear form — it drops the event's release rather than storing an empty one.
+ */
+export const afterEventModulesSchema = z.object({
+  module_ids: z.array(z.coerce.number().int().positive()).max(100, "Too many modules in one release"),
+});

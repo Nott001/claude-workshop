@@ -46,7 +46,7 @@ describe("useEventList debounced search", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active");
     expect(result.current.search).toBe("");
   });
 
@@ -200,5 +200,172 @@ describe("useEventList debounced search", () => {
     expect(result.current.error).toBe("Failed to load events");
     expect(result.current.loadingMore).toBe(false);
     expect(result.current.events).toHaveLength(1);
+  });
+});
+
+/** A fetch that holds one URL substring open until the test releases it. */
+function gatedFetch(gateOn: string) {
+  let release: (() => void) | null = null;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fetchMock = vi.fn(async (url: string) => {
+    const params = new URL(String(url), "http://localhost").searchParams;
+    const page = params.get("page");
+    if (String(url).includes(gateOn)) await gate;
+    return {
+      ok: true,
+      json: async () => ({
+        data: [{ ...events[0], id: Number(page) * 100, title: `page ${page} of ${params.get("search") ?? "all"}` }],
+        total: 500,
+        page: Number(page),
+        limit: 50,
+      }),
+    };
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return { release: () => release!(), fetchMock };
+}
+
+describe("useEventList pagination against a changing query", () => {
+  // A page two in flight when a search landed used to append the old tab's rows
+  // underneath the new tab's, and left hasMore and total describing a listing
+  // nobody was looking at.
+  it("drops a page that arrives after the query it belonged to was replaced", async () => {
+    vi.useFakeTimers();
+    const { release } = gatedFetch("page=2");
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    let paging: Promise<void>;
+    act(() => {
+      paging = result.current.loadMore();
+    });
+
+    act(() => {
+      result.current.setSearch("Alpha");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(result.current.events.map((e) => e.title)).toEqual(["page 1 of Alpha"]);
+
+    await act(async () => {
+      release();
+      await paging!;
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // The stale page is discarded rather than appended under the search hits.
+    expect(result.current.events.map((e) => e.title)).toEqual(["page 1 of Alpha"]);
+    expect(result.current.loadingMore).toBe(false);
+
+    vi.useRealTimers();
+  });
+
+  // Advanced before the request and never rolled back, a failed page two left
+  // the cursor on two, so the retry asked for three and page two's rows were
+  // unreachable without reloading the page.
+  it("retries the page that failed rather than the one after it", async () => {
+    vi.useFakeTimers();
+    const urls: string[] = [];
+    let failNext = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        const page = new URL(String(url), "http://localhost").searchParams.get("page");
+        if (page === "2" && failNext) {
+          failNext = false;
+          return { ok: false };
+        }
+        return { ok: true, json: async () => ({ data: events, total: 500, page: Number(page), limit: 50 }) };
+      }),
+    );
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(result.current.error).toBe("Failed to load events");
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    const pages = urls.map((u) => new URL(u, "http://localhost").searchParams.get("page"));
+    expect(pages).toEqual(["1", "2", "2"]);
+
+    vi.useRealTimers();
+  });
+
+  it("ignores a second load while the first page is still in flight", async () => {
+    vi.useFakeTimers();
+    const { release, fetchMock } = gatedFetch("page=2");
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    let first: Promise<void>;
+    act(() => {
+      first = result.current.loadMore();
+      result.current.loadMore();
+    });
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("page=2"))).toHaveLength(1);
+
+    await act(async () => {
+      release();
+      await first!;
+    });
+
+    vi.useRealTimers();
+  });
+});
+
+describe("useEventList tab switching", () => {
+  // The rows a tab is replacing stay up and the refetch reports itself through
+  // `refreshing`, exactly as a search does — never through the skeleton, which
+  // is the cold start alone. The page-level guard against the empty-state flash
+  // this used to cause lives in events-page.test.tsx.
+  it("keeps the previous tab's rows on screen until the new tab answers", async () => {
+    vi.useFakeTimers();
+    const { release } = gatedFetch("filter=past");
+
+    const { result } = renderHook(() => useEventList());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.events).toHaveLength(1);
+
+    act(() => {
+      result.current.setActiveTab("completed");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.refreshing).toBe(true);
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => {
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.refreshing).toBe(false);
+    expect(result.current.events).toHaveLength(1);
+
+    vi.useRealTimers();
   });
 });

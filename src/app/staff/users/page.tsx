@@ -33,7 +33,7 @@ import {
 } from "@/shared/components/table";
 import { TableToolbar } from "@/shared/components/table-toolbar";
 import { Pagination } from "@/shared/components/table-pagination";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { Drawer } from "@/shared/components/drawer";
 import type { UserRole } from "@/shared/types";
 
@@ -287,7 +287,7 @@ export default function StaffUsersPage() {
   const lockReason = selected ? memberLockReason(selected, user?.id) : null;
 
   if (pending) {
-    return <StaffPageState>Loading...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   if (!isAdmin) return null;

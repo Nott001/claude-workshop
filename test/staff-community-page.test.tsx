@@ -52,7 +52,7 @@ function installFetch() {
     }
     if (method === "DELETE") {
       serverCards = serverCards.filter((c) => c.id !== id);
-      return { ok: true, json: async () => ({ success: true }) };
+      return { ok: true, json: async () => ({ ok: true }) };
     }
     return { ok: false, json: async () => ({}) };
   });

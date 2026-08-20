@@ -5,6 +5,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerProfileSchema } from "@/modules/events/lib/schemas";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(req: Request) {
   const guard = await requireMinRole(ROLES.FACILITATOR);
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = speakerProfileSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

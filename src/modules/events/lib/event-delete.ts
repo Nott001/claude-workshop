@@ -1,9 +1,10 @@
 import type { DbClient } from "@/shared/db/dao/types";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import * as eventDao from "@/modules/events/db/event.dao";
+import * as photoDao from "@/modules/events/db/event-photo.dao";
 import * as courseDao from "@/shared/db/dao/course.dao";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
-import type { StorageBucket } from "@/shared/integrations/storage/policy";
+import { eventPhotoFolder, type StorageBucket } from "@/shared/integrations/storage/policy";
 import { EventServiceError } from "@/modules/events/lib/event-errors";
 import type { EventActor } from "@/modules/events/lib/event-authz";
 
@@ -21,11 +22,31 @@ async function collectStoragePaths(
     course_videos: [],
   };
 
-  if (event?.cover_image_url) {
-    pathsByBucket.event_images.push(...(await listStorageFolder("event_images", `events/${event.id}`)));
-  }
-
   if (event?.id) {
+    // Not gated on `cover_image_url` any more. That test read as "does this
+    // event have images", and stopped being true the moment an event could hold
+    // photos without ever having had a cover — the whole folder was then left
+    // in the bucket.
+    //
+    // The cover and the photo folder are listed separately because
+    // `listStorageFolder` wraps `storage.list()`, which does not recurse: asked
+    // for `events/{id}` it reports `photos` as one entry and maps it to a path
+    // that deletes nothing. The photo keys come from the table instead, which
+    // is the authority on them, and the folder listing is still run so an object
+    // whose row never landed is collected too.
+    const [coverPaths, orphanPaths, recordedPaths] = await Promise.all([
+      listStorageFolder("event_images", `events/${event.id}`),
+      listStorageFolder("event_images", eventPhotoFolder(event.id)),
+      photoDao.listStoragePathsByEvent(supabase, event.id),
+    ]);
+
+    // `coverPaths` holds the `photos` directory entry itself, which is not an
+    // object; dropping it keeps the delete call free of a key that can never
+    // match. A Set because a recorded photo is also listed in the folder.
+    pathsByBucket.event_images.push(
+      ...new Set([...coverPaths.filter((path) => path !== eventPhotoFolder(event.id)), ...orphanPaths, ...recordedPaths]),
+    );
+
     const courseId = await courseDao.findCourseIdByEventId(supabase, event.id);
 
     if (courseId) {
@@ -48,7 +69,7 @@ async function collectStoragePaths(
   return pathsByBucket;
 }
 
-export async function deleteEvent(supabase: DbClient, id: number, actor: EventActor): Promise<{ success: true }> {
+export async function deleteEvent(supabase: DbClient, id: number, actor: EventActor): Promise<void> {
   const event = await eventDao.findById(supabase, id);
 
   const pathsByBucket = await collectStoragePaths(supabase, event);
@@ -72,6 +93,4 @@ export async function deleteEvent(supabase: DbClient, id: number, actor: EventAc
   await requireAuditEvent(supabase, actor.id, "event.deleted", "event", id, {
     title: event?.title,
   });
-
-  return { success: true };
 }

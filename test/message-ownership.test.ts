@@ -95,6 +95,7 @@ describe("DELETE /api/qa/message/[messageId]", () => {
     const res = await DELETE_QA(req(), msgParams);
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(requireModuleAccess).not.toHaveBeenCalled();
     expect(deleteQuestion).toHaveBeenCalledWith({}, 42, expect.objectContaining({ id: 5, role: ROLES.ATTENDEE }));
   });
@@ -330,6 +331,7 @@ describe("DELETE /api/speakers/[id]", () => {
     const res = await DELETE_SPEAKER(req(), speakerParams);
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 
   it("lets an admin delete anyone's profile", async () => {

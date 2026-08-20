@@ -15,6 +15,7 @@ vi.mock("@/modules/courses/lib/fetch-course-room-access", () => ({ fetchCourseRo
 vi.mock("@/shared/integrations/realtime", () => ({ subscribeToCourseHighlight, unsubscribe }));
 
 import { useCourseRoomAccess } from "@/modules/courses/lib/use-course-room-access";
+import { eventZoneDate, eventZoneTime } from "@/shared/lib/date-utils";
 
 const ATTENDEE = { id: 2, role: ROLES.ATTENDEE, full_name: "Bo", email: "bo@example.com", profile_image_url: null };
 const SPEAKER = { ...ATTENDEE, id: 3, role: ROLES.SPEAKER };
@@ -30,20 +31,15 @@ const EVENT = {
 };
 
 function liveWindow() {
+  // A window around "now" on the app timezone's calendar — the same clock
+  // findLiveModule reads. Built from the runtime's own zone it is only live on
+  // a machine that happens to sit in that zone, and never on CI.
   const now = new Date();
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(now);
-  dayEnd.setHours(23, 59, 59, 999);
-  const start = new Date(Math.max(now.getTime() - 5 * 60000, dayStart.getTime()));
-  const end = new Date(Math.min(now.getTime() + 5 * 60000, dayEnd.getTime()));
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const fmt = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  // The hook parses date+time as local wall clock (parseLocalDateTime), so the
-  // date must be the local one — toISOString is UTC and flips a day behind UTC
-  // around midnight, putting the "live" window on the wrong local day.
-  const fmtDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  return { date: fmtDate(now), start: fmt(start), end: fmt(end) };
+  const date = eventZoneDate(now);
+  const at = (offsetMs: number) => eventZoneTime(new Date(now.getTime() + offsetMs));
+  const clampLow = (time: string) => (time > eventZoneTime(now) ? "00:00:00" : time);
+  const clampHigh = (time: string) => (time < eventZoneTime(now) ? "23:59:59" : time);
+  return { date, start: clampLow(at(-5 * 60000)), end: clampHigh(at(5 * 60000)) };
 }
 
 function roomData(overrides: Record<string, unknown> = {}) {

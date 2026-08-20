@@ -204,6 +204,7 @@ describe("DELETE /api/lessons/[id]", () => {
     const res = await deleteLesson(new Request("https://app.test/api/lessons/11"), params);
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(storage.listStorageFolder).not.toHaveBeenCalled();
     expect(dao.deleteLesson).toHaveBeenCalledWith({}, 11);
   });

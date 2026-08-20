@@ -6,6 +6,7 @@ import { guardFailure } from "@/modules/auth/lib/guard-response";
 import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
 import { changeUserRole, deleteUserAccount } from "@/modules/user/lib/user-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 const updateSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
@@ -36,7 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();
@@ -65,7 +66,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ user
 
   try {
     await deleteUserAccount(supabase, targetId, guard.user);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
   }

@@ -8,6 +8,7 @@ import { requireCourseAccess, requireCourseDeleteAccess } from "@/modules/course
 import { courseSchema } from "@/modules/courses/lib/schemas";
 import { deleteFromStorage, listStorageFolder } from "@/shared/integrations/storage/service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -51,7 +52,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
   const body = await req.json();
   const parsed = courseSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const updated = await courseDao.updateCourse(supabase, Number(courseId), {
@@ -112,5 +113,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ cour
     name: courseInfo?.course_name,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

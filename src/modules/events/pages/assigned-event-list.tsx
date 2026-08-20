@@ -7,7 +7,7 @@ import type { FilterTab } from "@/modules/events/lib/use-event-list";
 import { useRoleGuard } from "@/modules/auth/lib/use-role-guard";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { TableToolbar } from "@/shared/components/table-toolbar";
-import { StaffPage, StaffPageHeader, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageHeader, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/select";
 
 const STATUS_OPTIONS: { value: FilterTab; label: string }[] = [
@@ -19,13 +19,13 @@ export function AssignedEventListPage() {
   // Exact facilitator, not min-role: an admin clears a facilitator minimum, but
   // the server hands admins every event and this page must not leak that.
   const { allowed, pending } = useRoleGuard(ROLES.FACILITATOR, { exactRole: true });
-  const { events, filteredEvents, loading, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
+  const { events, loading, refreshing, loadingMore, error, hasMore, loadMore, activeTab, setActiveTab, search, setSearch } =
     useEventList({
       upcomingIncludesDrafts: true,
     });
 
   if (pending) {
-    return <StaffPageState>Loading events...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   // Only blank the page when there is nothing to fall back on; a failed search
@@ -59,7 +59,7 @@ export function AssignedEventListPage() {
         <p className="mt-2 text-sm text-error">Failed to refresh events — showing last loaded results.</p>
       )}
 
-      <EventTable events={filteredEvents} showKiosk loading={loading} />
+      <EventTable events={events} showKiosk loading={loading || refreshing} />
 
       {hasMore && <LoadMoreButton loading={loadingMore} onLoadMore={loadMore} />}
     </StaffPage>

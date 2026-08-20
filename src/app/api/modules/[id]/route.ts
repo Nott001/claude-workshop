@@ -7,6 +7,7 @@ import { toErrorResponse } from "@/shared/lib/error-response";
 import { moduleSchema } from "@/modules/courses/lib/schemas";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
 import { deleteModuleWithStorage, setModuleLock, updateModule } from "@/modules/courses/lib/course-module-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -32,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = moduleSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();
@@ -59,7 +60,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   try {
     await deleteModuleWithStorage(supabase, Number(id), guard.user.id);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
   }

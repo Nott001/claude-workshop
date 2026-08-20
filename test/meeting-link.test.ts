@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { canSeeMeetingLink, meetingLinkState, redactMeetingUrl } from "@/modules/events/lib/meeting-link";
 import { meetingUrlSchema, eventSchema, eventPartialSchema } from "@/modules/events/lib/schemas";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 const LINK = "https://meet.google.com/abc-defg-hij";
 
@@ -10,7 +11,12 @@ const LINK = "https://meet.google.com/abc-defg-hij";
 // never a question of when the suite happens to run.
 const event = { event_type: "online", event_date: "2026-09-01", start_time: "09:00", meeting_url: LINK };
 
-const at = (iso: string) => vi.setSystemTime(new Date(iso));
+// "Now" is built in the app timezone, the clock the gate itself reads — a
+// runtime-local Date agrees with it only on a machine in that zone.
+const at = (iso: string) => {
+  const [date, time] = iso.split("T");
+  vi.setSystemTime(parseEventDateTime(date, time)!);
+};
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

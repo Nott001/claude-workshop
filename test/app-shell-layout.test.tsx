@@ -172,3 +172,48 @@ describe("AppShell assist button", () => {
     },
   );
 });
+
+// The role arrives a round trip after the first paint, so a staff page laid its
+// content out full-width and then jumped 72px right when the rail appeared —
+// measured at 0.047 of layout shift on every staff route, and the largest
+// single source on all seven of them.
+describe("AppShell while the session is still resolving", () => {
+  function renderPending(pathname: string) {
+    usePathname.mockReturnValue(pathname);
+    useSession.mockReturnValue({ user: null, loading: true, isSignedIn: false, signOut: vi.fn() });
+    return render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+  }
+
+  const main = (container: HTMLElement) => container.querySelector("main")!;
+
+  it("holds the rail's width open on a route that will have one", () => {
+    const { container } = renderPending("/staff/events");
+
+    expect(main(container).className).toContain("lg:pl-[72px]");
+  });
+
+  it("does the same for the speaker surfaces, which carry the same rail", () => {
+    const { container } = renderPending("/speaker/events");
+
+    expect(main(container).className).toContain("lg:pl-[72px]");
+  });
+
+  it("reserves nothing on a route that never has a rail", () => {
+    const { container } = renderPending("/events");
+
+    expect(main(container).className).not.toContain("lg:pl-[72px]");
+  });
+
+  // Reserving the space is not the same as rendering the rail. A visitor who
+  // reaches a staff URL without the role for it is redirected by that page's
+  // own guard, and must not be shown the console's navigation on the way.
+  it("does not render the staff navigation before the role says so", () => {
+    renderPending("/staff/events");
+
+    expect(StaffNavbar).not.toHaveBeenCalled();
+  });
+});

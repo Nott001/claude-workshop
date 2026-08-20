@@ -1,4 +1,4 @@
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 export interface RoomCountdown {
   startsIn: string;
@@ -36,12 +36,12 @@ export function computeRoomCountdown(
   endTime: string | null | undefined,
   now: Date,
 ): RoomCountdown {
-  const start = parseLocalDateTime(eventDate, startTime);
+  const start = parseEventDateTime(eventDate, startTime);
   if (!start) {
     return { startsIn: "", elapsed: "00:00:00", remaining: "--:--:--", started: false, ended: false };
   }
 
-  const end = endTime ? parseLocalDateTime(eventDate, endTime) : null;
+  const end = endTime ? parseEventDateTime(eventDate, endTime) : null;
   const started = now.getTime() >= start.getTime();
   const ended = !!end && now.getTime() >= end.getTime();
 

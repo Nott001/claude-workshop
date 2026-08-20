@@ -62,7 +62,7 @@ beforeEach(() => {
   listCommunityLinks.mockResolvedValue([card]);
   createCommunityLink.mockResolvedValue(card);
   updateCommunityLink.mockResolvedValue({ ...card, label: "Renamed" });
-  deleteCommunityLink.mockResolvedValue({ success: true });
+  deleteCommunityLink.mockResolvedValue(undefined);
 });
 
 describe("GET /api/community", () => {

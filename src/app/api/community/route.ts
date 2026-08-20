@@ -7,6 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
 import { communityLinkSchema } from "@/modules/community/lib/community-schemas";
 import { createCommunityLink, listCommunityLinks } from "@/modules/community/lib/community-service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(_req: Request) {
   const supabase = getServiceClient();
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = communityLinkSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

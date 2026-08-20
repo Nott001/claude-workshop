@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseLocalDateTime } from "@/shared/lib/date-utils";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 interface CountdownTimerProps {
   eventDate: string;
@@ -19,7 +19,7 @@ interface TimeLeft {
 }
 
 function computeTimeLeft(eventDate: string, startTime: string): TimeLeft | null {
-  const target = parseLocalDateTime(eventDate, startTime);
+  const target = parseEventDateTime(eventDate, startTime);
   if (!target) return null;
   const now = new Date();
   const diff = target.getTime() - now.getTime();

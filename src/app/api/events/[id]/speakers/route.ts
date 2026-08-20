@@ -8,6 +8,7 @@ import * as speakerDao from "@/shared/db/dao/speaker.dao";
 import { speakerAssignmentSchema } from "@/modules/events/lib/schemas";
 import { loadEventOr403 } from "@/modules/events/lib/event-service";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -42,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json();
   const parsed = speakerAssignmentSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   try {
@@ -58,7 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       event_id: Number(id),
     });
 
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     return toErrorResponse(err);
   }

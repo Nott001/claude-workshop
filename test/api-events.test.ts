@@ -97,7 +97,10 @@ describe("GET /api/events", () => {
   it("passes the caller's role to the query so listings can be filtered by it", async () => {
     await GET(new Request("https://app.test/api/events"));
 
-    expect(list).toHaveBeenCalledWith({}, { role: ROLES.ATTENDEE, userId: 5, filter: null, search: null, page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith(
+      {},
+      { role: ROLES.ATTENDEE, userId: 5, filter: null, statuses: null, search: null, page: 1, limit: 50 },
+    );
   });
 
   it("passes a null role for an anonymous caller rather than failing", async () => {
@@ -106,7 +109,10 @@ describe("GET /api/events", () => {
     const res = await GET(new Request("https://app.test/api/events"));
 
     expect(res.status).toBe(200);
-    expect(list).toHaveBeenCalledWith({}, { role: null, userId: null, filter: null, search: null, page: 1, limit: 50 });
+    expect(list).toHaveBeenCalledWith(
+      {},
+      { role: null, userId: null, filter: null, statuses: null, search: null, page: 1, limit: 50 },
+    );
   });
 
   it("forwards the filter query parameter", async () => {
@@ -114,7 +120,7 @@ describe("GET /api/events", () => {
 
     expect(list).toHaveBeenCalledWith(
       {},
-      { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming", search: null, page: 1, limit: 50 },
+      { role: ROLES.ATTENDEE, userId: 5, filter: "upcoming", statuses: null, search: null, page: 1, limit: 50 },
     );
   });
 
@@ -123,7 +129,7 @@ describe("GET /api/events", () => {
 
     expect(list).toHaveBeenCalledWith(
       {},
-      { role: ROLES.ATTENDEE, userId: 5, filter: null, search: "COBOL", page: 1, limit: 50 },
+      { role: ROLES.ATTENDEE, userId: 5, filter: null, statuses: null, search: "COBOL", page: 1, limit: 50 },
     );
   });
 
@@ -140,7 +146,7 @@ describe("GET /api/events", () => {
 
     expect(list).toHaveBeenCalledWith(
       {},
-      { role: ROLES.FACILITATOR, userId: 7, filter: null, search: null, page: 1, limit: 50 },
+      { role: ROLES.FACILITATOR, userId: 7, filter: null, statuses: null, search: null, page: 1, limit: 50 },
     );
   });
 

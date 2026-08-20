@@ -174,7 +174,7 @@ describe("events page search", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "summit" } });
     expect(urls).toHaveLength(1);
@@ -182,7 +182,7 @@ describe("events page search", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);
     });
-    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&search=summit");
+    expect(urls[urls.length - 1]).toBe("/api/events?page=1&limit=50&filter=upcoming&status=active&search=summit");
 
     vi.useRealTimers();
   });
@@ -261,14 +261,120 @@ describe("events page tabs", () => {
     }
   });
 
-  it("counts what the search matched, so a term hitting the other tab says so", async () => {
-    vi.useFakeTimers();
+  // The tabs were a client-side filter over one unscoped page of fifty, so a
+  // tab could only ever show the events of its kind that happened to fall in
+  // those fifty rows. Fifty upcoming events on the books and Completed rendered
+  // empty with the whole archive sitting behind it.
+  it("asks the server for each tab's own set rather than filtering one page", async () => {
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        url.includes("filter=past")
+          ? { data: [{ ...events[0], id: 99, title: "Archived summit", status: "complete" }], total: 1, page: 1, limit: 50 }
+          : { data: [], total: 0, page: 1, limit: 50 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<EventListPage />);
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Completed/ })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+
+    await waitFor(() => expect(screen.getByText("Archived summit")).toBeTruthy());
+    // Drafts are staff-only and have a tab of their own, so the archive asks
+    // for the two statuses that can legitimately read as finished.
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("filter=past"))).toBe(true);
+  });
+
+  it("counts the whole of the open tab, not the page that happens to be loaded", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
         ok: true,
-        json: async () => ({ data: [{ ...events[0], status: "complete" }], total: 1, page: 1, limit: 50 }),
+        json: async () => ({ data: [events[0]], total: 137, page: 1, limit: 50 }),
       })),
+    );
+
+    render(<EventListPage />);
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Upcoming/ }).textContent).toBe("Upcoming (137)"));
+
+    // The closed tab is a query nobody has run, so it carries no number rather
+    // than a stale or invented one.
+    expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed");
+  });
+});
+
+describe("events page card transitions", () => {
+  // Keyed on position, the accent gradient was a function of how many rows sat
+  // above a card. A search that removed those rows recoloured every card that
+  // had survived it — the cards standing still were the ones that moved.
+  it("keeps a surviving card's accent when a search removes the rows above it", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () =>
+          String(url).includes("search=Beta")
+            ? { data: [events[1]], total: 1, page: 1, limit: 50 }
+            : { data: events, total: events.length, page: 1, limit: 50 },
+      })),
+    );
+
+    const { container } = render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const accentOf = (title: string) =>
+      Array.from(container.querySelectorAll("a"))
+        .find((link) => link.textContent?.includes(title))
+        ?.querySelector('[class*="bg-gradient-to-br"]')?.className;
+    const before = accentOf("Beta");
+    expect(before).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "Beta" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.queryByText("Alpha")).toBeNull();
+    expect(accentOf("Beta")).toBe(before);
+
+    vi.useRealTimers();
+  });
+
+  it("staggers each card's entry, capped so a full page does not trickle in", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ ...events[0], id: 100 + i, title: `Event ${i}` }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: many, total: many.length, page: 1, limit: 50 }) })),
+    );
+
+    const { container } = render(<EventListPage />);
+    await waitFor(() => expect(screen.getByText("Event 0")).toBeTruthy());
+
+    const delays = Array.from(container.querySelectorAll<HTMLElement>("a.card-rise")).map((card) => card.style.animationDelay);
+    expect(delays.slice(0, 3)).toEqual(["0ms", "40ms", "80ms"]);
+    expect(delays[delays.length - 1]).toBe("320ms");
+  });
+
+  // The grid used to dim while a refetch was in flight, which meant fading it
+  // down and back up on every keystroke — a flicker across the whole page, and
+  // a worse one the slower the answer. The rows are now left alone entirely and
+  // the wait is reported beside the cursor instead.
+  it("leaves the rows untouched while a refetch is in flight", async () => {
+    vi.useFakeTimers();
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("search=")) await gate;
+        return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
+      }),
     );
 
     render(<EventListPage />);
@@ -276,10 +382,108 @@ describe("events page tabs", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    // Sitting on Upcoming with the only match filed under Completed.
-    expect(screen.getByRole("tab", { name: /Upcoming/ }).textContent).toBe("Upcoming (0)");
-    expect(screen.getByRole("tab", { name: /Completed/ }).textContent).toBe("Completed (1)");
+    const grid = () => screen.getByText("Alpha").closest("[aria-busy]") as HTMLElement;
+    const settled = grid().className;
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search events" }), { target: { value: "a" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(grid().getAttribute("aria-busy")).toBe("true");
+    expect(grid().className).toBe(settled);
+    expect(grid().className).not.toContain("opacity-");
+    // The wait shows on the search box, and only after a quarter second, so a
+    // fast answer never draws an indicator at all.
+    const spinner = document.querySelector(".animate-spin");
+    expect(spinner).toBeTruthy();
+    expect(spinner?.className).toContain("settle-in");
+
+    await act(async () => {
+      release!();
+    });
+
+    expect(grid().getAttribute("aria-busy")).toBe("false");
+    expect(document.querySelector(".animate-spin")).toBeNull();
 
     vi.useRealTimers();
+  });
+
+  // Typing only ever removes cards; the flicker was on the way back. Deleting a
+  // character re-matches events, React mounts their cards afresh, and a mount is
+  // what starts a CSS animation — so every backspace replayed the rise across
+  // the grid.
+  it("does not replay the entry animation when a search widens again", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const rows = String(url).includes("search=Alpha") ? [events[0]] : events;
+        return { ok: true, json: async () => ({ data: rows, total: rows.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    const { container } = render(<EventListPage />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // The list arriving is the one time the cards are animated in.
+    expect(container.querySelectorAll("a.card-rise")).toHaveLength(2);
+
+    const box = screen.getByRole("textbox", { name: "Search events" });
+    fireEvent.change(box, { target: { value: "Alpha" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.queryByText("Beta")).toBeNull();
+
+    fireEvent.change(box, { target: { value: "" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // Beta is back, and nothing on screen is carrying the entry animation.
+    expect(screen.getByText("Beta")).toBeTruthy();
+    expect(container.querySelectorAll("a.card-rise")).toHaveLength(0);
+
+    vi.useRealTimers();
+  });
+});
+
+describe("events page tab switching", () => {
+  // `activeTab` changed on the click while the rows on screen still belonged to
+  // the old tab, and a client-side re-filter over `status` failed every one of
+  // them at once — so the grid flashed "No events found." for a round trip
+  // before the archive arrived. The rows a tab is replacing now stay up dimmed,
+  // exactly as a search's do.
+  it("does not flash the empty state while the new tab is in flight", async () => {
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("filter=past")) await gate;
+        return { ok: true, json: async () => ({ data: events, total: events.length, page: 1, limit: 50 }) };
+      }),
+    );
+
+    render(<EventListPage />);
+    expect(await screen.findByText("Alpha")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Completed/ }));
+
+    // Mid-switch: the previous rows are still up, dimmed, and no empty state.
+    await waitFor(() => expect(screen.getByText("Alpha").closest("[aria-busy]")?.getAttribute("aria-busy")).toBe("true"));
+    expect(screen.queryByText("No events found.")).toBeNull();
+    expect(screen.queryByLabelText("Loading events")).toBeNull();
+
+    await act(async () => {
+      release!();
+    });
+
+    await waitFor(() => expect(screen.getByText("Alpha").closest("[aria-busy]")?.getAttribute("aria-busy")).toBe("false"));
   });
 });

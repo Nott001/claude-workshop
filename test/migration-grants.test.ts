@@ -51,6 +51,7 @@ describe("migration grants", () => {
       "00015_live_state_realtime.sql",
       "00016_live_state_replica_identity.sql",
       "00017_rename_audit_actions.sql",
+      "00018_event_photo.sql",
     ]);
   });
 

@@ -7,6 +7,7 @@ import * as courseDao from "@/shared/db/dao/course.dao";
 import { lessonSchema } from "@/modules/courses/lib/schemas";
 import { requireAuditEvent } from "@/modules/audit/lib/log-audit-event";
 import { requireModuleAccess } from "@/modules/courses/lib/course-access";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireMinRole(ROLES.SPEAKER);
@@ -22,7 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json();
   const parsed = lessonSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const lesson = await courseDao.createLesson(supabase, {

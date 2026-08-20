@@ -149,6 +149,8 @@ export type AuditAction =
   | "event.updated"
   | "event.deleted"
   | "event.published"
+  | "event.photo_added"
+  | "event.photo_removed"
   | "speaker.assigned"
   | "speaker.unassigned"
   | "user.invited"
@@ -229,6 +231,30 @@ export interface LandingEvent {
   event_type: EventMode;
   course_name: string | null;
   cover_image_url: string | null;
+}
+
+/**
+ * One photo from a finished event. `image_url` is the served path rather than
+ * the object key: every consumer of this type is rendering an `<img>`, and the
+ * key is only ever needed by the code that deletes the object.
+ */
+export interface EventPhoto {
+  id: number;
+  event_id: number;
+  image_url: string;
+  caption: string | null;
+  sequence_order: number;
+  created_at: string;
+}
+
+/**
+ * What a memory card shows without opening the event: the first few photos and
+ * how many there are in total. Separate from `EventPhoto[]` because the strip
+ * deliberately does not carry a whole archive per card.
+ */
+export interface EventPhotoPreview {
+  photos: EventPhoto[];
+  total: number;
 }
 
 /** A community group card shown on /community, managed by admins. */

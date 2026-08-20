@@ -7,6 +7,7 @@ import { getServiceClient } from "@/shared/db/client";
 import { toErrorResponse } from "@/shared/lib/error-response";
 import { qaMessageSchema } from "@/modules/courses/qa/lib/schemas";
 import { findQaModule, listQuestions, sendQuestion, setModuleLock } from "@/modules/courses/qa/lib/service";
+import { badRequest } from "@/shared/lib/api-response";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;
@@ -35,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ moduleI
   const body = await req.json();
   const parsed = qaMessageSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return badRequest(parsed.error);
   }
 
   const supabase = getServiceClient();

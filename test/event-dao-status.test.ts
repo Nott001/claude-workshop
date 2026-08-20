@@ -2,6 +2,7 @@ import { ROLES } from "@/shared/lib/roles";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import * as eventDao from "@/modules/events/db/event.dao";
 import type { DbClient } from "@/shared/db/dao/types";
+import { parseEventDateTime } from "@/shared/lib/date-utils";
 
 /**
  * The publish flow only ever moves an event to "active", so a past event never
@@ -91,7 +92,7 @@ describe("eventDao findByIds filter", () => {
   });
 
   it("filter=upcoming keeps only active events whose end edge is in the future", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;
@@ -105,7 +106,7 @@ describe("eventDao findByIds filter", () => {
   });
 
   it("filter=completed asks for active/complete rows inside the past bound", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;
@@ -158,7 +159,7 @@ describe("eventDao upcoming filter", () => {
   });
 
   it("list with filter=upcoming excludes today's already-finished events via the or() bound", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;
@@ -171,7 +172,7 @@ describe("eventDao upcoming filter", () => {
   });
 
   it("list with filter=past includes today's already-finished events via the or() bound", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;
@@ -195,7 +196,7 @@ describe("eventDao upcoming filter", () => {
   });
 
   it("getUpcomingForLanding excludes today's finished events via the or() bound", async () => {
-    vi.setSystemTime(new Date("2026-08-12T15:00:00"));
+    vi.setSystemTime(parseEventDateTime("2026-08-12", "15:00:00")!);
 
     const chain = chainStub({ data: [], error: null });
     const client = { from: vi.fn(() => chain) } as unknown as DbClient;

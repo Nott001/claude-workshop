@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { EventDetailHero } from "@/modules/events/components/event-detail-hero";
 import { useSpeakerEvent } from "@/modules/events/lib/use-speaker-event";
 import { BackLink } from "@/shared/components/back-link";
+import { SpeakerEventDetailSkeleton } from "@/modules/events/components/speaker-event-detail-skeleton";
 import { buttonStyles } from "@/shared/components/button";
 import { SectionCard } from "@/shared/components/section-card";
 import { StaffPage, StaffPageState } from "@/shared/components/staff-page";
@@ -17,7 +18,7 @@ export function SpeakerEventDetailPage() {
   const { event, loading, error } = useSpeakerEvent(eventId);
 
   if (loading) {
-    return <StaffPageState>Loading event details...</StaffPageState>;
+    return <SpeakerEventDetailSkeleton />;
   }
 
   if (error || !event) {

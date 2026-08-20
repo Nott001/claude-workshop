@@ -13,7 +13,7 @@ import type { EventWithCourse } from "@/modules/events/lib/types";
 import { BackLink } from "@/shared/components/back-link";
 import { Button, buttonStyles } from "@/shared/components/button";
 import { SectionCard } from "@/shared/components/section-card";
-import { StaffPage, StaffPageState } from "@/shared/components/staff-page";
+import { StaffPage, StaffPageState, StaffPageSkeleton } from "@/shared/components/staff-page";
 import { CoverImageUpload } from "@/modules/events/components/cover-image-upload";
 import { EditEventForm } from "@/modules/events/components/edit-event-form";
 import { AdminAttendeeManagement } from "@/modules/events/components/admin-attendee-management";
@@ -22,15 +22,21 @@ import { EventOverviewPanel } from "@/modules/events/components/event-overview-p
 import { MeetingLinkPanel } from "@/modules/events/components/meeting-link-panel";
 import { EventTeamPanel } from "@/modules/events/components/event-team-panel";
 import { EventCoursePanel } from "@/modules/events/components/event-course-panel";
+import { AfterEventModulesPanel } from "@/modules/courses/components/after-event-modules-panel";
 import { EventSurveyPanel } from "@/modules/events/components/event-survey-panel";
+import { EventPhotoManager } from "@/modules/events/components/event-photo-manager";
 
-type TabKey = "overview" | "details" | "team" | "course" | "attendees" | "surveys";
+type TabKey = "overview" | "details" | "team" | "course" | "photos" | "attendees" | "surveys";
 
 const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: "overview", label: "Overview" },
   { key: "details", label: "Details", adminOnly: true },
   { key: "team", label: "Team", adminOnly: true },
   { key: "course", label: "Course" },
+  // Not adminOnly. Photos are the one thing a facilitator holds that an admin
+  // does not — they were in the room — so the capability matrix admits an
+  // assigned facilitator and this tab has to be reachable by one.
+  { key: "photos", label: "Photos" },
   { key: "attendees", label: "Attendees", adminOnly: true },
   { key: "surveys", label: "Surveys", adminOnly: true },
 ];
@@ -67,7 +73,7 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(initialTab) ? initialTab : "overview");
 
   if (pending || loading) {
-    return <StaffPageState>Loading event...</StaffPageState>;
+    return <StaffPageSkeleton />;
   }
 
   if (error || !event) {
@@ -174,7 +180,14 @@ export function StaffEventDetailPage({ initialTab }: { initialTab?: string }) {
         <EventTeamPanel eventId={eventId} facilitatorIds={staffEvent.facilitator_ids ?? []} />
       )}
 
-      {currentTab === "course" && <EventCoursePanel eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />}
+      {currentTab === "course" && (
+        <div className="space-y-6">
+          <EventCoursePanel eventId={eventId} userRole={userRole} canManageCourse={canManageCourse} />
+          {canManageCourse && <AfterEventModulesPanel eventId={eventId} />}
+        </div>
+      )}
+
+      {currentTab === "photos" && <EventPhotoManager eventId={eventId} />}
 
       {currentTab === "attendees" && isAdmin && (
         <SectionCard title="Attendees" icon="group">

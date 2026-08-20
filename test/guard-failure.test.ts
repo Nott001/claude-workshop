@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "fs";
-import path from "path";
 import { guardFailure, forbidden, unauthenticated } from "@/modules/auth/lib/guard-response";
+import { apiResponders } from "./helpers/api-surface";
 
 // The inline refusal predates the unified guard idiom; the sweep below scans
 // every route file for it. Kept as a named regex so the positive-control test
@@ -75,29 +74,33 @@ describe("unauthenticated", () => {
 });
 
 describe("route guard refusals go through the helper", () => {
-  const API_DIR = path.resolve(__dirname, "../src/app/api");
+  const GUARD_HELPER = "modules/auth/lib/guard-response.ts";
+  const files = apiResponders();
 
-  function routeFiles(dir: string): string[] {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) return routeFiles(full);
-      return entry.name === "route.ts" ? [full] : [];
-    });
-  }
-
-  const files = routeFiles(API_DIR);
-
-  it("finds the route files it means to check", () => {
+  it("finds the routes and the helpers that answer for them", () => {
     expect(files.length).toBeGreaterThan(40);
+    expect(files.map((f) => f.rel)).toContain(GUARD_HELPER);
   });
 
   // The old form hard-coded the status next to `guard.error`, which is what let
   // 42 sites drift out of spec together. Centralising the mapping is the fix;
-  // this keeps a new route from reintroducing the inline version.
-  it("no route hard-codes a status alongside guard.error", () => {
-    const offenders = files.filter((f) => /guard\.error\s*\}[^)]*status:\s*\d+/.test(readFileSync(f, "utf8")));
+  // this keeps a new route from reintroducing the inline version. `guardFailure`
+  // itself is the one place the pairing belongs, and the tests above pin it.
+  it("nothing outside the helper hard-codes a status alongside guard.error", () => {
+    const offenders = files
+      .filter((f) => f.rel !== GUARD_HELPER)
+      .filter((f) => /guard\.error\s*\}[^)]*status:\s*\d+/.test(f.code));
 
-    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+    expect(offenders.map((f) => f.rel)).toEqual([]);
+  });
+
+  // One condition, one word. "Unauthorized" is the wording the middleware used
+  // to answer with, so a client detecting "needs to log in" had to know both,
+  // and which one it got depended on which check caught the request first.
+  it("answers a missing session in one word across every layer", () => {
+    const offenders = files.filter((f) => /"Unauthorized"/.test(f.code));
+
+    expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 
   it("matches a hand-rolled refusal so the sweep is not vacuous", () => {
@@ -113,8 +116,8 @@ describe("route guard refusals go through the helper", () => {
   it("no route hand-rolls a guard refusal outside the helpers", () => {
     // `\s*` lets prettier wrap the call across lines without silently evading
     // the sweep — the single-line form is the common one today.
-    const offenders = files.filter((f) => HAND_ROLLED_REFUSAL.test(readFileSync(f, "utf8")));
+    const offenders = files.filter((f) => f.rel.startsWith("app/api/")).filter((f) => HAND_ROLLED_REFUSAL.test(f.code));
 
-    expect(offenders.map((f) => path.relative(API_DIR, f))).toEqual([]);
+    expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 });

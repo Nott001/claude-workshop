@@ -5,6 +5,7 @@ import { EventCard } from "@/modules/events/components/event-card";
 import { FeaturedEventCard } from "@/modules/events/components/featured-event-card";
 import { featuredEvent } from "@/modules/events/lib/featured-event";
 import { useSpeakerEvents } from "@/modules/events/lib/use-speaker-events";
+import { EventListSkeleton } from "@/modules/events/components/event-list-skeleton";
 import type { SpeakerFilter } from "@/modules/events/lib/use-speaker-events";
 
 const FILTER_TABS: { key: SpeakerFilter; label: string }[] = [
@@ -62,9 +63,7 @@ export function SpeakerEventListPage() {
         )}
 
         {loading && events.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <div className="text-sm text-muted-fg">Loading engagements...</div>
-          </div>
+          <EventListSkeleton />
         ) : error && events.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-8">
             <p className="text-sm text-error">{error}</p>

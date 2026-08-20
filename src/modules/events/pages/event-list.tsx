@@ -1,7 +1,7 @@
 "use client";
 
 import { ROLES } from "@/shared/lib/roles";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { EventCard } from "@/modules/events/components/event-card";
@@ -9,37 +9,67 @@ import { EventListSkeleton } from "@/modules/events/components/event-list-skelet
 import { useSession } from "@/modules/auth/components/session-context";
 import { roleHome } from "@/modules/auth/lib/role-home";
 import { useEventList } from "@/modules/events/lib/use-event-list";
-import type { FilterTab } from "@/modules/events/lib/use-event-list";
+import type { EventListSeed, FilterTab } from "@/modules/events/lib/use-event-list";
 import { LoadMoreButton } from "@/shared/components/load-more";
 import { TableSearch } from "@/shared/components/table-toolbar";
+
+/** Cards enter in sequence rather than all at once, capped so a full page of
+ *  fifty does not spend two seconds arriving. */
+const MAX_STAGGERED_CARDS = 8;
+const STAGGER_MS = 40;
+
+function riseDelay(index: number): { animationDelay: string } {
+  return { animationDelay: `${Math.min(index, MAX_STAGGERED_CARDS) * STAGGER_MS}ms` };
+}
 
 const ATTENDEE_TABS: { key: FilterTab; label: string }[] = [
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
 ];
 
-export function EventListPage() {
+export function EventListPage({ initial }: { initial?: EventListSeed } = {}) {
   const router = useRouter();
   const { user } = useSession();
   const {
-    filteredEvents,
+    events,
     loading,
+    refreshing,
     loadingMore,
     error,
     hasMore,
     loadMore,
     activeTab,
     setActiveTab,
-    tabCounts,
+    total,
     search,
     setSearch,
-  } = useEventList();
+  } = useEventList({ initial });
 
   useEffect(() => {
     if (user && user.role !== ROLES.ATTENDEE) {
       router.replace(roleHome(user.role));
     }
   }, [user, router]);
+
+  /**
+   * The entry animation belongs to the list arriving, not to every set of rows
+   * that ever occupies it afterwards.
+   *
+   * Typing only ever removes cards, so the flicker was on the way back: deleting
+   * a character re-matches events, React mounts their cards afresh, and a mount
+   * is what starts a CSS animation — so every backspace replayed the rise across
+   * the grid, and coming back from a term that matched nothing replayed all of
+   * it. The first refetch ends the intro for good; from then on a search swaps
+   * rows in place with no motion at all, which is what makes it read as fast
+   * rather than busy.
+   *
+   * Latched where the reader touches the controls rather than derived from the
+   * refetch it causes: an effect watching `refreshing` would land a render mid
+   * animation and cut the intro short for anyone who typed straight away, and
+   * it is the interaction, not the request, that says the introduction is over.
+   */
+  const [introDone, setIntroDone] = useState(false);
+  const intro = !introDone;
 
   const term = search.trim();
   const tabLabel = ATTENDEE_TABS.find((tab) => tab.key === activeTab)?.label.toLowerCase() ?? "";
@@ -60,44 +90,72 @@ export function EventListPage() {
               key={tab.key}
               role="tab"
               aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              // The counts are of what the search matched, not of the whole
-              // calendar, so a term that hits the other tab says where it went
-              // rather than leaving this one blank and unexplained.
+              onClick={() => {
+                setIntroDone(true);
+                setActiveTab(tab.key);
+              }}
               className={cn(
                 "rounded-md px-2.5 py-1 text-xs transition-colors",
                 activeTab === tab.key ? "bg-muted font-medium text-fg" : "text-muted-fg hover:bg-muted hover:text-fg",
               )}
             >
-              {tab.label} ({tabCounts[tab.key]})
+              {/* Only the open tab carries a count, and it is the server's total
+                  for that tab rather than a tally of the page on screen. Each
+                  tab is its own query now, so a count beside the closed one
+                  would be a number nothing had been asked for. */}
+              {tab.label}
+              {activeTab === tab.key ? ` (${total})` : ""}
             </button>
           ))}
         </div>
 
-        <TableSearch value={search} onChange={setSearch} placeholder="Search events" className="sm:w-72" />
+        <TableSearch
+          value={search}
+          onChange={(value) => {
+            setIntroDone(true);
+            setSearch(value);
+          }}
+          placeholder="Search events"
+          busy={refreshing}
+          className="sm:w-72"
+        />
       </div>
 
       {/* A failed refetch that still has rows behind it warns in place instead
           of throwing the list away — the same reason the hook keeps them. */}
-      {error && filteredEvents.length > 0 && (
+      {error && events.length > 0 && (
         <p className="mb-3 text-sm text-error">Failed to refresh events — showing the last results loaded.</p>
       )}
 
+      {/* Stale-while-revalidate: a search keeps the rows it is replacing on
+          screen, rather than dropping to the skeleton and back. The skeleton is
+          only ever the cold start — swapping it in over results unmounts the
+          grid, and with a fixed six placeholders against a varying result count
+          it resized the page on every keystroke.
+
+          The rows are left entirely alone while the refetch runs, down to their
+          opacity. Dimming them and undimming them drew a flicker across the
+          whole page on every keystroke, and the slower the answer the more of
+          one — exactly backwards for a progress signal. `TableSearch` carries
+          the wait instead, in one small place beside the cursor, and `aria-busy`
+          still reports it here. */}
       {loading ? (
         <EventListSkeleton />
-      ) : error && filteredEvents.length === 0 ? (
+      ) : error && events.length === 0 ? (
         <div className="flex flex-1 items-center justify-center p-8">
           <p className="text-sm text-error">{error}</p>
         </div>
-      ) : filteredEvents.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center p-8">
+      ) : events.length === 0 ? (
+        <div aria-busy={refreshing} className="flex flex-1 items-center justify-center p-8">
           <p className="text-sm text-muted-fg">{term ? `No ${tabLabel} events match “${term}”.` : "No events found."}</p>
         </div>
       ) : (
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event, index) => (
+        <div aria-busy={refreshing} className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {events.map((event, index) => (
             <EventCard
               key={event.id}
+              className={intro ? "card-rise" : undefined}
+              style={intro ? riseDelay(index) : undefined}
               eventId={event.id}
               title={event.title}
               status={event.status}
@@ -107,7 +165,11 @@ export function EventListPage() {
               venueName={event.venue_name}
               eventType={event.event_type}
               coverImageUrl={event.cover_image_url}
-              accentIndex={index}
+              // The event's own id, not its position. Keyed on position, a card
+              // that survived a search changed colour under the reader because
+              // the rows above it had gone — the one thing on screen that was
+              // supposed to be standing still.
+              accentIndex={event.id}
             />
           ))}
         </div>

@@ -9,16 +9,30 @@ interface TableSearchProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /**
+   * A refetch for this term is in flight.
+   *
+   * The indicator sits here rather than on the results because the results are
+   * what the reader is looking at: dimming a grid of cards and undimming it
+   * again on every keystroke is a flicker across the whole page, where a
+   * 16-pixel spinner beside the cursor is a progress signal. It is also held
+   * back a quarter second, so a search the server answers quickly never draws
+   * one at all.
+   */
+  busy?: boolean;
 }
 
-function TableSearch({ value, onChange, placeholder, className }: TableSearchProps) {
+function TableSearch({ value, onChange, placeholder, className, busy }: TableSearchProps) {
   return (
     <div className={cn("relative", className)}>
       <span
         aria-hidden
-        className="material-symbols-rounded pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base text-muted-fg"
+        className={cn(
+          "material-symbols-rounded pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base",
+          busy ? "settle-in animate-spin text-brand" : "text-muted-fg",
+        )}
       >
-        search
+        {busy ? "progress_activity" : "search"}
       </span>
       <Input
         type="text"
